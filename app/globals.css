@@ -1,3 +1,4 @@
+@config "../tailwind.config.ts";
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -76,6 +77,27 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Themed defaults (overwritten by ThemeProvider at runtime) */
+  --color-page-bg: #f3f4f6;
+  --color-section-bg: #ffffff;
+  --color-surface-bg: #ffffff;
+  --color-surface-border: rgba(15, 23, 42, 0.06);
+
+  --color-text-main: #0f172a;
+  --color-text-muted: #6b7280;
+
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-soft-bg: rgba(37, 99, 235, 0.12);
+  --color-brand-soft-text: #2563eb;
+
+  --shadow-card: 0 18px 30px rgba(15, 23, 42, 0.08);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --font-family-base: var(--font-geist-sans, system-ui);
 }
 
 .dark {
@@ -114,9 +136,10 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-surface-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-page text-text-main;
+    font-family: var(--font-family-base, var(--font-geist-sans, system-ui, sans-serif));
   }
 }
