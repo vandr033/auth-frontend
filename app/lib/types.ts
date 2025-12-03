@@ -1,10 +1,11 @@
 
 export interface Category {
   id: string;
+  key: string;
   name: string;
-  slug: string;
-  icon: React.ComponentType<{ className?: string }>;
   description: string;
+  // icon: React.ComponentType<{ className?: string }>;
+  icon_name: string;
 }
 
 export interface Salon {

@@ -1,5 +1,6 @@
 ﻿"use client";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { Rating, RatingButton } from "@/components/ui/shadcn-io/rating";
 import { Button } from "@/components/ui/button";
 import {
@@ -240,7 +241,7 @@ export default function BarberShopPage() {
 
   return (
     <main className="min-h-screen bg-page text-text-main">
-      <section className="relative isolate overflow-hidden text-white">
+      <section id="home" className="relative isolate overflow-hidden text-white">
         <div
           className="absolute inset-0"
           style={{
@@ -275,6 +276,61 @@ export default function BarberShopPage() {
             <Button className="min-w-[160px] border border-white/60 bg-white/10 px-5 py-3 text-base font-semibold text-white transition hover:bg-white/25">
               Book a visit
             </Button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="how-it-works"
+        className="bg-section py-12 shadow-inner sm:py-16"
+      >
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 sm:px-6">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-text-muted">
+              How it works
+            </p>
+            <h2 className="text-3xl font-semibold text-text-main sm:text-4xl">
+              Booking made simple
+            </h2>
+            <p className="mt-2 text-text-muted">
+              Choose your service, pick your barber, and confirm your time in just a few taps.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              {
+                title: "Pick a service",
+                description:
+                  "Browse our most popular cuts, shaves, and treatments with clear pricing.",
+              },
+              {
+                title: "Choose your time",
+                description:
+                  "See real-time availability and select the slot that fits your schedule.",
+              },
+              {
+                title: "Confirm & show up",
+                description:
+                  "Get reminders automatically and arrive to a chair ready for you.",
+              },
+            ].map((step, index) => (
+              <Card
+                key={step.title}
+                className="h-full rounded-lg border-surface-border bg-surface shadow-card"
+              >
+                <CardHeader className="flex flex-row items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft-bg text-brand-soft-text">
+                    {index + 1}
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-text-main">
+                      {step.title}
+                    </CardTitle>
+                    <p className="text-sm text-text-muted">{step.description}</p>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
@@ -502,6 +558,38 @@ export default function BarberShopPage() {
                 ))}
               </CardContent>
             </Card>
+          </div>
+        </section>
+
+        <section
+          id="for-businesses"
+          className="rounded-lg border border-surface-border bg-brand-soft-bg p-6 text-brand-soft-text shadow-card"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand">
+                For businesses
+              </p>
+              <h3 className="text-2xl font-semibold text-text-main">
+                Want a booking page like this for your shop?
+              </h3>
+              <p className="text-sm text-text-muted">
+                Create your account, publish services, and start accepting appointments online in minutes.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link href="/auth/register">
+                <PrimaryButton className="w-full sm:w-auto">Create an account</PrimaryButton>
+              </Link>
+              <Link href="/auth/sign-in">
+                <Button
+                  variant="outline"
+                  className="w-full border-brand/30 bg-white px-4 py-2 text-brand hover:border-brand hover:text-brand sm:w-auto"
+                >
+                  Sign in instead
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
 

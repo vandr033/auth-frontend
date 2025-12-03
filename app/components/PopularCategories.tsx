@@ -1,8 +1,32 @@
 
-import { popularCategories } from '@/app/lib/mock-data';
+'use client';
 import { CategoryCard } from './CategoryCard';
+import { useState } from 'react';
+import { useEffect } from 'react';
+import { useApi } from '../hooks/useApi';
+import { MensajeApi } from '@/types/api';
+import { Category } from '@/app/lib/types';
+
+
+
 
 export function PopularCategories() {
+const [popularCategories, setPopularCategories] = useState<Category[]>([]);
+const api = useApi();
+useEffect(() => {
+  const fetchPopularCategories = async () => {
+    try {
+      const response: MensajeApi<Category[]> = await api.get('/home/categories');
+      const data = response.data;
+      setPopularCategories(data);
+    } catch (error) {
+      console.error('Error fetching popular categories:', error);
+    }
+  };
+
+  fetchPopularCategories();
+}, []);
+  
   return (
     <section className="py-16 sm:py-24 bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4">

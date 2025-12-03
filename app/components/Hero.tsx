@@ -3,7 +3,7 @@ import { SearchForm } from './SearchForm';
 
 export function Hero() {
   return (
-    <section className="relative h-[60vh] min-h-[450px] w-full">
+    <section id="home" className="relative h-[60vh] min-h-[450px] w-full">
       {/* Background Image with Overlay */}
       <div
         className="absolute inset-0 bg-cover bg-center"

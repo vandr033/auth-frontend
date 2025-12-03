@@ -1,35 +1,34 @@
 
 import { Category, Salon, Service } from './types';
-import { Scissors, Brush, Sparkles, Hand, Cut, PersonStanding } from 'lucide-react';
 
 // Mock data for popular categories
 export const popularCategories: Category[] = [
   {
     id: '1',
     name: 'Barber',
-    slug: 'barber',
-    icon: Scissors,
+    key : 'barber',
+    icon_name: 'Scissors',
     description: 'Classic cuts, shaves, and beard trims.',
   },
   {
     id: '2',
     name: 'Hair Salon',
-    slug: 'hair-salon',
-    icon: Brush,
+    key : 'hair-salon',
+    icon_name: 'Brush',
     description: 'Styling, coloring, and treatments.',
   },
   {
     id: '3',
     name: 'Nails',
-    slug: 'nails',
-    icon: Hand,
+    key : 'nails',
+    icon_name: 'Hand',
     description: 'Manicures, pedicures, and nail art.',
   },
   {
     id: '4',
     name: 'Beauty',
-    slug: 'beauty',
-    icon: Sparkles,
+    key : 'beauty',
+    icon_name: 'Sparkles',
     description: 'Facials, waxing, and makeup services.',
   },
 ];
