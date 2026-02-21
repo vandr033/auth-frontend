@@ -13,6 +13,7 @@ import {
   type ComputedTheme,
   computeTheme,
 } from "@/utils/themepicker";
+import { mainSiteThemeConfig } from "./mainSiteTheme";
 
 /**
  * Developer guide for theming:
@@ -20,24 +21,19 @@ import {
  * - Consume `useTheme()` anywhere you need live config or to build settings panels.
  * - Favor Tailwind classes that map to our CSS vars (bg-page, text-text-main, bg-brand, etc.)
  *   instead of hard-coded colors to keep tenant themes consistent.
+ * 
+ * NOTE: The main site uses mainSiteThemeConfig by default.
+ * Shop pages override this via ShopContext with their own theme.
  */
 
-export const defaultConfig: ThemeConfig = {
-  brandColor: "#2563eb",
-  pageBackgroundColor: "#f3f4f6",
-  pageBackgroundPreset: "auto",
-  cardsElevated: true,
-  cornerRadius: "md",
-  fontPreset: "modern",
-};
+// Use main site theme as the app-wide default
+export const defaultConfig: ThemeConfig = mainSiteThemeConfig;
 
 type ThemeContextValue = {
   config: ThemeConfig;
   theme: ComputedTheme;
   setThemeConfig: React.Dispatch<React.SetStateAction<ThemeConfig>>;
 };
-
-const storageKey = "barber-theme";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
@@ -55,20 +51,6 @@ export function ThemeProvider({
     ...(initialConfig ?? {}),
   }));
 
-  // Load user preferences on mount.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Partial<ThemeConfig>;
-        setConfig((prev) => ({ ...prev, ...parsed }));
-      }
-    } catch (error) {
-      console.warn("Unable to load saved theme config", error);
-    }
-  }, []);
-
   // Re-apply overrides if the initialConfig prop changes at runtime (e.g., per-tenant defaults).
   useEffect(() => {
     if (!initialConfig) return;
@@ -83,14 +65,6 @@ export function ThemeProvider({
       Object.entries(theme.tokens.cssVars).forEach(([key, value]) => {
         root.style.setProperty(key, value);
       });
-    }
-
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem(storageKey, JSON.stringify(config));
-      } catch (error) {
-        console.warn("Unable to persist theme config", error);
-      }
     }
   }, [config, theme]);
 

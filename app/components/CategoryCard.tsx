@@ -1,9 +1,7 @@
-
 import * as Icons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Category } from "@/app/lib/types";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface CategoryCardProps {
   category: Category;
@@ -27,16 +25,16 @@ const getIcon = (iconName?: string): LucideIcon => {
 export function CategoryCard({ category }: CategoryCardProps) {
   const Icon = getIcon((category as any).icon_name ?? (category as any).icon);
   return (
-    <Card className="group transform transition-transform duration-300 hover:-translate-y-2 hover:shadow-xl">
-      <CardHeader className="items-center">
-        <div className="rounded-full bg-gray-100 p-4 transition-colors duration-300 group-hover:bg-blue-100 dark:bg-gray-800 dark:group-hover:bg-blue-900">
-          <Icon className="h-8 w-8 text-gray-600 transition-colors duration-300 group-hover:text-blue-600 dark:text-gray-400 dark:group-hover:text-blue-400" />
-        </div>
-      </CardHeader>
-      <CardContent className="text-center">
-        <CardTitle className="text-lg font-semibold">{category.name}</CardTitle>
-        <CardDescription className="mt-2 text-sm">{category.description}</CardDescription>
-      </CardContent>
-    </Card>
+    <div className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10 text-brand transition-all duration-300 group-hover:scale-110 group-hover:bg-brand/20">
+        <Icon className="h-6 w-6" />
+      </div>
+      <h3 className="font-heading text-base font-bold text-slate-900 dark:text-white">
+        {category.name}
+      </h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
+        {category.description}
+      </p>
+    </div>
   );
 }

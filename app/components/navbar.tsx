@@ -1,26 +1,21 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, UserRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Menu, X, Sun, Moon, Scissors } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/theme/ThemeContext";
 
-const anchorLinks = [
-  { anchor: "#home", label: "Home" },
-  { anchor: "#how-it-works", label: "How It Works" },
-  { anchor: "#for-businesses", label: "For Businesses" },
+const navLinks = [
+  { href: "/#home", label: "Home" },
+  { href: "/#how-it-works", label: "How It Works" },
+  { href: "/#for-businesses", label: "For Businesses" },
 ];
-
-const reserveHref = "/barber-shop";
 
 const getInitials = (name?: string | null, email?: string | null) => {
   if (name && name.length > 0) return name.charAt(0).toUpperCase();
@@ -31,59 +26,31 @@ const getInitials = (name?: string | null, email?: string | null) => {
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme } = useTheme();
   const { isAuthenticated, user, signOut, loading } = useAuth();
 
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [dark, setDark] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const basePath = pathname.startsWith("/barber-shop") ? "/barber-shop" : "/";
-  const isBarberShop = basePath === "/barber-shop";
-
-  const navLinks = useMemo(
-    () =>
-      anchorLinks.map((link) => ({
-        ...link,
-        href: `${basePath}${link.anchor}`,
-      })),
-    [basePath],
-  );
-
-  const brand = useMemo(
-    () =>
-      isBarberShop
-        ? {
-            name: "La Creme",
-            // Mock brand/logo pulled from the current theme (placeholder until API-driven).
-            logo: "https://cdn-icons-png.flaticon.com/512/7641/7641727.png",
-            background: theme?.tokens.surfaceBg,
-            border: theme?.tokens.surfaceBorder,
-          }
-        : {
-            name: "clip-boook",
-            logo: "https://cdn-icons-png.flaticon.com/512/427/427735.png",
-            background: "#ffffff",
-            border: "rgba(226,232,240,0.9)",
-          },
-    [isBarberShop, theme],
-  );
-
-  const isActive = (href: string) => {
-    const cleanHref = href.split("#")[0];
-    return cleanHref === pathname;
-  };
-
-  const linkClasses = (href: string) =>
-    cn(
-      "relative text-sm font-semibold text-text-muted transition hover:text-text-main",
-      isActive(href) &&
-        "text-brand after:absolute after:left-0 after:-bottom-2 after:h-0.5 after:w-full after:bg-brand after:content-['']",
-    );
-
+  // Track scroll for backdrop effect
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Close user menu on route change
+  useEffect(() => {
+    setUserMenuOpen(false);
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false);
       }
     };
@@ -91,234 +58,249 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Dark mode toggle
   useEffect(() => {
-    setUserMenuOpen(false);
-  }, [pathname]);
+    const stored = localStorage.getItem("theme");
+    if (stored === "dark") {
+      setDark(true);
+      document.documentElement.classList.add("dark");
+    }
+  }, []);
+
+  const toggleDark = () => {
+    const next = !dark;
+    setDark(next);
+    if (next) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
 
   const handleSignOut = async () => {
     try {
       await signOut();
       setUserMenuOpen(false);
-      router.push(basePath);
+      router.push("/");
     } catch (error) {
       console.error("Sign out failed", error);
     }
   };
 
-  const AuthActions = () => {
-    if (loading) {
-      return (
-        <div className="h-10 w-28 animate-pulse rounded-md bg-surface-border/60" />
-      );
-    }
-
-    if (!isAuthenticated) {
-      return (
-        <Button
-          onClick={() => router.push("/auth/sign-in")}
-          className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-brand-hover"
-        >
-          Sign in / Create an account
-        </Button>
-      );
-    }
-
-    return (
-      <div ref={menuRef} className="relative">
-        <button
-          type="button"
-          onClick={() => setUserMenuOpen((prev) => !prev)}
-          className="flex items-center gap-2 rounded-full border border-surface-border bg-surface px-2 py-1 shadow-sm transition hover:border-brand"
-        >
-          <Avatar className="h-10 w-10 border border-surface-border">
-            <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? "User"} />
-            <AvatarFallback>{getInitials(user?.name, user?.email)}</AvatarFallback>
-          </Avatar>
-          <div className="hidden text-left sm:block">
-            <p className="text-sm font-semibold text-text-main line-clamp-1">
-              {user?.name || user?.email || "User"}
-            </p>
-            {user?.email && (
-              <p className="text-xs text-text-muted line-clamp-1">{user.email}</p>
-            )}
-          </div>
-        </button>
-        {userMenuOpen && (
-          <div className="absolute right-0 mt-3 w-56 rounded-md border border-surface-border bg-surface shadow-card">
-            <Link
-              href="/me/profile"
-              className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
-            >
-              My Profile
-            </Link>
-            <Link
-              href="/me/appointments"
-              className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
-            >
-              My Appointments
-            </Link>
-            <Separator className="border-surface-border" />
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-brand transition hover:bg-brand-soft-bg hover:text-brand"
-            >
-              Sign out
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 w-full border-b shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80",
-        isBarberShop ? "bg-surface/95 border-surface-border" : "bg-white/95 border-slate-200",
-      )}
-      style={
-        isBarberShop
-          ? {
-              backgroundColor: brand.background ?? undefined,
-              borderColor: brand.border ?? undefined,
-            }
-          : undefined
-      }
-    >
-      <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href={basePath} className="flex items-center gap-3">
-          <Image
-            src={brand.logo}
-            alt={`${brand.name} logo`}
-            width={32}
-            height={32}
-            priority
-          />
-          <span
-            className={cn(
-              "text-lg font-semibold",
-              isBarberShop ? "text-text-main" : "text-slate-900",
-            )}
-            style={isBarberShop && theme ? { color: theme.tokens.brand } : undefined}
-          >
-            {brand.name}
-          </span>
-        </Link>
-
-        <nav className="hidden items-center gap-8 md:flex">
-          {navLinks.map((link) => (
-            <Link key={link.href} href={link.href} className={linkClasses(link.href)}>
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="hidden items-center gap-3 md:flex">
-          <Link href={reserveHref} className="inline-flex">
-            <Button className="rounded-md bg-brand px-6 py-2 text-white shadow-card transition hover:bg-brand-hover">
-              Reserve Now
-            </Button>
+    <>
+      <header
+        className={cn(
+          "fixed top-0 z-50 w-full transition-all duration-300",
+          scrolled
+            ? "border-b border-slate-200/60 bg-white/80 shadow-sm backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/80"
+            : "bg-transparent",
+        )}
+      >
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">
+              <Scissors className="h-4.5 w-4.5" />
+            </div>
+            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+              ClipBook
+            </span>
           </Link>
-          <AuthActions />
-        </div>
 
-        <div className="flex items-center gap-2 md:hidden">
-          <Link href={reserveHref} className="inline-flex">
-            <Button className="rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover">
-              Reserve
-            </Button>
-          </Link>
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 border border-surface-border text-text-main"
+          {/* Desktop nav */}
+          <nav className="hidden items-center gap-8 md:flex">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="group relative text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="right"
-              className="w-80 border-l border-surface-border bg-surface"
+                {link.label}
+                <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-brand transition-all duration-300 group-hover:w-full" />
+              </Link>
+            ))}
+          </nav>
+
+          {/* Desktop right */}
+          <div className="hidden items-center gap-3 md:flex">
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggleDark}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+              aria-label="Toggle dark mode"
             >
-              <div className="flex flex-col gap-4 py-6 text-base">
-                <div className="flex items-center gap-3 rounded-md border border-surface-border bg-section px-3 py-3">
-                  <Avatar className="h-10 w-10 border border-surface-border">
+              {dark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
+            </button>
+
+            {/* Auth */}
+            {loading ? (
+              <div className="h-9 w-9 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700" />
+            ) : !isAuthenticated ? (
+              <Button
+                onClick={() => router.push("/auth/sign-in")}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-hover hover:shadow-md"
+              >
+                Sign in
+              </Button>
+            ) : (
+              <div ref={menuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-200 transition-colors hover:border-brand dark:border-slate-700"
+                >
+                  <Avatar className="h-8 w-8">
                     <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? "User"} />
-                    <AvatarFallback>{getInitials(user?.name, user?.email)}</AvatarFallback>
+                    <AvatarFallback className="bg-brand text-white text-xs font-semibold">
+                      {getInitials(user?.name, user?.email)}
+                    </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="font-semibold text-text-main">
-                      {user?.name || user?.email || "Guest"}
-                    </p>
-                    <p className="text-sm text-text-muted">
-                      {isAuthenticated ? "Signed in" : "Not signed in"}
-                    </p>
-                  </div>
-                </div>
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "text-text-muted transition hover:text-text-main",
-                      isActive(link.href) && "text-brand",
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-                <Separator className="border-surface-border" />
-                <Link href={reserveHref} onClick={() => setOpen(false)}>
-                  <Button className="w-full rounded-md bg-brand px-4 py-2 text-white shadow-card hover:bg-brand-hover">
-                    Reserve Now
-                  </Button>
-                </Link>
-                {!isAuthenticated ? (
-                  <Button
-                    variant="outline"
-                    className="w-full border-surface-border text-text-main"
-                    onClick={() => {
-                      setOpen(false);
-                      router.push("/auth/sign-in");
-                    }}
-                  >
-                    Sign in / Create an account
-                  </Button>
-                ) : (
-                  <>
-                    <Link href="/me/profile" onClick={() => setOpen(false)}>
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <UserRound className="h-4 w-4" />
-                        My Profile
-                      </Button>
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                    <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                        {user?.name || "User"}
+                      </p>
+                      {user?.email && (
+                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                      )}
+                    </div>
+                    <Link
+                      href="/me/profile"
+                      className="block px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      My Profile
                     </Link>
-                    <Link href="/me/appointments" onClick={() => setOpen(false)}>
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <span className="h-2 w-2 rounded-full bg-brand" />
-                        My Appointments
-                      </Button>
+                    <Link
+                      href="/me/appointments"
+                      className="block px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      My Appointments
                     </Link>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-brand hover:bg-brand-soft-bg hover:text-brand"
-                      onClick={() => {
-                        setOpen(false);
-                        void handleSignOut();
-                      }}
+                    <Separator />
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="w-full px-4 py-2.5 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30"
                     >
                       Sign out
-                    </Button>
-                  </>
+                    </button>
+                  </div>
                 )}
               </div>
-            </SheetContent>
-          </Sheet>
+            )}
+          </div>
+
+          {/* Mobile hamburger */}
+          <div className="flex items-center gap-2 md:hidden">
+            <button
+              onClick={toggleDark}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              aria-label="Toggle dark mode"
+            >
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300"
+              aria-label="Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="fixed right-0 top-0 z-50 h-full w-72 border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+            <div className="flex h-16 items-center justify-between border-b border-slate-100 px-4 dark:border-slate-800">
+              <span className="font-bold text-slate-900 dark:text-white">Menu</span>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-1 p-4">
+              {isAuthenticated && (
+                <div className="mb-3 flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user?.image ?? undefined} />
+                    <AvatarFallback className="bg-brand text-white text-xs font-semibold">
+                      {getInitials(user?.name, user?.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate dark:text-white">
+                      {user?.name || "User"}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">{user?.email || ""}</p>
+                  </div>
+                </div>
+              )}
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <Separator className="my-2" />
+              {!isAuthenticated ? (
+                <Button
+                  onClick={() => {
+                    setMobileOpen(false);
+                    router.push("/auth/sign-in");
+                  }}
+                  className="w-full bg-brand text-white hover:bg-brand-hover"
+                >
+                  Sign in / Register
+                </Button>
+              ) : (
+                <>
+                  <Link
+                    href="/me/profile"
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    My Profile
+                  </Link>
+                  <Link
+                    href="/me/appointments"
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    My Appointments
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      void handleSignOut();
+                    }}
+                    className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400"
+                  >
+                    Sign out
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }

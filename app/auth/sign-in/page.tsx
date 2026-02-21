@@ -1,245 +1,250 @@
 "use client";
 
+import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
-import { cn } from "@/lib/utils";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { Mail, Phone, ArrowLeft, Loader2, KeyRound, Sparkles } from "lucide-react";
 
-const toPhoneNumber = (prefix: string, phone: string) =>
-  `+${prefix.replace(/\D/g, "")}${phone.replace(/\D/g, "")}`;
+type Method = null | "email" | "phone";
+type Step = "method" | "otp";
 
 export default function SignInPage() {
   const router = useRouter();
-  const { signInWithEmail, sendPhoneOtp, verifyPhoneOtp, loading } = useAuth();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/";
+  const {
+    sendLoginEmailOtp,
+    verifyLoginEmailOtp,
+    sendPhoneOtp,
+    verifyPhoneOtp,
+    error,
+  } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<"email" | "phone">("email");
+  const [method, setMethod] = useState<Method>(null);
+  const [step, setStep] = useState<Step>("method");
+
+  // Email state
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [phonePrefix, setPhonePrefix] = useState("1");
-  const [phone, setPhone] = useState("");
+
+  // Phone state
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  // OTP state
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
-  const phoneNumber = useMemo(
-    () => toPhoneNumber(phonePrefix, phone),
-    [phonePrefix, phone],
-  );
+  const handleSelectMethod = (m: Method) => {
+    setMethod(m);
+    setStep("otp");
+    setOtpCode("");
+    setOtpSent(false);
+    setLocalError(null);
+  };
 
-  const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setStatus(null);
-    try {
-      await signInWithEmail(email, password);
-      setStatus("Signed in successfully. Redirecting...");
-      router.push("/barber-shop");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to sign in";
-      setError(message);
-    }
+  const handleBack = () => {
+    setMethod(null);
+    setStep("method");
+    setEmail("");
+    setPhoneNumber("");
+    setOtpCode("");
+    setOtpSent(false);
+    setLocalError(null);
   };
 
   const handleSendOtp = async () => {
-    setError(null);
-    setStatus(null);
+    setSending(true);
+    setLocalError(null);
     try {
-      await sendPhoneOtp(phoneNumber);
+      if (method === "email") {
+        await sendLoginEmailOtp(email);
+      } else {
+        await sendPhoneOtp(phoneNumber);
+      }
       setOtpSent(true);
-      setStatus("OTP sent. Check your WhatsApp or SMS.");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to send OTP";
-      setError(message);
+      setLocalError(err instanceof Error ? err.message : "Failed to send code");
+    } finally {
+      setSending(false);
     }
   };
 
   const handleVerifyOtp = async () => {
-    setError(null);
-    setStatus(null);
+    setSending(true);
+    setLocalError(null);
     try {
-      await verifyPhoneOtp(phoneNumber, otpCode);
-      setStatus("Phone verified. Redirecting...");
-      router.push("/barber-shop");
+      if (method === "email") {
+        await verifyLoginEmailOtp(email, otpCode);
+      } else {
+        await verifyPhoneOtp(phoneNumber, otpCode);
+      }
+      router.push(redirect);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unable to verify code";
-      setError(message);
+      setLocalError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setSending(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-black px-4 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur sm:p-8 lg:p-10">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  const displayError = localError || error;
+
+  // ── Method Selection Screen ──
+  if (step === "method") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
+        <div className="w-full max-w-sm space-y-8 text-center">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-              Welcome back
-            </p>
-            <h1 className="text-3xl font-bold sm:text-4xl">Sign in</h1>
-            <p className="text-white/70">
-              Access your appointments or create a new account in minutes.
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
+              <Sparkles className="h-7 w-7 text-brand" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Choose how you&apos;d like to sign in
             </p>
           </div>
-          <Link href="/auth/register">
-            <Button
-              variant="outline"
-              className="border-white/30 bg-transparent text-white hover:border-white hover:text-white"
+
+          <div className="space-y-3">
+            <button
+              onClick={() => handleSelectMethod("email")}
+              className="flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-brand/30 hover:shadow-md active:scale-[0.98]"
             >
-              New here? Create an account
-            </Button>
-          </Link>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-white/10 bg-white/5 text-white shadow-card">
-            <CardHeader className="pb-2">
-              <CardTitle>Email & password</CardTitle>
-              <CardDescription className="text-white/70">
-                Sign in with your email address.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="space-y-4" onSubmit={handleEmailSubmit}>
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-white">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="bg-white/10 text-white placeholder:text-white/60"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-white">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="********"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="bg-white/10 text-white placeholder:text-white/60"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full bg-brand text-white hover:bg-brand-hover"
-                  disabled={loading}
-                >
-                  {loading ? "Signing in..." : "Sign in"}
-                </Button>
-                <div className="flex items-center justify-between text-sm text-white/70">
-                  <Link href="/auth/forgot-password" className="hover:text-white">
-                    Forgot password?
-                  </Link>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
-          <Card className="border-white/10 bg-white/5 text-white shadow-card">
-            <CardHeader className="pb-2">
-              <CardTitle>Phone number</CardTitle>
-              <CardDescription className="text-white/70">
-                Receive a one-time code to sign in securely.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-[0.9fr_2fr] gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="phonePrefix" className="text-white">
-                    Prefix
-                  </Label>
-                  <Input
-                    id="phonePrefix"
-                    value={phonePrefix}
-                    onChange={(e) => setPhonePrefix(e.target.value)}
-                    className="bg-white/10 text-white placeholder:text-white/60"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-white">
-                    Phone
-                  </Label>
-                  <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="71234567"
-                    className="bg-white/10 text-white placeholder:text-white/60"
-                  />
-                </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <Mail className="h-6 w-6" />
               </div>
-              {!otpSent ? (
-                <Button
-                  className="w-full bg-brand text-white hover:bg-brand-hover"
-                  onClick={handleSendOtp}
-                  disabled={loading || !phone}
-                >
-                  {loading ? "Sending OTP..." : "Send OTP"}
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="otp" className="text-white">
-                      Verification code
-                    </Label>
-                    <Input
-                      id="otp"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      placeholder="123456"
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <Button
-                    className="w-full bg-brand text-white hover:bg-brand-hover"
-                    onClick={handleVerifyOtp}
-                    disabled={loading || !otpCode}
-                  >
-                    {loading ? "Verifying..." : "Verify & continue"}
-                  </Button>
-                </div>
-              )}
-              <p className="text-xs text-white/60">
-                We will format your phone as: <strong>{phoneNumber}</strong>
-              </p>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="font-semibold text-slate-900">Continue with Email</p>
+                <p className="text-sm text-slate-500">
+                  We&apos;ll send you a verification code
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleSelectMethod("phone")}
+              className="flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-brand/30 hover:shadow-md active:scale-[0.98]"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <Phone className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Continue with Phone</p>
+                <p className="text-sm text-slate-500">
+                  We&apos;ll send a code via WhatsApp
+                </p>
+              </div>
+            </button>
+          </div>
+
+          <p className="text-sm text-slate-400">
+            Don&apos;t have an account?{" "}
+            <Link href="/auth/register" className="font-medium text-brand hover:underline">
+              Create one
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── OTP Screen (fullscreen isolation) ──
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
+      <div className="w-full max-w-sm space-y-6">
+        {/* Back button */}
+        <button
+          onClick={handleBack}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
+
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
+            <KeyRound className="h-7 w-7 text-brand" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {otpSent ? "Enter verification code" : method === "email" ? "Enter your email" : "Enter your phone number"}
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">
+            {otpSent
+              ? `We sent a code to ${method === "email" ? email : phoneNumber}`
+              : method === "email"
+                ? "We'll send you a one-time verification code"
+                : "We'll send you a code via WhatsApp"}
+          </p>
         </div>
 
-        {(status || error) && (
-          <div
-            className={cn(
-              "w-full rounded-lg border px-4 py-3 text-sm",
-              status
-                ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-200"
-                : "border-rose-400/50 bg-rose-500/10 text-rose-100",
-            )}
-          >
-            {status || error}
-          </div>
-        )}
+        <div className="space-y-4">
+          {!otpSent ? (
+            <>
+              {method === "email" ? (
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  autoFocus
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+              ) : (
+                <PhoneInput
+                  value={phoneNumber}
+                  onChange={(full) => {
+                    setPhoneNumber(full);
+                  }}
+                />
+              )}
+
+              <button
+                onClick={handleSendOtp}
+                disabled={sending || (!email && method === "email") || (!phoneNumber && method === "phone")}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
+              >
+                {sending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Send code
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="123456"
+                maxLength={6}
+                autoFocus
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold tracking-[0.3em] shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+
+              <button
+                onClick={handleVerifyOtp}
+                disabled={sending || otpCode.length < 4}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
+              >
+                {sending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Verify & sign in
+              </button>
+
+              <button
+                onClick={() => { setOtpSent(false); setOtpCode(""); }}
+                className="w-full text-center text-sm text-slate-500 hover:text-brand"
+              >
+                Didn&apos;t receive a code? Resend
+              </button>
+            </>
+          )}
+
+          {displayError && (
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
+              {displayError}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

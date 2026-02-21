@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
+import { Eye, EyeOff } from "lucide-react";
 
 const toPhoneNumber = (prefix: string, phone: string) =>
   `+${prefix.replace(/\D/g, "")}${phone.replace(/\D/g, "")}`;
@@ -36,6 +37,8 @@ export default function ResetPasswordPage() {
 
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [showPhonePassword, setShowPhonePassword] = useState(false);
 
   const handleEmailReset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -114,12 +117,22 @@ export default function ResetPasswordPage() {
                   </Label>
                   <Input
                     id="newPassword"
-                    type="password"
+                    type={showEmailPassword ? "text" : "password"}
                     value={newEmailPassword}
                     onChange={(e) => setNewEmailPassword(e.target.value)}
                     placeholder="••••••••"
                     className="bg-white/10 text-white placeholder:text-white/60"
                   />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmailPassword(!showEmailPassword)}
+                      className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
+                    >
+                      {showEmailPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showEmailPassword ? "Hide password" : "Show password"}
+                    </button>
+                  </div>
                 </div>
                 <Button
                   type="submit"
@@ -184,12 +197,22 @@ export default function ResetPasswordPage() {
                   </Label>
                   <Input
                     id="phonePassword"
-                    type="password"
+                    type={showPhonePassword ? "text" : "password"}
                     value={newPhonePassword}
                     onChange={(e) => setNewPhonePassword(e.target.value)}
                     placeholder="••••••••"
                     className="bg-white/10 text-white placeholder:text-white/60"
                   />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowPhonePassword(!showPhonePassword)}
+                      className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
+                    >
+                      {showPhonePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPhonePassword ? "Hide password" : "Show password"}
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-white/60">
                   Phone formatted as: <strong>{toPhoneNumber(phonePrefix, phone)}</strong>

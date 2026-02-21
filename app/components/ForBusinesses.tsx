@@ -1,8 +1,8 @@
-import { CheckCircle2, Rocket } from "lucide-react";
-import Link from "next/link";
+"use client";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { CheckCircle2, Rocket, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
 
 const perks = [
   "Online bookings with instant confirmations",
@@ -11,71 +11,79 @@ const perks = [
 ];
 
 export function ForBusinesses() {
+  const prefersReducedMotion = useReducedMotion();
+
+  const variants = prefersReducedMotion
+    ? undefined
+    : {
+      hidden: { opacity: 0, y: 20 },
+      visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+    };
+
   return (
     <section
       id="for-businesses"
-      className="relative overflow-hidden bg-slate-900 py-16 text-white sm:py-24"
+      className="relative overflow-hidden bg-slate-900 py-20 text-white sm:py-28 dark:bg-black"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-brand/20 via-slate-900 to-slate-950" />
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="max-w-2xl space-y-4">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
-            <Rocket className="h-4 w-4" />
+      <div className="absolute inset-0 bg-gradient-to-br from-brand/15 via-transparent to-purple-900/10" />
+      <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-brand/10 blur-[100px]" />
+
+      <motion.div
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={variants}
+        className="relative mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between"
+      >
+        <div className="max-w-xl space-y-6">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
+            <Rocket className="h-3.5 w-3.5" />
             For businesses
-          </p>
-          <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
-            Bring your barbershop online with a booking experience people love.
+          </span>
+          <h2 className="font-heading text-3xl font-bold leading-tight sm:text-4xl">
+            Bring your barbershop online with a booking page people love.
           </h2>
-          <p className="text-lg text-white/80">
-            Manage appointments, keep clients engaged, and give your team the tools they need to
-            stay organized.
+          <p className="text-lg text-white/70">
+            Manage appointments, keep clients engaged, and give your team the tools
+            to stay organized.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+          <div className="space-y-3">
             {perks.map((perk) => (
-              <div
-                key={perk}
-                className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-left"
-              >
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-400" />
-                <p className="text-sm text-white/90">{perk}</p>
+              <div key={perk} className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-400" />
+                <span className="text-sm text-white/80">{perk}</span>
               </div>
             ))}
           </div>
-        </div>
-
-        <div className={cn(
-          "w-full max-w-lg rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur",
-          "shadow-[0_20px_60px_rgba(15,23,42,0.35)]",
-        )}>
-          <div className="space-y-3 text-left">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">
-              Get started
-            </p>
-            <h3 className="text-2xl font-semibold">
-              Ready to bring your calendar, services, and clients into one place?
-            </h3>
-            <p className="text-sm text-white/80">
-              Create your account and publish your booking page in minutes. We will guide you through
-              setup and connect your existing clients instantly.
-            </p>
-            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-              <Link href="/auth/register" className="w-full sm:w-auto">
-                <Button className="w-full rounded-md bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-card hover:bg-slate-100">
-                  Create an account
-                </Button>
-              </Link>
-              <Link href="/auth/sign-in" className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  className="w-full border-white/30 bg-transparent px-5 py-2 text-sm font-semibold text-white hover:border-white/60"
-                >
-                  Already onboard? Sign in
-                </Button>
-              </Link>
-            </div>
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+            <Link href="/auth/register">
+              <button className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg transition-all hover:bg-slate-100 hover:shadow-xl active:scale-95">
+                Get started free
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </Link>
+            <Link href="/auth/sign-in">
+              <button className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-transparent px-6 py-3 text-sm font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/5">
+                Already onboard? Sign in
+              </button>
+            </Link>
           </div>
         </div>
-      </div>
+
+        {/* Decorative card */}
+        <div className="hidden w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur lg:block">
+          <div className="space-y-5">
+            <div className="h-4 w-3/4 rounded bg-white/10" />
+            <div className="h-4 w-1/2 rounded bg-white/10" />
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="aspect-square rounded-xl bg-white/5" />
+              ))}
+            </div>
+            <div className="h-10 rounded-xl bg-brand/30" />
+          </div>
+        </div>
+      </motion.div>
     </section>
   );
 }

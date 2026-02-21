@@ -1,0 +1,719 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
+import { Loader2, Save, CheckCircle, AlertCircle, Building2, MapPin, Globe, CreditCard, CalendarClock, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { ImageUpload } from "@/components/admin/ImageUpload";
+import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+
+// Combined interface
+interface CompanySettings {
+    // General (Company Model)
+    name: string;
+    slug: string;
+    email: string;
+    phone_prefix: string;
+    phone: string;
+    address: string;
+    city: string;
+    state: string;
+    country_code: string;
+    timezone: string;
+    google_maps_url: string;
+    latitude: string;
+    longitude: string;
+    is_active: boolean;
+
+    // Configuration (CompanySettings Model)
+    booking_buffer_minutes: number;
+    booking_time_granularity_minutes: number;
+    cancel_limit_minutes: number;
+    reschedule_limit_minutes: number;
+    allow_qr_payment: boolean;
+    qr_image_url: string | null;
+    allow_cash_payment: boolean;
+    send_email_notifications: boolean;
+    send_whatsapp_notifications: boolean;
+}
+
+interface Toast {
+    type: 'success' | 'error';
+    message: string;
+}
+
+function getApiUrl(path: string): string {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
+    const cleanPath = path.startsWith("/api/") ? path.slice(4) : path;
+    return `${base}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
+}
+
+const initialSettings: CompanySettings = {
+    name: "",
+    slug: "",
+    email: "",
+    phone_prefix: "591",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    country_code: "BO",
+    timezone: "America/La_Paz",
+    google_maps_url: "",
+    latitude: "",
+    longitude: "",
+    is_active: true,
+    // Defaults
+    booking_buffer_minutes: 10,
+    booking_time_granularity_minutes: 30,
+    cancel_limit_minutes: 120,
+    reschedule_limit_minutes: 120,
+    allow_qr_payment: true,
+    qr_image_url: null,
+    allow_cash_payment: true,
+    send_email_notifications: true,
+    send_whatsapp_notifications: false,
+};
+
+export default function SettingsPage() {
+    const { companyId, isAuthenticated, loading: authLoading } = useAdminAuth();
+
+    const [settings, setSettings] = useState<CompanySettings>(initialSettings);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [toast, setToast] = useState<Toast | null>(null);
+    const [selectedQR, setSelectedQR] = useState<File | null>(null);
+
+    // Auto-dismiss toast
+    useEffect(() => {
+        if (toast) {
+            const timer = setTimeout(() => setToast(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
+
+    // Fetch company settings
+    const fetchData = useCallback(async () => {
+        if (!companyId) return;
+
+        setLoading(true);
+        try {
+            // Fetch both Company Config and General Details
+            const [companyRes, settingsRes] = await Promise.all([
+                fetch(getApiUrl(`/api/company/id/${companyId}`), { credentials: "include" }),
+                fetch(getApiUrl(`/api/admin/settings`), { credentials: "include" })
+            ]);
+
+            const companyData = companyRes.ok ? (await companyRes.json()) : {};
+            const settingsData = settingsRes.ok ? (await settingsRes.json()) : {};
+
+            const company = companyData.data || companyData || {};
+            const config = settingsData.data || settingsData || {};
+
+            setSettings(prev => ({
+                ...prev,
+                // General
+                name: company.name || prev.name,
+                slug: company.slug || prev.slug,
+                email: company.email || prev.email,
+                phone_prefix: company.phone_prefix || prev.phone_prefix,
+                phone: company.phone || prev.phone,
+                address: company.address || prev.address,
+                city: company.city || prev.city,
+                state: company.state || prev.state,
+                country_code: company.country_code || prev.country_code,
+                timezone: company.timezone || prev.timezone,
+                google_maps_url: company.google_maps_url || prev.google_maps_url,
+                latitude: company.latitude?.toString() || prev.latitude,
+                longitude: company.longitude?.toString() || prev.longitude,
+                is_active: company.is_active ?? prev.is_active,
+                // Config
+                booking_buffer_minutes: config.booking_buffer_minutes ?? prev.booking_buffer_minutes,
+                booking_time_granularity_minutes: config.booking_time_granularity_minutes ?? prev.booking_time_granularity_minutes,
+                cancel_limit_minutes: config.cancel_limit_minutes ?? prev.cancel_limit_minutes,
+                reschedule_limit_minutes: config.reschedule_limit_minutes ?? prev.reschedule_limit_minutes,
+                allow_qr_payment: config.allow_qr_payment ?? prev.allow_qr_payment,
+                qr_image_url: config.qr_image_url ?? prev.qr_image_url,
+                allow_cash_payment: config.allow_cash_payment ?? prev.allow_cash_payment,
+                send_email_notifications: config.send_email_notifications ?? prev.send_email_notifications,
+                send_whatsapp_notifications: config.send_whatsapp_notifications ?? prev.send_whatsapp_notifications,
+            }));
+
+        } catch (err) {
+            console.error("Failed to fetch settings:", err);
+            setToast({ type: 'error', message: 'Failed to load settings' });
+        } finally {
+            setLoading(false);
+        }
+    }, [companyId]);
+
+    useEffect(() => {
+        if (isAuthenticated && companyId) {
+            void fetchData();
+        }
+    }, [isAuthenticated, companyId, fetchData]);
+
+    // Handle input change
+    const handleChange = (field: keyof CompanySettings, value: string | boolean | number | null) => {
+        setSettings(prev => {
+            const next = { ...prev, [field]: value };
+
+            // Auto-extract from Google Maps URL
+            if (field === 'google_maps_url' && typeof value === 'string') {
+                let url = value;
+
+                // If user pasted an iframe, extract src
+                if (value.includes('<iframe')) {
+                    const srcMatch = value.match(/src="([^"]+)"/);
+                    if (srcMatch && srcMatch[1]) {
+                        url = srcMatch[1];
+                        next.google_maps_url = url; // Update field to just URL
+                    }
+                }
+
+                // Extract coordinates from pb parameter
+                // Format: ...!2d-63.19750242438211!3d-17.767202574620846!...
+                const longMatch = url.match(/!2d(-?\d+\.?\d*)/);
+                const latMatch = url.match(/!3d(-?\d+\.?\d*)/);
+
+                if (longMatch && longMatch[1]) {
+                    next.longitude = longMatch[1];
+                }
+                if (latMatch && latMatch[1]) {
+                    next.latitude = latMatch[1];
+                }
+            }
+
+            return next;
+        });
+    };
+
+    // Save changes
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!companyId) return;
+
+        setSaving(true);
+        try {
+            let qrUrl = settings.qr_image_url;
+
+            // Upload QR if selected
+            if (selectedQR) {
+                const formData = new FormData();
+                formData.append('image', selectedQR);
+                formData.append('company_id', companyId.toString());
+                console.log(formData);
+
+                const uploadRes = await fetch(getApiUrl('/api/upload/qr'), {
+                    method: 'POST',
+                    body: formData,
+                    credentials: "include",
+                });
+
+                if (!uploadRes.ok) {
+                    throw new Error("Failed to upload QR code");
+                }
+
+                const uploadData = await uploadRes.json();
+                qrUrl = uploadData.data?.url || uploadData.url;
+            }
+
+            // Payload for Company (General)
+            const payloadCompany = {
+                name: settings.name,
+                slug: settings.slug,
+                email: settings.email,
+                phone: settings.phone,
+                phone_prefix: settings.phone_prefix,
+                address: settings.address,
+                city: settings.city,
+                state: settings.state,
+                country_code: settings.country_code,
+                timezone: settings.timezone,
+                google_maps_url: settings.google_maps_url,
+                latitude: settings.latitude ? parseFloat(settings.latitude) : null,
+                longitude: settings.longitude ? parseFloat(settings.longitude) : null,
+                is_active: settings.is_active,
+            };
+
+            // Payload for Admin Settings (Config)
+            const payloadSettings = {
+                booking_buffer_minutes: Number(settings.booking_buffer_minutes),
+                booking_time_granularity_minutes: Number(settings.booking_time_granularity_minutes),
+                cancel_limit_minutes: Number(settings.cancel_limit_minutes),
+                reschedule_limit_minutes: Number(settings.reschedule_limit_minutes),
+                allow_qr_payment: settings.allow_qr_payment,
+                qr_image_url: qrUrl,
+                allow_cash_payment: settings.allow_cash_payment,
+                send_email_notifications: settings.send_email_notifications,
+                send_whatsapp_notifications: settings.send_whatsapp_notifications,
+            };
+
+            const [companyRes, settingsRes] = await Promise.all([
+                fetch(getApiUrl(`/api/company/id/${companyId}`), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(payloadCompany),
+                }),
+                fetch(getApiUrl(`/api/admin/settings`), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(payloadSettings),
+                }),
+            ]);
+
+            if (!companyRes.ok) {
+                const errorData = await companyRes.json().catch(() => ({}));
+                throw new Error(errorData.message || "Failed to save company details");
+            }
+            if (!settingsRes.ok) {
+                const errorData = await settingsRes.json().catch(() => ({}));
+                throw new Error(errorData.message || "Failed to save configuration");
+            }
+
+            // Update state with new URL if uploaded
+            setSettings(prev => ({ ...prev, qr_image_url: qrUrl }));
+            setSelectedQR(null); // Clear selection after upload
+            setToast({ type: 'success', message: 'All settings saved successfully' });
+        } catch (err) {
+            console.error("Save error:", err);
+            setToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to save settings' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (authLoading || loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-6 pb-12">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">Company Settings</h1>
+                    <p className="text-slate-500">Manage your company details, booking rules, and payments</p>
+                </div>
+                <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                    {saving ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Saving...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Changes
+                        </>
+                    )}
+                </Button>
+            </div>
+
+            {/* Toast */}
+            {toast && (
+                <div className={`p-4 rounded-lg flex items-center gap-2 ${toast.type === 'success'
+                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                    : 'bg-rose-50 border border-rose-200 text-rose-700'
+                    }`}>
+                    {toast.type === 'success' ? (
+                        <CheckCircle className="h-5 w-5" />
+                    ) : (
+                        <AlertCircle className="h-5 w-5" />
+                    )}
+                    {toast.message}
+                </div>
+            )}
+
+            <Tabs defaultValue="general" className="space-y-6">
+                <TabsList className="bg-white border text-slate-600">
+                    <TabsTrigger value="general" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                        <Building2 className="h-4 w-4 mr-2" />
+                        General
+                    </TabsTrigger>
+                    <TabsTrigger value="booking" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                        <CalendarClock className="h-4 w-4 mr-2" />
+                        Booking Rules
+                    </TabsTrigger>
+                    <TabsTrigger value="payments" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Payments & Notifications
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* --- GENERAL TAB --- */}
+                <TabsContent value="general" className="space-y-6">
+                    {/* General Info Card */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Company Information</CardTitle>
+                            <CardDescription>Basic information visible to your customers</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="name">Company Name</Label>
+                                <Input
+                                    id="name"
+                                    value={settings.name}
+                                    onChange={(e) => handleChange('name', e.target.value)}
+                                    placeholder="Business Name"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="slug">
+                                    URL Slug
+                                    <span className="ml-1 text-xs text-slate-400 font-normal">
+                                        (example.com/shop/<strong>slug</strong>)
+                                    </span>
+                                </Label>
+                                <Input
+                                    id="slug"
+                                    value={settings.slug}
+                                    onChange={(e) => handleChange('slug', e.target.value)}
+                                    placeholder="my-shop"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Public Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={settings.email}
+                                    onChange={(e) => handleChange('email', e.target.value)}
+                                    placeholder="contact@example.com"
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                                <div className="space-y-2 col-span-1">
+                                    <Label htmlFor="phone_prefix">Prefix</Label>
+                                    <Input
+                                        id="phone_prefix"
+                                        value={settings.phone_prefix}
+                                        onChange={(e) => handleChange('phone_prefix', e.target.value)}
+                                        placeholder="591"
+                                    />
+                                </div>
+                                <div className="space-y-2 col-span-3">
+                                    <Label htmlFor="phone">Phone Number</Label>
+                                    <Input
+                                        id="phone"
+                                        value={settings.phone}
+                                        onChange={(e) => handleChange('phone', e.target.value)}
+                                        placeholder="70000000"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 flex flex-col justify-end pb-2">
+                                <div className="flex items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-base">Active Status</Label>
+                                        <p className="text-sm text-slate-500">
+                                            Visible to the public
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.is_active}
+                                        onCheckedChange={(checked) => handleChange('is_active', checked)}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Location Card */}
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <MapPin className="h-5 w-5 text-slate-500" />
+                                <CardTitle>Location & Address</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2 sm:col-span-2">
+                                <Label htmlFor="address">Street Address</Label>
+                                <Input
+                                    id="address"
+                                    value={settings.address}
+                                    onChange={(e) => handleChange('address', e.target.value)}
+                                    placeholder="123 Main St"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="city">City</Label>
+                                <Input
+                                    id="city"
+                                    value={settings.city}
+                                    onChange={(e) => handleChange('city', e.target.value)}
+                                    placeholder="City"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="state">State / Province</Label>
+                                <Input
+                                    id="state"
+                                    value={settings.state}
+                                    onChange={(e) => handleChange('state', e.target.value)}
+                                    placeholder="State"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="country_code">Country Code</Label>
+                                <Input
+                                    id="country_code"
+                                    value={settings.country_code}
+                                    onChange={(e) => handleChange('country_code', e.target.value)}
+                                    placeholder="BO"
+                                    maxLength={2}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="timezone">Timezone</Label>
+                                <Input
+                                    id="timezone"
+                                    value={settings.timezone}
+                                    onChange={(e) => handleChange('timezone', e.target.value)}
+                                    placeholder="America/La_Paz"
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Map Integration Card */}
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <Globe className="h-5 w-5 text-slate-500" />
+                                <CardTitle>Map Integration</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="google_maps_url">Google Maps Embed URL</Label>
+                                <Input
+                                    id="google_maps_url"
+                                    value={settings.google_maps_url}
+                                    onChange={(e) => handleChange('google_maps_url', e.target.value)}
+                                    placeholder="https://www.google.com/maps/embed?..."
+                                />
+                                <p className="text-xs text-slate-500">
+                                    Paste the 'src' attribute from the Google Maps Embed HTML
+                                </p>
+                            </div>
+                            <div className="grid gap-6 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="latitude">Latitude</Label>
+                                    <Input
+                                        id="latitude"
+                                        type="number"
+                                        step="any"
+                                        value={settings.latitude}
+                                        onChange={(e) => handleChange('latitude', e.target.value)}
+                                        placeholder="-16.5000"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="longitude">Longitude</Label>
+                                    <Input
+                                        id="longitude"
+                                        type="number"
+                                        step="any"
+                                        value={settings.longitude}
+                                        onChange={(e) => handleChange('longitude', e.target.value)}
+                                        placeholder="-68.1500"
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* --- BOOKING TAB --- */}
+                <TabsContent value="booking" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <CalendarClock className="h-5 w-5 text-slate-500" />
+                                <CardTitle>Booking Configuration</CardTitle>
+                            </div>
+                            <CardDescription>Control how customers can book appointments</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-6 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="booking_buffer_minutes">Buffer Time (Minutes)</Label>
+                                <Input
+                                    id="booking_buffer_minutes"
+                                    type="number"
+                                    min="0"
+                                    value={settings.booking_buffer_minutes}
+                                    onChange={(e) => handleChange('booking_buffer_minutes', e.target.value)}
+                                    placeholder="10"
+                                />
+                                <p className="text-xs text-slate-500">
+                                    Minimum time before a booking can be made
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="booking_time_granularity_minutes">Time Slot Interval (Minutes)</Label>
+                                <Input
+                                    id="booking_time_granularity_minutes"
+                                    type="number"
+                                    min="5"
+                                    step="5"
+                                    value={settings.booking_time_granularity_minutes}
+                                    onChange={(e) => handleChange('booking_time_granularity_minutes', e.target.value)}
+                                    placeholder="30"
+                                />
+                                <p className="text-xs text-slate-500">
+                                    Frequency of available time slots (e.g., every 15, 30, 60 mins)
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="cancel_limit_minutes">Cancellation Limit (Minutes)</Label>
+                                <Input
+                                    id="cancel_limit_minutes"
+                                    type="number"
+                                    min="0"
+                                    value={settings.cancel_limit_minutes}
+                                    onChange={(e) => handleChange('cancel_limit_minutes', e.target.value)}
+                                    placeholder="120"
+                                />
+                                <p className="text-xs text-slate-500">
+                                    How long before appointment customers can cancel (0 = always)
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="reschedule_limit_minutes">Reschedule Limit (Minutes)</Label>
+                                <Input
+                                    id="reschedule_limit_minutes"
+                                    type="number"
+                                    min="0"
+                                    value={settings.reschedule_limit_minutes}
+                                    onChange={(e) => handleChange('reschedule_limit_minutes', e.target.value)}
+                                    placeholder="120"
+                                />
+                                <p className="text-xs text-slate-500">
+                                    How long before appointment customers can reschedule
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* --- PAYMENTS & NOTIFICATIONS TAB --- */}
+                <TabsContent value="payments" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <CreditCard className="h-5 w-5 text-slate-500" />
+                                <CardTitle>Payment Methods</CardTitle>
+                            </div>
+                            <CardDescription>Enable accepted payment methods for bookings</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {/* Cash Payment */}
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <Label className="text-base">Cash Payment</Label>
+                                    <p className="text-sm text-slate-500">
+                                        Allow customers to pay in person with cash
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={settings.allow_cash_payment}
+                                    onCheckedChange={(checked) => handleChange('allow_cash_payment', checked)}
+                                />
+                            </div>
+
+                            {/* QR Payment */}
+                            <div className="space-y-4 rounded-lg border p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-base">QR / Transfer Payment</Label>
+                                        <p className="text-sm text-slate-500">
+                                            Allow customers to upload a payment proof
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.allow_qr_payment}
+                                        onCheckedChange={(checked) => handleChange('allow_qr_payment', checked)}
+                                    />
+                                </div>
+
+                                {settings.allow_qr_payment && (
+                                    <div className="mt-4 border-t pt-4">
+                                        <Label className="mb-2 block">Company QR Code</Label>
+                                        <p className="text-sm text-slate-500 mb-4">
+                                            Upload the QR code image your customers will scan to pay.
+                                        </p>
+                                        <div className="flex justify-start">
+                                            <ImageUpload
+                                                companyId={Number(companyId)}
+                                                type="qr"
+                                                autoUpload={false}
+                                                currentUrl={selectedQR ? URL.createObjectURL(selectedQR) : (settings.qr_image_url || undefined)}
+                                                onFileSelect={setSelectedQR}
+                                                aspectRatio="1:1"
+                                                className="w-full max-w-[250px]"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <Bell className="h-5 w-5 text-slate-500" />
+                                <CardTitle>Notifications</CardTitle>
+                            </div>
+                            <CardDescription>Configure automated notifications</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <Label className="text-base">Email Notifications</Label>
+                                    <p className="text-sm text-slate-500">
+                                        Send booking confirmations via email
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={settings.send_email_notifications}
+                                    onCheckedChange={(checked) => handleChange('send_email_notifications', checked)}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <Label className="text-base">WhatsApp Notifications</Label>
+                                    <p className="text-sm text-slate-500">
+                                        Send booking updates via WhatsApp (requires integration)
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={settings.send_whatsapp_notifications}
+                                    onCheckedChange={(checked) => handleChange('send_whatsapp_notifications', checked)}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}

@@ -1,27 +1,14 @@
 "use client";
 
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/useAuth";
-import { cn } from "@/lib/utils";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { Mail, Phone, ArrowLeft, Loader2, UserPlus, Sparkles } from "lucide-react";
 
-const toPhoneNumber = (prefix: string, phone: string) =>
-  `+${prefix.replace(/\D/g, "")}${phone.replace(/\D/g, "")}`;
-
-type EmailStep = "start" | "verify" | "complete";
-type PhoneStep = "start" | "verify" | "complete";
+type Method = null | "email" | "phone";
+type FlowStep = "method" | "contact" | "otp" | "profile" | "done";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,450 +19,361 @@ export default function RegisterPage() {
     sendPhoneOtp,
     verifyPhoneOtp,
     completeCustomerPhoneProfile,
-    loading,
   } = useAuth();
 
-  const [activeFlow, setActiveFlow] = useState<"email" | "phone">("email");
+  const [method, setMethod] = useState<Method>(null);
+  const [step, setStep] = useState<FlowStep>("method");
 
-  const [emailStep, setEmailStep] = useState<EmailStep>("start");
+  // Email state
   const [email, setEmail] = useState("");
   const [emailCode, setEmailCode] = useState("");
   const [preRegToken, setPreRegToken] = useState("");
+
+  // Phone state
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [dialCode, setDialCode] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+
+  // Profile state (shared)
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [password, setPassword] = useState("");
-  const [emailStatus, setEmailStatus] = useState<string | null>(null);
-  const [emailError, setEmailError] = useState<string | null>(null);
 
-  const [phonePrefix, setPhonePrefix] = useState("1");
-  const [phone, setPhone] = useState("");
-  const [phoneCode, setPhoneCode] = useState("");
-  const [phoneFirstName, setPhoneFirstName] = useState("");
-  const [phoneLastName, setPhoneLastName] = useState("");
-  const [phoneStep, setPhoneStep] = useState<PhoneStep>("start");
-  const [phoneStatus, setPhoneStatus] = useState<string | null>(null);
-  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
-  const phoneNumber = useMemo(
-    () => toPhoneNumber(phonePrefix, phone),
-    [phonePrefix, phone],
-  );
+  const handleSelectMethod = (m: Method) => {
+    setMethod(m);
+    setStep("contact");
+    setLocalError(null);
+  };
 
-  const handleStartEmail = async () => {
-    setEmailError(null);
-    setEmailStatus(null);
+  const handleBack = () => {
+    if (step === "contact") {
+      setMethod(null);
+      setStep("method");
+      setEmail("");
+      setPhoneNumber("");
+      setDialCode("");
+    } else if (step === "otp") {
+      setStep("contact");
+      setEmailCode("");
+      setOtpCode("");
+    } else if (step === "profile") {
+      // Can't go back from profile (already verified)
+      return;
+    }
+    setLocalError(null);
+  };
+
+  // ── Email flow ──
+  const handleEmailSend = async () => {
+    setSending(true);
+    setLocalError(null);
     try {
       await startCustomerEmailRegistration(email);
-      setEmailStep("verify");
-      setEmailStatus("We sent a code to your email.");
+      setStep("otp");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unable to start verification";
-      setEmailError(message);
+      setLocalError(err instanceof Error ? err.message : "Unable to send code");
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleVerifyEmail = async () => {
-    setEmailError(null);
-    setEmailStatus(null);
+  const handleEmailVerify = async () => {
+    setSending(true);
+    setLocalError(null);
     try {
-      const data = await verifyCustomerEmailCode(email, emailCode);
-      setPreRegToken(data.preRegToken);
-      setEmailStep("complete");
-      setEmailStatus("Email verified. Complete your profile to finish.");
+      const { preRegToken: token } = await verifyCustomerEmailCode(email, emailCode);
+      setPreRegToken(token);
+      setStep("profile");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unable to verify code";
-      setEmailError(message);
+      setLocalError(err instanceof Error ? err.message : "Invalid code");
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleCompleteEmail = async () => {
-    setEmailError(null);
-    setEmailStatus(null);
+  const handleEmailComplete = async () => {
+    setSending(true);
+    setLocalError(null);
     try {
-      await completeCustomerEmailRegistration(
-        preRegToken,
-        email,
-        password,
-        firstName,
-        lastName,
-      );
-      setEmailStatus("Account created. Redirecting...");
-      router.push("/barber-shop");
+      await completeCustomerEmailRegistration(preRegToken, email, firstName, lastName);
+      setStep("done");
+      setTimeout(() => router.push("/"), 1500);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unable to create account";
-      setEmailError(message);
+      setLocalError(err instanceof Error ? err.message : "Registration failed");
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleSendPhoneOtp = async () => {
-    setPhoneError(null);
-    setPhoneStatus(null);
+  // ── Phone flow ──
+  const handlePhoneSend = async () => {
+    setSending(true);
+    setLocalError(null);
     try {
       await sendPhoneOtp(phoneNumber);
-      setPhoneStep("verify");
-      setPhoneStatus("OTP sent. Check your WhatsApp or SMS.");
+      setStep("otp");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unable to send OTP";
-      setPhoneError(message);
+      setLocalError(err instanceof Error ? err.message : "Unable to send OTP");
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleVerifyPhoneOtp = async () => {
-    setPhoneError(null);
-    setPhoneStatus(null);
+  const handlePhoneVerify = async () => {
+    setSending(true);
+    setLocalError(null);
     try {
-      await verifyPhoneOtp(phoneNumber, phoneCode);
-      setPhoneStep("complete");
-      setPhoneStatus("Phone verified. Complete your profile.");
+      await verifyPhoneOtp(phoneNumber, otpCode);
+      setStep("profile");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unable to verify code";
-      setPhoneError(message);
+      setLocalError(err instanceof Error ? err.message : "Invalid code");
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleCompletePhoneProfile = async () => {
-    setPhoneError(null);
-    setPhoneStatus(null);
+  const handlePhoneComplete = async () => {
+    setSending(true);
+    setLocalError(null);
     try {
-      await completeCustomerPhoneProfile(
-        phoneFirstName,
-        phoneLastName,
-        phonePrefix,
-      );
-      setPhoneStatus("Profile completed. Redirecting...");
-      router.push("/barber-shop");
+      // Extract prefix digits from dialCode (e.g. "+961" → "961")
+      const prefix = dialCode.replace("+", "");
+      await completeCustomerPhoneProfile(firstName, lastName, prefix);
+      setStep("done");
+      setTimeout(() => router.push("/"), 1500);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unable to complete profile";
-      setPhoneError(message);
+      setLocalError(err instanceof Error ? err.message : "Registration failed");
+    } finally {
+      setSending(false);
     }
+  };
+
+  // ── Method Selection ──
+  if (step === "method") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
+        <div className="w-full max-w-sm space-y-8 text-center">
+          <div>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
+              <Sparkles className="h-7 w-7 text-brand" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Choose how you&apos;d like to register — no password needed
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => handleSelectMethod("email")}
+              className="flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-brand/30 hover:shadow-md active:scale-[0.98]"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <Mail className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Register with Email</p>
+                <p className="text-sm text-slate-500">
+                  We&apos;ll verify your email with a code
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleSelectMethod("phone")}
+              className="flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-brand/30 hover:shadow-md active:scale-[0.98]"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <Phone className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Register with Phone</p>
+                <p className="text-sm text-slate-500">
+                  We&apos;ll send a code via WhatsApp
+                </p>
+              </div>
+            </button>
+          </div>
+
+          <p className="text-sm text-slate-400">
+            Already have an account?{" "}
+            <Link href="/auth/sign-in" className="font-medium text-brand hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Done ──
+  if (step === "done") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
+        <div className="w-full max-w-sm space-y-4 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <UserPlus className="h-8 w-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Account created!</h1>
+          <p className="text-sm text-slate-500">You&apos;re being redirected...</p>
+          <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand" />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Fullscreen flow screens ──
+  const getTitle = () => {
+    if (step === "contact") {
+      return method === "email" ? "Enter your email" : "Enter your phone number";
+    }
+    if (step === "otp") return "Enter verification code";
+    if (step === "profile") return "Complete your profile";
+    return "";
+  };
+
+  const getSubtitle = () => {
+    if (step === "contact") {
+      return method === "email"
+        ? "We'll send you a one-time verification code"
+        : "We'll send you a code via WhatsApp";
+    }
+    if (step === "otp") {
+      return `We sent a code to ${method === "email" ? email : phoneNumber}`;
+    }
+    if (step === "profile") return "Just a couple more details to get started";
+    return "";
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-black px-4 py-10 text-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur sm:p-10">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-              Create account
-            </p>
-            <h1 className="text-3xl font-bold sm:text-4xl">
-              Become a customer
-            </h1>
-            <p className="text-white/70">
-              Register with email or phone. We will guide you through verification.
-            </p>
-          </div>
-          <Link href="/auth/sign-in">
-            <Button
-              variant="outline"
-              className="border-white/30 bg-transparent text-white hover:border-white hover:text-white"
-            >
-              Already have an account? Sign in
-            </Button>
-          </Link>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          {(["email", "phone"] as const).map((flow) => (
-            <button
-              key={flow}
-              onClick={() => setActiveFlow(flow)}
-              className={cn(
-                "rounded-full px-4 py-2 text-sm font-semibold transition",
-                activeFlow === flow
-                  ? "bg-white text-slate-900"
-                  : "border border-white/20 text-white hover:border-white/50",
-              )}
-              type="button"
-            >
-              {flow === "email" ? "Email registration" : "Phone registration"}
-            </button>
-          ))}
-        </div>
-
-        {activeFlow === "email" ? (
-          <Card className="border-white/10 bg-white/5 text-white shadow-card">
-            <CardHeader>
-              <CardTitle>Email-based registration</CardTitle>
-              <CardDescription className="text-white/70">
-                Verify your email, then finish your profile.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-white">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="bg-white/10 text-white placeholder:text-white/60"
-                  />
-                </div>
-                {emailStep !== "start" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="emailCode" className="text-white">
-                      Verification code
-                    </Label>
-                    <Input
-                      id="emailCode"
-                      value={emailCode}
-                      onChange={(e) => setEmailCode(e.target.value)}
-                      placeholder="123456"
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {emailStep === "start" && (
-                <Button
-                  className="w-full bg-brand text-white hover:bg-brand-hover"
-                  onClick={handleStartEmail}
-                  disabled={loading || !email}
-                >
-                  {loading ? "Sending code..." : "Send verification code"}
-                </Button>
-              )}
-
-              {emailStep === "verify" && (
-                <Button
-                  className="w-full bg-brand text-white hover:bg-brand-hover"
-                  onClick={handleVerifyEmail}
-                  disabled={loading || !emailCode}
-                >
-                  {loading ? "Verifying..." : "Verify code"}
-                </Button>
-              )}
-
-              {emailStep === "complete" && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-white">
-                      First name
-                    </Label>
-                    <Input
-                      id="firstName"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Jane"
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-white">
-                      Last name
-                    </Label>
-                    <Input
-                      id="lastName"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Doe"
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-white">
-                      Password
-                    </Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="********"
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="token" className="text-white">
-                      preRegToken
-                    </Label>
-                    <Input
-                      id="token"
-                      value={preRegToken}
-                      onChange={(e) => setPreRegToken(e.target.value)}
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Button
-                      className="w-full bg-brand text-white hover:bg-brand-hover"
-                      onClick={handleCompleteEmail}
-                      disabled={
-                        loading ||
-                        !firstName ||
-                        !password ||
-                        preRegToken.length === 0
-                      }
-                    >
-                      {loading ? "Creating account..." : "Complete registration"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {(emailStatus || emailError) && (
-                <div
-                  className={cn(
-                    "w-full rounded-lg border px-3 py-2 text-sm",
-                    emailStatus
-                      ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-200"
-                      : "border-rose-400/50 bg-rose-500/10 text-rose-100",
-                  )}
-                >
-                  {emailStatus || emailError}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border-white/10 bg-white/5 text-white shadow-card">
-            <CardHeader>
-              <CardTitle>Phone-based registration</CardTitle>
-              <CardDescription className="text-white/70">
-                Verify your phone with OTP and finish your profile.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-[0.9fr_2fr] gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="phonePrefix" className="text-white">
-                    Prefix
-                  </Label>
-                  <Input
-                    id="phonePrefix"
-                    value={phonePrefix}
-                    onChange={(e) => setPhonePrefix(e.target.value)}
-                    className="bg-white/10 text-white placeholder:text-white/60"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-white">
-                    Phone
-                  </Label>
-                  <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="71234567"
-                    className="bg-white/10 text-white placeholder:text-white/60"
-                  />
-                </div>
-              </div>
-
-              {phoneStep === "start" && (
-                <Button
-                  className="w-full bg-brand text-white hover:bg-brand-hover"
-                  onClick={handleSendPhoneOtp}
-                  disabled={loading || !phone}
-                >
-                  {loading ? "Sending OTP..." : "Send OTP"}
-                </Button>
-              )}
-
-              {phoneStep === "verify" && (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="phoneCode" className="text-white">
-                      Verification code
-                    </Label>
-                    <Input
-                      id="phoneCode"
-                      value={phoneCode}
-                      onChange={(e) => setPhoneCode(e.target.value)}
-                      placeholder="123456"
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <Button
-                    className="w-full bg-brand text-white hover:bg-brand-hover"
-                    onClick={handleVerifyPhoneOtp}
-                    disabled={loading || !phoneCode}
-                  >
-                    {loading ? "Verifying..." : "Verify code"}
-                  </Button>
-                </div>
-              )}
-
-              {phoneStep === "complete" && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="phoneFirstName" className="text-white">
-                      First name
-                    </Label>
-                    <Input
-                      id="phoneFirstName"
-                      value={phoneFirstName}
-                      onChange={(e) => setPhoneFirstName(e.target.value)}
-                      placeholder="Jane"
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phoneLastName" className="text-white">
-                      Last name
-                    </Label>
-                    <Input
-                      id="phoneLastName"
-                      value={phoneLastName}
-                      onChange={(e) => setPhoneLastName(e.target.value)}
-                      placeholder="Doe"
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phonePrefixConfirm" className="text-white">
-                      Phone prefix (optional)
-                    </Label>
-                    <Input
-                      id="phonePrefixConfirm"
-                      value={phonePrefix}
-                      onChange={(e) => setPhonePrefix(e.target.value)}
-                      className="bg-white/10 text-white placeholder:text-white/60"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Button
-                      className="w-full bg-brand text-white hover:bg-brand-hover"
-                      onClick={handleCompletePhoneProfile}
-                      disabled={loading || !phoneFirstName}
-                    >
-                      {loading ? "Saving profile..." : "Complete profile"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <p className="text-xs text-white/60">
-                We will format your phone as: <strong>{phoneNumber}</strong>
-              </p>
-
-              {(phoneStatus || phoneError) && (
-                <div
-                  className={cn(
-                    "w-full rounded-lg border px-3 py-2 text-sm",
-                    phoneStatus
-                      ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-200"
-                      : "border-rose-400/50 bg-rose-500/10 text-rose-100",
-                  )}
-                >
-                  {phoneStatus || phoneError}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
+      <div className="w-full max-w-sm space-y-6">
+        {/* Back button */}
+        {step !== "profile" && (
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
         )}
+
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
+            <UserPlus className="h-7 w-7 text-brand" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">{getTitle()}</h1>
+          <p className="mt-2 text-sm text-slate-500">{getSubtitle()}</p>
+        </div>
+
+        <div className="space-y-4">
+          {/* Contact input step */}
+          {step === "contact" && (
+            <>
+              {method === "email" ? (
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  autoFocus
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+              ) : (
+                <PhoneInput
+                  value={phoneNumber}
+                  onChange={(full, dial) => {
+                    setPhoneNumber(full);
+                    setDialCode(dial);
+                  }}
+                />
+              )}
+
+              <button
+                onClick={method === "email" ? handleEmailSend : handlePhoneSend}
+                disabled={sending || (method === "email" ? !email : !phoneNumber)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
+              >
+                {sending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Send code
+              </button>
+            </>
+          )}
+
+          {/* OTP verification step */}
+          {step === "otp" && (
+            <>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={method === "email" ? emailCode : otpCode}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  method === "email" ? setEmailCode(val) : setOtpCode(val);
+                }}
+                placeholder="123456"
+                maxLength={6}
+                autoFocus
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold tracking-[0.3em] shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+
+              <button
+                onClick={method === "email" ? handleEmailVerify : handlePhoneVerify}
+                disabled={sending || (method === "email" ? emailCode.length < 4 : otpCode.length < 4)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
+              >
+                {sending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Verify code
+              </button>
+
+              <button
+                onClick={() => { setStep("contact"); method === "email" ? setEmailCode("") : setOtpCode(""); }}
+                className="w-full text-center text-sm text-slate-500 hover:text-brand"
+              >
+                Didn&apos;t receive a code? Resend
+              </button>
+            </>
+          )}
+
+          {/* Profile completion step */}
+          {step === "profile" && (
+            <>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="First name"
+                autoFocus
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Last name"
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+
+              <button
+                onClick={method === "email" ? handleEmailComplete : handlePhoneComplete}
+                disabled={sending || !firstName}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
+              >
+                {sending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Complete registration
+              </button>
+            </>
+          )}
+
+          {localError && (
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
+              {localError}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
