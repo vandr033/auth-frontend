@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
+import { useT } from "@/lib/i18n";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, KeyRound, Sparkles } from "lucide-react";
 
@@ -11,6 +12,7 @@ type Method = null | "email" | "phone";
 type Step = "method" | "otp";
 
 export default function SignInPage() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
@@ -66,7 +68,7 @@ export default function SignInPage() {
       }
       setOtpSent(true);
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Failed to send code");
+      setLocalError(err instanceof Error ? err.message : t("auth.signIn.sendCodeError"));
     } finally {
       setSending(false);
     }
@@ -83,7 +85,7 @@ export default function SignInPage() {
       }
       router.push(redirect);
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Verification failed");
+      setLocalError(err instanceof Error ? err.message : t("auth.signIn.verifyError"));
     } finally {
       setSending(false);
     }
@@ -100,9 +102,9 @@ export default function SignInPage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
               <Sparkles className="h-7 w-7 text-brand" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{t("auth.signIn.welcomeBack")}</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Choose how you&apos;d like to sign in
+              {t("auth.signIn.chooseMethod")}
             </p>
           </div>
 
@@ -115,9 +117,9 @@ export default function SignInPage() {
                 <Mail className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-semibold text-slate-900">Continue with Email</p>
+                <p className="font-semibold text-slate-900">{t("auth.signIn.continueWithEmail")}</p>
                 <p className="text-sm text-slate-500">
-                  We&apos;ll send you a verification code
+                  {t("auth.signIn.continueWithEmailDesc")}
                 </p>
               </div>
             </button>
@@ -130,18 +132,18 @@ export default function SignInPage() {
                 <Phone className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-semibold text-slate-900">Continue with Phone</p>
+                <p className="font-semibold text-slate-900">{t("auth.signIn.continueWithPhone")}</p>
                 <p className="text-sm text-slate-500">
-                  We&apos;ll send a code via WhatsApp
+                  {t("auth.signIn.continueWithPhoneDesc")}
                 </p>
               </div>
             </button>
           </div>
 
           <p className="text-sm text-slate-400">
-            Don&apos;t have an account?{" "}
+            {t("auth.signIn.noAccount")}{" "}
             <Link href="/auth/register" className="font-medium text-brand hover:underline">
-              Create one
+              {t("auth.signIn.createOne")}
             </Link>
           </p>
         </div>
@@ -159,7 +161,7 @@ export default function SignInPage() {
           className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {t("auth.signIn.back")}
         </button>
 
         <div className="text-center">
@@ -167,14 +169,18 @@ export default function SignInPage() {
             <KeyRound className="h-7 w-7 text-brand" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
-            {otpSent ? "Enter verification code" : method === "email" ? "Enter your email" : "Enter your phone number"}
+            {otpSent
+              ? t("auth.signIn.enterVerificationCode")
+              : method === "email"
+                ? t("auth.signIn.enterYourEmail")
+                : t("auth.signIn.enterYourPhone")}
           </h1>
           <p className="mt-2 text-sm text-slate-500">
             {otpSent
-              ? `We sent a code to ${method === "email" ? email : phoneNumber}`
+              ? t("auth.signIn.sentCodeTo", { target: method === "email" ? email : phoneNumber })
               : method === "email"
-                ? "We'll send you a one-time verification code"
-                : "We'll send you a code via WhatsApp"}
+                ? t("auth.signIn.emailCodeHint")
+                : t("auth.signIn.phoneCodeHint")}
           </p>
         </div>
 
@@ -186,7 +192,7 @@ export default function SignInPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
+                  placeholder={t("auth.signIn.emailPlaceholder")}
                   autoFocus
                   className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
@@ -205,7 +211,7 @@ export default function SignInPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Send code
+                {t("auth.signIn.sendCode")}
               </button>
             </>
           ) : (
@@ -215,7 +221,7 @@ export default function SignInPage() {
                 inputMode="numeric"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))}
-                placeholder="123456"
+                placeholder={t("auth.signIn.codePlaceholder")}
                 maxLength={6}
                 autoFocus
                 className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold tracking-[0.3em] shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
@@ -227,14 +233,14 @@ export default function SignInPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Verify & sign in
+                {t("auth.signIn.verifySignIn")}
               </button>
 
               <button
                 onClick={() => { setOtpSent(false); setOtpCode(""); }}
                 className="w-full text-center text-sm text-slate-500 hover:text-brand"
               >
-                Didn&apos;t receive a code? Resend
+                {t("auth.signIn.resendCode")}
               </button>
             </>
           )}

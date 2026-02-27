@@ -8,6 +8,8 @@ import {
     Calendar,
     Scissors,
     Users,
+    UserCheck,
+    UserCircle,
     Clock,
     Palette,
     Settings,
@@ -21,6 +23,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
+import { I18nProvider, useT } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 type NavItem = {
     label: string;
@@ -31,52 +35,70 @@ type NavItem = {
 
 const navItems: NavItem[] = [
     {
-        label: "Dashboard",
+        label: "adminNav.dashboard",
         href: "/admin/dashboard",
         icon: <LayoutDashboard className="h-5 w-5" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
     },
     {
-        label: "Bookings",
+        label: "adminNav.bookings",
         href: "/admin/dashboard/bookings",
         icon: <Calendar className="h-5 w-5" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
     },
     {
-        label: "Services",
+        label: "adminNav.services",
         href: "/admin/dashboard/services",
         icon: <Scissors className="h-5 w-5" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        label: "Staff",
+        label: "adminNav.staff",
         href: "/admin/dashboard/staff",
         icon: <Users className="h-5 w-5" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        label: "Hours",
+        label: "adminNav.customers",
+        href: "/admin/dashboard/customers",
+        icon: <UserCheck className="h-5 w-5" />,
+        roles: ["OWNER", "ADMIN"],
+    },
+    {
+        label: "adminNav.availability",
+        href: "/admin/dashboard/availability",
+        icon: <Calendar className="h-5 w-5" />,
+        roles: ["OWNER", "ADMIN", "STAFF"],
+    },
+    {
+        label: "adminNav.hours",
         href: "/admin/dashboard/hours",
         icon: <Clock className="h-5 w-5" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        label: "Theme",
+        label: "adminNav.theme",
         href: "/admin/dashboard/theme",
         icon: <Palette className="h-5 w-5" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        label: "Pages",
+        label: "adminNav.pages",
         href: "/admin/dashboard/page-management",
         icon: <FileText className="h-5 w-5" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        label: "Settings",
+        label: "adminNav.settings",
         href: "/admin/dashboard/settings",
         icon: <Settings className="h-5 w-5" />,
         roles: ["OWNER", "ADMIN"],
+    },
+    {
+        label: "adminNav.profile",
+        href: "/admin/dashboard/profile",
+        icon: <UserCircle className="h-5 w-5" />,
+        roles: ["OWNER", "ADMIN", "STAFF"],
     },
 ];
 
@@ -85,28 +107,60 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const router = useRouter();
-    const pathname = usePathname();
     const {
-        user,
         companyUser,
-        companyName,
-        companySlug,
-        role,
         isAuthenticated,
-        isSuperAdmin,
         loading,
-        signOut,
+        mustChangePassword,
     } = useAdminAuth();
-
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const router = useRouter();
 
     // Auth guard
     useEffect(() => {
         if (!loading && !isAuthenticated) {
             router.replace("/admin/login");
+            return;
         }
-    }, [loading, isAuthenticated, router]);
+        if (!loading && isAuthenticated && mustChangePassword) {
+            router.replace("/admin/change-password");
+        }
+    }, [loading, isAuthenticated, mustChangePassword, router]);
+
+    // Loading state (before provider is ready)
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+                <div className="text-center">
+                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent mx-auto" />
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated || mustChangePassword) {
+        return null;
+    }
+
+    return (
+        <I18nProvider defaultLocale={companyUser?.company?.default_language ?? 'es'}>
+            <DashboardShell>{children}</DashboardShell>
+        </I18nProvider>
+    );
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+    const router = useRouter();
+    const {
+        user,
+        companyName,
+        companySlug,
+        role,
+        signOut,
+    } = useAdminAuth();
+    const t = useT();
+
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const handleSignOut = async () => {
         try {
@@ -122,23 +176,6 @@ export default function DashboardLayout({
         if (!item.roles) return true;
         return role && item.roles.includes(role);
     });
-
-    // Loading state
-    if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-                <div className="text-center">
-                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent mx-auto" />
-                    <p className="text-slate-400">Loading...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // Not authenticated
-    if (!isAuthenticated) {
-        return null;
-    }
 
     const getInitials = () => {
         if (user?.name) return user.name.charAt(0).toUpperCase();
@@ -204,23 +241,33 @@ export default function DashboardLayout({
                                     onClick={() => setSidebarOpen(false)}
                                 >
                                     {item.icon}
-                                    {item.label}
+                                    {t(item.label)}
                                 </Link>
                             );
                         })}
                     </nav>
 
-                    {/* View Shop Link */}
-                    {companySlug && (
-                        <div className="border-t border-slate-800 p-4">
-                            <Link
-                                href={`/shop/${companySlug}`}
-                                target="_blank"
-                                className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                                View public page
-                            </Link>
+                    {/* Super admin back link + View Shop Link */}
+                    {(user?.is_super_admin || companySlug) && (
+                        <div className="border-t border-slate-800 p-4 space-y-2">
+                            {user?.is_super_admin && (
+                                <Link
+                                    href="/admin/super-admin"
+                                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+                                >
+                                    {`← ${t('adminNav.backToSuperAdmin')}`}
+                                </Link>
+                            )}
+                            {companySlug && (
+                                <Link
+                                    href={`/shop/${companySlug}`}
+                                    target="_blank"
+                                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                    {t('adminNav.backToShop')}
+                                </Link>
+                            )}
                         </div>
                     )}
 
@@ -242,7 +289,7 @@ export default function DashboardLayout({
                             <button
                                 onClick={handleSignOut}
                                 className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-                                title="Sign out"
+                                title={t('adminNav.signOut')}
                             >
                                 <LogOut className="h-4 w-4 text-slate-400" />
                             </button>
@@ -263,10 +310,10 @@ export default function DashboardLayout({
                     </button>
                     <div className="flex-1">
                         <h1 className="text-lg font-semibold text-slate-900">
-                            {filteredNavItems.find((item) => item.href === pathname)?.label ||
-                                "Dashboard"}
+                            {t(filteredNavItems.find((item) => item.href === pathname)?.label || 'adminNav.dashboard')}
                         </h1>
                     </div>
+                    <LanguageSwitcher variant="admin" />
                 </header>
 
                 {/* Page Content - scrollable */}

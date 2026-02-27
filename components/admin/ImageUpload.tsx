@@ -5,6 +5,7 @@ import { Upload, X, Loader2, ImageIcon, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getImageUrl, getUploadEndpoint, type CompanyImageType } from "@/utils/image-url";
+import { useT } from "@/lib/i18n";
 
 export type ImageUploadType = CompanyImageType | 'staff';
 
@@ -52,6 +53,7 @@ export function ImageUpload({
     autoUpload = true,
     className,
 }: ImageUploadProps) {
+    const t = useT();
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -63,10 +65,10 @@ export function ImageUpload({
 
     const validateFile = (file: File): string | null => {
         if (!ACCEPTED_TYPES.includes(file.type)) {
-            return 'Invalid file type. Please use JPG, PNG, or WebP.';
+            return t('imageUpload.invalidFileType');
         }
         if (file.size > maxSizeMB * 1024 * 1024) {
-            return `File too large. Maximum size is ${maxSizeMB}MB.`;
+            return t('imageUpload.fileTooLarge', { maxSize: maxSizeMB });
         }
         return null;
     };
@@ -220,7 +222,7 @@ export function ImageUpload({
                     <div className={cn("relative", aspectRatioClasses[aspectRatio] || 'min-h-[200px]')}>
                         <img
                             src={displayUrl}
-                            alt="Preview"
+                            alt={t('sharedUi.imagePreview')}
                             className="w-full h-full object-cover"
                         />
                         {isUploading && (
@@ -261,7 +263,7 @@ export function ImageUpload({
                     {isUploading ? (
                         <>
                             <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
-                            <p className="text-sm font-medium text-slate-700">Uploading... {uploadProgress}%</p>
+                            <p className="text-sm font-medium text-slate-700">{t('imageUpload.uploading', { progress: uploadProgress })}</p>
                         </>
                     ) : (
                         <>
@@ -270,14 +272,14 @@ export function ImageUpload({
                             </div>
                             <div>
                                 <p className="text-sm font-medium text-slate-700">
-                                    Drag & drop or click to upload
+                                    {t('imageUpload.dragDrop')}
                                 </p>
                                 <p className="text-xs text-slate-500 mt-1">
-                                    JPG, PNG, WebP up to {maxSizeMB}MB
+                                    {t('imageUpload.fileTypes', { maxSize: maxSizeMB })}
                                 </p>
                                 {aspectRatio !== 'free' && (
                                     <p className="text-xs text-slate-400 mt-1">
-                                        Recommended: {aspectRatioLabels[aspectRatio]}
+                                        {t('imageUpload.recommended', { ratio: aspectRatioLabels[aspectRatio] })}
                                     </p>
                                 )}
                             </div>
@@ -297,7 +299,7 @@ export function ImageUpload({
                         className="ml-auto h-6 px-2 text-rose-600 hover:text-rose-700"
                         onClick={() => setError(null)}
                     >
-                        Dismiss
+                        {t('imageUpload.dismiss')}
                     </Button>
                 </div>
             )}
@@ -312,7 +314,7 @@ export function ImageUpload({
                     className="mt-3 text-rose-500 hover:text-rose-600 hover:bg-rose-50 border-rose-200"
                 >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Remove Image
+                    {t('adminPages.removeImage')}
                 </Button>
             )}
         </div>

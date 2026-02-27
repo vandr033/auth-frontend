@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, AlertCircle, Users, Check } from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle, Users, Check, LogIn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useI18n, useT } from "@/lib/i18n";
+import { getLocalizedText } from "@/lib/i18n/localized";
 import type { SuperAdminShop, CompanyType } from "@/types/super-admin";
 
 function getApiUrl(path: string): string {
@@ -42,10 +44,12 @@ interface FormData {
 }
 
 export default function EditShopPage() {
+    const t = useT();
+    const { locale } = useI18n();
     const router = useRouter();
     const params = useParams();
     const shopId = params.id as string;
-    const { isAuthenticated, isSuperAdmin, loading: authLoading } = useAdminAuth();
+    const { isAuthenticated, isSuperAdmin, loading: authLoading, refreshSession } = useAdminAuth();
 
     const [shop, setShop] = useState<SuperAdminShop | null>(null);
     const [formData, setFormData] = useState<FormData | null>(null);
@@ -55,6 +59,13 @@ export default function EditShopPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
+    const getCompanyTypeName = (type: CompanyType): string =>
+        getLocalizedText({
+            text: type.name,
+            translations: type.name_i18n,
+            locale,
+        });
+
     // Fetch shop and company types
     const fetchData = useCallback(async () => {
         try {
@@ -63,7 +74,7 @@ export default function EditShopPage() {
                 fetch(getApiUrl("/api/super-admin/company-types"), { credentials: "include" }),
             ]);
 
-            if (!shopRes.ok) throw new Error("Failed to fetch shop");
+            if (!shopRes.ok) throw new Error(t("superAdminShops.fetchShopError"));
 
             const shopData = await shopRes.json();
             const typesData = await typesRes.json().catch(() => ({ data: [] }));
@@ -86,7 +97,7 @@ export default function EditShopPage() {
             });
             setCompanyTypes(typesData.data || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load shop");
+            setError(err instanceof Error ? err.message : t("superAdminShops.loadShopError"));
         } finally {
             setLoading(false);
         }
@@ -98,6 +109,24 @@ export default function EditShopPage() {
         }
     }, [isAuthenticated, isSuperAdmin, shopId, fetchData]);
 
+    // Handle impersonate
+    const handleImpersonate = async () => {
+        try {
+            const response = await fetch(getApiUrl(`/api/super-admin/impersonate/${shopId}`), {
+                method: "POST",
+                credentials: "include",
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.message || t("superAdminShops.impersonateFailed"));
+            }
+            await refreshSession();
+            router.push("/admin/dashboard");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : t("superAdminShops.impersonateFailed"));
+        }
+    };
+
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,11 +136,11 @@ export default function EditShopPage() {
         setSuccess(false);
 
         if (!formData.name.trim()) {
-            setError("Shop name is required");
+            setError(t("superAdminShops.shopNameRequired"));
             return;
         }
         if (!formData.phone.trim()) {
-            setError("Phone number is required");
+            setError(t("superAdminShops.phoneRequired"));
             return;
         }
 
@@ -142,13 +171,13 @@ export default function EditShopPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || data.error || "Failed to update shop");
+                throw new Error(data.message || data.error || t("superAdminShops.updateFailed"));
             }
 
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update shop");
+            setError(err instanceof Error ? err.message : t("superAdminShops.updateFailed"));
         } finally {
             setSubmitting(false);
         }
@@ -158,7 +187,7 @@ export default function EditShopPage() {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-                <span className="ml-2 text-slate-600">Loading shop...</span>
+                <span className="ml-2 text-slate-600">{t("superAdminShops.loadingShop")}</span>
             </div>
         );
     }
@@ -166,10 +195,10 @@ export default function EditShopPage() {
     if (!shop || !formData) {
         return (
             <div className="text-center py-12">
-                <p className="text-slate-500">Shop not found</p>
+                <p className="text-slate-500">{t("superAdminShops.shopNotFound")}</p>
                 <Link href="/admin/super-admin/shops">
                     <Button variant="outline" className="mt-4">
-                        Back to Shops
+                        {t("superAdminShops.backToShops")}
                     </Button>
                 </Link>
             </div>
@@ -184,23 +213,32 @@ export default function EditShopPage() {
                     <Link href="/admin/super-admin/shops">
                         <Button variant="ghost" size="sm">
                             <ArrowLeft className="h-4 w-4 mr-2" />
-                            Back to Shops
+                            {t("superAdminShops.backToShops")}
                         </Button>
                     </Link>
                 </div>
-                <Link href={`/admin/super-admin/shops/${shopId}/users`}>
-                    <Button variant="outline">
-                        <Users className="h-4 w-4 mr-2" />
-                        Manage Users
+                <div className="flex items-center gap-2">
+                    <Button
+                        onClick={handleImpersonate}
+                        className="bg-violet-600 hover:bg-violet-700 text-white"
+                    >
+                        <LogIn className="h-4 w-4 mr-2" />
+                        {t("superAdminShops.enterShop")}
                     </Button>
-                </Link>
+                    <Link href={`/admin/super-admin/shops/${shopId}/users`}>
+                        <Button variant="outline">
+                            <Users className="h-4 w-4 mr-2" />
+                            {t("superAdminShops.manageUsers")}
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Edit Shop: {shop.name}</CardTitle>
+                    <CardTitle>{t("superAdminShops.editShopTitle", { name: shop.name })}</CardTitle>
                     <CardDescription>
-                        Update shop information and settings
+                        {t("superAdminShops.editDescription")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -215,16 +253,16 @@ export default function EditShopPage() {
                         {success && (
                             <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
                                 <Check className="h-4 w-4 flex-shrink-0" />
-                                Shop updated successfully!
+                                {t("superAdminShops.updatedSuccess")}
                             </div>
                         )}
 
                         {/* Status Toggle */}
                         <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
                             <div>
-                                <Label>Shop Status</Label>
+                                <Label>{t("superAdminShops.shopStatus")}</Label>
                                 <p className="text-sm text-slate-500">
-                                    {formData.is_active ? "Shop is visible to customers" : "Shop is hidden from customers"}
+                                    {formData.is_active ? t("superAdminShops.shopVisible") : t("superAdminShops.shopHidden")}
                                 </p>
                             </div>
                             <Switch
@@ -236,42 +274,42 @@ export default function EditShopPage() {
                         {/* Basic Info */}
                         <div className="grid gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Shop Name *</Label>
+                                <Label htmlFor="name">{t("superAdminShops.shopNameRequiredLabel")}</Label>
                                 <Input
                                     id="name"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="e.g., Awesome Barber Shop"
+                                    placeholder={t("superAdminShops.shopNamePlaceholder")}
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="slug">URL Slug</Label>
+                                <Label htmlFor="slug">{t("superAdminShops.urlSlug")}</Label>
                                 <Input
                                     id="slug"
                                     value={formData.slug}
                                     onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                    placeholder="awesome-barber-shop"
+                                    placeholder={t("superAdminShops.slugPlaceholder")}
                                     className="font-mono text-sm"
                                 />
                                 <p className="text-xs text-slate-500">
-                                    Shop URL: /shop/{formData.slug}
+                                    {t("superAdminShops.shopUrlShort", { slug: formData.slug })}
                                 </p>
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="company_type">Company Type</Label>
+                                <Label htmlFor="company_type">{t("superAdminShops.companyType")}</Label>
                                 <Select
                                     value={formData.company_type_id}
                                     onValueChange={(value) => setFormData({ ...formData, company_type_id: value })}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select a type" />
+                                        <SelectValue placeholder={t("superAdminShops.selectType")} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {companyTypes.map((type) => (
                                             <SelectItem key={type.id} value={type.id.toString()}>
-                                                {type.name}
+                                                {getCompanyTypeName(type)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -281,10 +319,10 @@ export default function EditShopPage() {
 
                         {/* Contact Info */}
                         <div className="border-t pt-4">
-                            <h3 className="font-medium mb-4">Contact Information</h3>
+                            <h3 className="font-medium mb-4">{t("superAdminShops.contactInformation")}</h3>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="phone_prefix">Country Code</Label>
+                                    <Label htmlFor="phone_prefix">{t("superAdminShops.countryCode")}</Label>
                                     <Input
                                         id="phone_prefix"
                                         value={formData.phone_prefix}
@@ -294,7 +332,7 @@ export default function EditShopPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="phone">Phone Number *</Label>
+                                    <Label htmlFor="phone">{t("superAdminShops.phoneRequiredLabel")}</Label>
                                     <Input
                                         id="phone"
                                         value={formData.phone}
@@ -304,63 +342,63 @@ export default function EditShopPage() {
                                 </div>
                             </div>
                             <div className="mt-4 space-y-2">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">{t("adminSettings.email")}</Label>
                                 <Input
                                     id="email"
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="contact@shop.com"
+                                    placeholder={t("superAdminShops.emailPlaceholder")}
                                 />
                             </div>
                         </div>
 
                         {/* Location */}
                         <div className="border-t pt-4">
-                            <h3 className="font-medium mb-4">Location</h3>
+                            <h3 className="font-medium mb-4">{t("superAdminShops.location")}</h3>
                             <div className="grid gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="address">Address</Label>
+                                    <Label htmlFor="address">{t("adminSettings.address")}</Label>
                                     <Input
                                         id="address"
                                         value={formData.address}
                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                        placeholder="Av. Principal #123"
+                                        placeholder={t("superAdminShops.addressPlaceholder")}
                                     />
                                 </div>
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="space-y-2">
-                                        <Label htmlFor="city">City</Label>
+                                        <Label htmlFor="city">{t("adminSettings.city")}</Label>
                                         <Input
                                             id="city"
                                             value={formData.city}
                                             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                                            placeholder="Santa Cruz"
+                                            placeholder={t("superAdminShops.cityPlaceholder")}
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="state">State/Region</Label>
+                                        <Label htmlFor="state">{t("superAdminShops.stateRegion")}</Label>
                                         <Input
                                             id="state"
                                             value={formData.state}
                                             onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                                            placeholder="Santa Cruz"
+                                            placeholder={t("superAdminShops.statePlaceholder")}
                                         />
                                     </div>
                                 </div>
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="space-y-2">
-                                        <Label htmlFor="country_code">Country Code</Label>
+                                        <Label htmlFor="country_code">{t("superAdminShops.countryCode")}</Label>
                                         <Input
                                             id="country_code"
                                             value={formData.country_code}
                                             onChange={(e) => setFormData({ ...formData, country_code: e.target.value.toUpperCase() })}
-                                            placeholder="BO"
+                                            placeholder={t("superAdminShops.countryCodePlaceholder")}
                                             maxLength={2}
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="timezone">Timezone</Label>
+                                        <Label htmlFor="timezone">{t("superAdminShops.timezone")}</Label>
                                         <Select
                                             value={formData.timezone}
                                             onValueChange={(value) => setFormData({ ...formData, timezone: value })}
@@ -369,11 +407,11 @@ export default function EditShopPage() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="America/La_Paz">America/La_Paz (Bolivia)</SelectItem>
-                                                <SelectItem value="America/Lima">America/Lima (Peru)</SelectItem>
-                                                <SelectItem value="America/Santiago">America/Santiago (Chile)</SelectItem>
-                                                <SelectItem value="America/Buenos_Aires">America/Buenos_Aires (Argentina)</SelectItem>
-                                                <SelectItem value="America/Sao_Paulo">America/Sao_Paulo (Brazil)</SelectItem>
+                                                <SelectItem value="America/La_Paz">{t("superAdminShops.timezoneBolivia")}</SelectItem>
+                                                <SelectItem value="America/Lima">{t("superAdminShops.timezonePeru")}</SelectItem>
+                                                <SelectItem value="America/Santiago">{t("superAdminShops.timezoneChile")}</SelectItem>
+                                                <SelectItem value="America/Buenos_Aires">{t("superAdminShops.timezoneArgentina")}</SelectItem>
+                                                <SelectItem value="America/Sao_Paulo">{t("superAdminShops.timezoneBrazil")}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -385,7 +423,7 @@ export default function EditShopPage() {
                         <div className="flex gap-4 pt-4 border-t">
                             <Link href="/admin/super-admin/shops" className="flex-1">
                                 <Button type="button" variant="outline" className="w-full">
-                                    Cancel
+                                    {t("common.cancel")}
                                 </Button>
                             </Link>
                             <Button
@@ -396,10 +434,10 @@ export default function EditShopPage() {
                                 {submitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Saving...
+                                        {t("superAdminShops.saving")}
                                     </>
                                 ) : (
-                                    "Save Changes"
+                                    t("adminBookings.saveChanges")
                                 )}
                             </Button>
                         </div>

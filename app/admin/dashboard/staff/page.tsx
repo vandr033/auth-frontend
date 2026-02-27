@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
     Dialog,
     DialogContent,
@@ -25,7 +26,15 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 import { getImageUrl, getStaffImageUrl } from "@/utils/image-url";
@@ -50,6 +59,9 @@ interface Staff {
     image_url: string | null;
     is_bookable: boolean;
     is_active: boolean;
+    status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
+    start_date?: string | null;
+    end_date?: string | null;
     services?: number[]; // IDs of services this staff member can perform
     user?: {
         id: string;
@@ -61,18 +73,28 @@ interface Staff {
 
 interface StaffFormData {
     email: string;
+    role: "OWNER" | "ADMIN" | "STAFF";
+    phone_prefix: string;
+    phone: string;
     display_name: string;
     bio: string;
     is_bookable: boolean;
     service_ids: number[];
+    start_date: string;
+    end_date: string;
 }
 
 const initialFormData: StaffFormData = {
     email: "",
+    role: "STAFF",
+    phone_prefix: "591",
+    phone: "",
     display_name: "",
     bio: "",
     is_bookable: true,
     service_ids: [],
+    start_date: "",
+    end_date: "",
 };
 
 // Helper function to get initials
@@ -92,7 +114,8 @@ function getApiUrl(path: string): string {
 }
 
 export default function StaffPage() {
-    const { companyId, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const { companyId, isAuthenticated, loading: authLoading, role: currentRole } = useAdminAuth();
+    const t = useT();
 
     // State
     const [staff, setStaff] = useState<Staff[]>([]);
@@ -130,7 +153,7 @@ export default function StaffPage() {
                 }),
             ]);
 
-            if (!staffRes.ok) throw new Error("Failed to fetch staff");
+            if (!staffRes.ok) throw new Error(t('adminStaff.fetchStaffError'));
             // Don't fail hard if services fail, just provide empty list
             // if (!servicesRes.ok) throw new Error("Failed to fetch services");
 
@@ -140,11 +163,11 @@ export default function StaffPage() {
             setStaff(staffData.data || staffData || []);
             setServices(servicesData.data || servicesData || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load data");
+            setError(err instanceof Error ? err.message : t('adminStaff.loadDataError'));
         } finally {
             setLoading(false);
         }
-    }, [companyId]);
+    }, [companyId, t]);
 
     useEffect(() => {
         if (isAuthenticated && companyId) {
@@ -172,10 +195,15 @@ export default function StaffPage() {
         setEditingStaff(member);
         setFormData({
             email: member.user?.email || "",
+            role: "STAFF",
+            phone_prefix: "591",
+            phone: "",
             display_name: member.display_name,
             bio: member.bio || "",
             is_bookable: member.is_bookable,
-            service_ids: member.services || [], // Prefill services
+            service_ids: member.services || [],
+            start_date: member.start_date ? member.start_date.split('T')[0] : "",
+            end_date: member.end_date ? member.end_date.split('T')[0] : "",
         });
         setFormError(null);
         setSelectedImage(null);
@@ -200,11 +228,15 @@ export default function StaffPage() {
 
         // Validation
         if (!formData.display_name.trim()) {
-            setFormError("Display name is required");
+            setFormError(t('adminStaff.displayNameRequired'));
             return;
         }
         if (!editingStaff && !formData.email.trim()) {
-            setFormError("Email is required to invite staff");
+            setFormError(t('adminStaff.emailRequiredInvite'));
+            return;
+        }
+        if (!editingStaff && !["OWNER", "ADMIN", "STAFF"].includes(formData.role)) {
+            setFormError(t("superAdminShops.roleRequiredLabel"));
             return;
         }
 
@@ -218,7 +250,15 @@ export default function StaffPage() {
                 bio: formData.bio.trim() || null,
                 is_bookable: formData.is_bookable,
                 company_id: companyId,
-                ...(editingStaff ? {} : { email: formData.email.trim(), service_ids: formData.service_ids }),
+                ...(editingStaff ? {} : {
+                    email: formData.email.trim(),
+                    role: formData.role,
+                    phone_prefix: formData.phone_prefix.trim() || undefined,
+                    phone: formData.phone.trim() || undefined,
+                    service_ids: formData.service_ids,
+                    ...(formData.start_date ? { start_date: formData.start_date } : {}),
+                    ...(formData.end_date ? { end_date: formData.end_date } : {}),
+                }),
             };
 
             const url = editingStaff
@@ -234,7 +274,7 @@ export default function StaffPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || "Failed to save staff");
+                throw new Error(data.message || t('adminStaff.saveStaffError'));
             }
 
             const savedStaff = await response.json();
@@ -279,7 +319,7 @@ export default function StaffPage() {
             setIsModalOpen(false);
             await fetchData();
         } catch (err) {
-            setFormError(err instanceof Error ? err.message : "Failed to save staff");
+            setFormError(err instanceof Error ? err.message : t('adminStaff.saveStaffError'));
         } finally {
             setSubmitting(false);
         }
@@ -296,13 +336,13 @@ export default function StaffPage() {
                 credentials: "include",
             });
 
-            if (!response.ok) throw new Error("Failed to delete staff");
+            if (!response.ok) throw new Error(t('adminStaff.deleteFailed'));
 
             setIsDeleteDialogOpen(false);
             setDeletingStaff(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to delete staff");
+            setError(err instanceof Error ? err.message : t('adminStaff.deleteFailed'));
         } finally {
             setSubmitting(false);
         }
@@ -318,7 +358,7 @@ export default function StaffPage() {
                 body: JSON.stringify({ is_bookable: !member.is_bookable }),
             });
 
-            if (!response.ok) throw new Error("Failed to update status");
+            if (!response.ok) throw new Error(t('adminStaff.updateStatusFailed'));
 
             setStaff((prev) =>
                 prev.map((s) =>
@@ -326,7 +366,7 @@ export default function StaffPage() {
                 )
             );
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update status");
+            setError(err instanceof Error ? err.message : t('adminStaff.updateStatusFailed'));
         }
     };
 
@@ -335,7 +375,7 @@ export default function StaffPage() {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-slate-600">Loading staff...</span>
+                <span className="ml-2 text-slate-600">{t('common.loading')}</span>
             </div>
         );
     }
@@ -345,12 +385,12 @@ export default function StaffPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Staff</h1>
-                    <p className="text-slate-500">Manage your team members</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('adminStaff.title')}</h1>
+                    <p className="text-slate-500">{t('adminStaff.subtitle')}</p>
                 </div>
                 <Button onClick={openAddModal} className="bg-orange-500 hover:bg-orange-600 text-white">
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Staff
+                    {t('adminStaff.inviteStaff')}
                 </Button>
             </div>
 
@@ -364,7 +404,7 @@ export default function StaffPage() {
                         onClick={() => setError(null)}
                         className="ml-2"
                     >
-                        Dismiss
+                        {t('imageUpload.dismiss')}
                     </Button>
                 </div>
             )}
@@ -373,7 +413,7 @@ export default function StaffPage() {
             <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                    placeholder="Search staff..."
+                    placeholder={t('adminStaff.searchPlaceholder')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -385,7 +425,7 @@ export default function StaffPage() {
                 {filteredStaff.length === 0 ? (
                     <Card className="sm:col-span-2 lg:col-span-3">
                         <CardContent className="py-12 text-center text-slate-500">
-                            {searchQuery ? "No staff match your search" : "No staff yet. Add your first team member!"}
+                            {t('adminStaff.noStaff')}
                         </CardContent>
                     </Card>
                 ) : (
@@ -406,9 +446,31 @@ export default function StaffPage() {
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="font-semibold text-white truncate">
-                                            {member.display_name}
-                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-white truncate">
+                                                {member.display_name}
+                                            </h3>
+                                            {member.status === 'PENDING' && (
+                                                <Badge className="bg-amber-400 text-amber-900 text-[10px] px-1.5 py-0">
+                                                    {t('adminBookings.pending')}
+                                                </Badge>
+                                            )}
+                                            {member.status === 'INACTIVE' && (
+                                                <Badge className="bg-gray-400 text-gray-900 text-[10px] px-1.5 py-0">
+                                                    {t('adminServices.inactive')}
+                                                </Badge>
+                                            )}
+                                            {member.end_date && new Date(member.end_date) < new Date() && (
+                                                <Badge className="bg-rose-400 text-rose-900 text-[10px] px-1.5 py-0">
+                                                    {t('adminStaff.expired')}
+                                                </Badge>
+                                            )}
+                                            {member.start_date && new Date(member.start_date) > new Date() && (
+                                                <Badge className="bg-blue-400 text-blue-900 text-[10px] px-1.5 py-0">
+                                                    {t('adminStaff.startsOn', { date: new Date(member.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) })}
+                                                </Badge>
+                                            )}
+                                        </div>
                                         {member.user?.email && (
                                             <p className="text-white/80 text-sm truncate flex items-center gap-1">
                                                 <Mail className="h-3 w-3 flex-shrink-0" />
@@ -427,7 +489,7 @@ export default function StaffPage() {
                                         </p>
                                     ) : (
                                         <p className="text-sm text-slate-400 italic">
-                                            No bio provided
+                                            {t('adminStaff.noBioProvided')}
                                         </p>
                                     )}
 
@@ -435,7 +497,7 @@ export default function StaffPage() {
                                     <div className="flex items-center justify-between py-2 border-t border-slate-100">
                                         <div className="flex items-center gap-2">
                                             <Calendar className="h-4 w-4 text-slate-400" />
-                                            <span className="text-sm text-slate-600">Bookable</span>
+                                            <span className="text-sm text-slate-600">{t('adminStaff.bookable')}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span
@@ -443,8 +505,8 @@ export default function StaffPage() {
                                                     "text-xs font-medium",
                                                     member.is_bookable ? "text-emerald-600" : "text-slate-400"
                                                 )}
-                                            >
-                                                {member.is_bookable ? "Yes" : "No"}
+                                                >
+                                                {member.is_bookable ? t('superAdminShops.yes') : t('superAdminShops.no')}
                                             </span>
                                             <Switch
                                                 checked={member.is_bookable}
@@ -462,7 +524,7 @@ export default function StaffPage() {
                                             className="flex-1"
                                         >
                                             <Pencil className="h-4 w-4 mr-1" />
-                                            Edit
+                                            {t('meProfile.edit')}
                                         </Button>
                                         <Button
                                             variant="outline"
@@ -489,13 +551,13 @@ export default function StaffPage() {
                     <DialogHeader>
                         <DialogTitle>
                             {editingStaff
-                                ? `Edit ${editingStaff.display_name}`
-                                : "Add New Staff Member"}
+                                ? t('adminStaff.editStaff', { name: editingStaff.display_name })
+                                : t('adminStaff.addNewStaff')}
                         </DialogTitle>
                         <DialogDescription>
                             {editingStaff
-                                ? "Update the staff member's details below"
-                                : "Invite a new team member by email"}
+                                ? t('adminStaff.updateStaffDetails')
+                                : t('adminStaff.inviteStaffByEmail')}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -509,46 +571,118 @@ export default function StaffPage() {
                         {/* Email - only for new staff */}
                         {!editingStaff && (
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email *</Label>
+                                <Label htmlFor="email">{t('adminStaff.email')} *</Label>
                                 <Input
                                     id="email"
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="staff@example.com"
+                                    placeholder={t('adminStaff.emailPlaceholder')}
                                 />
                                 <p className="text-xs text-slate-500">
-                                    An invitation will be sent to this email address
+                                    {t('adminStaff.inviteHint')}
                                 </p>
                             </div>
                         )}
 
+                        {!editingStaff && (
+                            <div className="space-y-2">
+                                <Label htmlFor="role">{t("superAdminShops.roleRequiredLabel")}</Label>
+                                <Select
+                                    value={formData.role}
+                                    onValueChange={(value: "OWNER" | "ADMIN" | "STAFF") =>
+                                        setFormData({ ...formData, role: value })
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {currentRole === "OWNER" && (
+                                            <SelectItem value="OWNER">{t("superAdminShops.roleOwner")}</SelectItem>
+                                        )}
+                                        <SelectItem value="ADMIN">{t("superAdminShops.roleAdmin")}</SelectItem>
+                                        <SelectItem value="STAFF">{t("superAdminShops.roleStaff")}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {!editingStaff && (
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone_prefix">{t("superAdminShops.countryCode")}</Label>
+                                    <Input
+                                        id="phone_prefix"
+                                        value={formData.phone_prefix}
+                                        onChange={(e) => setFormData({ ...formData, phone_prefix: e.target.value })}
+                                        placeholder="591"
+                                    />
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="phone">{t("adminCustomers.phone")}</Label>
+                                    <Input
+                                        id="phone"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder="70000000"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         <div className="space-y-2">
-                            <Label htmlFor="display_name">Display Name *</Label>
+                            <Label htmlFor="display_name">{t('adminStaff.name')} *</Label>
                             <Input
                                 id="display_name"
                                 value={formData.display_name}
                                 onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                                placeholder="e.g., John Smith"
+                                placeholder={t('adminStaff.namePlaceholder')}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="bio">Bio</Label>
+                            <Label htmlFor="bio">{t('adminStaff.bio')}</Label>
                             <textarea
                                 id="bio"
                                 value={formData.bio}
                                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                                placeholder="Brief description or specialty..."
+                                placeholder={t('adminStaff.bioPlaceholder')}
                                 className="w-full h-24 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
                             />
                         </div>
 
+                        {/* Date Range (for new staff) */}
+                        {!editingStaff && (
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="start_date">{t('adminStaff.startDate')}</Label>
+                                    <Input
+                                        id="start_date"
+                                        type="date"
+                                        value={formData.start_date}
+                                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                                    />
+                                    <p className="text-xs text-slate-500">{t('common.optional')}</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="end_date">{t('adminStaff.endDate')}</Label>
+                                    <Input
+                                        id="end_date"
+                                        type="date"
+                                        value={formData.end_date}
+                                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                                    />
+                                    <p className="text-xs text-slate-500">{t('common.optional')}</p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Service Selection */}
                         <div className="space-y-2">
-                            <Label>Assigned Services</Label>
+                            <Label>{t('adminStaff.assignedServices')}</Label>
                             {services.length === 0 ? (
-                                <p className="text-sm text-slate-500 italic">No services available. Create services first.</p>
+                                <p className="text-sm text-slate-500 italic">{t('adminStaff.noServicesHint')}</p>
                             ) : (
                                 <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-1">
                                     {services.map(service => (
@@ -568,7 +702,7 @@ export default function StaffPage() {
 
                         {/* Photo Upload */}
                         <div className="space-y-2">
-                            <Label>Photo</Label>
+                            <Label>{t('adminStaff.photo')}</Label>
                             <div className="max-w-xs mx-auto sm:mx-0">
                                 <ImageUpload
                                     companyId={companyId!}
@@ -587,9 +721,9 @@ export default function StaffPage() {
 
                         <div className="flex items-center justify-between py-2">
                             <div>
-                                <Label htmlFor="is_bookable">Bookable</Label>
+                                <Label htmlFor="is_bookable">{t('adminStaff.bookable')}</Label>
                                 <p className="text-xs text-slate-500">
-                                    Staff can receive bookings from customers
+                                    {t('adminStaff.bookableHint')}
                                 </p>
                             </div>
                             <Switch
@@ -607,7 +741,7 @@ export default function StaffPage() {
                                 variant="outline"
                                 onClick={() => setIsModalOpen(false)}
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </Button>
                             <Button
                                 type="submit"
@@ -617,12 +751,12 @@ export default function StaffPage() {
                                 {submitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Saving...
+                                        {t('adminServices.saving')}
                                     </>
                                 ) : editingStaff ? (
-                                    "Update Staff"
+                                    t('adminStaff.updateStaff')
                                 ) : (
-                                    "Add Staff"
+                                    t('adminStaff.addStaff')
                                 )}
                             </Button>
                         </DialogFooter>
@@ -634,9 +768,9 @@ export default function StaffPage() {
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Remove Staff Member</DialogTitle>
+                        <DialogTitle>{t('adminStaff.deleteConfirm')}</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to remove &quot;{deletingStaff?.display_name}&quot; from your team? This action cannot be undone.
+                            {t('adminStaff.deleteConfirm')}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -647,7 +781,7 @@ export default function StaffPage() {
                                 setDeletingStaff(null);
                             }}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             variant="destructive"
@@ -658,10 +792,10 @@ export default function StaffPage() {
                             {submitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Removing...
+                                    {t('superAdminShops.removing')}
                                 </>
                             ) : (
-                                "Remove Staff"
+                                t('adminStaff.removeStaff')
                             )}
                         </Button>
                     </DialogFooter>

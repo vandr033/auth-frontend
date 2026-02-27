@@ -15,12 +15,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
 
 export default function AdminLoginPage() {
+    const t = useT();
     const router = useRouter();
-    const { signIn, loading, isSuperAdmin, companyUser } = useAdminAuth();
+    const { signIn, loading } = useAdminAuth();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -34,17 +36,21 @@ export default function AdminLoginPage() {
         setStatus(null);
 
         try {
-            const { user: signedInUser, companyUser: signedInCompanyUser } = await signIn(email, password);
-            setStatus("Signed in successfully. Redirecting...");
-            // Super admin without a shop goes to super admin panel
-            // Otherwise go to regular admin dashboard
-            if (signedInUser.is_super_admin && !signedInCompanyUser) {
+            const { user: signedInUser } = await signIn(email, password);
+            setStatus(t("adminLogin.success"));
+            if (signedInUser.must_change_password) {
+                router.replace("/admin/change-password");
+                return;
+            }
+            // Super admins always land in the super admin panel.
+            if (signedInUser.is_super_admin) {
                 router.replace("/admin/super-admin");
             } else {
+                // Regular admin/staff users go to the company dashboard.
                 router.replace("/admin/dashboard");
             }
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Unable to sign in";
+            const message = err instanceof Error ? err.message : t("adminLogin.signInError");
             setError(message);
         }
     };
@@ -53,29 +59,29 @@ export default function AdminLoginPage() {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-black flex items-center justify-center px-4 py-10">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white">Admin Login</h1>
+                    <h1 className="text-3xl font-bold text-white">{t("adminLogin.title")}</h1>
                     <p className="text-white/70 mt-2">
-                        Sign in to manage your salon
+                        {t("adminLogin.subtitle")}
                     </p>
                 </div>
 
                 <Card className="border-white/10 bg-white/5 text-white shadow-lg backdrop-blur">
                     <CardHeader>
-                        <CardTitle>Welcome back</CardTitle>
+                        <CardTitle>{t("adminLogin.cardTitle")}</CardTitle>
                         <CardDescription className="text-white/70">
-                            Enter your credentials to access the dashboard
+                            {t("adminLogin.cardDescription")}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             <div className="space-y-2">
                                 <Label htmlFor="email" className="text-white">
-                                    Email
+                                    {t("adminLogin.email")}
                                 </Label>
                                 <Input
                                     id="email"
                                     type="email"
-                                    placeholder="you@example.com"
+                                    placeholder={t("adminLogin.emailPlaceholder")}
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
@@ -84,7 +90,7 @@ export default function AdminLoginPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="password" className="text-white">
-                                    Password
+                                    {t("adminLogin.password")}
                                 </Label>
                                 <Input
                                     id="password"
@@ -102,8 +108,14 @@ export default function AdminLoginPage() {
                                         className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
                                     >
                                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                        {showPassword ? "Hide password" : "Show password"}
+                                        {showPassword ? t("adminLogin.hidePassword") : t("adminLogin.showPassword")}
                                     </button>
+                                    <Link
+                                        href="/admin/reset-password"
+                                        className="ml-auto text-sm text-white/70 hover:text-white transition-colors"
+                                    >
+                                        {t("adminLogin.forgotPassword")}
+                                    </Link>
                                 </div>
                             </div>
 
@@ -112,7 +124,7 @@ export default function AdminLoginPage() {
                                 className="w-full bg-brand text-white hover:bg-brand-hover"
                                 disabled={loading || !email || !password}
                             >
-                                {loading ? "Signing in..." : "Sign in"}
+                                {loading ? t("adminLogin.signingIn") : t("adminLogin.signIn")}
                             </Button>
 
                             {(status || error) && (
@@ -133,7 +145,7 @@ export default function AdminLoginPage() {
 
                 <div className="mt-6 text-center text-sm text-white/60">
                     <Link href="/" className="hover:text-white">
-                        ← Back to home
+                        {`← ${t("adminLogin.backToHome")}`}
                     </Link>
                 </div>
             </div>

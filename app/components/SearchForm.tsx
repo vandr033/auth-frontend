@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, MapPin, Search, Briefcase, Loader2 } from "lucide-react";
 import { MensajeApi } from "@/types/api";
 import { useApi } from "../hooks/useApi";
+import { useT } from "@/lib/i18n";
 
 interface ServiceType {
   id: string;
@@ -15,6 +16,7 @@ interface City {
 }
 
 export function SearchForm() {
+  const t = useT();
   const api = useApi();
   const [serviceQuery, setServiceQuery] = useState("");
   const [services, setServices] = useState<ServiceType[]>([]);
@@ -87,7 +89,7 @@ export function SearchForm() {
               onChange={(e) => setServiceQuery(e.target.value)}
               onFocus={() => setServiceFocus(true)}
               onBlur={() => setTimeout(() => setServiceFocus(false), 120)}
-              placeholder="Service type"
+              placeholder={t("searchForm.servicePlaceholder")}
               className="w-full rounded-xl bg-white/10 py-3 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:bg-white/15 focus:ring-2 focus:ring-brand/30"
             />
             {servicesLoading && (
@@ -124,7 +126,7 @@ export function SearchForm() {
               onChange={(e) => setCityQuery(e.target.value)}
               onFocus={() => setCityFocus(true)}
               onBlur={() => setTimeout(() => setCityFocus(false), 120)}
-              placeholder="City or area"
+              placeholder={t("searchForm.cityPlaceholder")}
               className="w-full rounded-xl bg-white/10 py-3 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:bg-white/15 focus:ring-2 focus:ring-brand/30"
             />
             {citiesLoading && (
@@ -169,7 +171,7 @@ export function SearchForm() {
           className="flex items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-hover hover:shadow-xl active:scale-95"
         >
           <Search className="h-4 w-4" />
-          <span>Search</span>
+          <span>{t("searchForm.search")}</span>
         </button>
       </form>
     </div>

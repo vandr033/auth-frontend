@@ -4,7 +4,9 @@ export interface CompanyType {
     id: number;
     key: string;
     name: string;
+    name_i18n?: Record<string, string>;
     description?: string;
+    description_i18n?: Record<string, string>;
     icon_name?: string;
     is_active: boolean;
 }
@@ -46,6 +48,16 @@ export interface CreateShopPayload {
     country_code?: string;
     timezone?: string;
     company_type_id: number;
+    owner: {
+        email: string;
+        password: string;
+        first_name?: string;
+        last_name?: string;
+        phone_prefix?: string;
+        phone: string;
+        display_name?: string;
+        is_bookable?: boolean;
+    };
 }
 
 export interface UpdateShopPayload extends Partial<CreateShopPayload> { }

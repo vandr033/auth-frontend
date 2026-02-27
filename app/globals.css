@@ -97,7 +97,9 @@
   --radius-sm: 0.25rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
-  --font-family-base: var(--font-geist-sans, system-ui);
+  --font-family-base: var(--font-geist-sans), "Geist Sans", system-ui, sans-serif;
+  --font-heading: var(--font-outfit), "Outfit", system-ui, sans-serif;
+  --font-body: var(--font-geist-sans), "Geist Sans", system-ui, sans-serif;
 }
 
 .dark {

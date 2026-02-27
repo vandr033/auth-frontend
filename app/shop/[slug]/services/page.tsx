@@ -4,42 +4,35 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Scissors, Sparkles, Droplets, Palette, Leaf } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { PrimaryButton } from "@/app/components/PrimaryButton";
 import { useShop } from "../../contexts/ShopContext";
+import { useT } from "@/lib/i18n";
+import { ServicesWrapper } from "@/components/shop/services/ServicesWrapper";
+import { FloatingBookCTA } from "@/components/shop/FloatingBookCTA";
+import { ShopFooter } from "@/components/shop/ShopFooter";
 
-// Icon mapping for categories (can be extended)
+// Icon mapping for categories
 const categoryIcons: Record<string, React.ReactNode> = {
-    haircut: <Scissors className="h-5 w-5" />,
-    haircuts: <Scissors className="h-5 w-5" />,
-    corte: <Scissors className="h-5 w-5" />,
-    cortes: <Scissors className="h-5 w-5" />,
-    beard: <Sparkles className="h-5 w-5" />,
-    barba: <Sparkles className="h-5 w-5" />,
-    shave: <Droplets className="h-5 w-5" />,
-    afeitado: <Droplets className="h-5 w-5" />,
-    color: <Palette className="h-5 w-5" />,
-    tinte: <Palette className="h-5 w-5" />,
-    treatment: <Leaf className="h-5 w-5" />,
-    tratamiento: <Leaf className="h-5 w-5" />,
+    haircut: <Scissors className="h-4 w-4" />,
+    haircuts: <Scissors className="h-4 w-4" />,
+    corte: <Scissors className="h-4 w-4" />,
+    cortes: <Scissors className="h-4 w-4" />,
+    beard: <Sparkles className="h-4 w-4" />,
+    barba: <Sparkles className="h-4 w-4" />,
+    shave: <Droplets className="h-4 w-4" />,
+    afeitado: <Droplets className="h-4 w-4" />,
+    color: <Palette className="h-4 w-4" />,
+    tinte: <Palette className="h-4 w-4" />,
+    treatment: <Leaf className="h-4 w-4" />,
+    tratamiento: <Leaf className="h-4 w-4" />,
 };
 
 const getCategoryIcon = (categoryName: string) => {
     const key = categoryName.toLowerCase();
     for (const [iconKey, icon] of Object.entries(categoryIcons)) {
-        if (key.includes(iconKey)) {
-            return icon;
-        }
+        if (key.includes(iconKey)) return icon;
     }
-    return <Scissors className="h-5 w-5" />;
-};
-
-const formatPrice = (cents: number) => {
-    return `$${(cents / 100).toFixed(2)}`;
+    return <Scissors className="h-4 w-4" />;
 };
 
 export default function ServicesPage() {
@@ -51,52 +44,40 @@ export default function ServicesPage() {
         error,
         slug,
     } = useShop();
+    const t = useT();
 
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
-    // Group services by category
-    const servicesByCategory = useMemo(() => {
-        return categories.map((category) => ({
-            category,
-            services: services
-                .filter((s) => s.category_id === category.id)
-                .sort((a, b) => a.position - b.position),
-        })).filter(group => group.services.length > 0);
-    }, [categories, services]);
+    // Filter services by category
+    const filteredServices = useMemo(() => {
+        if (selectedCategoryId === null) return services;
+        return services.filter(s => s.category_id === selectedCategoryId);
+    }, [services, selectedCategoryId]);
 
-    // Filtered services based on selected category
-    const filteredGroups = useMemo(() => {
-        if (selectedCategoryId === null) {
-            return servicesByCategory;
-        }
-        return servicesByCategory.filter(
-            (group) => group.category.id === selectedCategoryId
-        );
-    }, [servicesByCategory, selectedCategoryId]);
+    const filteredCategories = useMemo(() => {
+        if (selectedCategoryId === null) return categories;
+        return categories.filter(c => c.id === selectedCategoryId);
+    }, [categories, selectedCategoryId]);
 
-    // Loading state
     if (loading) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-page text-text-main">
                 <div className="text-center">
                     <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent mx-auto" />
-                    <p className="text-text-muted">Loading services...</p>
+                    <p className="text-text-muted">{t('shopAbout.loadingServices')}</p>
                 </div>
             </main>
         );
     }
 
-    // Error state
     if (error || !company) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-page text-text-main">
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-4">Page Not Found</h1>
-                    <p className="text-text-muted mb-6">{error || "Unable to load services."}</p>
+                    <h1 className="text-4xl font-bold mb-4">{t('shopHome.pageNotFound')}</h1>
+                    <p className="text-text-muted mb-6">{error || t('shopAbout.unableToLoadServices')}</p>
                     <Link href="/">
-                        <Button className="bg-brand text-white hover:bg-brand-hover">
-                            Go Home
-                        </Button>
+                        <Button className="bg-brand text-white hover:bg-brand-hover">{t('shopHome.goHome')}</Button>
                     </Link>
                 </div>
             </main>
@@ -105,107 +86,107 @@ export default function ServicesPage() {
 
     return (
         <main className="min-h-screen bg-page text-text-main">
-            <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold sm:text-4xl">Services & Pricing</h1>
+            {/* Header */}
+            <div className="border-b border-surface-border bg-surface py-8">
+                <div className="mx-auto max-w-6xl px-4 md:px-8">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                        {t('shopServices.fullMenu')}
+                    </p>
+                    <h1 className="mt-2 font-heading text-3xl font-bold text-text-main md:text-4xl">
+                        {t('shopServices.title')}
+                    </h1>
                 </div>
+            </div>
 
-                <div className="flex flex-col gap-8 lg:flex-row">
-                    {/* Category Sidebar */}
-                    <aside className="w-full lg:w-64 shrink-0">
+            {/* Mobile: Horizontal pill bar (sticky) */}
+            <div className="sticky top-0 z-30 border-b border-surface-border bg-surface/95 backdrop-blur-sm md:hidden">
+                <div className="flex gap-2 overflow-x-auto px-4 py-3">
+                    <button
+                        onClick={() => setSelectedCategoryId(null)}
+                        className={cn(
+                            "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all",
+                            selectedCategoryId === null
+                                ? "bg-brand text-white"
+                                : "bg-section text-text-muted hover:bg-brand-soft-bg hover:text-brand"
+                        )}
+                    >
+                        {t('shopServices.allCategories')}
+                    </button>
+                    {categories.map(category => (
+                        <button
+                            key={category.id}
+                            onClick={() => setSelectedCategoryId(category.id)}
+                            className={cn(
+                                "flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all",
+                                selectedCategoryId === category.id
+                                    ? "bg-brand text-white"
+                                    : "bg-section text-text-muted hover:bg-brand-soft-bg hover:text-brand"
+                            )}
+                        >
+                            {getCategoryIcon(category.name)}
+                            {category.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
+                <div className="flex gap-8">
+                    {/* Desktop: Slim sticky sidebar */}
+                    <aside className="hidden w-56 shrink-0 md:block">
                         <div className="sticky top-24">
-                            <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-text-muted">
-                                Categories
+                            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">
+                                {t('shopServices.categories')}
                             </p>
-                            <nav className="flex flex-row gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-x-visible lg:pb-0">
-                                {/* All Categories Option */}
+                            <nav className="flex flex-col gap-1">
                                 <button
                                     onClick={() => setSelectedCategoryId(null)}
                                     className={cn(
-                                        "flex items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition whitespace-nowrap",
+                                        "rounded-md px-3 py-2.5 text-left text-sm font-medium transition-all",
                                         selectedCategoryId === null
-                                            ? "bg-brand-soft-bg text-brand"
+                                            ? "bg-brand-soft-bg text-brand border-l-2 border-brand"
                                             : "text-text-muted hover:bg-section hover:text-text-main"
                                     )}
                                 >
-                                    <Sparkles className="h-5 w-5 shrink-0" />
-                                    <span>All Services</span>
+                                    {t('shopServices.allServices')}
                                 </button>
-
-                                {categories.map((category) => (
+                                {categories.map(category => (
                                     <button
                                         key={category.id}
                                         onClick={() => setSelectedCategoryId(category.id)}
                                         className={cn(
-                                            "flex items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition whitespace-nowrap",
+                                            "flex items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-medium transition-all",
                                             selectedCategoryId === category.id
-                                                ? "bg-brand-soft-bg text-brand"
+                                                ? "bg-brand-soft-bg text-brand border-l-2 border-brand"
                                                 : "text-text-muted hover:bg-section hover:text-text-main"
                                         )}
                                     >
-                                        <span className="shrink-0">{getCategoryIcon(category.name)}</span>
-                                        <span>{category.name}</span>
+                                        {getCategoryIcon(category.name)}
+                                        {category.name}
                                     </button>
                                 ))}
                             </nav>
                         </div>
                     </aside>
 
-                    {/* Services List */}
-                    <div className="flex-1 space-y-10">
-                        {filteredGroups.length === 0 ? (
-                            <div className="text-center py-12">
-                                <p className="text-text-muted">No services available in this category.</p>
+                    {/* Services */}
+                    <div className="flex-1">
+                        {filteredServices.length === 0 ? (
+                            <div className="py-12 text-center">
+                                <p className="text-text-muted">{t('shopServices.noServices')}</p>
                             </div>
                         ) : (
-                            filteredGroups.map(({ category, services: categoryServices }) => (
-                                <section key={category.id} className="space-y-4">
-                                    <h2 className="text-2xl font-semibold">{category.name}</h2>
-
-                                    <div className="space-y-3">
-                                        {categoryServices.map((service) => (
-                                            <Card
-                                                key={service.id}
-                                                className="rounded-lg border-surface-border bg-surface shadow-sm transition hover:shadow-card"
-                                            >
-                                                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-                                                    <div className="flex-1 space-y-1">
-                                                        <h3 className="text-lg font-semibold text-text-main">
-                                                            {service.name}
-                                                        </h3>
-                                                        {service.description && (
-                                                            <p className="text-sm text-text-muted line-clamp-2">
-                                                                {service.description}
-                                                            </p>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end sm:gap-2">
-                                                        <div className="text-right">
-                                                            <p className="text-lg font-bold text-text-main">
-                                                                {formatPrice(service.price_cents)}
-                                                            </p>
-                                                            <p className="text-sm text-text-muted">
-                                                                {service.duration_minutes} min
-                                                            </p>
-                                                        </div>
-                                                        <Link href={`/shop/${slug}/book?serviceId=${service.id}`}>
-                                                            <PrimaryButton className="text-sm px-6">
-                                                                Book
-                                                            </PrimaryButton>
-                                                        </Link>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                </section>
-                            ))
+                            <ServicesWrapper
+                                categories={filteredCategories}
+                                services={filteredServices}
+                            />
                         )}
                     </div>
                 </div>
             </div>
+
+            <FloatingBookCTA slug={slug} />
+            <ShopFooter />
         </main>
     );
 }

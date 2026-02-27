@@ -27,11 +27,91 @@ async function apiFetch<T>(
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-        const message = data?.error || data?.message || `Request failed: ${response.status}`;
+        const message =
+            (typeof data?.message === "string" && data.message) ||
+            (typeof data?.error === "string" && data.error) ||
+            `Request failed: ${response.status}`;
         throw new Error(message);
     }
 
     return data;
+}
+
+// ============ DASHBOARD ============
+
+export interface DashboardMetrics {
+    bookings: { total: number; thisMonth: number; thisWeek: number; today: number; upcoming7Days: number };
+    revenue: { total: number; thisMonth: number; thisWeek: number; today: number; avgPerBooking: number };
+    topServices: { id: number; name: string; count: number; percentage: number }[];
+    topStaff: { id: number; name: string; bookingCount: number; revenue: number }[];
+}
+
+export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+    const response = await apiFetch<{ data: DashboardMetrics }>("/api/admin/dashboard/metrics");
+    return response.data;
+}
+
+// ============ CUSTOMERS ============
+
+export interface CustomerRecord {
+    id: number;
+    userId: string | null;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    phonePrefix: string | null;
+    notes: string | null;
+    totalBookings: number;
+    lastBookingAt: string | null;
+    totalSpentCents: number;
+}
+
+export async function getCustomers(search?: string): Promise<CustomerRecord[]> {
+    const params = search ? `?search=${encodeURIComponent(search)}` : "";
+    const response = await apiFetch<{ data: CustomerRecord[] }>(`/api/admin/customers${params}`);
+    return response.data;
+}
+
+export interface CustomerImportResult {
+    totalRows: number;
+    importedRows: number;
+    skippedRows: number;
+    createdUsers: number;
+    linkedExistingUsers: number;
+    createdCompanyUsers: number;
+    createdProfiles: number;
+    restoredCompanyUsers: number;
+    restoredProfiles: number;
+    skipped: Array<{ row: number; reason: string }>;
+}
+
+export async function importCustomersFile(file: File): Promise<CustomerImportResult> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(resolveUrl("/api/admin/customers/import"), {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+        const message = data?.error || data?.message || `Request failed: ${response.status}`;
+        throw new Error(message);
+    }
+
+    return data?.data as CustomerImportResult;
+}
+
+export async function downloadCustomerImportTemplate(): Promise<Blob> {
+    const response = await fetch(resolveUrl("/api/admin/customers/import/template"), {
+        credentials: "include",
+    });
+    if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
+    }
+    return response.blob();
 }
 
 // ============ BOOKINGS ============
@@ -89,6 +169,8 @@ export interface UpdateBookingData {
     status?: BookingStatus;
     start_at?: string;
     notes?: string;
+    staff_id?: number;
+    service_ids?: number[];
 }
 
 export interface UpdateBookingResponse {
@@ -111,6 +193,9 @@ export interface StaffMember {
     bio?: string;
     image_url?: string;
     is_bookable: boolean;
+    status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
+    start_date?: string | null;
+    end_date?: string | null;
     company_id: number;
     user_id: string;
     user?: {
@@ -128,6 +213,76 @@ export interface StaffMember {
 
 export interface GetStaffResponse {
     data: StaffMember[];
+}
+
+export interface StaffSelfProfile {
+    id: number;
+    display_name: string;
+    bio?: string | null;
+    image_url?: string | null;
+    is_bookable: boolean;
+    status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
+    user: {
+        id: string;
+        email: string;
+        name: string;
+        first_name?: string | null;
+        last_name?: string | null;
+        phoneNumber?: string | null;
+        phone_prefix?: string | null;
+        image?: string | null;
+    };
+}
+
+export interface UserSelfProfile {
+    id: string;
+    email: string;
+    name: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    phoneNumber?: string | null;
+    phone_prefix?: string | null;
+    image?: string | null;
+    phoneNumberVerified?: boolean;
+    emailVerified?: boolean;
+}
+
+export async function getMyUserProfile(): Promise<UserSelfProfile> {
+    const response = await apiFetch<{ data: { user: UserSelfProfile } }>("/api/v1/auth/me");
+    return response.data.user;
+}
+
+export async function updateMyUserProfile(payload: {
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    phone_prefix?: string;
+}): Promise<UserSelfProfile> {
+    const response = await apiFetch<{ data: { user: UserSelfProfile } }>("/api/v1/auth/me", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+    return response.data.user;
+}
+
+export async function getMyStaffProfile(): Promise<StaffSelfProfile> {
+    const response = await apiFetch<{ data: StaffSelfProfile }>("/api/admin/staff/me");
+    return response.data;
+}
+
+export async function updateMyStaffProfile(payload: {
+    display_name?: string;
+    bio?: string;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    phone_prefix?: string;
+}): Promise<StaffSelfProfile> {
+    const response = await apiFetch<{ data: StaffSelfProfile }>("/api/admin/staff/me", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
 }
 
 export async function getStaff(): Promise<StaffMember[]> {
@@ -229,4 +384,114 @@ export async function getHours(): Promise<DaySchedule[]> {
         console.error("Failed to fetch hours:", err);
         return [];
     }
+}
+
+// ============ STAFF AVAILABILITY & TIME OFF ============
+
+export interface StaffAvailabilitySlot {
+    id?: number;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    is_active?: boolean;
+}
+
+export interface StaffAvailabilityData {
+    staff: {
+        id: number;
+        user_id: string;
+        display_name: string;
+        start_date?: string | null;
+        end_date?: string | null;
+        is_bookable: boolean;
+    };
+    slots: StaffAvailabilitySlot[];
+}
+
+export type StaffTimeOffStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface StaffTimeOffRequest {
+    id: number;
+    company_id: number;
+    staff_id: number;
+    requested_by_user_id: string;
+    starts_at: string;
+    ends_at: string;
+    reason?: string | null;
+    status: StaffTimeOffStatus;
+    review_note?: string | null;
+    reviewed_by_user_id?: string | null;
+    reviewed_at?: string | null;
+    created_at: string;
+    updated_at: string;
+    staff?: { id: number; display_name: string };
+    requested_by?: { id: string; name?: string | null; email?: string | null };
+    reviewed_by?: { id: string; name?: string | null; email?: string | null };
+}
+
+export async function getStaffAvailability(staffId: number): Promise<StaffAvailabilityData> {
+    const response = await apiFetch<{ data: StaffAvailabilityData }>(`/api/admin/staff/${staffId}/availability`);
+    return response.data;
+}
+
+export async function getMyStaffAvailability(): Promise<StaffAvailabilityData> {
+    const response = await apiFetch<{ data: StaffAvailabilityData }>(`/api/admin/staff/me/availability`);
+    return response.data;
+}
+
+export async function saveStaffAvailability(
+    staffId: number,
+    slots: StaffAvailabilitySlot[],
+): Promise<StaffAvailabilityData> {
+    const response = await apiFetch<{ data: StaffAvailabilityData }>(`/api/admin/staff/${staffId}/availability`, {
+        method: "PUT",
+        body: JSON.stringify({ slots }),
+    });
+    return response.data;
+}
+
+export async function listTimeOffRequests(params?: {
+    status?: StaffTimeOffStatus;
+    staff_id?: number;
+}): Promise<StaffTimeOffRequest[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set("status", params.status);
+    if (params?.staff_id) searchParams.set("staff_id", String(params.staff_id));
+
+    const query = searchParams.toString();
+    const response = await apiFetch<{ data: StaffTimeOffRequest[] }>(
+        `/api/admin/staff/time-off${query ? `?${query}` : ""}`
+    );
+    return response.data;
+}
+
+export async function createTimeOffRequest(payload: {
+    starts_at: string;
+    ends_at: string;
+    reason?: string;
+    staff_id?: number;
+}): Promise<StaffTimeOffRequest> {
+    const response = await apiFetch<{ data: StaffTimeOffRequest }>(`/api/admin/staff/time-off`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function reviewTimeOffRequest(
+    requestId: number,
+    payload: { status: "APPROVED" | "REJECTED"; review_note?: string },
+): Promise<StaffTimeOffRequest> {
+    const response = await apiFetch<{ data: StaffTimeOffRequest }>(`/api/admin/staff/time-off/${requestId}/review`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function cancelTimeOffRequest(requestId: number): Promise<StaffTimeOffRequest> {
+    const response = await apiFetch<{ data: StaffTimeOffRequest }>(`/api/admin/staff/time-off/${requestId}/cancel`, {
+        method: "POST",
+    });
+    return response.data;
 }

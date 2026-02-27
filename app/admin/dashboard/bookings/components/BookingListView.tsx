@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal } from "lucide-react";
 import { AdminBooking } from "@/types/admin-booking";
+import { useT } from "@/lib/i18n";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -29,10 +30,11 @@ interface BookingListViewProps {
 }
 
 export function BookingListView({ bookings, onBookingClick }: BookingListViewProps) {
+    const t = useT();
     if (bookings.length === 0) {
         return (
             <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-surface-border bg-surface text-center">
-                <p className="text-text-muted">No bookings found for this period.</p>
+                <p className="text-text-muted">{t('adminBookings.noBookingsForPeriod')}</p>
             </div>
         );
     }
@@ -58,12 +60,12 @@ export function BookingListView({ bookings, onBookingClick }: BookingListViewPro
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Date & Time</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Service</TableHead>
-                        <TableHead>Staff</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead>{t('shopBooking.dateAndTime')}</TableHead>
+                        <TableHead>{t('adminBookings.client')}</TableHead>
+                        <TableHead>{t('adminBookings.service')}</TableHead>
+                        <TableHead>{t('adminBookings.staff')}</TableHead>
+                        <TableHead>{t('adminBookings.status')}</TableHead>
+                        <TableHead className="text-right">{t('adminServices.price')}</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                 </TableHeader>
@@ -104,21 +106,21 @@ export function BookingListView({ bookings, onBookingClick }: BookingListViewPro
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">Open menu</span>
+                                            <span className="sr-only">{t('header.openMenu')}</span>
                                             <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuLabel>{t('adminCustomers.actions')}</DropdownMenuLabel>
                                         <DropdownMenuItem onClick={() => onBookingClick(booking)}>
-                                            View Details
+                                            {t('adminBookings.details')}
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem className="text-emerald-600">
-                                            Confirm Booking
+                                            {t('adminBookings.confirmBooking')}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem className="text-rose-600">
-                                            Cancel Booking
+                                            {t('adminBookings.cancelBooking')}
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, AuthUser } from "@/lib/useAuth";
 import { useApi } from "@/app/hooks/useApi";
 import { Button } from "@/components/ui/button";
@@ -20,12 +20,17 @@ import {
   Shield,
   Plus,
 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { buildSignInRedirectPath, getShopSlugFromParams } from "@/app/lib/shop-context";
 
 type OtpFlow = null | "email" | "phone";
 
 export default function ProfilePage() {
+  const t = useT();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const shopSlug = getShopSlugFromParams(searchParams);
   const {
     user: sessionUser,
     loading: authLoading,
@@ -92,9 +97,9 @@ export default function ProfilePage() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push("/auth/sign-in?redirect=/me/profile");
+      router.push(buildSignInRedirectPath("/me/profile", shopSlug));
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, shopSlug]);
 
   if (authLoading || profileLoading) {
     return (
@@ -118,10 +123,10 @@ export default function ProfilePage() {
       await updateProfile({ first_name: firstName, last_name: lastName });
       await fetchProfile();
       setEditingName(false);
-      setStatus("Name updated successfully.");
+      setStatus(t("meProfile.nameUpdated"));
       setTimeout(() => setStatus(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update name");
+      setError(err instanceof Error ? err.message : t("meProfile.updateNameError"));
     } finally {
       setSaving(false);
     }
@@ -143,14 +148,14 @@ export default function ProfilePage() {
     try {
       if (otpFlow === "email") {
         await sendEmailChangeOtp(newContactValue);
-        setStatus("Verification code sent to your new email.");
+        setStatus(t("meProfile.emailCodeSent"));
       } else {
         await sendPhoneChangeOtp(newContactValue);
-        setStatus("Verification code sent via WhatsApp.");
+        setStatus(t("meProfile.phoneCodeSent"));
       }
       setOtpSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send code");
+      setError(err instanceof Error ? err.message : t("meProfile.sendCodeError"));
     } finally {
       setSaving(false);
     }
@@ -162,16 +167,16 @@ export default function ProfilePage() {
     try {
       if (otpFlow === "email") {
         await verifyEmailChange(newContactValue, otpCode);
-        setStatus("Email updated successfully!");
+        setStatus(t("meProfile.emailUpdated"));
       } else {
         await verifyPhoneChange(newContactValue, otpCode);
-        setStatus("Phone number updated successfully!");
+        setStatus(t("meProfile.phoneUpdated"));
       }
       setOtpFlow(null);
       await fetchProfile();
       setTimeout(() => setStatus(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Verification failed");
+      setError(err instanceof Error ? err.message : t("meProfile.verificationFailed"));
     } finally {
       setSaving(false);
     }
@@ -183,21 +188,21 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-page text-text-main">
       <div className="mx-auto max-w-2xl px-4 py-10">
         {/* Header */}
         <div className="mb-8 flex items-center gap-5">
-          <Avatar className="h-20 w-20 border-4 border-white shadow-lg">
+          <Avatar className="h-20 w-20 border-4 border-surface-border shadow-card">
             <AvatarImage src={user.image as string | undefined} />
             <AvatarFallback className="bg-brand text-white text-2xl font-bold">
               {initials.toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">
-              {user.name || "My Profile"}
+            <h1 className="text-3xl font-bold text-text-main">
+              {user.name || t("meProfile.title")}
             </h1>
-            <p className="text-slate-500">Manage your account details</p>
+            <p className="text-text-muted">{t("meProfile.subtitle")}</p>
           </div>
         </div>
 
@@ -207,7 +212,7 @@ export default function ProfilePage() {
             className={cn(
               "mb-6 rounded-lg border px-4 py-3 text-sm",
               status && !error
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                ? "border-brand/30 bg-brand-soft-bg text-brand"
                 : "border-rose-200 bg-rose-50 text-rose-700",
             )}
           >
@@ -216,11 +221,11 @@ export default function ProfilePage() {
         )}
 
         {/* Name Section */}
-        <Card className="mb-4 shadow-sm">
+        <Card className="mb-4 border-surface-border bg-surface text-text-main shadow-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-lg">
               <User className="h-5 w-5 text-brand" />
-              Name
+              {t("meProfile.name")}
             </CardTitle>
             {!editingName ? (
               <Button
@@ -230,7 +235,7 @@ export default function ProfilePage() {
                 className="text-brand hover:text-brand-hover"
               >
                 <Edit2 className="h-4 w-4 mr-1" />
-                Edit
+                {t("meProfile.edit")}
               </Button>
             ) : (
               <div className="flex gap-2">
@@ -256,7 +261,7 @@ export default function ProfilePage() {
                   ) : (
                     <Check className="h-4 w-4 mr-1" />
                   )}
-                  Save
+                  {t("common.save")}
                 </Button>
               </div>
             )}
@@ -265,14 +270,14 @@ export default function ProfilePage() {
             {editingName ? (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500">First name</Label>
+                  <Label className="text-xs text-text-muted">{t("meProfile.firstName")}</Label>
                   <Input
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-slate-500">Last name</Label>
+                  <Label className="text-xs text-text-muted">{t("meProfile.lastName")}</Label>
                   <Input
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
@@ -280,7 +285,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             ) : (
-              <p className="text-slate-900 font-medium">
+              <p className="font-medium text-text-main">
                 {user.first_name || ""} {user.last_name || ""}
               </p>
             )}
@@ -288,11 +293,11 @@ export default function ProfilePage() {
         </Card>
 
         {/* Email Section */}
-        <Card className="mb-4 shadow-sm">
+        <Card className="mb-4 border-surface-border bg-surface text-text-main shadow-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Mail className="h-5 w-5 text-brand" />
-              Email
+              {t("meProfile.email")}
             </CardTitle>
             <Button
               variant="ghost"
@@ -303,12 +308,12 @@ export default function ProfilePage() {
               {user.email ? (
                 <>
                   <Edit2 className="h-4 w-4 mr-1" />
-                  Change
+                  {t("meProfile.change")}
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-1" />
-                  Add email
+                  {t("meProfile.addEmail")}
                 </>
               )}
             </Button>
@@ -316,26 +321,26 @@ export default function ProfilePage() {
           <CardContent>
             {user.email ? (
               <div className="flex items-center gap-2">
-                <p className="text-slate-900">{user.email}</p>
+                <p className="text-text-main">{user.email}</p>
                 {user.emailVerified && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft-bg px-2 py-0.5 text-xs font-medium text-brand">
                     <Shield className="h-3 w-3" />
-                    Verified
+                    {t("meProfile.verified")}
                   </span>
                 )}
               </div>
             ) : (
-              <p className="text-slate-400 italic">No email address set</p>
+              <p className="italic text-text-muted">{t("meProfile.noEmailAddress")}</p>
             )}
           </CardContent>
         </Card>
 
         {/* Phone Section */}
-        <Card className="mb-4 shadow-sm">
+        <Card className="mb-4 border-surface-border bg-surface text-text-main shadow-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Phone className="h-5 w-5 text-brand" />
-              Phone
+              {t("meProfile.phone")}
             </CardTitle>
             <Button
               variant="ghost"
@@ -346,12 +351,12 @@ export default function ProfilePage() {
               {user.phoneNumber ? (
                 <>
                   <Edit2 className="h-4 w-4 mr-1" />
-                  Change
+                  {t("meProfile.change")}
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-1" />
-                  Add phone
+                  {t("meProfile.addPhone")}
                 </>
               )}
             </Button>
@@ -359,19 +364,19 @@ export default function ProfilePage() {
           <CardContent>
             {user.phoneNumber ? (
               <div className="flex items-center gap-2">
-                <p className="text-slate-900">
+                <p className="text-text-main">
                   {user.phone_prefix ? `+${user.phone_prefix} ` : ""}
                   {user.phoneNumber}
                 </p>
                 {user.phoneNumberVerified && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft-bg px-2 py-0.5 text-xs font-medium text-brand">
                     <Shield className="h-3 w-3" />
-                    Verified
+                    {t("meProfile.verified")}
                   </span>
                 )}
               </div>
             ) : (
-              <p className="text-slate-400 italic">No phone number set</p>
+              <p className="italic text-text-muted">{t("meProfile.noPhoneNumber")}</p>
             )}
           </CardContent>
         </Card>
@@ -379,12 +384,12 @@ export default function ProfilePage() {
         {/* OTP Verification Modal */}
         {otpFlow && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <Card className="w-full max-w-md shadow-xl">
+            <Card className="w-full max-w-md border-surface-border bg-surface text-text-main shadow-card">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">
                   {otpFlow === "email"
-                    ? "Change email address"
-                    : "Change phone number"}
+                    ? t("meProfile.changeEmailAddress")
+                    : t("meProfile.changePhoneNumber")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -393,36 +398,36 @@ export default function ProfilePage() {
                     <div className="space-y-2">
                       <Label>
                         {otpFlow === "email"
-                          ? "New email address"
-                          : "New phone number"}
+                          ? t("meProfile.newEmailAddress")
+                          : t("meProfile.newPhoneNumber")}
                       </Label>
                       <Input
                         type={otpFlow === "email" ? "email" : "tel"}
                         placeholder={
                           otpFlow === "email"
-                            ? "new@example.com"
-                            : "+1234567890"
+                            ? t("meProfile.newEmailPlaceholder")
+                            : t("meProfile.newPhonePlaceholder")
                         }
                         value={newContactValue}
                         onChange={(e) => setNewContactValue(e.target.value)}
                       />
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-text-muted">
                       {otpFlow === "email"
-                        ? "We'll send a verification code to this email."
-                        : "We'll send a verification code via WhatsApp."}
+                        ? t("meProfile.emailOtpHint")
+                        : t("meProfile.phoneOtpHint")}
                     </p>
                   </>
                 ) : (
                   <div className="space-y-2">
-                    <Label>Verification code</Label>
+                    <Label>{t("meProfile.verificationCode")}</Label>
                     <Input
-                      placeholder="123456"
+                      placeholder={t("meProfile.codePlaceholder")}
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
                     />
-                    <p className="text-xs text-slate-500">
-                      Code sent to <strong>{newContactValue}</strong>
+                    <p className="text-xs text-text-muted">
+                      {t("meProfile.codeSentTo", { target: newContactValue })}
                     </p>
                   </div>
                 )}
@@ -433,7 +438,7 @@ export default function ProfilePage() {
 
                 <div className="flex gap-3 justify-end">
                   <Button variant="outline" onClick={handleCancelOtp}>
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
                   {!otpSent ? (
                     <Button
@@ -444,7 +449,7 @@ export default function ProfilePage() {
                       {saving ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-1" />
                       ) : null}
-                      Send code
+                      {t("meProfile.sendCode")}
                     </Button>
                   ) : (
                     <Button
@@ -455,7 +460,7 @@ export default function ProfilePage() {
                       {saving ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-1" />
                       ) : null}
-                      Verify & update
+                      {t("meProfile.verifyAndUpdate")}
                     </Button>
                   )}
                 </div>

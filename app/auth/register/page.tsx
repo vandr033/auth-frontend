@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
+import { useT } from "@/lib/i18n";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, UserPlus, Sparkles } from "lucide-react";
 
@@ -11,6 +12,7 @@ type Method = null | "email" | "phone";
 type FlowStep = "method" | "contact" | "otp" | "profile" | "done";
 
 export default function RegisterPage() {
+  const t = useT();
   const router = useRouter();
   const {
     startCustomerEmailRegistration,
@@ -73,7 +75,7 @@ export default function RegisterPage() {
       await startCustomerEmailRegistration(email);
       setStep("otp");
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Unable to send code");
+      setLocalError(err instanceof Error ? err.message : t("auth.register.sendCodeError"));
     } finally {
       setSending(false);
     }
@@ -87,7 +89,7 @@ export default function RegisterPage() {
       setPreRegToken(token);
       setStep("profile");
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Invalid code");
+      setLocalError(err instanceof Error ? err.message : t("auth.register.invalidCode"));
     } finally {
       setSending(false);
     }
@@ -101,7 +103,7 @@ export default function RegisterPage() {
       setStep("done");
       setTimeout(() => router.push("/"), 1500);
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Registration failed");
+      setLocalError(err instanceof Error ? err.message : t("auth.register.registrationFailed"));
     } finally {
       setSending(false);
     }
@@ -115,7 +117,7 @@ export default function RegisterPage() {
       await sendPhoneOtp(phoneNumber);
       setStep("otp");
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Unable to send OTP");
+      setLocalError(err instanceof Error ? err.message : t("auth.register.sendOtpError"));
     } finally {
       setSending(false);
     }
@@ -128,7 +130,7 @@ export default function RegisterPage() {
       await verifyPhoneOtp(phoneNumber, otpCode);
       setStep("profile");
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Invalid code");
+      setLocalError(err instanceof Error ? err.message : t("auth.register.invalidOtp"));
     } finally {
       setSending(false);
     }
@@ -144,7 +146,7 @@ export default function RegisterPage() {
       setStep("done");
       setTimeout(() => router.push("/"), 1500);
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Registration failed");
+      setLocalError(err instanceof Error ? err.message : t("auth.register.registrationFailed"));
     } finally {
       setSending(false);
     }
@@ -159,9 +161,9 @@ export default function RegisterPage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
               <Sparkles className="h-7 w-7 text-brand" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{t("auth.register.title")}</h1>
             <p className="mt-2 text-sm text-slate-500">
-              Choose how you&apos;d like to register — no password needed
+              {t("auth.register.subtitle")}
             </p>
           </div>
 
@@ -174,9 +176,9 @@ export default function RegisterPage() {
                 <Mail className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-semibold text-slate-900">Register with Email</p>
+                <p className="font-semibold text-slate-900">{t("auth.register.emailOptionTitle")}</p>
                 <p className="text-sm text-slate-500">
-                  We&apos;ll verify your email with a code
+                  {t("auth.register.emailOptionDesc")}
                 </p>
               </div>
             </button>
@@ -189,18 +191,18 @@ export default function RegisterPage() {
                 <Phone className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-semibold text-slate-900">Register with Phone</p>
+                <p className="font-semibold text-slate-900">{t("auth.register.phoneOptionTitle")}</p>
                 <p className="text-sm text-slate-500">
-                  We&apos;ll send a code via WhatsApp
+                  {t("auth.register.phoneOptionDesc")}
                 </p>
               </div>
             </button>
           </div>
 
           <p className="text-sm text-slate-400">
-            Already have an account?{" "}
+            {t("auth.register.alreadyHaveAccount")}{" "}
             <Link href="/auth/sign-in" className="font-medium text-brand hover:underline">
-              Sign in
+              {t("auth.register.signIn")}
             </Link>
           </p>
         </div>
@@ -216,8 +218,8 @@ export default function RegisterPage() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
             <UserPlus className="h-8 w-8" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Account created!</h1>
-          <p className="text-sm text-slate-500">You&apos;re being redirected...</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t("auth.register.accountCreated")}</h1>
+          <p className="text-sm text-slate-500">{t("auth.register.redirecting")}</p>
           <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand" />
         </div>
       </div>
@@ -227,23 +229,23 @@ export default function RegisterPage() {
   // ── Fullscreen flow screens ──
   const getTitle = () => {
     if (step === "contact") {
-      return method === "email" ? "Enter your email" : "Enter your phone number";
+      return method === "email" ? t("auth.register.enterYourEmail") : t("auth.register.enterYourPhone");
     }
-    if (step === "otp") return "Enter verification code";
-    if (step === "profile") return "Complete your profile";
+    if (step === "otp") return t("auth.register.enterVerificationCode");
+    if (step === "profile") return t("auth.register.completeProfile");
     return "";
   };
 
   const getSubtitle = () => {
     if (step === "contact") {
       return method === "email"
-        ? "We'll send you a one-time verification code"
-        : "We'll send you a code via WhatsApp";
+        ? t("auth.register.emailCodeHint")
+        : t("auth.register.phoneCodeHint");
     }
     if (step === "otp") {
-      return `We sent a code to ${method === "email" ? email : phoneNumber}`;
+      return t("auth.register.sentCodeTo", { target: method === "email" ? email : phoneNumber });
     }
-    if (step === "profile") return "Just a couple more details to get started";
+    if (step === "profile") return t("auth.register.profileHint");
     return "";
   };
 
@@ -257,7 +259,7 @@ export default function RegisterPage() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {t("auth.register.back")}
           </button>
         )}
 
@@ -278,7 +280,7 @@ export default function RegisterPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
+                  placeholder={t("auth.register.emailPlaceholder")}
                   autoFocus
                   className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
@@ -298,7 +300,7 @@ export default function RegisterPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Send code
+                {t("auth.register.sendCode")}
               </button>
             </>
           )}
@@ -314,7 +316,7 @@ export default function RegisterPage() {
                   const val = e.target.value.replace(/[^0-9]/g, "");
                   method === "email" ? setEmailCode(val) : setOtpCode(val);
                 }}
-                placeholder="123456"
+                placeholder={t("auth.register.codePlaceholder")}
                 maxLength={6}
                 autoFocus
                 className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-center text-2xl font-bold tracking-[0.3em] shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
@@ -326,14 +328,14 @@ export default function RegisterPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Verify code
+                {t("auth.register.verifyCode")}
               </button>
 
               <button
                 onClick={() => { setStep("contact"); method === "email" ? setEmailCode("") : setOtpCode(""); }}
                 className="w-full text-center text-sm text-slate-500 hover:text-brand"
               >
-                Didn&apos;t receive a code? Resend
+                {t("auth.register.resendCode")}
               </button>
             </>
           )}
@@ -345,7 +347,7 @@ export default function RegisterPage() {
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="First name"
+                placeholder={t("auth.register.firstNamePlaceholder")}
                 autoFocus
                 className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
@@ -353,7 +355,7 @@ export default function RegisterPage() {
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                placeholder="Last name"
+                placeholder={t("auth.register.lastNamePlaceholder")}
                 className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
 
@@ -363,7 +365,7 @@ export default function RegisterPage() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Complete registration
+                {t("auth.register.completeRegistration")}
               </button>
             </>
           )}

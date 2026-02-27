@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Loader2, Save, CheckCircle, AlertCircle, Building2, MapPin, Globe, CreditCard, CalendarClock, Bell } from "lucide-react";
+import { Loader2, Save, CheckCircle, AlertCircle, Building2, MapPin, Globe, CreditCard, CalendarClock, Bell, Share2, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { SocialLinksForm } from "@/components/admin/settings/SocialLinksForm";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useT, SUPPORTED_LOCALES } from "@/lib/i18n";
+import type { SocialLinks } from "@/types/shop";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Combined interface
 interface CompanySettings {
@@ -34,11 +38,14 @@ interface CompanySettings {
     booking_time_granularity_minutes: number;
     cancel_limit_minutes: number;
     reschedule_limit_minutes: number;
+    auto_approve_staff_time_off: boolean;
     allow_qr_payment: boolean;
     qr_image_url: string | null;
     allow_cash_payment: boolean;
     send_email_notifications: boolean;
     send_whatsapp_notifications: boolean;
+    social_links: SocialLinks;
+    default_language: string;
 }
 
 interface Toast {
@@ -72,15 +79,19 @@ const initialSettings: CompanySettings = {
     booking_time_granularity_minutes: 30,
     cancel_limit_minutes: 120,
     reschedule_limit_minutes: 120,
+    auto_approve_staff_time_off: false,
     allow_qr_payment: true,
     qr_image_url: null,
     allow_cash_payment: true,
     send_email_notifications: true,
     send_whatsapp_notifications: false,
+    social_links: {},
+    default_language: "es",
 };
 
 export default function SettingsPage() {
     const { companyId, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const t = useT();
 
     const [settings, setSettings] = useState<CompanySettings>(initialSettings);
     const [loading, setLoading] = useState(true);
@@ -136,11 +147,14 @@ export default function SettingsPage() {
                 booking_time_granularity_minutes: config.booking_time_granularity_minutes ?? prev.booking_time_granularity_minutes,
                 cancel_limit_minutes: config.cancel_limit_minutes ?? prev.cancel_limit_minutes,
                 reschedule_limit_minutes: config.reschedule_limit_minutes ?? prev.reschedule_limit_minutes,
+                auto_approve_staff_time_off: config.auto_approve_staff_time_off ?? prev.auto_approve_staff_time_off,
                 allow_qr_payment: config.allow_qr_payment ?? prev.allow_qr_payment,
                 qr_image_url: config.qr_image_url ?? prev.qr_image_url,
                 allow_cash_payment: config.allow_cash_payment ?? prev.allow_cash_payment,
                 send_email_notifications: config.send_email_notifications ?? prev.send_email_notifications,
                 send_whatsapp_notifications: config.send_whatsapp_notifications ?? prev.send_whatsapp_notifications,
+                social_links: config.social_links ?? prev.social_links,
+                default_language: config.default_language ?? prev.default_language,
             }));
 
         } catch (err) {
@@ -158,7 +172,7 @@ export default function SettingsPage() {
     }, [isAuthenticated, companyId, fetchData]);
 
     // Handle input change
-    const handleChange = (field: keyof CompanySettings, value: string | boolean | number | null) => {
+    const handleChange = (field: keyof CompanySettings, value: string | boolean | number | null | SocialLinks) => {
         setSettings(prev => {
             const next = { ...prev, [field]: value };
 
@@ -206,8 +220,6 @@ export default function SettingsPage() {
                 const formData = new FormData();
                 formData.append('image', selectedQR);
                 formData.append('company_id', companyId.toString());
-                console.log(formData);
-
                 const uploadRes = await fetch(getApiUrl('/api/upload/qr'), {
                     method: 'POST',
                     body: formData,
@@ -215,7 +227,7 @@ export default function SettingsPage() {
                 });
 
                 if (!uploadRes.ok) {
-                    throw new Error("Failed to upload QR code");
+                    throw new Error(t('adminSettings.uploadQrFailed'));
                 }
 
                 const uploadData = await uploadRes.json();
@@ -246,11 +258,14 @@ export default function SettingsPage() {
                 booking_time_granularity_minutes: Number(settings.booking_time_granularity_minutes),
                 cancel_limit_minutes: Number(settings.cancel_limit_minutes),
                 reschedule_limit_minutes: Number(settings.reschedule_limit_minutes),
+                auto_approve_staff_time_off: settings.auto_approve_staff_time_off,
                 allow_qr_payment: settings.allow_qr_payment,
                 qr_image_url: qrUrl,
                 allow_cash_payment: settings.allow_cash_payment,
                 send_email_notifications: settings.send_email_notifications,
                 send_whatsapp_notifications: settings.send_whatsapp_notifications,
+                social_links: settings.social_links,
+                default_language: settings.default_language,
             };
 
             const [companyRes, settingsRes] = await Promise.all([
@@ -270,20 +285,20 @@ export default function SettingsPage() {
 
             if (!companyRes.ok) {
                 const errorData = await companyRes.json().catch(() => ({}));
-                throw new Error(errorData.message || "Failed to save company details");
+                throw new Error(errorData.message || t('adminSettings.saveSettingsFailed'));
             }
             if (!settingsRes.ok) {
                 const errorData = await settingsRes.json().catch(() => ({}));
-                throw new Error(errorData.message || "Failed to save configuration");
+                throw new Error(errorData.message || t('adminSettings.saveConfigFailed'));
             }
 
             // Update state with new URL if uploaded
             setSettings(prev => ({ ...prev, qr_image_url: qrUrl }));
             setSelectedQR(null); // Clear selection after upload
-            setToast({ type: 'success', message: 'All settings saved successfully' });
+            setToast({ type: 'success', message: t('common.success') });
         } catch (err) {
             console.error("Save error:", err);
-            setToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to save settings' });
+            setToast({ type: 'error', message: err instanceof Error ? err.message : t('adminSettings.saveSettingsFailed') });
         } finally {
             setSaving(false);
         }
@@ -302,8 +317,8 @@ export default function SettingsPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Company Settings</h1>
-                    <p className="text-slate-500">Manage your company details, booking rules, and payments</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('adminSettings.title')}</h1>
+                    <p className="text-slate-500">{t('adminSettings.subtitle')}</p>
                 </div>
                 <Button
                     onClick={handleSave}
@@ -313,12 +328,12 @@ export default function SettingsPage() {
                     {saving ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Saving...
+                            {t('adminSettings.saving')}
                         </>
                     ) : (
                         <>
                             <Save className="h-4 w-4 mr-2" />
-                            Save Changes
+                            {t('common.save')}
                         </>
                     )}
                 </Button>
@@ -343,15 +358,23 @@ export default function SettingsPage() {
                 <TabsList className="bg-white border text-slate-600">
                     <TabsTrigger value="general" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
                         <Building2 className="h-4 w-4 mr-2" />
-                        General
+                        {t('adminSettings.general')}
                     </TabsTrigger>
                     <TabsTrigger value="booking" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
                         <CalendarClock className="h-4 w-4 mr-2" />
-                        Booking Rules
+                        {t('adminSettings.bookingRules')}
                     </TabsTrigger>
                     <TabsTrigger value="payments" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
                         <CreditCard className="h-4 w-4 mr-2" />
-                        Payments & Notifications
+                        {t('adminSettings.payments')}
+                    </TabsTrigger>
+                    <TabsTrigger value="social" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                        <Share2 className="h-4 w-4 mr-2" />
+                        {t('adminSettings.socialMedia')}
+                    </TabsTrigger>
+                    <TabsTrigger value="language" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                        <Languages className="h-4 w-4 mr-2" />
+                        {t('adminSettings.language')}
                     </TabsTrigger>
                 </TabsList>
 
@@ -360,46 +383,46 @@ export default function SettingsPage() {
                     {/* General Info Card */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Company Information</CardTitle>
-                            <CardDescription>Basic information visible to your customers</CardDescription>
+                            <CardTitle>{t('adminSettings.companyInformation')}</CardTitle>
+                            <CardDescription>{t('adminSettings.companyInformationDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-6 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Company Name</Label>
+                                <Label htmlFor="name">{t('adminSettings.companyName')}</Label>
                                 <Input
                                     id="name"
                                     value={settings.name}
                                     onChange={(e) => handleChange('name', e.target.value)}
-                                    placeholder="Business Name"
+                                    placeholder={t('adminSettings.companyNamePlaceholder')}
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="slug">
-                                    URL Slug
+                                    {t('adminSettings.slug')}
                                     <span className="ml-1 text-xs text-slate-400 font-normal">
-                                        (example.com/shop/<strong>slug</strong>)
+                                        ({t('adminSettings.slugHelpPrefix')}<strong>{t('adminSettings.slugHelpExample')}</strong>)
                                     </span>
                                 </Label>
                                 <Input
                                     id="slug"
                                     value={settings.slug}
                                     onChange={(e) => handleChange('slug', e.target.value)}
-                                    placeholder="my-shop"
+                                    placeholder={t('adminSettings.slugPlaceholder')}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="email">Public Email</Label>
+                                <Label htmlFor="email">{t('adminSettings.email')}</Label>
                                 <Input
                                     id="email"
                                     type="email"
                                     value={settings.email}
                                     onChange={(e) => handleChange('email', e.target.value)}
-                                    placeholder="contact@example.com"
+                                    placeholder={t('adminSettings.emailPlaceholder')}
                                 />
                             </div>
                             <div className="grid grid-cols-4 gap-2">
                                 <div className="space-y-2 col-span-1">
-                                    <Label htmlFor="phone_prefix">Prefix</Label>
+                                    <Label htmlFor="phone_prefix">{t('adminSettings.prefix')}</Label>
                                     <Input
                                         id="phone_prefix"
                                         value={settings.phone_prefix}
@@ -408,7 +431,7 @@ export default function SettingsPage() {
                                     />
                                 </div>
                                 <div className="space-y-2 col-span-3">
-                                    <Label htmlFor="phone">Phone Number</Label>
+                                    <Label htmlFor="phone">{t('adminSettings.phone')}</Label>
                                     <Input
                                         id="phone"
                                         value={settings.phone}
@@ -421,9 +444,9 @@ export default function SettingsPage() {
                             <div className="space-y-2 flex flex-col justify-end pb-2">
                                 <div className="flex items-center justify-between rounded-lg border p-4">
                                     <div className="space-y-0.5">
-                                        <Label className="text-base">Active Status</Label>
+                                        <Label className="text-base">{t('adminSettings.activeStatus')}</Label>
                                         <p className="text-sm text-slate-500">
-                                            Visible to the public
+                                            {t('adminSettings.visibleToPublic')}
                                         </p>
                                     </div>
                                     <Switch
@@ -440,54 +463,54 @@ export default function SettingsPage() {
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <MapPin className="h-5 w-5 text-slate-500" />
-                                <CardTitle>Location & Address</CardTitle>
+                                <CardTitle>{t('adminSettings.locationAddress')}</CardTitle>
                             </div>
                         </CardHeader>
                         <CardContent className="grid gap-6 sm:grid-cols-2">
                             <div className="space-y-2 sm:col-span-2">
-                                <Label htmlFor="address">Street Address</Label>
+                                <Label htmlFor="address">{t('adminSettings.address')}</Label>
                                 <Input
                                     id="address"
                                     value={settings.address}
                                     onChange={(e) => handleChange('address', e.target.value)}
-                                    placeholder="123 Main St"
+                                    placeholder={t('adminSettings.addressPlaceholder')}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="city">City</Label>
+                                <Label htmlFor="city">{t('adminSettings.city')}</Label>
                                 <Input
                                     id="city"
                                     value={settings.city}
                                     onChange={(e) => handleChange('city', e.target.value)}
-                                    placeholder="City"
+                                    placeholder={t('adminSettings.cityPlaceholder')}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="state">State / Province</Label>
+                                <Label htmlFor="state">{t('adminSettings.stateProvince')}</Label>
                                 <Input
                                     id="state"
                                     value={settings.state}
                                     onChange={(e) => handleChange('state', e.target.value)}
-                                    placeholder="State"
+                                    placeholder={t('adminSettings.statePlaceholder')}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="country_code">Country Code</Label>
+                                <Label htmlFor="country_code">{t('adminSettings.countryCode')}</Label>
                                 <Input
                                     id="country_code"
                                     value={settings.country_code}
                                     onChange={(e) => handleChange('country_code', e.target.value)}
-                                    placeholder="BO"
+                                    placeholder={t('adminSettings.countryCodePlaceholder')}
                                     maxLength={2}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="timezone">Timezone</Label>
+                                <Label htmlFor="timezone">{t('adminSettings.timezone')}</Label>
                                 <Input
                                     id="timezone"
                                     value={settings.timezone}
                                     onChange={(e) => handleChange('timezone', e.target.value)}
-                                    placeholder="America/La_Paz"
+                                    placeholder={t('adminSettings.timezonePlaceholder')}
                                 />
                             </div>
                         </CardContent>
@@ -498,25 +521,25 @@ export default function SettingsPage() {
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <Globe className="h-5 w-5 text-slate-500" />
-                                <CardTitle>Map Integration</CardTitle>
+                                <CardTitle>{t('adminSettings.mapIntegration')}</CardTitle>
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
-                                <Label htmlFor="google_maps_url">Google Maps Embed URL</Label>
+                                <Label htmlFor="google_maps_url">{t('adminSettings.googleMapsUrl')}</Label>
                                 <Input
                                     id="google_maps_url"
                                     value={settings.google_maps_url}
                                     onChange={(e) => handleChange('google_maps_url', e.target.value)}
-                                    placeholder="https://www.google.com/maps/embed?..."
+                                    placeholder={t('adminSettings.googleMapsPlaceholder')}
                                 />
                                 <p className="text-xs text-slate-500">
-                                    Paste the 'src' attribute from the Google Maps Embed HTML
+                                    {t('adminSettings.googleMapsHelp')}
                                 </p>
                             </div>
                             <div className="grid gap-6 sm:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="latitude">Latitude</Label>
+                                    <Label htmlFor="latitude">{t('adminSettings.latitude')}</Label>
                                     <Input
                                         id="latitude"
                                         type="number"
@@ -527,7 +550,7 @@ export default function SettingsPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="longitude">Longitude</Label>
+                                    <Label htmlFor="longitude">{t('adminSettings.longitude')}</Label>
                                     <Input
                                         id="longitude"
                                         type="number"
@@ -548,13 +571,13 @@ export default function SettingsPage() {
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <CalendarClock className="h-5 w-5 text-slate-500" />
-                                <CardTitle>Booking Configuration</CardTitle>
+                                <CardTitle>{t('adminSettings.bookingConfiguration')}</CardTitle>
                             </div>
-                            <CardDescription>Control how customers can book appointments</CardDescription>
+                            <CardDescription>{t('adminSettings.bookingConfigurationDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-6 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="booking_buffer_minutes">Buffer Time (Minutes)</Label>
+                                <Label htmlFor="booking_buffer_minutes">{t('adminSettings.bufferTime')}</Label>
                                 <Input
                                     id="booking_buffer_minutes"
                                     type="number"
@@ -568,7 +591,7 @@ export default function SettingsPage() {
                                 </p>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="booking_time_granularity_minutes">Time Slot Interval (Minutes)</Label>
+                                <Label htmlFor="booking_time_granularity_minutes">{t('adminSettings.timeSlotInterval')}</Label>
                                 <Input
                                     id="booking_time_granularity_minutes"
                                     type="number"
@@ -583,7 +606,7 @@ export default function SettingsPage() {
                                 </p>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="cancel_limit_minutes">Cancellation Limit (Minutes)</Label>
+                                <Label htmlFor="cancel_limit_minutes">{t('adminSettings.cancellationLimit')}</Label>
                                 <Input
                                     id="cancel_limit_minutes"
                                     type="number"
@@ -597,7 +620,7 @@ export default function SettingsPage() {
                                 </p>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="reschedule_limit_minutes">Reschedule Limit (Minutes)</Label>
+                                <Label htmlFor="reschedule_limit_minutes">{t('adminSettings.rescheduleLimit')}</Label>
                                 <Input
                                     id="reschedule_limit_minutes"
                                     type="number"
@@ -610,6 +633,20 @@ export default function SettingsPage() {
                                     How long before appointment customers can reschedule
                                 </p>
                             </div>
+                            <div className="sm:col-span-2">
+                                <div className="flex items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-base">{t('adminSettings.autoApproveTimeOff')}</Label>
+                                        <p className="text-sm text-slate-500">
+                                            {t('adminSettings.autoApproveTimeOffDesc')}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.auto_approve_staff_time_off}
+                                        onCheckedChange={(checked) => handleChange('auto_approve_staff_time_off', checked)}
+                                    />
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -620,15 +657,15 @@ export default function SettingsPage() {
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <CreditCard className="h-5 w-5 text-slate-500" />
-                                <CardTitle>Payment Methods</CardTitle>
+                                <CardTitle>{t('adminSettings.paymentMethods')}</CardTitle>
                             </div>
-                            <CardDescription>Enable accepted payment methods for bookings</CardDescription>
+                            <CardDescription>{t('adminSettings.paymentMethodsDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {/* Cash Payment */}
                             <div className="flex items-center justify-between rounded-lg border p-4">
                                 <div className="space-y-0.5">
-                                    <Label className="text-base">Cash Payment</Label>
+                                    <Label className="text-base">{t('adminSettings.allowCash')}</Label>
                                     <p className="text-sm text-slate-500">
                                         Allow customers to pay in person with cash
                                     </p>
@@ -643,7 +680,7 @@ export default function SettingsPage() {
                             <div className="space-y-4 rounded-lg border p-4">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <Label className="text-base">QR / Transfer Payment</Label>
+                                        <Label className="text-base">{t('adminSettings.allowQR')}</Label>
                                         <p className="text-sm text-slate-500">
                                             Allow customers to upload a payment proof
                                         </p>
@@ -656,7 +693,7 @@ export default function SettingsPage() {
 
                                 {settings.allow_qr_payment && (
                                     <div className="mt-4 border-t pt-4">
-                                        <Label className="mb-2 block">Company QR Code</Label>
+                                        <Label className="mb-2 block">{t('adminSettings.qrImage')}</Label>
                                         <p className="text-sm text-slate-500 mb-4">
                                             Upload the QR code image your customers will scan to pay.
                                         </p>
@@ -681,14 +718,14 @@ export default function SettingsPage() {
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <Bell className="h-5 w-5 text-slate-500" />
-                                <CardTitle>Notifications</CardTitle>
+                                <CardTitle>{t('adminSettings.notifications')}</CardTitle>
                             </div>
-                            <CardDescription>Configure automated notifications</CardDescription>
+                            <CardDescription>{t('adminSettings.notificationsDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex items-center justify-between rounded-lg border p-4">
                                 <div className="space-y-0.5">
-                                    <Label className="text-base">Email Notifications</Label>
+                                    <Label className="text-base">{t('adminSettings.emailNotifications')}</Label>
                                     <p className="text-sm text-slate-500">
                                         Send booking confirmations via email
                                     </p>
@@ -700,7 +737,7 @@ export default function SettingsPage() {
                             </div>
                             <div className="flex items-center justify-between rounded-lg border p-4">
                                 <div className="space-y-0.5">
-                                    <Label className="text-base">WhatsApp Notifications</Label>
+                                    <Label className="text-base">{t('adminSettings.whatsappNotifications')}</Label>
                                     <p className="text-sm text-slate-500">
                                         Send booking updates via WhatsApp (requires integration)
                                     </p>
@@ -709,6 +746,62 @@ export default function SettingsPage() {
                                     checked={settings.send_whatsapp_notifications}
                                     onCheckedChange={(checked) => handleChange('send_whatsapp_notifications', checked)}
                                 />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* --- SOCIAL MEDIA TAB --- */}
+                <TabsContent value="social" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <Share2 className="h-5 w-5 text-slate-500" />
+                                <CardTitle>{t('adminSettings.socialMediaLinks')}</CardTitle>
+                            </div>
+                            <CardDescription>
+                                Add your social media profiles. These will appear in your shop&apos;s navbar and footer.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <SocialLinksForm
+                                socialLinks={settings.social_links}
+                                onChange={(links) => handleChange('social_links', links)}
+                            />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* --- LANGUAGE TAB --- */}
+                <TabsContent value="language" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <Languages className="h-5 w-5 text-slate-500" />
+                                <CardTitle>{t('adminSettings.language')}</CardTitle>
+                            </div>
+                            <CardDescription>
+                                {t('adminSettings.defaultLanguageDesc')}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2 max-w-xs">
+                                <Label htmlFor="default_language">{t('adminSettings.defaultLanguage')}</Label>
+                                <Select
+                                    value={settings.default_language}
+                                    onValueChange={(value) => handleChange('default_language', value)}
+                                >
+                                    <SelectTrigger id="default_language">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {SUPPORTED_LOCALES.map((locale) => (
+                                            <SelectItem key={locale} value={locale}>
+                                                {t(`language.${locale}`)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </CardContent>
                     </Card>

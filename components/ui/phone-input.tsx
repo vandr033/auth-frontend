@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { countries, detectDefaultCountry, searchCountries, type Country } from "@/lib/country-data";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 interface PhoneInputProps {
@@ -18,10 +19,11 @@ export function PhoneInput({
     value,
     onChange,
     defaultCountry,
-    placeholder = "Phone number",
+    placeholder,
     className,
     disabled,
 }: PhoneInputProps) {
+    const t = useT();
     const [selectedCountry, setSelectedCountry] = useState<Country>(() => {
         if (defaultCountry) {
             const found = countries.find((c) => c.code === defaultCountry);
@@ -158,7 +160,7 @@ export function PhoneInput({
                     inputMode="numeric"
                     value={localNumber}
                     onChange={handleLocalNumberChange}
-                    placeholder={placeholder}
+                    placeholder={placeholder ?? t("common.phoneNumber")}
                     disabled={disabled}
                     className="flex-1 bg-transparent px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
                 />
@@ -183,7 +185,7 @@ export function PhoneInput({
                                     setHighlightIndex(0);
                                 }}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Search country or code..."
+                                placeholder={t("sharedUi.searchCountryOrCode")}
                                 className="w-full rounded-md border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                             />
                         </div>
@@ -193,7 +195,7 @@ export function PhoneInput({
                     <div ref={listRef} className="max-h-60 overflow-y-auto">
                         {filteredCountries.length === 0 ? (
                             <div className="px-4 py-6 text-center text-sm text-slate-400">
-                                No countries found
+                                {t("sharedUi.noCountriesFound")}
                             </div>
                         ) : (
                             filteredCountries.map((country, index) => (

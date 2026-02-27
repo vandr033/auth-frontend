@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { format, parseISO } from "date-fns";
 import {
     Sheet,
@@ -13,32 +13,48 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, User, Scissors, DollarSign, Phone, Mail } from "lucide-react";
+import { Calendar, Clock, User, Scissors, DollarSign, Phone, Mail, Pencil } from "lucide-react";
 import { AdminBooking } from "@/types/admin-booking";
+import { getImageUrl } from "@/utils/image-url";
+import { useT } from "@/lib/i18n";
+import { BookingEditDialog } from "./BookingEditDialog";
 
 interface BookingDetailSheetProps {
     booking: AdminBooking | null;
     isOpen: boolean;
     onClose: () => void;
     onStatusUpdate: (id: number, status: AdminBooking['status']) => Promise<void>;
+    onRefresh?: () => void;
 }
 
-export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }: BookingDetailSheetProps) {
+export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate, onRefresh }: BookingDetailSheetProps) {
+    const t = useT();
+    const [editOpen, setEditOpen] = useState(false);
+
     if (!booking) return null;
 
     const ActionButtons = () => {
-        if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
-            return null;
-        }
+        const canEdit = booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED';
 
         return (
             <div className="flex flex-col gap-2 w-full mt-6">
+                {canEdit && (
+                    <Button
+                        variant="outline"
+                        onClick={() => setEditOpen(true)}
+                        className="w-full"
+                    >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        {t('adminBookings.editBooking')}
+                    </Button>
+                )}
+
                 {booking.status === 'PENDING' && (
                     <Button
                         onClick={() => onStatusUpdate(booking.id, 'CONFIRMED')}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
                     >
-                        Confirm Booking
+                        {t('adminBookings.confirmBooking')}
                     </Button>
                 )}
 
@@ -47,17 +63,19 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
                         onClick={() => onStatusUpdate(booking.id, 'COMPLETED')}
                         className="bg-blue-600 hover:bg-blue-700 text-white w-full"
                     >
-                        Mark as Completed
+                        {t('adminBookings.markCompleted')}
                     </Button>
                 )}
 
-                <Button
-                    variant="outline"
-                    onClick={() => onStatusUpdate(booking.id, 'CANCELLED')}
-                    className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
-                >
-                    Cancel Booking
-                </Button>
+                {canEdit && (
+                    <Button
+                        variant="outline"
+                        onClick={() => onStatusUpdate(booking.id, 'CANCELLED')}
+                        className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                    >
+                        {t('adminBookings.cancelBooking')}
+                    </Button>
+                )}
             </div>
         );
     };
@@ -79,9 +97,9 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
                             {booking.status}
                         </Badge>
                     </div>
-                    <SheetTitle>Booking Details</SheetTitle>
+                    <SheetTitle>{t('adminBookings.details')}</SheetTitle>
                     <SheetDescription>
-                        Created on {format(parseISO(booking.start_at), "MMM d, yyyy")}
+                        {t('adminBookings.createdOn', { date: format(parseISO(booking.start_at), "MMM d, yyyy") })}
                     </SheetDescription>
                 </SheetHeader>
 
@@ -91,7 +109,7 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
                         <div className="flex items-center gap-3">
                             <Calendar className="h-5 w-5 text-text-muted" />
                             <div>
-                                <p className="text-sm font-medium">Date</p>
+                                <p className="text-sm font-medium">{t('adminBookings.date')}</p>
                                 <p className="text-sm text-text-muted">
                                     {format(parseISO(booking.start_at), "EEEE, MMMM d, yyyy")}
                                 </p>
@@ -100,7 +118,7 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
                         <div className="flex items-center gap-3">
                             <Clock className="h-5 w-5 text-text-muted" />
                             <div>
-                                <p className="text-sm font-medium">Time</p>
+                                <p className="text-sm font-medium">{t('adminBookings.time')}</p>
                                 <p className="text-sm text-text-muted">
                                     {format(parseISO(booking.start_at), "h:mm a")} - {format(parseISO(booking.end_at), "h:mm a")}
                                 </p>
@@ -109,7 +127,7 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
                         <div className="flex items-center gap-3">
                             <User className="h-5 w-5 text-text-muted" />
                             <div>
-                                <p className="text-sm font-medium">Staff Member</p>
+                                <p className="text-sm font-medium">{t('adminBookings.staffMember')}</p>
                                 <p className="text-sm text-text-muted">{booking.staff.name}</p>
                             </div>
                         </div>
@@ -117,16 +135,16 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
 
                     {/* Customer Info */}
                     <div>
-                        <h3 className="text-sm font-semibold mb-3">Customer Information</h3>
+                        <h3 className="text-sm font-semibold mb-3">{t('adminBookings.customerInfo')}</h3>
                         <div className="grid gap-3 p-4 rounded-lg bg-page">
                             <div className="flex justify-between items-center">
-                                <span className="text-sm text-text-muted">Name</span>
+                                <span className="text-sm text-text-muted">{t('adminBookings.name')}</span>
                                 <span className="text-sm font-medium">{booking.customer.full_name}</span>
                             </div>
                             {booking.customer.phone && (
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-text-muted flex items-center gap-1">
-                                        <Phone className="h-3 w-3" /> Phone
+                                        <Phone className="h-3 w-3" /> {t('adminSettings.phone')}
                                     </span>
                                     <span className="text-sm">{booking.customer.phone}</span>
                                 </div>
@@ -134,7 +152,7 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
                             {booking.customer.email && (
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-text-muted flex items-center gap-1">
-                                        <Mail className="h-3 w-3" /> Email
+                                        <Mail className="h-3 w-3" /> {t('adminSettings.email')}
                                     </span>
                                     <span className="text-sm">{booking.customer.email}</span>
                                 </div>
@@ -144,7 +162,7 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
 
                     {/* Services and Price */}
                     <div>
-                        <h3 className="text-sm font-semibold mb-3">Services</h3>
+                        <h3 className="text-sm font-semibold mb-3">{t('shopBooking.services')}</h3>
                         <div className="border border-surface-border rounded-lg divide-y divide-surface-border">
                             {booking.services.map((service) => (
                                 <div key={service.id} className="p-3 flex items-center justify-between">
@@ -152,11 +170,11 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
                                         <Scissors className="h-4 w-4 text-text-muted" />
                                         <span className="text-sm font-medium">{service.name}</span>
                                     </div>
-                                    <span className="text-sm text-text-muted">{service.duration}m</span>
+                                    <span className="text-sm text-text-muted">{t('shopBooking.duration', { minutes: service.duration })}</span>
                                 </div>
                             ))}
                             <div className="p-3 bg-page flex items-center justify-between font-semibold">
-                                <span className="text-sm">Total Price</span>
+                                <span className="text-sm">{t('adminBookings.totalPrice')}</span>
                                 <span className="flex items-center">
                                     <DollarSign className="h-4 w-4" />
                                     {(booking.total_price / 100).toFixed(2)}
@@ -167,38 +185,38 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
 
                     {/* Payment Information */}
                     <div>
-                        <h3 className="text-sm font-semibold mb-3">Payment Information</h3>
+                        <h3 className="text-sm font-semibold mb-3">{t('adminBookings.paymentInfo')}</h3>
                         <div className="grid gap-3 p-4 rounded-lg bg-page">
                             <div className="flex justify-between items-center">
-                                <span className="text-sm text-text-muted">Method</span>
+                                <span className="text-sm text-text-muted">{t('adminBookings.method')}</span>
                                 <Badge variant="outline">
-                                    {booking.payment_method == 'QR' ? 'QR Code' :
-                                        booking.payment_method === 'CASH' ? 'Cash' : 'Not Specified'}
+                                    {booking.payment_method == 'QR' ? t('adminBookings.paymentQr') :
+                                        booking.payment_method === 'CASH' ? t('adminBookings.paymentCash') : t('adminBookings.notSpecified')}
                                 </Badge>
                             </div>
                             {booking.payment_method === 'QR' && booking.qr_proof_image_url && (
                                 <div className="mt-2 text-center">
-                                    <p className="text-xs text-text-muted mb-2 text-left">Payment Proof</p>
+                                    <p className="text-xs text-text-muted mb-2 text-left">{t('adminBookings.paymentProof')}</p>
                                     <a
-                                        href={booking.qr_proof_image_url.startsWith('http') ? booking.qr_proof_image_url : `${process.env.NEXT_PUBLIC_BACKEND_URL || ''}${booking.qr_proof_image_url}`}
+                                        href={getImageUrl(booking.qr_proof_image_url) || '#'}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-block relative rounded-lg overflow-hidden border border-slate-200 hover:ring-2 ring-brand/50 transition-all group"
                                     >
                                         <img
-                                            src={booking.qr_proof_image_url.startsWith('http') ? booking.qr_proof_image_url : `${process.env.NEXT_PUBLIC_BACKEND_URL || ''}${booking.qr_proof_image_url}`}
-                                            alt="Payment Proof"
+                                            src={getImageUrl(booking.qr_proof_image_url) || ''}
+                                            alt={t('adminBookings.paymentProof')}
                                             className="h-32 w-auto object-cover"
                                         />
                                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-white text-xs font-medium">Click to Open</span>
+                                            <span className="text-white text-xs font-medium">{t('adminBookings.clickToOpen')}</span>
                                         </div>
                                     </a>
                                 </div>
                             )}
                             {booking.payment_method === 'QR' && !booking.qr_proof_image_url && (
                                 <div className="p-2 bg-amber-50 text-amber-700 text-xs rounded border border-amber-200">
-                                    No payment proof uploaded.
+                                    {t('adminBookings.noPaymentProof')}
                                 </div>
                             )}
                         </div>
@@ -207,6 +225,16 @@ export function BookingDetailSheet({ booking, isOpen, onClose, onStatusUpdate }:
                     {/* Actions */}
                     <ActionButtons />
                 </div>
+
+                {/* Edit Dialog */}
+                <BookingEditDialog
+                    booking={booking}
+                    isOpen={editOpen}
+                    onClose={() => setEditOpen(false)}
+                    onSaved={() => {
+                        onRefresh?.();
+                    }}
+                />
             </SheetContent>
         </Sheet>
     );

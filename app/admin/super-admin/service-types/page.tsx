@@ -32,25 +32,37 @@ import {
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useI18n, useT } from "@/lib/i18n";
+import { getLocalizedText } from "@/lib/i18n/localized";
 
 interface GlobalServiceType {
     id: number;
     key: string;
     name: string;
+    name_i18n?: Record<string, string>;
     description?: string;
+    description_i18n?: Record<string, string>;
     categories_count?: number;
 }
 
 interface FormData {
     key: string;
     name: string;
+    name_es: string;
+    name_en: string;
     description: string;
+    description_es: string;
+    description_en: string;
 }
 
 const initialFormData: FormData = {
     key: "",
     name: "",
+    name_es: "",
+    name_en: "",
     description: "",
+    description_es: "",
+    description_en: "",
 };
 
 function getApiUrl(path: string): string {
@@ -60,6 +72,8 @@ function getApiUrl(path: string): string {
 }
 
 export default function ServiceTypesPage() {
+    const t = useT();
+    const { locale } = useI18n();
     const { isAuthenticated, isSuperAdmin, loading: authLoading } = useAdminAuth();
 
     // State
@@ -87,13 +101,13 @@ export default function ServiceTypesPage() {
                 credentials: "include",
             });
 
-            if (!response.ok) throw new Error("Failed to fetch service types");
+            if (!response.ok) throw new Error(t("superAdminServiceTypes.fetchError"));
 
             const data = await response.json();
             setServiceTypes(data.data || data || []);
         } catch (err) {
             setLoading(false);
-            setError(err instanceof Error ? err.message : "Failed to load data");
+            setError(err instanceof Error ? err.message : t("superAdminServiceTypes.loadError"));
         } finally {
             setLoading(false);
         }
@@ -105,9 +119,26 @@ export default function ServiceTypesPage() {
         }
     }, [isAuthenticated, isSuperAdmin, fetchData]);
 
+    const getTypeName = (type: GlobalServiceType): string =>
+        getLocalizedText({
+            text: type.name,
+            translations: type.name_i18n,
+            locale,
+        });
+
+    const getTypeDescription = (type: GlobalServiceType): string =>
+        getLocalizedText({
+            text: type.description,
+            translations: type.description_i18n,
+            locale,
+        });
+
     // Filtered service types
     const filteredTypes = serviceTypes.filter((type) =>
-        type.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getTypeName(type).toLowerCase().includes(searchQuery.toLowerCase()) ||
+        Object.values(type.name_i18n || {}).some((value) =>
+            value.toLowerCase().includes(searchQuery.toLowerCase())
+        ) ||
         type.key.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -120,11 +151,18 @@ export default function ServiceTypesPage() {
     };
 
     const openEditModal = (type: GlobalServiceType) => {
+        const localizedName = getTypeName(type);
+        const localizedDescription = getTypeDescription(type);
+
         setEditingType(type);
         setFormData({
             key: type.key,
-            name: type.name,
-            description: type.description || "",
+            name: type.name || localizedName,
+            name_es: type.name_i18n?.es || "",
+            name_en: type.name_i18n?.en || "",
+            description: type.description || localizedDescription || "",
+            description_es: type.description_i18n?.es || "",
+            description_en: type.description_i18n?.en || "",
         });
         setFormError(null);
         setIsModalOpen(true);
@@ -143,16 +181,21 @@ export default function ServiceTypesPage() {
         e.preventDefault();
 
         // Validation
-        if (!formData.name.trim()) {
-            setFormError("Name is required");
+        const effectiveName =
+            formData.name.trim() ||
+            formData.name_es.trim() ||
+            formData.name_en.trim();
+
+        if (!effectiveName) {
+            setFormError(t("superAdminServiceTypes.nameRequired"));
             return;
         }
         if (!formData.key.trim()) {
-            setFormError("Key is required");
+            setFormError(t("superAdminServiceTypes.keyRequired"));
             return;
         }
         if (!/^[A-Z][A-Z0-9_]*$/.test(formData.key)) {
-            setFormError("Key must be uppercase letters, numbers, and underscores (start with letter)");
+            setFormError(t("superAdminServiceTypes.keyFormatError"));
             return;
         }
 
@@ -160,10 +203,28 @@ export default function ServiceTypesPage() {
         setFormError(null);
 
         try {
+            const nameEs = formData.name_es.trim();
+            const nameEn = formData.name_en.trim();
+            const descriptionEs = formData.description_es.trim();
+            const descriptionEn = formData.description_en.trim();
+
+            const mergedNameI18n = {
+                ...(editingType?.name_i18n || {}),
+                ...(nameEs ? { es: nameEs } : {}),
+                ...(nameEn ? { en: nameEn } : {}),
+            };
+            const mergedDescriptionI18n = {
+                ...(editingType?.description_i18n || {}),
+                ...(descriptionEs ? { es: descriptionEs } : {}),
+                ...(descriptionEn ? { en: descriptionEn } : {}),
+            };
+
             const payload = {
                 key: formData.key.trim(),
-                name: formData.name.trim(),
+                name: effectiveName,
                 description: formData.description.trim() || undefined,
+                name_i18n: mergedNameI18n,
+                description_i18n: mergedDescriptionI18n,
             };
 
             const url = editingType
@@ -179,13 +240,13 @@ export default function ServiceTypesPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || data.error || "Failed to save service type");
+                throw new Error(data.message || data.error || t("superAdminServiceTypes.saveError"));
             }
 
             setIsModalOpen(false);
             await fetchData();
         } catch (err) {
-            setFormError(err instanceof Error ? err.message : "Failed to save service type");
+            setFormError(err instanceof Error ? err.message : t("superAdminServiceTypes.saveError"));
         } finally {
             setSubmitting(false);
         }
@@ -204,14 +265,14 @@ export default function ServiceTypesPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || data.error || "Failed to delete service type");
+                throw new Error(data.message || data.error || t("superAdminServiceTypes.deleteError"));
             }
 
             setIsDeleteDialogOpen(false);
             setDeletingType(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to delete service type");
+            setError(err instanceof Error ? err.message : t("superAdminServiceTypes.deleteError"));
             setIsDeleteDialogOpen(false);
         } finally {
             setSubmitting(false);
@@ -223,7 +284,7 @@ export default function ServiceTypesPage() {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-                <span className="ml-2 text-slate-600">Loading service types...</span>
+                <span className="ml-2 text-slate-600">{t("superAdminServiceTypes.loading")}</span>
             </div>
         );
     }
@@ -233,12 +294,12 @@ export default function ServiceTypesPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Global Service Types</h1>
-                    <p className="text-slate-500">Manage service types that salons can use for categorization</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{t("superAdminServiceTypes.title")}</h1>
+                    <p className="text-slate-500">{t("superAdminServiceTypes.subtitle")}</p>
                 </div>
                 <Button onClick={openAddModal} className="bg-violet-600 hover:bg-violet-700 text-white">
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Service Type
+                    {t("superAdminServiceTypes.add")}
                 </Button>
             </div>
 
@@ -253,7 +314,7 @@ export default function ServiceTypesPage() {
                         onClick={() => setError(null)}
                         className="ml-auto"
                     >
-                        Dismiss
+                        {t("imageUpload.dismiss")}
                     </Button>
                 </div>
             )}
@@ -262,7 +323,7 @@ export default function ServiceTypesPage() {
             <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                    placeholder="Search service types..."
+                    placeholder={t("superAdminServiceTypes.searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -274,18 +335,18 @@ export default function ServiceTypesPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Key</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead>Categories Using</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead>{t("superAdminServiceTypes.key")}</TableHead>
+                            <TableHead>{t("superAdminServiceTypes.name")}</TableHead>
+                            <TableHead>{t("superAdminServiceTypes.description")}</TableHead>
+                            <TableHead>{t("superAdminServiceTypes.categoriesUsing")}</TableHead>
+                            <TableHead className="text-right">{t("adminCustomers.actions")}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredTypes.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                                    {searchQuery ? "No service types match your search" : "No service types yet. Create your first one!"}
+                                    {searchQuery ? t("superAdminServiceTypes.noSearchResults") : t("superAdminServiceTypes.noTypes")}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -296,13 +357,13 @@ export default function ServiceTypesPage() {
                                             {type.key}
                                         </code>
                                     </TableCell>
-                                    <TableCell className="font-medium">{type.name}</TableCell>
+                                    <TableCell className="font-medium">{getTypeName(type)}</TableCell>
                                     <TableCell className="text-slate-500 max-w-[200px] truncate">
-                                        {type.description || "--"}
+                                        {getTypeDescription(type) || t("superAdminServiceTypes.empty")}
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="secondary">
-                                            {type.categories_count || 0} categories
+                                            {t("superAdminServiceTypes.categoriesCount", { count: type.categories_count || 0 })}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -323,7 +384,7 @@ export default function ServiceTypesPage() {
                                                 }}
                                                 disabled={(type.categories_count || 0) > 0}
                                                 className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-                                                title={(type.categories_count || 0) > 0 ? "Cannot delete: in use by categories" : "Delete"}
+                                                title={(type.categories_count || 0) > 0 ? t("superAdminServiceTypes.cannotDeleteInUse") : t("common.delete")}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -341,12 +402,12 @@ export default function ServiceTypesPage() {
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>
-                            {editingType ? "Edit Service Type" : "Add Service Type"}
+                            {editingType ? t("superAdminServiceTypes.edit") : t("superAdminServiceTypes.add")}
                         </DialogTitle>
                         <DialogDescription>
                             {editingType
-                                ? "Update the service type details"
-                                : "Create a new global service type for salons to use"}
+                                ? t("superAdminServiceTypes.editDescription")
+                                : t("superAdminServiceTypes.createDescription")}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -358,7 +419,7 @@ export default function ServiceTypesPage() {
                         )}
 
                         <div className="space-y-2">
-                            <Label htmlFor="name">Name *</Label>
+                            <Label htmlFor="name">{t("superAdminServiceTypes.nameRequiredLabel")}</Label>
                             <Input
                                 id="name"
                                 value={formData.name}
@@ -370,33 +431,77 @@ export default function ServiceTypesPage() {
                                         key: editingType ? formData.key : generateKey(name),
                                     });
                                 }}
-                                placeholder="e.g., Haircut, Manicure, Massage"
+                                placeholder={t("superAdminServiceTypes.namePlaceholder")}
                             />
                         </div>
 
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="name_es">{t("superAdminServiceTypes.nameEs")}</Label>
+                                <Input
+                                    id="name_es"
+                                    value={formData.name_es}
+                                    onChange={(e) => setFormData({ ...formData, name_es: e.target.value })}
+                                    placeholder={t("superAdminServiceTypes.nameEsPlaceholder")}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="name_en">{t("superAdminServiceTypes.nameEn")}</Label>
+                                <Input
+                                    id="name_en"
+                                    value={formData.name_en}
+                                    onChange={(e) => setFormData({ ...formData, name_en: e.target.value })}
+                                    placeholder={t("superAdminServiceTypes.nameEnPlaceholder")}
+                                />
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
-                            <Label htmlFor="key">Key *</Label>
+                            <Label htmlFor="key">{t("superAdminServiceTypes.keyRequiredLabel")}</Label>
                             <Input
                                 id="key"
                                 value={formData.key}
                                 onChange={(e) => setFormData({ ...formData, key: e.target.value.toUpperCase() })}
-                                placeholder="e.g., HAIRCUT, MANICURE"
+                                placeholder={t("superAdminServiceTypes.keyPlaceholder")}
                                 className="font-mono"
                             />
                             <p className="text-xs text-slate-500">
-                                Unique identifier. Uppercase letters, numbers, and underscores only.
+                                {t("superAdminServiceTypes.keyHelp")}
                             </p>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
+                            <Label htmlFor="description">{t("superAdminServiceTypes.description")}</Label>
                             <textarea
                                 id="description"
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                placeholder="Brief description of this service type..."
+                                placeholder={t("superAdminServiceTypes.descriptionPlaceholder")}
                                 className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
                             />
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="description_es">{t("superAdminServiceTypes.descriptionEs")}</Label>
+                                <textarea
+                                    id="description_es"
+                                    value={formData.description_es}
+                                    onChange={(e) => setFormData({ ...formData, description_es: e.target.value })}
+                                    placeholder={t("superAdminServiceTypes.descriptionEsPlaceholder")}
+                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="description_en">{t("superAdminServiceTypes.descriptionEn")}</Label>
+                                <textarea
+                                    id="description_en"
+                                    value={formData.description_en}
+                                    onChange={(e) => setFormData({ ...formData, description_en: e.target.value })}
+                                    placeholder={t("superAdminServiceTypes.descriptionEnPlaceholder")}
+                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                />
+                            </div>
                         </div>
 
                         <DialogFooter className="gap-2 sm:gap-0">
@@ -405,7 +510,7 @@ export default function ServiceTypesPage() {
                                 variant="outline"
                                 onClick={() => setIsModalOpen(false)}
                             >
-                                Cancel
+                                {t("common.cancel")}
                             </Button>
                             <Button
                                 type="submit"
@@ -415,12 +520,12 @@ export default function ServiceTypesPage() {
                                 {submitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Saving...
+                                        {t("superAdminServiceTypes.saving")}
                                     </>
                                 ) : editingType ? (
-                                    "Update"
+                                    t("superAdminServiceTypes.update")
                                 ) : (
-                                    "Create"
+                                    t("superAdminServiceTypes.create")
                                 )}
                             </Button>
                         </DialogFooter>
@@ -432,10 +537,11 @@ export default function ServiceTypesPage() {
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Delete Service Type</DialogTitle>
+                        <DialogTitle>{t("superAdminServiceTypes.deleteTitle")}</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete &quot;{deletingType?.name}&quot;?
-                            This action cannot be undone.
+                            {t("superAdminServiceTypes.deleteConfirm", {
+                                name: deletingType ? getTypeName(deletingType) : "",
+                            })}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -446,7 +552,7 @@ export default function ServiceTypesPage() {
                                 setDeletingType(null);
                             }}
                         >
-                            Cancel
+                            {t("common.cancel")}
                         </Button>
                         <Button
                             variant="destructive"
@@ -457,10 +563,10 @@ export default function ServiceTypesPage() {
                             {submitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Deleting...
+                                    {t("superAdminServiceTypes.deleting")}
                                 </>
                             ) : (
-                                "Delete"
+                                t("common.delete")
                             )}
                         </Button>
                     </DialogFooter>

@@ -3,11 +3,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Clock, DollarSign, User, Calendar, CreditCard, Loader2, Upload, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clock, User, Calendar, CreditCard, Loader2, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useShop } from "../../contexts/ShopContext";
 import { useAuth } from "@/lib/useAuth";
 import { useApi } from "@/app/hooks/useApi";
@@ -26,10 +24,12 @@ import {
     formatDuration,
 } from "@/types/booking";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { type AvailableDate, getTodayDateString } from "@/utils/business-hours";
 import { ClosedBanner } from "@/components/shop/OpenStatusBadge";
 import { getImageUrl } from "@/utils/image-url";
 import { ShopSettings } from "@/types/shop";
+import { appendShopParam, buildSignInRedirectPath } from "@/app/lib/shop-context";
 
 // Helper to resolve API URL (duplicate of logic in ShopContext, consider exported helper)
 const resolveApiUrl = (url: string) => {
@@ -41,52 +41,121 @@ const resolveApiUrl = (url: string) => {
     return `${base}${url}`;
 };
 
+const PENDING_BOOKING_STORAGE_KEY = "pending-booking-intent-v1";
+const PENDING_BOOKING_MAX_AGE_MS = 30 * 60 * 1000;
+
+type PendingBookingIntent = {
+    slug: string;
+    company_id: number;
+    staff_id: number;
+    service_ids: number[];
+    start_at: string;
+    payment_method: "CASH" | "QR" | "NONE";
+    notes: string;
+    qr_proof_image_url?: string;
+    created_at: string;
+};
+
+const savePendingBookingIntent = (intent: PendingBookingIntent) => {
+    if (typeof window === "undefined") return;
+    sessionStorage.setItem(PENDING_BOOKING_STORAGE_KEY, JSON.stringify(intent));
+};
+
+const clearPendingBookingIntent = () => {
+    if (typeof window === "undefined") return;
+    sessionStorage.removeItem(PENDING_BOOKING_STORAGE_KEY);
+};
+
+const loadPendingBookingIntent = (): PendingBookingIntent | null => {
+    if (typeof window === "undefined") return null;
+    const raw = sessionStorage.getItem(PENDING_BOOKING_STORAGE_KEY);
+    if (!raw) return null;
+
+    try {
+        const parsed = JSON.parse(raw) as PendingBookingIntent;
+        if (!parsed?.slug || !parsed?.created_at) {
+            clearPendingBookingIntent();
+            return null;
+        }
+
+        const createdAt = new Date(parsed.created_at).getTime();
+        if (!Number.isFinite(createdAt) || Date.now() - createdAt > PENDING_BOOKING_MAX_AGE_MS) {
+            clearPendingBookingIntent();
+            return null;
+        }
+
+        return parsed;
+    } catch {
+        clearPendingBookingIntent();
+        return null;
+    }
+};
+
 type BrowseMode = "service-first" | "staff-first";
 
-// Step indicator component
+// Step indicator component — horizontal stepper with numbered circles + connecting lines
 function StepIndicator({ currentStep, browseMode }: { currentStep: BookingStep; browseMode: BrowseMode }) {
+    const t = useT();
     const steps = browseMode === "service-first"
         ? [
-            { num: 1, label: "Services" },
-            { num: 2, label: "Staff" },
-            { num: 3, label: "Date & Time" },
-            { num: 4, label: "Confirm" },
+            { num: 1, label: t('shopBooking.step1') },
+            { num: 2, label: t('shopBooking.step2') },
+            { num: 3, label: t('shopBooking.step3') },
+            { num: 4, label: t('shopBooking.step4') },
         ]
         : [
-            { num: 1, label: "Staff" },
-            { num: 2, label: "Services" },
-            { num: 3, label: "Date & Time" },
-            { num: 4, label: "Confirm" },
+            { num: 1, label: t('shopBooking.step2') },
+            { num: 2, label: t('shopBooking.step1') },
+            { num: 3, label: t('shopBooking.step3') },
+            { num: 4, label: t('shopBooking.step4') },
         ];
 
     return (
-        <div className="flex items-center justify-center gap-2 mb-8">
-            {steps.map((step, index) => (
-                <React.Fragment key={step.num}>
-                    <div
-                        className={cn(
-                            "flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-colors",
-                            currentStep === step.num
-                                ? "bg-brand text-white"
-                                : currentStep > step.num
-                                    ? "bg-brand/20 text-brand"
-                                    : "bg-surface-border text-text-muted"
-                        )}
-                    >
-                        {currentStep > step.num ? (
-                            <Check className="h-4 w-4" />
-                        ) : (
-                            <span className="h-5 w-5 flex items-center justify-center rounded-full border border-current text-xs">
-                                {step.num}
+        <div className="mb-8">
+            <div className="flex items-center justify-between">
+                {steps.map((step, index) => (
+                    <React.Fragment key={step.num}>
+                        {/* Step circle + label */}
+                        <div className="flex flex-col items-center gap-1.5">
+                            <div
+                                className={cn(
+                                    "flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition-all duration-200",
+                                    currentStep > step.num
+                                        ? "bg-brand text-white"
+                                        : currentStep === step.num
+                                            ? "bg-brand text-white ring-4 ring-brand/20"
+                                            : "bg-surface border-2 border-surface-border text-text-muted"
+                                )}
+                            >
+                                {currentStep > step.num ? (
+                                    <Check className="h-5 w-5" />
+                                ) : (
+                                    step.num
+                                )}
+                            </div>
+                            <span
+                                className={cn(
+                                    "text-xs font-medium transition-colors",
+                                    currentStep >= step.num ? "text-brand" : "text-text-muted"
+                                )}
+                            >
+                                {step.label}
                             </span>
+                        </div>
+                        {/* Connecting line */}
+                        {index < steps.length - 1 && (
+                            <div className="flex-1 mx-2 mb-5">
+                                <div
+                                    className={cn(
+                                        "h-0.5 w-full rounded-full transition-colors duration-200",
+                                        currentStep > step.num ? "bg-brand" : "bg-surface-border"
+                                    )}
+                                />
+                            </div>
                         )}
-                        <span className="hidden sm:inline">{step.label}</span>
-                    </div>
-                    {index < steps.length - 1 && (
-                        <div className="w-8 h-px bg-surface-border hidden sm:block" />
-                    )}
-                </React.Fragment>
-            ))}
+                    </React.Fragment>
+                ))}
+            </div>
         </div>
     );
 }
@@ -103,6 +172,7 @@ function ServiceStep({
     selectedServices: SelectedService[];
     onToggleService: (service: SelectedService) => void;
 }) {
+    const t = useT();
     const selectedIds = new Set(selectedServices.map((s) => s.id));
 
     // Group services by category
@@ -114,62 +184,58 @@ function ServiceStep({
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-text-main">Select Services</h2>
-                <p className="text-text-muted">Choose one or more services for your appointment</p>
+                <h2 className="text-2xl font-bold text-text-main">{t('shopBooking.selectServicesTitle')}</h2>
+                <p className="text-text-muted">{t('shopBooking.selectServicesSubtitle')}</p>
             </div>
 
             {servicesByCategory.map(({ category, services: catServices }) => (
-                <div key={category.id} className="space-y-3">
+                <div key={category.id} className="space-y-2">
                     {categories.length > 1 && (
                         <h3 className="text-lg font-semibold text-text-main">{category.name}</h3>
                     )}
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
                         {catServices.map((service) => {
                             const isSelected = selectedIds.has(service.id);
                             return (
-                                <Card
+                                <button
                                     key={service.id}
-                                    className={cn(
-                                        "cursor-pointer transition-all hover:shadow-md",
-                                        isSelected
-                                            ? "border-brand ring-2 ring-brand/20"
-                                            : "border-surface-border"
-                                    )}
+                                    type="button"
                                     onClick={() => onToggleService(service)}
+                                    className={cn(
+                                        "w-full flex items-center gap-4 rounded-lg border p-4 text-left transition-all min-h-[56px]",
+                                        isSelected
+                                            ? "border-brand bg-brand/5 border-l-4"
+                                            : "border-surface-border hover:border-brand/40 hover:bg-surface"
+                                    )}
                                 >
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="flex-1">
-                                                <h4 className="font-semibold text-slate-900">{service.name}</h4>
-                                                {service.description && (
-                                                    <p className="text-sm text-slate-500 line-clamp-2 mt-1">
-                                                        {service.description}
-                                                    </p>
-                                                )}
-                                                <div className="flex gap-3 mt-2 text-sm">
-                                                    <span className="flex items-center gap-1 text-brand">
-                                                        <DollarSign className="h-3 w-3" />
-                                                        {formatPrice(service.price_cents)}
-                                                    </span>
-                                                    <span className="flex items-center gap-1 text-slate-500">
-                                                        <Clock className="h-3 w-3" />
-                                                        {formatDuration(service.duration_minutes)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div
-                                                className={cn(
-                                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors",
-                                                    isSelected
-                                                        ? "bg-brand border-brand text-white"
-                                                        : "border-slate-300"
-                                                )}
-                                            >
-                                                {isSelected && <Check className="h-4 w-4" />}
-                                            </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-baseline justify-between gap-2">
+                                            <h4 className="font-semibold text-text-main truncate">{service.name}</h4>
+                                            <span className="text-sm font-bold text-brand flex-shrink-0">
+                                                {formatPrice(service.price_cents)}
+                                            </span>
                                         </div>
-                                    </CardContent>
-                                </Card>
+                                        {service.description && (
+                                            <p className="text-sm text-text-muted line-clamp-1 mt-0.5">
+                                                {service.description}
+                                            </p>
+                                        )}
+                                        <span className="flex items-center gap-1 text-xs text-text-muted mt-1">
+                                            <Clock className="h-3 w-3" />
+                                            {formatDuration(service.duration_minutes)}
+                                        </span>
+                                    </div>
+                                    <div
+                                        className={cn(
+                                            "h-6 w-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+                                            isSelected
+                                                ? "bg-brand border-brand text-white"
+                                                : "border-surface-border"
+                                        )}
+                                    >
+                                        {isSelected && <Check className="h-4 w-4" />}
+                                    </div>
+                                </button>
                             );
                         })}
                     </div>
@@ -177,7 +243,7 @@ function ServiceStep({
             ))}
 
             {services.length === 0 && (
-                <p className="text-center text-text-muted py-8">No services available.</p>
+                <p className="text-center text-text-muted py-8">{t('shopBooking.noServicesAvailable')}</p>
             )}
         </div>
     );
@@ -193,9 +259,10 @@ function StaffStep({
     selectedStaff: SelectedStaff | null;
     onSelectStaff: (staff: SelectedStaff) => void;
 }) {
+    const t = useT();
     const anyAvailableOption: SelectedStaff = {
         id: "any",
-        display_name: "Any available",
+        display_name: t('shopBooking.anyAvailable'),
     };
 
     const options = [anyAvailableOption, ...staffList];
@@ -203,63 +270,60 @@ function StaffStep({
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-text-main">Select Staff</h2>
-                <p className="text-text-muted">Choose a specific staff member or let us assign one</p>
+                <h2 className="text-2xl font-bold text-text-main">{t('shopBooking.selectStaffTitle')}</h2>
+                <p className="text-text-muted">{t('shopBooking.selectStaffSubtitle')}</p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                 {options.map((staff) => {
                     const isSelected = selectedStaff?.id === staff.id;
                     return (
-                        <Card
+                        <button
                             key={staff.id}
-                            className={cn(
-                                "cursor-pointer transition-all hover:shadow-md",
-                                isSelected
-                                    ? "border-brand ring-2 ring-brand/20"
-                                    : "border-surface-border"
-                            )}
+                            type="button"
                             onClick={() => onSelectStaff(staff)}
+                            className={cn(
+                                "flex flex-col items-center gap-3 rounded-xl border p-5 transition-all min-h-[120px]",
+                                isSelected
+                                    ? "border-brand bg-brand/5 shadow-md"
+                                    : "border-surface-border hover:border-brand/40 hover:bg-surface"
+                            )}
                         >
-                            <CardContent className="p-4 flex items-center gap-4">
-                                <div
-                                    className={cn(
-                                        "h-14 w-14 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0",
-                                        staff.id === "any"
-                                            ? "bg-brand/10 text-brand"
-                                            : "bg-slate-100 text-slate-600"
-                                    )}
-                                >
-                                    {staff.id === "any" ? (
-                                        <User className="h-6 w-6" />
-                                    ) : staff.image_url ? (
-                                        <img
-                                            src={getImageUrl(staff.image_url) || undefined}
-                                            alt={staff.display_name}
-                                            className="h-full w-full object-cover rounded-full"
-                                        />
-                                    ) : (
-                                        staff.display_name.charAt(0).toUpperCase()
-                                    )}
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-semibold text-slate-900">{staff.display_name}</h4>
-                                    {staff.id === "any" && (
-                                        <p className="text-sm text-slate-500">First available team member</p>
-                                    )}
-                                </div>
-                                <div
-                                    className={cn(
-                                        "h-6 w-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors",
-                                        isSelected
-                                            ? "bg-brand border-brand text-white"
-                                            : "border-slate-300"
-                                    )}
-                                >
-                                    {isSelected && <Check className="h-4 w-4" />}
-                                </div>
-                            </CardContent>
-                        </Card>
+                            <div
+                                className={cn(
+                                    "h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 transition-all overflow-hidden",
+                                    isSelected
+                                        ? "ring-3 ring-brand ring-offset-2"
+                                        : "",
+                                    staff.id === "any"
+                                        ? "bg-brand/10 text-brand"
+                                        : "bg-section text-text-muted"
+                                )}
+                            >
+                                {staff.id === "any" ? (
+                                    <User className="h-7 w-7" />
+                                ) : staff.image_url ? (
+                                    <img
+                                        src={getImageUrl(staff.image_url) || undefined}
+                                        alt={staff.display_name}
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    staff.display_name.charAt(0).toUpperCase()
+                                )}
+                            </div>
+                            <div className="text-center">
+                                <h4 className={cn(
+                                    "text-sm font-semibold",
+                                    isSelected ? "text-brand" : "text-text-main"
+                                )}>
+                                    {staff.display_name}
+                                </h4>
+                                {staff.id === "any" && (
+                                    <p className="text-xs text-text-muted mt-0.5">{t('shopBooking.firstAvailable')}</p>
+                                )}
+                            </div>
+                        </button>
                     );
                 })}
             </div>
@@ -287,6 +351,7 @@ function DateTimeStep({
     onSelectDate: (date: string) => void;
     timezone?: string;
 }) {
+    const t = useT();
     const [slots, setSlots] = useState<TimeSlot[]>([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -417,8 +482,8 @@ function DateTimeStep({
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-text-main">Select Date & Time</h2>
-                <p className="text-text-muted">Choose when you would like your appointment</p>
+                <h2 className="text-2xl font-bold text-text-main">{t('shopBooking.selectDateTimeTitle')}</h2>
+                <p className="text-text-muted">{t('shopBooking.selectDateTimeSubtitle')}</p>
             </div>
 
             {/* Closed Banner - shows when today is selected and currently closed */}
@@ -434,11 +499,11 @@ function DateTimeStep({
             {loadingDates ? (
                 <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-5 w-5 animate-spin text-brand" />
-                    <span className="ml-2 text-slate-500">Loading available dates...</span>
+                    <span className="ml-2 text-slate-500">{t('shopBooking.loadingDates')}</span>
                 </div>
             ) : dateOptions.length === 0 ? (
                 <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm">
-                    No available dates in the next 14 days. Please check back later.
+                    {t('shopBooking.noDatesAvailable')}
                 </div>
             ) : (
                 <div className="overflow-x-auto pb-2">
@@ -451,16 +516,16 @@ function DateTimeStep({
                                     key={date.value}
                                     onClick={() => onSelectDate(date.value)}
                                     className={cn(
-                                        "flex flex-col items-center px-4 py-3 rounded-lg border transition-colors min-w-[70px]",
+                                        "flex flex-col items-center px-4 py-3 rounded-xl border-2 transition-all min-w-[72px] min-h-[72px]",
                                         isSelected
-                                            ? "border-brand bg-brand text-white"
+                                            ? "border-brand bg-brand text-white shadow-md"
                                             : "border-surface-border bg-surface hover:border-brand/50"
                                     )}
                                 >
                                     <span className="text-xs font-medium opacity-80">{date.dayName}</span>
-                                    <span className="text-lg font-bold">{date.label.split(" ")[1]}</span>
+                                    <span className="text-xl font-bold">{date.label.split(" ")[1]}</span>
                                     <span className="text-xs opacity-80">
-                                        {isToday ? "Today" : date.label.split(" ")[0]}
+                                        {isToday ? t('shopBooking.today') : date.label.split(" ")[0]}
                                     </span>
                                 </button>
                             );
@@ -470,50 +535,46 @@ function DateTimeStep({
             )}
 
             {/* Time Slots */}
-            <Card className="border-slate-200">
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
-                        <Calendar className="h-5 w-5" />
-                        Available Times
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {loadingSlots ? (
-                        <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-brand" />
-                            <span className="ml-2 text-slate-500">Loading available times...</span>
-                        </div>
-                    ) : slotsError ? (
-                        <p className="text-center text-rose-500 py-8">{slotsError}</p>
-                    ) : slots.length === 0 ? (
-                        <p className="text-center text-slate-500 py-8">No available times for this date.</p>
-                    ) : (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                            {slots.map((slot, index) => {
-                                const isSelected =
-                                    selectedSlot?.date === selectedDate && selectedSlot?.time === slot.time;
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={() => handleSelectSlot(slot)}
-                                        disabled={!slot.available}
-                                        className={cn(
-                                            "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                                            !slot.available
-                                                ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through"
-                                                : isSelected
-                                                    ? "bg-brand text-white"
-                                                    : "bg-white border border-slate-200 text-slate-900 hover:border-brand"
-                                        )}
-                                    >
-                                        {slot.time}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+            <div>
+                <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    {t('shopBooking.availableTimes')}
+                </h3>
+                {loadingSlots ? (
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                        <span className="ml-2 text-text-muted">{t('shopBooking.loadingTimes')}</span>
+                    </div>
+                ) : slotsError ? (
+                    <p className="text-center text-rose-500 py-8">{slotsError}</p>
+                ) : slots.length === 0 ? (
+                    <p className="text-center text-text-muted py-8">{t('shopBooking.noTimesAvailable')}</p>
+                ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {slots.map((slot, index) => {
+                            const isSelected =
+                                selectedSlot?.date === selectedDate && selectedSlot?.time === slot.time;
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => handleSelectSlot(slot)}
+                                    disabled={!slot.available}
+                                    className={cn(
+                                        "px-3 py-3 rounded-lg text-sm font-semibold transition-all min-h-[44px]",
+                                        !slot.available
+                                            ? "bg-section text-text-muted/40 cursor-not-allowed line-through"
+                                            : isSelected
+                                                ? "bg-brand text-white shadow-md"
+                                                : "bg-surface border border-surface-border text-text-main hover:border-brand"
+                                    )}
+                                >
+                                    {slot.time}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -540,91 +601,88 @@ function ConfirmStep({
     submitting: boolean;
     error: string | null;
 }) {
+    const t = useT();
     const { totalPrice, totalDuration } = calculateBookingTotals(booking.services);
 
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-text-main">Confirm Booking</h2>
-                <p className="text-text-muted">Review your appointment details</p>
+                <h2 className="text-2xl font-bold text-text-main">{t('shopBooking.confirmTitle')}</h2>
+                <p className="text-text-muted">{t('shopBooking.confirmSubtitle')}</p>
             </div>
 
-            <Card className="border-slate-200">
-                <CardContent className="p-6 space-y-4">
-                    {/* Services Summary */}
-                    <div>
-                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                            Services
-                        </h3>
-                        <div className="space-y-2">
-                            {booking.services.map((service) => (
-                                <div key={service.id} className="flex justify-between">
-                                    <span className="text-slate-900">{service.name}</span>
-                                    <span className="text-slate-500">{formatPrice(service.price_cents)}</span>
-                                </div>
-                            ))}
-                        </div>
+            <div className="rounded-xl border border-surface-border bg-surface p-6 space-y-4">
+                {/* Services Summary */}
+                <div>
+                    <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">
+                        {t('shopBooking.services')}
+                    </h3>
+                    <div className="space-y-2">
+                        {booking.services.map((service) => (
+                            <div key={service.id} className="flex justify-between">
+                                <span className="text-text-main">{service.name}</span>
+                                <span className="text-text-muted">{formatPrice(service.price_cents)}</span>
+                            </div>
+                        ))}
                     </div>
+                </div>
 
-                    <hr className="border-surface-border" />
+                <hr className="border-surface-border" />
 
-                    {/* Staff */}
+                {/* Staff */}
+                <div className="flex justify-between">
+                    <span className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+                        {t('shopBooking.step2')}
+                    </span>
+                    <span className="text-text-main">{booking.staff?.display_name || t('shopBooking.anyAvailable')}</span>
+                </div>
+
+                {/* Date & Time */}
+                {booking.slot && (
                     <div className="flex justify-between">
-                        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
-                            Staff
+                        <span className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+                            {t('shopBooking.dateAndTime')}
                         </span>
-                        <span className="text-slate-900">{booking.staff?.display_name || "Any available"}</span>
+                        <span className="text-text-main">
+                            {new Date(booking.slot.date).toLocaleDateString("en-US", {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                            })}
+                            {" "}
+                            at {booking.slot.time}
+                        </span>
                     </div>
+                )}
 
-                    {/* Date & Time */}
-                    {booking.slot && (
-                        <div className="flex justify-between">
-                            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
-                                Date & Time
-                            </span>
-                            <span className="text-slate-900">
-                                {new Date(booking.slot.date).toLocaleDateString("en-US", {
-                                    weekday: "short",
-                                    month: "short",
-                                    day: "numeric",
-                                })}
-                                {" "}
-                                at {booking.slot.time}
-                            </span>
-                        </div>
-                    )}
+                <hr className="border-surface-border" />
 
-                    <hr className="border-surface-border" />
-
-                    {/* Total */}
-                    <div className="flex justify-between text-lg font-bold">
-                        <span className="text-slate-900">Total</span>
-                        <span className="text-brand">{formatPrice(totalPrice)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-slate-500">
-                        <span>Duration</span>
-                        <span>{formatDuration(totalDuration)}</span>
-                    </div>
-                </CardContent>
-            </Card>
+                {/* Total */}
+                <div className="flex justify-between text-lg font-bold">
+                    <span className="text-text-main">{t('shopBooking.total')}</span>
+                    <span className="text-brand">{formatPrice(totalPrice)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-text-muted">
+                    <span>{t('shopBooking.duration')}</span>
+                    <span>{formatDuration(totalDuration)}</span>
+                </div>
+            </div>
 
             {/* Payment Method */}
             {(settings?.allow_cash_payment || settings?.allow_qr_payment) && (
-                <Card className="border-slate-200">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
-                            <CreditCard className="h-5 w-5" />
-                            Payment Method
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                <div>
+                    <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        {t('shopBooking.payment')}
+                    </h3>
+                    <div className="space-y-3">
                         {settings?.allow_cash_payment && (
                             <label
                                 className={cn(
-                                    "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                                    "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all min-h-[56px]",
                                     booking.paymentMethod === "CASH"
                                         ? "border-brand bg-brand/5"
-                                        : "border-slate-200 hover:border-brand/50"
+                                        : "border-surface-border hover:border-brand/40"
                                 )}
                             >
                                 <input
@@ -636,25 +694,25 @@ function ConfirmStep({
                                 />
                                 <div
                                     className={cn(
-                                        "h-5 w-5 rounded-full border-2 flex items-center justify-center",
-                                        booking.paymentMethod === "CASH" ? "border-brand" : "border-slate-300"
+                                        "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                                        booking.paymentMethod === "CASH" ? "border-brand" : "border-surface-border"
                                     )}
                                 >
                                     {booking.paymentMethod === "CASH" && (
                                         <div className="h-2.5 w-2.5 rounded-full bg-brand" />
                                     )}
                                 </div>
-                                <span className="font-medium text-slate-900">Pay with Cash</span>
+                                <span className="font-medium text-text-main">{t('shopBooking.payCash')}</span>
                             </label>
                         )}
                         {settings?.allow_qr_payment && (
                             <>
                                 <label
                                     className={cn(
-                                        "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                                        "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all min-h-[56px]",
                                         booking.paymentMethod === "QR"
                                             ? "border-brand bg-brand/5"
-                                            : "border-slate-200 hover:border-brand/50"
+                                            : "border-surface-border hover:border-brand/40"
                                     )}
                                 >
                                     <input
@@ -666,41 +724,41 @@ function ConfirmStep({
                                     />
                                     <div
                                         className={cn(
-                                            "h-5 w-5 rounded-full border-2 flex items-center justify-center",
-                                            booking.paymentMethod === "QR" ? "border-brand" : "border-slate-300"
+                                            "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                                            booking.paymentMethod === "QR" ? "border-brand" : "border-surface-border"
                                         )}
                                     >
                                         {booking.paymentMethod === "QR" && (
                                             <div className="h-2.5 w-2.5 rounded-full bg-brand" />
                                         )}
                                     </div>
-                                    <span className="font-medium text-slate-900">Pay with QR Code</span>
+                                    <span className="font-medium text-text-main">{t('shopBooking.payQR')}</span>
                                 </label>
 
                                 {booking.paymentMethod === "QR" && (
                                     <div className="mt-2 pl-3 ml-3 border-l-2 border-brand/20 space-y-4">
                                         {/* Company QR Display */}
                                         {settings.qr_image_url ? (
-                                            <div className="bg-slate-50 p-4 rounded-lg flex flex-col items-center">
-                                                <p className="text-sm font-medium text-slate-700 mb-2">Scan to Pay</p>
-                                                <div className="relative w-48 h-48 bg-white rounded-lg shadow-sm border p-2">
+                                            <div className="bg-section p-4 rounded-lg flex flex-col items-center">
+                                                <p className="text-sm font-medium text-text-main mb-2">{t('shopBooking.scanToPay')}</p>
+                                                <div className="relative w-48 h-48 bg-surface rounded-lg shadow-sm border border-surface-border p-2">
                                                     <img
                                                         src={getImageUrl(settings.qr_image_url) || undefined}
-                                                        alt="Company QR Code"
+                                                        alt={t('shopBooking.companyQrCode')}
                                                         className="w-full h-full object-contain"
                                                     />
                                                 </div>
                                             </div>
                                         ) : (
                                             <div className="p-4 bg-amber-50 text-amber-700 text-sm rounded-lg">
-                                                Payment details available but QR code not uploaded. Please ask staff for details.
+                                                {t('shopBooking.qrNotUploaded')}
                                             </div>
                                         )}
 
                                         {/* Proof Upload */}
                                         <div className="space-y-2">
-                                            <label className="block text-sm font-medium text-slate-700">
-                                                Upload Payment Proof (Screenshot)
+                                            <label className="block text-sm font-medium text-text-main">
+                                                {t('shopBooking.uploadProofLabel')}
                                             </label>
 
                                             <div className="flex items-center gap-4">
@@ -710,7 +768,7 @@ function ConfirmStep({
                                                     className="w-full sm:w-auto"
                                                 >
                                                     <Upload className="h-4 w-4 mr-2" />
-                                                    {qrProofFile ? "Change File" : "Upload File"}
+                                                    {qrProofFile ? t('shopBooking.changeFile') : t('shopBooking.uploadFile')}
                                                 </Button>
                                                 <input
                                                     id="qr-proof-upload"
@@ -728,7 +786,7 @@ function ConfirmStep({
                                                         <span className="truncate max-w-[150px]">{qrProofFile.name}</span>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onChangeProof(null); }}
-                                                            className="text-slate-400 hover:text-rose-500 ml-1"
+                                                            className="text-text-muted hover:text-rose-500 ml-1"
                                                         >
                                                             <X className="h-3 w-3" />
                                                         </button>
@@ -736,8 +794,8 @@ function ConfirmStep({
                                                 )}
                                             </div>
                                             {!qrProofFile && (
-                                                <p className="text-xs text-slate-500">
-                                                    Please upload a screenshot of your successful transaction.
+                                                <p className="text-xs text-text-muted">
+                                                    {t('shopBooking.uploadProofHint')}
                                                 </p>
                                             )}
                                         </div>
@@ -745,24 +803,22 @@ function ConfirmStep({
                                 )}
                             </>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             )}
 
             {/* Notes */}
-            <Card className="border-slate-200">
-                <CardHeader>
-                    <CardTitle className="text-lg text-slate-900">Additional Notes (Optional)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <textarea
-                        value={booking.notes}
-                        onChange={(e) => onChangeNotes(e.target.value)}
-                        placeholder="Any special requests or notes for your appointment..."
-                        className="w-full h-24 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-brand"
-                    />
-                </CardContent>
-            </Card>
+            <div>
+                <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
+                    {t('shopBooking.additionalNotes')}
+                </h3>
+                <textarea
+                    value={booking.notes}
+                    onChange={(e) => onChangeNotes(e.target.value)}
+                    placeholder={t('shopBooking.notesPlaceholder2')}
+                    className="w-full h-24 px-4 py-3 rounded-xl border-2 border-surface-border bg-surface text-text-main placeholder:text-text-muted/50 resize-none focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand"
+                />
+            </div>
 
             {error && (
                 <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
@@ -778,10 +834,10 @@ function ConfirmStep({
                 {submitting ? (
                     <>
                         <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                        Booking...
+                        {t('shopBooking.booking')}
                     </>
                 ) : (
-                    "Confirm Booking"
+                    t('shopBooking.confirmBooking')
                 )}
             </Button>
         </div>
@@ -793,6 +849,7 @@ export default function BookingPage() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
     const { company, services, staff, categories, settings, loading, error, slug } = useShop();
+    const t = useT();
     const api = useApi();
 
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -808,10 +865,12 @@ export default function BookingPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [completedAfterSignIn, setCompletedAfterSignIn] = useState(false);
     const searchParams = useSearchParams();
     const preselectedServiceId = searchParams.get("serviceId");
     const preselectedStaffId = searchParams.get("staffId");
     const [preselectionApplied, setPreselectionApplied] = useState(false);
+    const pendingBookingHandledRef = React.useRef(false);
 
     // Browse mode: service-first (default) or staff-first
     const [browseMode, setBrowseMode] = useState<BrowseMode>(
@@ -897,8 +956,6 @@ export default function BookingPage() {
         setPreselectionApplied(true);
     }, [preselectedServiceId, preselectedStaffId, loading, services.length, selectableServices, selectableStaff, preselectionApplied, booking.services]);
 
-    const { totalPrice, totalDuration } = calculateBookingTotals(booking.services);
-
     // Handlers
     const toggleService = (service: SelectedService) => {
         setBooking((prev) => {
@@ -963,69 +1020,142 @@ export default function BookingPage() {
         }
     };
 
-    const handleSubmit = async () => {
-        if (!user) {
-            router.push(`/auth/sign-in?redirect=/shop/${slug}/book`);
-            return;
+    const uploadQrProof = async (file: File, companyId: number): Promise<string> => {
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('company_id', companyId.toString());
+
+        const uploadRes = await fetch(resolveApiUrl('/upload/qr'), {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!uploadRes.ok) {
+            throw new Error(t('shopBooking.uploadProofError'));
         }
 
-        if (!booking.slot || !company) return;
-
-        // Validation for QR Proof
-        if (booking.paymentMethod === 'QR' && !qrProofFile) {
-            setSubmitError("Please upload a payment proof for QR payment.");
-            return;
+        const uploadData = await uploadRes.json();
+        if (uploadData.error || !uploadData?.data?.url) {
+            throw new Error(uploadData.message || t('shopBooking.uploadProofError'));
         }
 
+        return uploadData.data.url as string;
+    };
+
+    const deleteUploadedQrProof = React.useCallback(async (url: string) => {
+        try {
+            await fetch(resolveApiUrl('/upload/qr'), {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url }),
+            });
+        } catch {
+            // Best-effort cleanup: ignore delete failures.
+        }
+    }, []);
+
+    const buildBookingPayload = async (): Promise<Omit<BookingRequest, "customer_id">> => {
+        if (!booking.slot || !company) {
+            throw new Error(t('shopBooking.bookingError'));
+        }
+
+        let qrProofUrl: string | undefined = undefined;
+        if (booking.paymentMethod === 'QR') {
+            if (!qrProofFile) {
+                throw new Error(t('shopBooking.qrProofRequired'));
+            }
+            qrProofUrl = await uploadQrProof(qrProofFile, company.id);
+        }
+
+        return {
+            company_id: company.id,
+            staff_id: booking.staff && booking.staff.id !== 'any' ? booking.staff.id : booking.slot.staff_id,
+            service_ids: booking.services.map((s) => s.id),
+            start_at: `${booking.slot.date}T${booking.slot.time}:00`,
+            payment_method: booking.paymentMethod,
+            notes: booking.notes,
+            qr_proof_image_url: qrProofUrl,
+        };
+    };
+
+    const submitBookingPayload = React.useCallback(async (
+        payload: Omit<BookingRequest, "customer_id">,
+        customerId: string,
+    ) => {
+        const fullPayload: BookingRequest = {
+            ...payload,
+            customer_id: customerId,
+        };
+        await api.post("/booking/customer", fullPayload as unknown as Record<string, unknown>);
+    }, [api]);
+
+    useEffect(() => {
+        if (authLoading || !user?.id || success || pendingBookingHandledRef.current) return;
+
+        const pending = loadPendingBookingIntent();
+        if (!pending || pending.slug !== slug) return;
+
+        pendingBookingHandledRef.current = true;
+        clearPendingBookingIntent();
         setSubmitting(true);
         setSubmitError(null);
 
+        const payload: Omit<BookingRequest, "customer_id"> = {
+            company_id: pending.company_id,
+            staff_id: pending.staff_id,
+            service_ids: pending.service_ids,
+            start_at: pending.start_at,
+            payment_method: pending.payment_method,
+            notes: pending.notes,
+            qr_proof_image_url: pending.qr_proof_image_url,
+        };
+
+        void (async () => {
+            try {
+                await submitBookingPayload(payload, user.id!);
+                setCompletedAfterSignIn(true);
+                setSuccess(true);
+            } catch (err) {
+                if (payload.qr_proof_image_url) {
+                    await deleteUploadedQrProof(payload.qr_proof_image_url);
+                }
+                setSubmitError(err instanceof Error ? err.message : t('shopBooking.bookingError'));
+            } finally {
+                setSubmitting(false);
+            }
+        })();
+    }, [authLoading, user, slug, success, submitBookingPayload, t, deleteUploadedQrProof]);
+
+    const handleSubmit = async () => {
+        if (!booking.slot || !company) return;
+
+        setSubmitting(true);
+        setSubmitError(null);
+        let uploadedQrUrl: string | undefined;
+
         try {
-            let qrProofUrl: string | undefined = undefined;
+            const payload = await buildBookingPayload();
+            uploadedQrUrl = payload.qr_proof_image_url;
 
-            // Upload QR proof if present (moved outside nested if)
-            if (booking.paymentMethod === 'QR' && qrProofFile) {
-                const formData = new FormData();
-                formData.append('image', qrProofFile);
-                formData.append('company_id', company.id.toString());
-
-                const uploadRes = await fetch(resolveApiUrl('/upload/qr'), {
-                    method: 'POST',
-                    body: formData,
+            if (!user?.id) {
+                savePendingBookingIntent({
+                    slug,
+                    ...payload,
+                    created_at: new Date().toISOString(),
                 });
-
-                if (!uploadRes.ok) {
-                    throw new Error("Failed to upload payment proof. Please try again.");
-                }
-
-                const uploadData = await uploadRes.json();
-
-                // Check for upload errors
-                if (uploadData.error) {
-                    throw new Error(uploadData.message || "Failed to upload QR code");
-                }
-
-                qrProofUrl = uploadData.data.url; // Note: .data.url not .url
+                router.push(buildSignInRedirectPath(`/shop/${slug}/book?resume=1`, slug));
+                return;
             }
 
-            if (!user.id) throw new Error("User ID is missing");
-
-            const payload: BookingRequest = {
-                company_id: company.id,
-                staff_id: booking.staff && booking.staff.id !== 'any' ? booking.staff.id : booking.slot.staff_id,
-                customer_id: user.id,
-                service_ids: booking.services.map((s) => s.id),
-                start_at: `${booking.slot.date}T${booking.slot.time}:00`,
-                payment_method: booking.paymentMethod,
-                notes: booking.notes,
-                qr_proof_image_url: qrProofUrl,
-            };
-
-            await api.post("/booking/customer", payload as unknown as Record<string, unknown>);
+            await submitBookingPayload(payload, user.id);
+            clearPendingBookingIntent();
             setSuccess(true);
-        } catch (err: any) {
+        } catch (err) {
+            if (uploadedQrUrl) {
+                await deleteUploadedQrProof(uploadedQrUrl);
+            }
             console.error("Booking failed:", err);
-            setSubmitError(err.message || "Failed to create booking. Please try again.");
+            setSubmitError(err instanceof Error ? err.message : t('shopBooking.bookingError'));
         } finally {
             setSubmitting(false);
         }
@@ -1042,10 +1172,10 @@ export default function BookingPage() {
     if (error || !company) {
         return (
             <div className="max-w-md mx-auto mt-12 p-6 text-center">
-                <h2 className="text-xl font-bold text-slate-900 mb-2">Unavailable</h2>
-                <p className="text-slate-500">{error || "Shop not found"}</p>
-                <Button className="mt-4" onClick={() => router.push(`/shop/${slug}`)}>
-                    Return to Shop
+                <h2 className="text-xl font-bold text-text-main mb-2">{t('shopBooking.unavailable')}</h2>
+                <p className="text-text-muted">{error || t('shopBooking.shopNotFound')}</p>
+                <Button className="mt-4 bg-brand text-white hover:bg-brand-hover" onClick={() => router.push(`/shop/${slug}`)}>
+                    {t('shopBooking.returnToShop')}
                 </Button>
             </div>
         );
@@ -1054,17 +1184,26 @@ export default function BookingPage() {
     if (success) {
         return (
             <div className="max-w-md mx-auto mt-12 p-6 text-center space-y-4">
-                <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                <div className="h-16 w-16 bg-brand/10 text-brand rounded-full flex items-center justify-center mx-auto">
                     <Check className="h-8 w-8" />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900">Booking Confirmed!</h2>
-                <p className="text-slate-500">
-                    Your appointment has been successfully scheduled. We have sent a confirmation email to your
-                    inbox.
+                <h2 className="text-2xl font-bold text-text-main">{t('shopBooking.bookingConfirmed')}</h2>
+                <p className="text-text-muted">
+                    {completedAfterSignIn
+                        ? t('shopBooking.bookingCompletedAfterSignIn')
+                        : t('shopBooking.bookingConfirmedMessage')}
                 </p>
-                <Button className="bg-brand text-white w-full" onClick={() => router.push(`/shop/${slug}`)}>
-                    Return to Shop
-                </Button>
+                <div className="space-y-2">
+                    <Button
+                        className="bg-brand text-white w-full h-12"
+                        onClick={() => router.push(appendShopParam("/me/appointments", slug))}
+                    >
+                        {t('shopBooking.viewMyBookings')}
+                    </Button>
+                    <Button variant="outline" className="w-full h-12" onClick={() => router.push(`/shop/${slug}`)}>
+                        {t('shopBooking.backToShop')}
+                    </Button>
+                </div>
             </div>
         );
     }
@@ -1074,12 +1213,12 @@ export default function BookingPage() {
             <div className="mb-8">
                 <Link
                     href={`/shop/${slug}`}
-                    className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-brand transition-colors mb-4"
+                    className="inline-flex items-center text-sm font-medium text-text-muted hover:text-brand transition-colors mb-4"
                 >
                     <ChevronLeft className="h-4 w-4 mr-1" />
-                    Back to Shop
+                    {t('shopBooking.backToShop')}
                 </Link>
-                <h1 className="text-3xl font-bold text-text-main">Book an Appointment</h1>
+                <h1 className="text-3xl font-bold font-heading text-text-main">{t('shopBooking.bookAnAppointment')}</h1>
             </div>
 
             <StepIndicator currentStep={booking.step} browseMode={browseMode} />
@@ -1096,7 +1235,7 @@ export default function BookingPage() {
                                 : "text-slate-500 hover:text-slate-700"
                         )}
                     >
-                        Browse by Service
+                        {t('shopBooking.browseByService')}
                     </button>
                     <button
                         onClick={() => handleToggleBrowseMode("staff-first")}
@@ -1107,7 +1246,7 @@ export default function BookingPage() {
                                 : "text-slate-500 hover:text-slate-700"
                         )}
                     >
-                        Browse by Staff
+                        {t('shopBooking.browseByStaff')}
                     </button>
                 </div>
             )}
@@ -1178,7 +1317,7 @@ export default function BookingPage() {
                 {booking.step > 1 ? (
                     <Button variant="outline" onClick={prevStep} disabled={submitting}>
                         <ChevronLeft className="h-4 w-4 mr-2" />
-                        Back
+                        {t('common.back')}
                     </Button>
                 ) : (
                     <div />
@@ -1190,7 +1329,7 @@ export default function BookingPage() {
                         disabled={!canProceed()}
                         className="bg-brand text-white hover:bg-brand-hover"
                     >
-                        Next
+                        {t('common.next')}
                         <ChevronRight className="h-4 w-4 ml-2" />
                     </Button>
                 ) : null}

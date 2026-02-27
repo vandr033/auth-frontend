@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useT } from "@/lib/i18n";
 import { format, addDays, subDays } from "date-fns";
 import {
     Calendar as CalendarIcon,
@@ -21,7 +22,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { AdminBooking, BookingStatus } from "@/types/admin-booking";
 import { BookingCalendarView } from "./components/BookingCalendarView";
@@ -44,19 +44,21 @@ import {
 type DayCount = 1 | 3 | 7;
 
 const STATUS_OPTIONS: { value: BookingStatus | "ALL"; label: string }[] = [
-    { value: "ALL", label: "All Statuses" },
-    { value: "PENDING", label: "Pending" },
-    { value: "CONFIRMED", label: "Confirmed" },
-    { value: "COMPLETED", label: "Completed" },
-    { value: "CANCELLED", label: "Cancelled" },
-    { value: "NO_SHOW", label: "No Show" },
+    { value: "ALL", label: "adminBookings.allStatuses" },
+    { value: "PENDING", label: "adminBookings.pending" },
+    { value: "CONFIRMED", label: "adminBookings.confirmed" },
+    { value: "COMPLETED", label: "adminBookings.completed" },
+    { value: "CANCELLED", label: "adminBookings.cancelled" },
+    { value: "NO_SHOW", label: "adminBookings.noShow" },
 ];
 
 export default function BookingsPage() {
-    const { isAuthenticated } = useAdminAuth();
+    const { isAuthenticated, role } = useAdminAuth();
+    const t = useT();
+    const isStaffRole = role === "STAFF";
 
     // View State
-    const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+    const [viewMode, setViewMode] = useState<"calendar" | "list">(isStaffRole ? "list" : "calendar");
     const [dayCount, setDayCount] = useState<DayCount>(7);
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -93,6 +95,7 @@ export default function BookingsPage() {
     // Fetch staff, services, and hours on mount
     useEffect(() => {
         if (!isAuthenticated) return;
+        if (isStaffRole) return;
 
         const fetchDropdownData = async () => {
             try {
@@ -110,7 +113,7 @@ export default function BookingsPage() {
         };
 
         fetchDropdownData();
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isStaffRole]);
 
     // Fetch bookings when date or filters change
     const fetchBookings = useCallback(async () => {
@@ -147,6 +150,12 @@ export default function BookingsPage() {
     useEffect(() => {
         fetchBookings();
     }, [fetchBookings]);
+
+    useEffect(() => {
+        if (isStaffRole) {
+            setViewMode("list");
+        }
+    }, [isStaffRole]);
 
     // Navigation handlers
     const handleNext = () => setCurrentDate(prev => addDays(prev, dayCount));
@@ -205,14 +214,16 @@ export default function BookingsPage() {
             {/* Header Controls */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-text-main sm:text-3xl">Bookings</h1>
-                    <p className="text-text-muted">Manage your appointments and schedule.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-text-main sm:text-3xl">{t('adminBookings.title')}</h1>
+                    <p className="text-text-muted">{t('adminBookings.subtitle')}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Button onClick={() => setIsNewBookingOpen(true)} className="bg-brand text-white hover:bg-brand-hover shadow-sm">
-                        <Plus className="mr-2 h-4 w-4" /> New Booking
-                    </Button>
+                    {!isStaffRole && (
+                        <Button onClick={() => setIsNewBookingOpen(true)} className="bg-brand text-white hover:bg-brand-hover shadow-sm">
+                            <Plus className="mr-2 h-4 w-4" /> {t('adminBookings.newBooking')}
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -225,10 +236,10 @@ export default function BookingsPage() {
                         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")} className="w-auto">
                             <TabsList>
                                 <TabsTrigger value="calendar" className="px-3">
-                                    <CalendarIcon className="mr-2 h-4 w-4" /> Calendar
+                                    <CalendarIcon className="mr-2 h-4 w-4" /> {t('adminBookings.calendar')}
                                 </TabsTrigger>
                                 <TabsTrigger value="list" className="px-3">
-                                    <ListIcon className="mr-2 h-4 w-4" /> List
+                                    <ListIcon className="mr-2 h-4 w-4" /> {t('adminBookings.list')}
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
@@ -243,7 +254,7 @@ export default function BookingsPage() {
                                         onClick={() => setDayCount(count)}
                                         className={dayCount === count ? "bg-brand hover:bg-brand-hover" : ""}
                                     >
-                                        {count === 1 ? "Day" : `${count} Days`}
+                                        {count === 1 ? t('adminBookings.day') : t('adminBookings.days', { count })}
                                     </Button>
                                 ))}
                             </div>
@@ -262,7 +273,7 @@ export default function BookingsPage() {
                             <ChevronRight className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={handleToday} className="text-xs text-text-muted">
-                            Today
+                            {t('shopBooking.today')}
                         </Button>
                     </div>
                 </div>
@@ -271,36 +282,38 @@ export default function BookingsPage() {
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center border-t border-surface-border pt-3">
                     <div className="flex items-center gap-2 text-sm text-text-muted">
                         <Filter className="h-4 w-4" />
-                        <span>Filters:</span>
+                        <span>{t('adminBookings.filters')}</span>
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
                         {/* Staff Filter */}
-                        <Select value={staffFilter} onValueChange={setStaffFilter}>
-                            <SelectTrigger className="w-[160px] h-9">
-                                <SelectValue placeholder="All Staff" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">All Staff</SelectItem>
-                                {staffList
-                                    .filter(s => s.is_bookable)
-                                    .map(staff => (
-                                        <SelectItem key={staff.id} value={staff.id.toString()}>
-                                            {staff.display_name}
-                                        </SelectItem>
-                                    ))}
-                            </SelectContent>
-                        </Select>
+                        {!isStaffRole && (
+                            <Select value={staffFilter} onValueChange={setStaffFilter}>
+                                <SelectTrigger className="w-[160px] h-9">
+                                    <SelectValue placeholder={t('adminBookings.allStaff')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">{t('adminBookings.allStaff')}</SelectItem>
+                                    {staffList
+                                        .filter(s => s.is_bookable)
+                                        .map(staff => (
+                                            <SelectItem key={staff.id} value={staff.id.toString()}>
+                                                {staff.display_name}
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+                        )}
 
                         {/* Status Filter */}
                         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as BookingStatus | "ALL")}>
                             <SelectTrigger className="w-[150px] h-9">
-                                <SelectValue placeholder="All Statuses" />
+                                <SelectValue placeholder={t('adminBookings.allStatuses')} />
                             </SelectTrigger>
                             <SelectContent>
                                 {STATUS_OPTIONS.map(opt => (
                                     <SelectItem key={opt.value} value={opt.value}>
-                                        {opt.label}
+                                        {t(opt.label)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -315,7 +328,7 @@ export default function BookingsPage() {
                                 className="text-xs text-text-muted hover:text-text-main"
                             >
                                 <X className="h-3 w-3 mr-1" />
-                                Clear ({activeFilterCount})
+                                {t('adminBookings.clear', { count: activeFilterCount })}
                             </Button>
                         )}
                     </div>
@@ -347,21 +360,23 @@ export default function BookingsPage() {
             </div>
 
             {/* Modals */}
-            <NewBookingModal
-                isOpen={isNewBookingOpen}
-                onClose={() => setIsNewBookingOpen(false)}
-                staffList={staffList}
-                serviceList={serviceList}
-                onCreate={handleCreateBooking}
-            />
+            {!isStaffRole && (
+                <NewBookingModal
+                    isOpen={isNewBookingOpen}
+                    onClose={() => setIsNewBookingOpen(false)}
+                    staffList={staffList}
+                    serviceList={serviceList}
+                    onCreate={handleCreateBooking}
+                />
+            )}
 
             <BookingDetailSheet
                 booking={selectedBooking}
                 isOpen={isDetailOpen}
                 onClose={() => setIsDetailOpen(false)}
                 onStatusUpdate={handleStatusUpdate}
+                onRefresh={fetchBookings}
             />
         </div>
     );
 }
-

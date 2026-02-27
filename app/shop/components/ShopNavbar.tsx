@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +13,10 @@ import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
 import { useShop } from "../contexts/ShopContext";
 import { getImageUrl } from "@/utils/image-url";
+import { SocialIcons } from "@/components/shop/SocialIcons";
+import { useT } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { appendShopParam } from "@/app/lib/shop-context";
 
 const getInitials = (name?: string | null, email?: string | null) => {
     if (name && name.length > 0) return name.charAt(0).toUpperCase();
@@ -25,18 +28,21 @@ export function ShopNavbar() {
     const pathname = usePathname();
     const router = useRouter();
     const { isAuthenticated, user, signOut, loading } = useAuth();
-    const { company, slug, loading: shopLoading } = useShop();
+    const { company, slug, socialLinks, loading: shopLoading } = useShop();
+    const t = useT();
 
     const [open, setOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
 
     const basePath = `/shop/${slug}`;
+    const profileHref = appendShopParam("/me/profile", slug);
+    const appointmentsHref = appendShopParam("/me/appointments", slug);
 
     const navLinks = [
-        { href: basePath, label: "Home" },
-        { href: `${basePath}/services`, label: "Services" },
-        { href: `${basePath}/about`, label: "About Us" },
+        { href: basePath, label: t('shopNav.home') },
+        { href: `${basePath}/services`, label: t('shopNav.services') },
+        { href: `${basePath}/about`, label: t('shopNav.about') },
     ];
 
     const isActive = (href: string) => {
@@ -92,7 +98,7 @@ export function ShopNavbar() {
                     variant="outline"
                     className="rounded-md border-surface-border px-4 py-2 text-sm font-semibold text-text-main transition hover:border-brand hover:text-brand"
                 >
-                    Login
+                    {t('shopNav.login')}
                 </Button>
             );
         }
@@ -131,16 +137,16 @@ export function ShopNavbar() {
                             </div>
                         </div>
                         <Link
-                            href="/me/profile"
+                            href={profileHref}
                             className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
                         >
-                            My Profile
+                            {t('shopNav.myProfile')}
                         </Link>
                         <Link
-                            href="/me/appointments"
+                            href={appointmentsHref}
                             className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
                         >
-                            My Appointments
+                            {t('shopNav.myAppointments')}
                         </Link>
                         <Separator className="border-surface-border" />
                         <button
@@ -148,7 +154,7 @@ export function ShopNavbar() {
                             onClick={handleSignOut}
                             className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-brand transition hover:bg-brand-soft-bg hover:text-brand"
                         >
-                            Sign out
+                            {t('shopNav.signOut')}
                         </button>
                     </div>
                 )}
@@ -207,11 +213,13 @@ export function ShopNavbar() {
 
                 {/* Desktop Actions */}
                 <div className="hidden items-center gap-3 md:flex">
+                    <SocialIcons socialLinks={socialLinks} iconSize={16} className="gap-2" />
                     <Link href={`${basePath}/book`}>
                         <Button className="rounded-md bg-brand px-6 py-2 text-white shadow-card transition hover:bg-brand-hover">
-                            Book Now
+                            {t('shopNav.book')}
                         </Button>
                     </Link>
+                    <LanguageSwitcher variant="shop" />
                     <AuthActions />
                 </div>
 
@@ -219,7 +227,7 @@ export function ShopNavbar() {
                 <div className="flex items-center gap-2 md:hidden">
                     <Link href={`${basePath}/book`}>
                         <Button className="rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover">
-                            Book
+                            {t('shopNav.bookShort')}
                         </Button>
                     </Link>
                     <Sheet open={open} onOpenChange={setOpen}>
@@ -247,10 +255,10 @@ export function ShopNavbar() {
                                     </Avatar>
                                     <div className="min-w-0 flex-1">
                                         <p className="font-semibold text-text-main truncate">
-                                            {user?.name || user?.email || "Guest"}
+                                            {user?.name || user?.email || t('shopNav.guest')}
                                         </p>
                                         <p className="text-sm text-text-muted truncate">
-                                            {isAuthenticated ? (user?.email || "Signed in") : "Not signed in"}
+                                            {isAuthenticated ? (user?.email || t('shopNav.signedIn')) : t('shopNav.notSignedIn')}
                                         </p>
                                     </div>
                                 </div>
@@ -275,9 +283,16 @@ export function ShopNavbar() {
                                 {/* Book Now */}
                                 <Link href={`${basePath}/book`} onClick={() => setOpen(false)}>
                                     <Button className="w-full rounded-md bg-brand px-4 py-2 text-white shadow-card hover:bg-brand-hover">
-                                        Book Now
+                                        {t('shopNav.book')}
                                     </Button>
                                 </Link>
+
+                                {/* Social Links */}
+                                <SocialIcons socialLinks={socialLinks} iconSize={18} className="justify-center gap-4" />
+
+                                <LanguageSwitcher variant="shop" />
+
+                                <Separator className="border-surface-border" />
 
                                 {/* Auth Actions */}
                                 {!isAuthenticated ? (
@@ -289,20 +304,20 @@ export function ShopNavbar() {
                                             router.push("/auth/sign-in");
                                         }}
                                     >
-                                        Sign in / Create an account
+                                        {t('shopNav.signInOrCreate')}
                                     </Button>
                                 ) : (
                                     <>
-                                        <Link href="/me/profile" onClick={() => setOpen(false)}>
+                                        <Link href={profileHref} onClick={() => setOpen(false)}>
                                             <Button variant="outline" className="w-full justify-start gap-2">
                                                 <UserRound className="h-4 w-4" />
-                                                My Profile
+                                                {t('shopNav.myProfile')}
                                             </Button>
                                         </Link>
-                                        <Link href="/me/appointments" onClick={() => setOpen(false)}>
+                                        <Link href={appointmentsHref} onClick={() => setOpen(false)}>
                                             <Button variant="outline" className="w-full justify-start gap-2">
                                                 <span className="h-2 w-2 rounded-full bg-brand" />
-                                                My Appointments
+                                                {t('shopNav.myAppointments')}
                                             </Button>
                                         </Link>
                                         <Button
@@ -313,7 +328,7 @@ export function ShopNavbar() {
                                                 void handleSignOut();
                                             }}
                                         >
-                                            Sign out
+                                            {t('shopNav.signOut')}
                                         </Button>
                                     </>
                                 )}

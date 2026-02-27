@@ -4,6 +4,7 @@ import React, {
     createContext,
     useContext,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useState,
 } from "react";
@@ -17,8 +18,21 @@ import type {
     ShopTheme,
     ShopSettings,
     ShopReviewStats,
+    HeroVariant,
+    ServicesVariant,
+    TeamVariant,
+    FontPairing,
+    SocialLinks,
 } from "@/types/shop";
 import { computeTheme, type ThemeConfig } from "@/utils/themepicker";
+import { DEFAULT_LOCALE, getLocaleCookie, I18nProvider, translate } from "@/lib/i18n";
+import { applyMainSiteTheme } from "@/theme/mainSiteTheme";
+import { getShopSlugFromParams } from "@/app/lib/shop-context";
+import {
+    normalizeShopData,
+    resolvePublicApiUrl,
+    type ShopApiResponse,
+} from "../lib/shopData";
 
 type ShopContextValue = {
     company: ShopCompany | null;
@@ -29,12 +43,18 @@ type ShopContextValue = {
     settings: ShopSettings | null;
     theme: ShopTheme | null;
     reviewStats: ShopReviewStats | null;
+    heroVariant: HeroVariant;
+    servicesVariant: ServicesVariant;
+    teamVariant: TeamVariant;
+    fontPairing: FontPairing;
+    socialLinks: SocialLinks;
     loading: boolean;
     error: string | null;
     slug: string;
 };
 
 const ShopContext = createContext<ShopContextValue | null>(null);
+const shopDataCache = new Map<string, ShopData>();
 
 const defaultTheme: ShopTheme = {
     brand_color: "#2563eb",
@@ -42,85 +62,105 @@ const defaultTheme: ShopTheme = {
     page_background_preset: "auto",
     cards_elevated: true,
     corner_radius: "md",
+    font_pairing: "classic",
+    hero_variant: "hero-cinematic",
+    services_variant: "services-grid",
+    team_variant: "team-cards",
 };
 
-const resolveApiUrl = (url: string) => {
-    if (url.startsWith("http")) return url;
-    const base =
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        process.env.NEXT_PUBLIC_BACKEND_URL ||
-        "";
-    return `${base}${url}`;
-};
+const shopT = (key: string, vars?: Record<string, string | number>) =>
+    translate(getLocaleCookie() ?? DEFAULT_LOCALE, key, vars);
+
+const toThemeConfig = (theme: ShopTheme | null | undefined): ThemeConfig => ({
+    brandColor: theme?.brand_color || defaultTheme.brand_color,
+    pageBackgroundColor: theme?.page_background_color || defaultTheme.page_background_color,
+    pageBackgroundPreset: theme?.page_background_preset || defaultTheme.page_background_preset,
+    cardsElevated: theme?.cards_elevated ?? defaultTheme.cards_elevated,
+    cornerRadius: theme?.corner_radius || defaultTheme.corner_radius,
+    fontPreset: "modern",
+    fontPairing: theme?.font_pairing || defaultTheme.font_pairing,
+});
 
 type ShopProviderProps = {
     slug: string;
     children: React.ReactNode;
+    initialData?: ShopData | null;
+    initialError?: string | null;
 };
 
-export function ShopProvider({ slug, children }: ShopProviderProps) {
-    const [data, setData] = useState<ShopData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+export function ShopProvider({
+    slug,
+    children,
+    initialData = null,
+    initialError = null,
+}: ShopProviderProps) {
+    const cachedData = initialData ?? shopDataCache.get(slug) ?? null;
+    const hasWarmData = !!cachedData;
+
+    const [data, setData] = useState<ShopData | null>(() => cachedData);
+    const [loading, setLoading] = useState<boolean>(() => !hasWarmData);
+    const [error, setError] = useState<string | null>(() =>
+        hasWarmData ? null : initialError,
+    );
 
     useEffect(() => {
-        const fetchShopData = async () => {
-            setLoading(true);
-            setError(null);
-            // Clear stale data immediately so old theme is removed
-            setData(null);
-            try {
-                const response = await fetch(resolveApiUrl(`/company/${slug}`), {
-                    credentials: "include",
-                });
-                const result = await response.json();
+        if (initialData) {
+            shopDataCache.set(slug, initialData);
+        }
+    }, [initialData, slug]);
 
-                if (!response.ok || result.error) {
-                    throw new Error(result.message || "Failed to load shop data");
+    useEffect(() => {
+        if (!slug || initialData) {
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const fetchShopData = async () => {
+            if (!hasWarmData) {
+                setLoading(true);
+            }
+            setError(null);
+
+            try {
+                const response = await fetch(resolvePublicApiUrl(`/company/${slug}`), {
+                    credentials: "include",
+                    signal: controller.signal,
+                });
+                const result = (await response.json()) as ShopApiResponse;
+
+                if (!response.ok || result.error || !result.data) {
+                    throw new Error(result.message || shopT("shopHome.loadShopDataError"));
                 }
 
-                // Transform the data to match our frontend interfaces
-                const rawData = result.data;
-                const transformedData: ShopData = {
-                    ...rawData,
-                    // Hours are nested inside company object from the API
-                    hours: rawData.company?.hours || [],
-                    staff: rawData.staff.map((s: any) => ({
-                        ...s,
-                        // Map the nested staff_services array to a simple array of service IDs
-                        services: s.staff_services?.map((ss: any) => ss.service_id) || [],
-                    })),
-                };
-
-                setData(transformedData);
+                const normalized = normalizeShopData(result.data);
+                setData(normalized);
+                shopDataCache.set(slug, normalized);
             } catch (err) {
-                const message = err instanceof Error ? err.message : "Unknown error";
+                if (controller.signal.aborted) return;
+                const message = err instanceof Error ? err.message : shopT("common.error");
                 setError(message);
-                setData(null);
+                if (!hasWarmData) {
+                    setData(null);
+                }
             } finally {
+                if (controller.signal.aborted) return;
                 setLoading(false);
             }
         };
 
-        if (slug) {
-            void fetchShopData();
-        }
-    }, [slug]);
+        void fetchShopData();
+
+        return () => {
+            controller.abort();
+        };
+    }, [slug, initialData, hasWarmData]);
 
     // Apply theme CSS variables when data loads
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!data?.theme || typeof document === "undefined") return;
 
-        const themeConfig: ThemeConfig = {
-            brandColor: data.theme.brand_color,
-            pageBackgroundColor: data.theme.page_background_color,
-            pageBackgroundPreset: data.theme.page_background_preset,
-            cardsElevated: data.theme.cards_elevated,
-            cornerRadius: data.theme.corner_radius,
-            fontPreset: "modern", // Default, could be extended
-        };
-
-        const computed = computeTheme(themeConfig);
+        const computed = computeTheme(toThemeConfig(data.theme));
         const root = document.documentElement;
 
         Object.entries(computed.tokens.cssVars).forEach(([key, value]) => {
@@ -129,10 +169,17 @@ export function ShopProvider({ slug, children }: ShopProviderProps) {
 
         // Cleanup: Reset to main site theme when leaving shop pages
         return () => {
-            // Import dynamically to avoid circular dependency
-            import("@/theme/mainSiteTheme").then(({ applyMainSiteTheme }) => {
-                applyMainSiteTheme();
-            });
+            root.style.removeProperty("--font-heading");
+            root.style.removeProperty("--font-body");
+
+            if (typeof window !== "undefined" && window.location.pathname.startsWith("/me")) {
+                const nextShopSlug = getShopSlugFromParams(
+                    new URLSearchParams(window.location.search),
+                );
+                if (nextShopSlug === slug) return;
+            }
+
+            applyMainSiteTheme();
         };
     }, [data?.theme, slug]);
 
@@ -146,6 +193,11 @@ export function ShopProvider({ slug, children }: ShopProviderProps) {
             settings: data?.settings ?? null,
             theme: data?.theme ?? defaultTheme,
             reviewStats: data?.reviewStats ?? null,
+            heroVariant: data?.theme?.hero_variant ?? "hero-cinematic",
+            servicesVariant: data?.theme?.services_variant ?? "services-grid",
+            teamVariant: data?.theme?.team_variant ?? "team-cards",
+            fontPairing: data?.theme?.font_pairing ?? "classic",
+            socialLinks: data?.settings?.social_links ?? {},
             loading,
             error,
             slug,
@@ -153,7 +205,13 @@ export function ShopProvider({ slug, children }: ShopProviderProps) {
         [data, loading, error, slug],
     );
 
-    return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
+    return (
+        <ShopContext.Provider value={value}>
+            <I18nProvider defaultLocale={data?.settings?.default_language}>
+                {children}
+            </I18nProvider>
+        </ShopContext.Provider>
+    );
 }
 
 export function useShop() {

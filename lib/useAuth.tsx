@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { DEFAULT_LOCALE, getLocaleCookie, translate } from "@/lib/i18n";
 
 export type AuthUser = {
   id?: string;
@@ -41,6 +42,10 @@ type AuthContextValue = {
 
   // Sign out
   signOut: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  requestPhonePasswordReset: (phoneNumber: string) => Promise<void>;
+  resetPhonePassword: (phoneNumber: string, code: string, newPassword: string) => Promise<void>;
 
   // Email registration (OTP, no password)
   startCustomerEmailRegistration: (email: string) => Promise<void>;
@@ -92,6 +97,9 @@ const resolveApiUrl = (url: string) => {
     "";
   return `${base}${url}`;
 };
+
+const authT = (key: string, vars?: Record<string, string | number>) =>
+  translate(getLocaleCookie() ?? DEFAULT_LOCALE, key, vars);
 
 async function apiPost<TResponse>(
   url: string,
@@ -186,14 +194,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error || data?.message || "Unable to fetch session");
+        throw new Error(data?.error || data?.message || authT("authErrors.fetchSession"));
       }
       const currentUser = extractUser(data);
       setUser(currentUser);
       setError(null);
       return currentUser;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to fetch session";
+      const message = err instanceof Error ? err.message : authT("authErrors.fetchSession");
       setError(message);
       setUser(null);
       return null;
@@ -222,7 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await apiPost("/auth/sign-in/email", { email, password });
         await refreshSession();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to sign in";
+        const message = err instanceof Error ? err.message : authT("authErrors.signIn");
         setError(message);
         throw err;
       } finally {
@@ -239,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiPost("/v1/auth/customer/login/email/start", { email });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to send OTP";
+      const message = err instanceof Error ? err.message : authT("authErrors.sendOtp");
       setError(message);
       throw err;
     } finally {
@@ -255,7 +263,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await apiPost("/v1/auth/customer/login/email/verify", { email, code });
         await refreshSession();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to verify code";
+        const message = err instanceof Error ? err.message : authT("authErrors.verifyCode");
         setError(message);
         throw err;
       } finally {
@@ -272,7 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiPost("/auth/phone-number/send-otp", { phoneNumber });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to send OTP";
+      const message = err instanceof Error ? err.message : authT("authErrors.sendOtp");
       setError(message);
       throw err;
     } finally {
@@ -288,7 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await apiPost("/auth/phone-number/verify", { phoneNumber, code });
         await refreshSession();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to verify code";
+        const message = err instanceof Error ? err.message : authT("authErrors.verifyCode");
         setError(message);
         throw err;
       } finally {
@@ -298,6 +306,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refreshSession],
   );
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const origin =
+        (typeof window !== "undefined" ? window.location.origin : null) ??
+        process.env.NEXT_PUBLIC_FRONTEND_URL ??
+        process.env.NEXT_PUBLIC_APP_URL ??
+        "";
+
+      const redirectTo = origin
+        ? `${origin}/auth/reset-password`
+        : "/auth/reset-password";
+
+      await apiPost("/auth/forget-password", { email, redirectTo });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : authT("authErrors.requestPasswordReset");
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (token: string, newPassword: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await apiPost("/auth/reset-password", { token, newPassword });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : authT("authErrors.resetPassword");
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const requestPhonePasswordReset = useCallback(async (phoneNumber: string) => {
+    void phoneNumber;
+    const message = authT("authErrors.phoneResetNotSupported");
+    setError(message);
+    throw new Error(message);
+  }, []);
+
+  const resetPhonePassword = useCallback(
+    async (phoneNumber: string, code: string, newPassword: string) => {
+      void phoneNumber;
+      void code;
+      void newPassword;
+      const message = authT("authErrors.phoneResetNotSupported");
+      setError(message);
+      throw new Error(message);
+    },
+    [],
+  );
+
   const signOut = useCallback(async () => {
     setLoading(true);
     try {
@@ -305,7 +370,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to sign out";
+      const message = err instanceof Error ? err.message : authT("authErrors.signOut");
       setError(message);
       throw err;
     } finally {
@@ -320,7 +385,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiPost("/v1/auth/customer/email/start", { email });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to start email registration";
+      const message = err instanceof Error ? err.message : authT("authErrors.startEmailRegistration");
       setError(message);
       throw err;
     } finally {
@@ -340,7 +405,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const preRegToken = response.data?.preRegToken ?? response.preRegToken ?? "";
         return { preRegToken };
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to verify code";
+        const message = err instanceof Error ? err.message : authT("authErrors.verifyCode");
         setError(message);
         throw err;
       } finally {
@@ -363,7 +428,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         await refreshSession();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to complete registration";
+        const message = err instanceof Error ? err.message : authT("authErrors.completeRegistration");
         setError(message);
         throw err;
       } finally {
@@ -381,7 +446,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await apiPost("/v1/auth/customer/complete-phone", { first_name, last_name, phone_prefix });
         await refreshSession();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to complete phone profile";
+        const message = err instanceof Error ? err.message : authT("authErrors.completePhoneProfile");
         setError(message);
         throw err;
       } finally {
@@ -400,7 +465,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await apiPut("/v1/auth/me", data);
         await refreshSession();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to update profile";
+        const message = err instanceof Error ? err.message : authT("authErrors.updateProfile");
         setError(message);
         throw err;
       } finally {
@@ -416,7 +481,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiPost("/v1/auth/me/email/start", { email: newEmail });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to send verification";
+      const message = err instanceof Error ? err.message : authT("authErrors.sendVerification");
       setError(message);
       throw err;
     } finally {
@@ -432,7 +497,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await apiPost("/v1/auth/me/email/verify", { email: newEmail, code });
         await refreshSession();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to verify email change";
+        const message = err instanceof Error ? err.message : authT("authErrors.verifyEmailChange");
         setError(message);
         throw err;
       } finally {
@@ -448,7 +513,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiPost("/v1/auth/me/phone/start", { phoneNumber: newPhone });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to send verification";
+      const message = err instanceof Error ? err.message : authT("authErrors.sendVerification");
       setError(message);
       throw err;
     } finally {
@@ -464,7 +529,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await apiPost("/v1/auth/me/phone/verify", { phoneNumber: newPhone, code, phone_prefix });
         await refreshSession();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to verify phone change";
+        const message = err instanceof Error ? err.message : authT("authErrors.verifyPhoneChange");
         setError(message);
         throw err;
       } finally {
@@ -486,6 +551,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       verifyLoginEmailOtp,
       sendPhoneOtp,
       verifyPhoneOtp,
+      requestPasswordReset,
+      resetPassword,
+      requestPhonePasswordReset,
+      resetPhonePassword,
       signOut,
       startCustomerEmailRegistration,
       verifyCustomerEmailCode,
@@ -507,6 +576,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       verifyLoginEmailOtp,
       sendPhoneOtp,
       verifyPhoneOtp,
+      requestPasswordReset,
+      resetPassword,
+      requestPhonePasswordReset,
+      resetPhonePassword,
       signOut,
       startCustomerEmailRegistration,
       verifyCustomerEmailCode,

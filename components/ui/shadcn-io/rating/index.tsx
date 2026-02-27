@@ -14,6 +14,7 @@ import {
   useState,
 } from 'react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 type RatingContextValue = {
   value: number;
@@ -143,6 +144,7 @@ export const Rating = ({
   children,
   ...props
 }: RatingProps) => {
+  const t = useT();
   const [hoverValue, setHoverValue] = useState<number | null>(null);
   const [focusedStar, setFocusedStar] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -221,7 +223,7 @@ export const Rating = ({
   return (
     <RatingContext.Provider value={contextValue}>
       <div
-        aria-label="Rating"
+        aria-label={t('sharedUi.rating')}
         className={cn('inline-flex items-center gap-0.5', className)}
         onMouseLeave={() => setHoverValue(null)}
         ref={containerRef}

@@ -17,6 +17,7 @@ export type AdminUser = {
     first_name?: string | null;
     last_name?: string | null;
     is_super_admin?: boolean;
+    must_change_password?: boolean;
 };
 
 export type CompanyUser = {
@@ -28,6 +29,7 @@ export type CompanyUser = {
         id: number;
         slug: string;
         name: string;
+        default_language?: string;
     };
 };
 
@@ -38,6 +40,7 @@ type AdminAuthContextValue = {
     error: string | null;
     isAuthenticated: boolean;
     isSuperAdmin: boolean;
+    mustChangePassword: boolean;
     companyId: number | null;
     companySlug: string | null;
     companyName: string | null;
@@ -77,9 +80,11 @@ async function apiPost<TResponse>(
     }
 
     if (!response.ok) {
-        const message = String(
-            data?.error ?? data?.message ?? `Request failed with status ${response.status}`
-        );
+        const message =
+            (typeof data?.message === "string" && data.message.trim()) ||
+            (typeof data?.error === "string" && data.error.trim()) ||
+            (typeof data?.technicalMessage === "string" && data.technicalMessage.trim()) ||
+            `Request failed with status ${response.status}`;
         throw new Error(message);
     }
 
@@ -192,6 +197,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             // Super admins can be authenticated without a companyUser
             isAuthenticated: Boolean(user && (companyUser || user.is_super_admin)),
             isSuperAdmin: Boolean(user?.is_super_admin),
+            mustChangePassword: Boolean(user?.must_change_password),
             companyId: companyUser?.company_id ?? null,
             companySlug: companyUser?.company?.slug ?? null,
             companyName: companyUser?.company?.name ?? null,

@@ -8,14 +8,9 @@ import { Menu, X, Sun, Moon, Scissors } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
-
-const navLinks = [
-  { href: "/#home", label: "Home" },
-  { href: "/#how-it-works", label: "How It Works" },
-  { href: "/#for-businesses", label: "For Businesses" },
-];
 
 const getInitials = (name?: string | null, email?: string | null) => {
   if (name && name.length > 0) return name.charAt(0).toUpperCase();
@@ -24,6 +19,7 @@ const getInitials = (name?: string | null, email?: string | null) => {
 };
 
 export function Navbar() {
+  const t = useT();
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, user, signOut, loading } = useAuth();
@@ -33,6 +29,11 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [dark, setDark] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const navLinks = [
+    { href: "/#home", label: t("mainNavbar.home") },
+    { href: "/#how-it-works", label: t("mainNavbar.howItWorks") },
+    { href: "/#for-businesses", label: t("mainNavbar.forBusinesses") },
+  ];
 
   // Track scroll for backdrop effect
   useEffect(() => {
@@ -106,7 +107,7 @@ export function Navbar() {
               <Scissors className="h-4.5 w-4.5" />
             </div>
             <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-              ClipBook
+              {t("mainNavbar.brand")}
             </span>
           </Link>
 
@@ -130,7 +131,7 @@ export function Navbar() {
             <button
               onClick={toggleDark}
               className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-              aria-label="Toggle dark mode"
+              aria-label={t("mainNavbar.toggleDarkMode")}
             >
               {dark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
             </button>
@@ -143,7 +144,7 @@ export function Navbar() {
                 onClick={() => router.push("/auth/sign-in")}
                 className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-hover hover:shadow-md"
               >
-                Sign in
+                {t("mainNavbar.signIn")}
               </Button>
             ) : (
               <div ref={menuRef} className="relative">
@@ -153,7 +154,7 @@ export function Navbar() {
                   className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-200 transition-colors hover:border-brand dark:border-slate-700"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? "User"} />
+                    <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? t("mainNavbar.user")} />
                     <AvatarFallback className="bg-brand text-white text-xs font-semibold">
                       {getInitials(user?.name, user?.email)}
                     </AvatarFallback>
@@ -163,7 +164,7 @@ export function Navbar() {
                   <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
                     <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                       <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                        {user?.name || "User"}
+                        {user?.name || t("mainNavbar.user")}
                       </p>
                       {user?.email && (
                         <p className="text-xs text-slate-500 truncate">{user.email}</p>
@@ -173,13 +174,13 @@ export function Navbar() {
                       href="/me/profile"
                       className="block px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
-                      My Profile
+                      {t("mainNavbar.myProfile")}
                     </Link>
                     <Link
                       href="/me/appointments"
                       className="block px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
-                      My Appointments
+                      {t("mainNavbar.myAppointments")}
                     </Link>
                     <Separator />
                     <button
@@ -187,7 +188,7 @@ export function Navbar() {
                       onClick={handleSignOut}
                       className="w-full px-4 py-2.5 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30"
                     >
-                      Sign out
+                      {t("mainNavbar.signOut")}
                     </button>
                   </div>
                 )}
@@ -200,14 +201,14 @@ export function Navbar() {
             <button
               onClick={toggleDark}
               className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-              aria-label="Toggle dark mode"
+              aria-label={t("mainNavbar.toggleDarkMode")}
             >
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <button
               onClick={() => setMobileOpen(true)}
               className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300"
-              aria-label="Menu"
+              aria-label={t("mainNavbar.menu")}
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -224,7 +225,7 @@ export function Navbar() {
           />
           <div className="fixed right-0 top-0 z-50 h-full w-72 border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
             <div className="flex h-16 items-center justify-between border-b border-slate-100 px-4 dark:border-slate-800">
-              <span className="font-bold text-slate-900 dark:text-white">Menu</span>
+              <span className="font-bold text-slate-900 dark:text-white">{t("mainNavbar.menu")}</span>
               <button
                 onClick={() => setMobileOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -243,7 +244,7 @@ export function Navbar() {
                   </Avatar>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 truncate dark:text-white">
-                      {user?.name || "User"}
+                      {user?.name || t("mainNavbar.user")}
                     </p>
                     <p className="text-xs text-slate-500 truncate">{user?.email || ""}</p>
                   </div>
@@ -268,7 +269,7 @@ export function Navbar() {
                   }}
                   className="w-full bg-brand text-white hover:bg-brand-hover"
                 >
-                  Sign in / Register
+                  {t("mainNavbar.signInOrRegister")}
                 </Button>
               ) : (
                 <>
@@ -277,14 +278,14 @@ export function Navbar() {
                     onClick={() => setMobileOpen(false)}
                     className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
-                    My Profile
+                    {t("mainNavbar.myProfile")}
                   </Link>
                   <Link
                     href="/me/appointments"
                     onClick={() => setMobileOpen(false)}
                     className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
-                    My Appointments
+                    {t("mainNavbar.myAppointments")}
                   </Link>
                   <button
                     onClick={() => {
@@ -293,7 +294,7 @@ export function Navbar() {
                     }}
                     className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400"
                   >
-                    Sign out
+                    {t("mainNavbar.signOut")}
                   </button>
                 </>
               )}

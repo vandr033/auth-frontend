@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 // Types
 interface TimeSlot {
@@ -31,13 +32,13 @@ interface DaySchedule {
 }
 
 const DAYS = [
-    { day: 0, name: "Sunday", short: "Sun" },
-    { day: 1, name: "Monday", short: "Mon" },
-    { day: 2, name: "Tuesday", short: "Tue" },
-    { day: 3, name: "Wednesday", short: "Wed" },
-    { day: 4, name: "Thursday", short: "Thu" },
-    { day: 5, name: "Friday", short: "Fri" },
-    { day: 6, name: "Saturday", short: "Sat" },
+    { day: 0, name: "adminHours.sunday", short: "Sun" },
+    { day: 1, name: "adminHours.monday", short: "Mon" },
+    { day: 2, name: "adminHours.tuesday", short: "Tue" },
+    { day: 3, name: "adminHours.wednesday", short: "Wed" },
+    { day: 4, name: "adminHours.thursday", short: "Thu" },
+    { day: 5, name: "adminHours.friday", short: "Fri" },
+    { day: 6, name: "adminHours.saturday", short: "Sat" },
 ];
 
 const DEFAULT_SLOT: TimeSlot = { start_time: "09:00", end_time: "17:00" };
@@ -49,25 +50,31 @@ function getApiUrl(path: string): string {
 }
 
 // Validate time format and logic
-function validateTimeSlot(slot: TimeSlot): string | null {
+function validateTimeSlot(
+    slot: TimeSlot,
+    t: (key: string, vars?: Record<string, string | number>) => string,
+): string | null {
     const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeRegex.test(slot.start_time)) {
-        return "Invalid start time format (use HH:mm)";
+        return t('adminHours.invalidStartTime');
     }
     if (!timeRegex.test(slot.end_time)) {
-        return "Invalid end time format (use HH:mm)";
+        return t('adminHours.invalidEndTime');
     }
     if (slot.start_time >= slot.end_time) {
-        return "End time must be after start time";
+        return t('adminHours.endAfterStart');
     }
     return null;
 }
 
 // Check for overlapping slots
-function validateSlots(slots: TimeSlot[]): string | null {
+function validateSlots(
+    slots: TimeSlot[],
+    t: (key: string, vars?: Record<string, string | number>) => string,
+): string | null {
     for (let i = 0; i < slots.length; i++) {
-        const error = validateTimeSlot(slots[i]);
-        if (error) return `Slot ${i + 1}: ${error}`;
+        const error = validateTimeSlot(slots[i], t);
+        if (error) return t('adminHours.slotError', { index: i + 1, error });
 
         for (let j = i + 1; j < slots.length; j++) {
             const a = slots[i];
@@ -76,7 +83,7 @@ function validateSlots(slots: TimeSlot[]): string | null {
                 (a.start_time < b.end_time && a.end_time > b.start_time) ||
                 (b.start_time < a.end_time && b.end_time > a.start_time)
             ) {
-                return `Slots ${i + 1} and ${j + 1} overlap`;
+                return t('adminHours.slotsOverlap', { first: i + 1, second: j + 1 });
             }
         }
     }
@@ -85,6 +92,7 @@ function validateSlots(slots: TimeSlot[]): string | null {
 
 export default function HoursPage() {
     const { companyId, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const t = useT();
 
     // State
     const [schedule, setSchedule] = useState<DaySchedule[]>(
@@ -112,7 +120,7 @@ export default function HoursPage() {
                 credentials: "include",
             });
 
-            if (!response.ok) throw new Error("Failed to fetch business hours");
+            if (!response.ok) throw new Error(t('adminHours.fetchHoursError'));
 
             const data = await response.json();
             // Handle both flat array and nested { data: { hours: [] } } structure
@@ -147,11 +155,11 @@ export default function HoursPage() {
                 setSchedule(newSchedule);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load hours");
+            setError(err instanceof Error ? err.message : t('adminHours.loadHoursError'));
         } finally {
             setLoading(false);
         }
-    }, [companyId]);
+    }, [companyId, t]);
 
     useEffect(() => {
         if (isAuthenticated && companyId) {
@@ -231,10 +239,10 @@ export default function HoursPage() {
         schedule.forEach((day, index) => {
             if (day.is_open) {
                 if (day.slots.length === 0) {
-                    errors[index] = "At least one time slot is required";
+                    errors[index] = t('adminHours.atLeastOneSlot');
                     isValid = false;
                 } else {
-                    const slotError = validateSlots(day.slots);
+                    const slotError = validateSlots(day.slots, t);
                     if (slotError) {
                         errors[index] = slotError;
                         isValid = false;
@@ -255,7 +263,7 @@ export default function HoursPage() {
         setSuccess(null);
 
         if (!validateAll()) {
-            setError("Please fix the validation errors before saving");
+            setError(t('adminHours.fixValidationErrors'));
             return;
         }
 
@@ -292,13 +300,13 @@ export default function HoursPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || "Failed to save hours");
+                throw new Error(data.message || t('adminHours.saveHoursError'));
             }
 
-            setSuccess("Business hours saved successfully!");
+            setSuccess(t('adminHours.saved'));
             setTimeout(() => setSuccess(null), 3000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to save hours");
+            setError(err instanceof Error ? err.message : t('adminHours.saveHoursError'));
         } finally {
             setSaving(false);
         }
@@ -309,7 +317,7 @@ export default function HoursPage() {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-slate-600">Loading business hours...</span>
+                <span className="ml-2 text-slate-600">{t('common.loading')}</span>
             </div>
         );
     }
@@ -319,8 +327,8 @@ export default function HoursPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Business Hours</h1>
-                    <p className="text-slate-500">Set your opening and closing times</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('adminHours.title')}</h1>
+                    <p className="text-slate-500">{t('adminHours.subtitle')}</p>
                 </div>
                 <Button
                     onClick={handleSave}
@@ -330,12 +338,12 @@ export default function HoursPage() {
                     {saving ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Saving...
+                            {t('adminHours.saving')}
                         </>
                     ) : (
                         <>
                             <Check className="h-4 w-4 mr-2" />
-                            Save Changes
+                            {t('common.save')}
                         </>
                     )}
                 </Button>
@@ -359,7 +367,7 @@ export default function HoursPage() {
                         onClick={() => setError(null)}
                         className="ml-2"
                     >
-                        Dismiss
+                        {t('imageUpload.dismiss')}
                     </Button>
                 </div>
             )}
@@ -369,7 +377,7 @@ export default function HoursPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Clock className="h-5 w-5 text-orange-500" />
-                        Weekly Schedule
+                        {t('adminHours.title')}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1">
@@ -393,7 +401,7 @@ export default function HoursPage() {
                                             onCheckedChange={() => toggleDay(dayIndex)}
                                         />
                                         <Label className="font-medium text-slate-900 min-w-[100px]">
-                                            {dayInfo.name}
+                                            {t(dayInfo.name)}
                                         </Label>
                                         <span
                                             className={cn(
@@ -403,7 +411,7 @@ export default function HoursPage() {
                                                     : "bg-slate-100 text-slate-500"
                                             )}
                                         >
-                                            {day.is_open ? "Open" : "Closed"}
+                                            {day.is_open ? t('adminHours.open') : t('shopHome.closed')}
                                         </span>
                                     </div>
 
@@ -416,7 +424,7 @@ export default function HoursPage() {
                                             className="text-orange-500 hover:text-orange-600 hover:bg-orange-50"
                                         >
                                             <Plus className="h-4 w-4 mr-1" />
-                                            Add slot
+                                            {t('adminHours.addSlot')}
                                         </Button>
                                     )}
                                 </div>
@@ -438,7 +446,7 @@ export default function HoursPage() {
                                                         }
                                                         className="w-[120px]"
                                                     />
-                                                    <span className="text-slate-400">to</span>
+                                                    <span className="text-slate-400">{t('adminHours.to')}</span>
                                                     <Input
                                                         type="time"
                                                         value={slot.end_time}
@@ -487,12 +495,12 @@ export default function HoursPage() {
                     {saving ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Saving...
+                            {t('adminHours.saving')}
                         </>
                     ) : (
                         <>
                             <Check className="h-4 w-4 mr-2" />
-                            Save Changes
+                            {t('common.save')}
                         </>
                     )}
                 </Button>

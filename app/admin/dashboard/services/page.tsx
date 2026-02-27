@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useI18n, useT } from "@/lib/i18n";
+import { getLocalizedText } from "@/lib/i18n/localized";
 import { cn } from "@/lib/utils";
 import { CategoriesSection } from "./components/CategoriesSection";
 
@@ -49,7 +51,9 @@ interface GlobalServiceType {
     id: number;
     key: string;
     name: string;
+    name_i18n?: Record<string, string>;
     description?: string;
+    description_i18n?: Record<string, string>;
 }
 
 interface Category {
@@ -111,6 +115,8 @@ function getApiUrl(path: string): string {
 
 export default function ServicesPage() {
     const { companyId, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const t = useT();
+    const { locale } = useI18n();
 
     // State
     const [services, setServices] = useState<Service[]>([]);
@@ -137,6 +143,13 @@ export default function ServicesPage() {
     // Global service types
     const [globalServiceTypes, setGlobalServiceTypes] = useState<GlobalServiceType[]>([]);
 
+    const getServiceTypeName = (type: GlobalServiceType): string =>
+        getLocalizedText({
+            text: type.name,
+            translations: type.name_i18n,
+            locale,
+        });
+
     // Fetch services and categories
     const fetchData = useCallback(async () => {
         if (!companyId) return;
@@ -157,9 +170,9 @@ export default function ServicesPage() {
                 }),
             ]);
 
-            if (!servicesRes.ok) throw new Error("Failed to fetch services");
-            if (!categoriesRes.ok) throw new Error("Failed to fetch categories");
-            if (!serviceTypesRes.ok) throw new Error("Failed to fetch service types");
+            if (!servicesRes.ok) throw new Error(t('adminServices.fetchServicesError'));
+            if (!categoriesRes.ok) throw new Error(t('adminServices.fetchCategoriesError'));
+            if (!serviceTypesRes.ok) throw new Error(t('adminServices.fetchServiceTypesError'));
             
             const servicesData = await servicesRes.json();
             const categoriesData = await categoriesRes.json();
@@ -169,11 +182,11 @@ export default function ServicesPage() {
             setCategories(categoriesData.data || categoriesData || []);
             setGlobalServiceTypes(serviceTypesData.data || serviceTypesData || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load data");
+            setError(err instanceof Error ? err.message : t('adminServices.loadDataError'));
         } finally {
             setLoading(false);
         }
-    }, [companyId]);
+    }, [companyId, t]);
 
     useEffect(() => {
         if (isAuthenticated && companyId) {
@@ -215,16 +228,16 @@ export default function ServicesPage() {
 
         // Validation
         if (!formData.name.trim()) {
-            setFormError("Service name is required");
+            setFormError(t('adminServices.serviceNameRequired'));
             return;
         }
         if (!formData.category_id) {
-            setFormError("Please select a category");
+            setFormError(t('adminServices.selectCategoryRequired'));
             return;
         }
         const priceValue = parseFloat(formData.price);
         if (isNaN(priceValue) || priceValue < 0) {
-            setFormError("Please enter a valid price");
+            setFormError(t('adminServices.validPriceRequired'));
             return;
         }
 
@@ -255,13 +268,13 @@ export default function ServicesPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || "Failed to save service");
+                throw new Error(data.message || t('adminServices.saveServiceError'));
             }
 
             setIsModalOpen(false);
             await fetchData();
         } catch (err) {
-            setFormError(err instanceof Error ? err.message : "Failed to save service");
+            setFormError(err instanceof Error ? err.message : t('adminServices.saveServiceError'));
         } finally {
             setSubmitting(false);
         }
@@ -278,13 +291,13 @@ export default function ServicesPage() {
                 credentials: "include",
             });
 
-            if (!response.ok) throw new Error("Failed to delete service");
+            if (!response.ok) throw new Error(t('adminServices.deleteFailed'));
 
             setIsDeleteDialogOpen(false);
             setDeletingService(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to delete service");
+            setError(err instanceof Error ? err.message : t('adminServices.deleteFailed'));
         } finally {
             setSubmitting(false);
         }
@@ -300,7 +313,7 @@ export default function ServicesPage() {
                 body: JSON.stringify({ is_active: !service.is_active }),
             });
 
-            if (!response.ok) throw new Error("Failed to update status");
+            if (!response.ok) throw new Error(t('adminServices.updateStatusFailed'));
 
             setServices((prev) =>
                 prev.map((s) =>
@@ -308,7 +321,7 @@ export default function ServicesPage() {
                 )
             );
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update status");
+            setError(err instanceof Error ? err.message : t('adminServices.updateStatusFailed'));
         }
     };
 
@@ -329,7 +342,7 @@ export default function ServicesPage() {
                 }),
             });
 
-            if (!response.ok) throw new Error("Failed to create category");
+            if (!response.ok) throw new Error(t('adminServices.createCategoryFailed'));
 
             const newCategory = await response.json();
             setCategories((prev) => [...prev, newCategory.data || newCategory]);
@@ -341,7 +354,7 @@ export default function ServicesPage() {
             setNewCategoryServiceTypeId(null);
             setIsCategoryModalOpen(false);
         } catch (err) {
-            setFormError(err instanceof Error ? err.message : "Failed to create category");
+            setFormError(err instanceof Error ? err.message : t('adminServices.createCategoryFailed'));
         } finally {
             setCreatingCategory(false);
         }
@@ -352,7 +365,7 @@ export default function ServicesPage() {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-slate-600">Loading services...</span>
+                <span className="ml-2 text-slate-600">{t('common.loading')}</span>
             </div>
         );
     }
@@ -362,12 +375,12 @@ export default function ServicesPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Services</h1>
-                    <p className="text-slate-500">Manage your service offerings</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('adminServices.title')}</h1>
+                    <p className="text-slate-500">{t('adminServices.subtitle')}</p>
                 </div>
                 <Button onClick={openAddModal} className="bg-orange-500 hover:bg-orange-600 text-white">
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Service
+                    {t('adminServices.addService')}
                 </Button>
             </div>
 
@@ -381,7 +394,7 @@ export default function ServicesPage() {
                         onClick={() => setError(null)}
                         className="ml-2"
                     >
-                        Dismiss
+                        {t('imageUpload.dismiss')}
                     </Button>
                 </div>
             )}
@@ -399,7 +412,7 @@ export default function ServicesPage() {
             <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                    placeholder="Search services..."
+                    placeholder={t('adminServices.searchPlaceholder')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -412,19 +425,19 @@ export default function ServicesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Service</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Price</TableHead>
-                                <TableHead>Duration</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t('adminBookings.service')}</TableHead>
+                                <TableHead>{t('adminServices.category')}</TableHead>
+                                <TableHead>{t('adminServices.price')}</TableHead>
+                                <TableHead>{t('adminServices.duration')}</TableHead>
+                                <TableHead>{t('adminBookings.status')}</TableHead>
+                                <TableHead className="text-right">{t('adminServices.actions')}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filteredServices.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                                        {searchQuery ? "No services match your search" : "No services yet. Add your first service!"}
+                                        {searchQuery ? t('adminServices.noServices') : t('adminServices.noServices')}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -442,7 +455,7 @@ export default function ServicesPage() {
                                         </TableCell>
                                         <TableCell>
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                                                {service.category?.name || "Uncategorized"}
+                                                {service.category?.name || t('adminServices.uncategorized')}
                                             </span>
                                         </TableCell>
                                         <TableCell className="font-medium">
@@ -463,7 +476,7 @@ export default function ServicesPage() {
                                                         service.is_active ? "text-emerald-600" : "text-slate-400"
                                                     )}
                                                 >
-                                                    {service.is_active ? "Active" : "Inactive"}
+                                                    {service.is_active ? t('adminServices.active') : t('adminServices.inactive')}
                                                 </span>
                                             </div>
                                         </TableCell>
@@ -502,7 +515,7 @@ export default function ServicesPage() {
                 {filteredServices.length === 0 ? (
                     <Card>
                         <CardContent className="py-8 text-center text-slate-500">
-                            {searchQuery ? "No services match your search" : "No services yet. Add your first service!"}
+                            {searchQuery ? t('adminServices.noServices') : t('adminServices.noServices')}
                         </CardContent>
                     </Card>
                 ) : (
@@ -521,7 +534,7 @@ export default function ServicesPage() {
                                                         : "bg-slate-100 text-slate-500"
                                                 )}
                                             >
-                                                {service.is_active ? "Active" : "Inactive"}
+                                                {service.is_active ? t('adminServices.active') : t('adminServices.inactive')}
                                             </span>
                                         </div>
                                         {service.description && (
@@ -565,7 +578,7 @@ export default function ServicesPage() {
                                     </div>
                                 </div>
                                 <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <span className="text-sm text-slate-500">Status</span>
+                                    <span className="text-sm text-slate-500">{t('adminBookings.status')}</span>
                                     <Switch
                                         checked={service.is_active}
                                         onCheckedChange={() => toggleActiveStatus(service)}
@@ -582,12 +595,12 @@ export default function ServicesPage() {
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>
-                            {editingService ? "Edit Service" : "Add New Service"}
+                            {editingService ? t('adminServices.editService') : t('adminServices.addService')}
                         </DialogTitle>
                         <DialogDescription>
                             {editingService
-                                ? "Update the service details below"
-                                : "Fill in the details to create a new service"}
+                                ? t('adminServices.updateServiceDescription')
+                                : t('adminServices.createServiceDescription')}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -599,29 +612,29 @@ export default function ServicesPage() {
                         )}
 
                         <div className="space-y-2">
-                            <Label htmlFor="name">Service Name *</Label>
+                            <Label htmlFor="name">{t('adminServices.name')} *</Label>
                             <Input
                                 id="name"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                placeholder="e.g., Men's Haircut"
+                                placeholder={t('adminServices.namePlaceholder')}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
+                            <Label htmlFor="description">{t('adminServices.description')}</Label>
                             <textarea
                                 id="description"
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                placeholder="Brief description of the service..."
+                                placeholder={t('adminServices.descriptionPlaceholder')}
                                 className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
                             />
                         </div>
 
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <Label htmlFor="category">Category *</Label>
+                                <Label htmlFor="category">{t('adminServices.category')} *</Label>
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -630,7 +643,7 @@ export default function ServicesPage() {
                                     className="text-orange-500 hover:text-orange-600 text-xs"
                                 >
                                     <Plus className="h-3 w-3 mr-1" />
-                                    New Category
+                                    {t('adminServices.addCategory')}
                                 </Button>
                             </div>
                             <Select
@@ -638,7 +651,7 @@ export default function ServicesPage() {
                                 onValueChange={(val) => setFormData({ ...formData, category_id: parseInt(val) })}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select a category" />
+                                    <SelectValue placeholder={t('adminServices.selectCategory')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {categories.map((cat) => (
@@ -652,7 +665,7 @@ export default function ServicesPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="price">Price ($) *</Label>
+                                <Label htmlFor="price">{t('adminServices.price')} *</Label>
                                 <Input
                                     id="price"
                                     type="number"
@@ -660,11 +673,11 @@ export default function ServicesPage() {
                                     min="0"
                                     value={formData.price}
                                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                    placeholder="25.00"
+                                    placeholder={t('adminServices.pricePlaceholder')}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="duration">Duration (min) *</Label>
+                                <Label htmlFor="duration">{t('adminServices.duration')} *</Label>
                                 <Select
                                     value={formData.duration_minutes.toString()}
                                     onValueChange={(val) =>
@@ -687,9 +700,9 @@ export default function ServicesPage() {
 
                         <div className="flex items-center justify-between py-2">
                             <div>
-                                <Label htmlFor="is_active">Active</Label>
+                                <Label htmlFor="is_active">{t('adminServices.active')}</Label>
                                 <p className="text-xs text-slate-500">
-                                    Service will appear in booking options
+                                    {t('adminServices.visibilityHint')}
                                 </p>
                             </div>
                             <Switch
@@ -707,7 +720,7 @@ export default function ServicesPage() {
                                 variant="outline"
                                 onClick={() => setIsModalOpen(false)}
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </Button>
                             <Button
                                 type="submit"
@@ -717,12 +730,12 @@ export default function ServicesPage() {
                                 {submitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Saving...
+                                        {t('adminServices.saving')}
                                     </>
                                 ) : editingService ? (
-                                    "Update Service"
+                                    t('adminServices.updateService')
                                 ) : (
-                                    "Create Service"
+                                    t('adminServices.createService')
                                 )}
                             </Button>
                         </DialogFooter>
@@ -734,9 +747,9 @@ export default function ServicesPage() {
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Delete Service</DialogTitle>
+                        <DialogTitle>{t('common.delete')}</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete &quot;{deletingService?.name}&quot;? This action cannot be undone.
+                            {t('adminServices.deleteConfirm')}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -747,7 +760,7 @@ export default function ServicesPage() {
                                 setDeletingService(null);
                             }}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             variant="destructive"
@@ -758,10 +771,10 @@ export default function ServicesPage() {
                             {submitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Deleting...
+                                    {t('adminServices.deleting')}
                                 </>
                             ) : (
-                                "Delete Service"
+                                t('common.delete')
                             )}
                         </Button>
                     </DialogFooter>
@@ -772,41 +785,41 @@ export default function ServicesPage() {
             <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
-                        <DialogTitle>Create Category</DialogTitle>
+                        <DialogTitle>{t('adminServices.addCategory')}</DialogTitle>
                         <DialogDescription>
-                            Add a new category for your services
+                            {t('adminServices.createCategoryDescription')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="category-name">Category Name *</Label>
+                            <Label htmlFor="category-name">{t('adminServices.categoryNameRequiredLabel')}</Label>
                             <Input
                                 id="category-name"
                                 value={newCategoryName}
                                 onChange={(e) => setNewCategoryName(e.target.value)}
-                                placeholder="e.g., Hair, Beard, Color"
+                                placeholder={t('adminServices.categoryNamePlaceholder')}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="service-type">Service Type (optional)</Label>
+                            <Label htmlFor="service-type">{t('adminServices.serviceTypeOptional')}</Label>
                             <Select
                                 value={newCategoryServiceTypeId?.toString() || "none"}
                                 onValueChange={(val) => setNewCategoryServiceTypeId(val === "none" ? null : parseInt(val))}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select a service type" />
+                                    <SelectValue placeholder={t('adminServices.selectServiceType')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">-- No specific type --</SelectItem>
+                                    <SelectItem value="none">{t('adminServices.noSpecificType')}</SelectItem>
                                     {globalServiceTypes.map((type) => (
                                         <SelectItem key={type.id} value={type.id.toString()}>
-                                            {type.name}
+                                            {getServiceTypeName(type)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-slate-500">
-                                Categorize under a global service type for better organization
+                                {t('adminServices.serviceTypeHint')}
                             </p>
                         </div>
                     </div>
@@ -815,7 +828,7 @@ export default function ServicesPage() {
                             setIsCategoryModalOpen(false);
                             setNewCategoryServiceTypeId(null);
                         }}>
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             onClick={handleCreateCategory}
@@ -825,10 +838,10 @@ export default function ServicesPage() {
                             {creatingCategory ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Creating...
+                                    {t('adminServices.creating')}
                                 </>
                             ) : (
-                                "Create Category"
+                                t('adminServices.addCategory')
                             )}
                         </Button>
                     </DialogFooter>

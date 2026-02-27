@@ -1,5 +1,19 @@
 // Types for the shop public page data (from GET /api/company/:slug)
 
+export type HeroVariant = 'hero-cinematic' | 'hero-split' | 'hero-minimal';
+export type ServicesVariant = 'services-grid' | 'services-list';
+export type TeamVariant = 'team-cards' | 'team-spotlight';
+export type FontPairing = 'classic' | 'modern' | 'bold' | 'refined' | 'friendly';
+
+export interface SocialLinks {
+    instagram?: string | null;
+    facebook?: string | null;
+    tiktok?: string | null;
+    x_twitter?: string | null;
+    youtube?: string | null;
+    whatsapp?: string | null;
+}
+
 export interface ShopCompany {
     id: number;
     slug: string;
@@ -70,12 +84,18 @@ export interface ShopTheme {
     page_background_preset: 'light' | 'soft' | 'dark' | 'auto';
     cards_elevated: boolean;
     corner_radius: 'sm' | 'md' | 'lg';
+    font_pairing: FontPairing;
+    hero_variant: HeroVariant;
+    services_variant: ServicesVariant;
+    team_variant: TeamVariant;
 }
 
 export interface ShopSettings {
     allow_qr_payment: boolean;
     qr_image_url?: string | null;
     allow_cash_payment: boolean;
+    social_links: SocialLinks;
+    default_language?: string;
 }
 
 export interface ShopReviewStats {

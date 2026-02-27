@@ -30,12 +30,16 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useI18n, useT } from "@/lib/i18n";
+import { getLocalizedText } from "@/lib/i18n/localized";
 
 interface GlobalServiceType {
     id: number;
     key: string;
     name: string;
+    name_i18n?: Record<string, string>;
     description?: string;
+    description_i18n?: Record<string, string>;
 }
 
 interface Category {
@@ -62,6 +66,8 @@ export function CategoriesSection({
     onCategoriesChange,
     getApiUrl,
 }: CategoriesSectionProps) {
+    const t = useT();
+    const { locale } = useI18n();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -72,6 +78,13 @@ export function CategoriesSection({
     // Form state
     const [formName, setFormName] = useState("");
     const [formServiceTypeId, setFormServiceTypeId] = useState<number | null>(null);
+
+    const getLocalizedServiceTypeName = (type: GlobalServiceType): string =>
+        getLocalizedText({
+            text: type.name,
+            translations: type.name_i18n,
+            locale,
+        });
 
     // Sort categories by position
     const sortedCategories = [...categories].sort((a, b) => (a.position || 0) - (b.position || 0));
@@ -96,7 +109,7 @@ export function CategoriesSection({
         e.preventDefault();
 
         if (!formName.trim()) {
-            setError("Category name is required");
+            setError(t('adminServices.categoryNameRequired'));
             return;
         }
 
@@ -123,13 +136,13 @@ export function CategoriesSection({
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || "Failed to save category");
+                throw new Error(data.message || t('adminServices.saveCategoryFailed'));
             }
 
             setIsModalOpen(false);
             onCategoriesChange();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to save category");
+            setError(err instanceof Error ? err.message : t('adminServices.saveCategoryFailed'));
         } finally {
             setSubmitting(false);
         }
@@ -147,14 +160,14 @@ export function CategoriesSection({
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || "Failed to delete category");
+                throw new Error(data.message || t('adminServices.deleteCategoryFailed'));
             }
 
             setIsDeleteDialogOpen(false);
             setDeletingCategory(null);
             onCategoriesChange();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to delete category");
+            setError(err instanceof Error ? err.message : t('adminServices.deleteCategoryFailed'));
         } finally {
             setSubmitting(false);
         }
@@ -162,11 +175,11 @@ export function CategoriesSection({
 
     const getServiceTypeName = (category: Category): string => {
         if (category.global_service_type) {
-            return category.global_service_type.name;
+            return getLocalizedServiceTypeName(category.global_service_type);
         }
         if (category.global_service_type_id) {
             const type = globalServiceTypes.find(t => t.id === category.global_service_type_id);
-            return type?.name || "--";
+            return type ? getLocalizedServiceTypeName(type) : "--";
         }
         return "--";
     };
@@ -176,12 +189,12 @@ export function CategoriesSection({
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                     <div>
-                        <CardTitle className="text-lg font-semibold">Categories</CardTitle>
-                        <p className="text-sm text-slate-500 mt-1">Organize your services into categories</p>
+                        <CardTitle className="text-lg font-semibold">{t('adminServices.categoriesTitle')}</CardTitle>
+                        <p className="text-sm text-slate-500 mt-1">{t('adminServices.categoriesSubtitle')}</p>
                     </div>
                     <Button onClick={openAddModal} size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
                         <Plus className="h-4 w-4 mr-1" />
-                        Add Category
+                        {t('adminServices.addCategory')}
                     </Button>
                 </CardHeader>
                 <CardContent>
@@ -190,8 +203,8 @@ export function CategoriesSection({
                             <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-4">
                                 <FolderOpen className="h-6 w-6 text-slate-400" />
                             </div>
-                            <p className="text-slate-500 mb-2">No categories yet</p>
-                            <p className="text-sm text-slate-400">Create your first category to organize services</p>
+                            <p className="text-slate-500 mb-2">{t('adminServices.noCategories')}</p>
+                            <p className="text-sm text-slate-400">{t('adminServices.noCategoriesHint')}</p>
                         </div>
                     ) : (
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -250,12 +263,12 @@ export function CategoriesSection({
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>
-                            {editingCategory ? "Edit Category" : "Add Category"}
+                            {editingCategory ? t('adminServices.editCategory') : t('adminServices.addCategory')}
                         </DialogTitle>
                         <DialogDescription>
                             {editingCategory
-                                ? "Update the category details"
-                                : "Create a new category for your services"}
+                                ? t('adminServices.editCategoryDescription')
+                                : t('adminServices.createCategoryDescription')}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -267,35 +280,35 @@ export function CategoriesSection({
                         )}
 
                         <div className="space-y-2">
-                            <Label htmlFor="cat-name">Category Name *</Label>
+                            <Label htmlFor="cat-name">{t('adminServices.categoryNameRequiredLabel')}</Label>
                             <Input
                                 id="cat-name"
                                 value={formName}
                                 onChange={(e) => setFormName(e.target.value)}
-                                placeholder="e.g., Haircuts, Coloring"
+                                placeholder={t('adminServices.categoryNameExample')}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="cat-service-type">Service Type (optional)</Label>
+                            <Label htmlFor="cat-service-type">{t('adminServices.serviceTypeOptional')}</Label>
                             <Select
                                 value={formServiceTypeId?.toString() || "none"}
                                 onValueChange={(val) => setFormServiceTypeId(val === "none" ? null : parseInt(val))}
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select a service type" />
+                                    <SelectValue placeholder={t('adminServices.selectServiceType')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="none">-- No specific type --</SelectItem>
+                                    <SelectItem value="none">{t('adminServices.noSpecificType')}</SelectItem>
                                     {globalServiceTypes.map((type) => (
                                         <SelectItem key={type.id} value={type.id.toString()}>
-                                            {type.name}
+                                            {getLocalizedServiceTypeName(type)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-slate-500">
-                                Categorize under a global service type for better organization
+                                {t('adminServices.serviceTypeHint')}
                             </p>
                         </div>
 
@@ -305,7 +318,7 @@ export function CategoriesSection({
                                 variant="outline"
                                 onClick={() => setIsModalOpen(false)}
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </Button>
                             <Button
                                 type="submit"
@@ -315,12 +328,12 @@ export function CategoriesSection({
                                 {submitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Saving...
+                                        {t('adminServices.saving')}
                                     </>
                                 ) : editingCategory ? (
-                                    "Update"
+                                    t('superAdminServiceTypes.update')
                                 ) : (
-                                    "Create"
+                                    t('superAdminServiceTypes.create')
                                 )}
                             </Button>
                         </DialogFooter>
@@ -332,10 +345,9 @@ export function CategoriesSection({
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Delete Category</DialogTitle>
+                        <DialogTitle>{t('adminServices.deleteCategory')}</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete &quot;{deletingCategory?.name}&quot;?
-                            Services in this category will become uncategorized.
+                            {t('adminServices.deleteCategoryConfirm', { name: deletingCategory?.name || "" })}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -346,7 +358,7 @@ export function CategoriesSection({
                                 setDeletingCategory(null);
                             }}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             variant="destructive"
@@ -357,10 +369,10 @@ export function CategoriesSection({
                             {submitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Deleting...
+                                    {t('superAdminServiceTypes.deleting')}
                                 </>
                             ) : (
-                                "Delete Category"
+                                t('adminServices.deleteCategory')
                             )}
                         </Button>
                     </DialogFooter>

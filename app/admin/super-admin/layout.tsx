@@ -11,56 +11,102 @@ import {
     X,
     Shield,
     Store,
+    CalendarDays,
+    Users,
+    UserCheck,
+    Building2,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useT } from "@/lib/i18n";
 
 type NavItem = {
     label: string;
     href: string;
     icon: React.ReactNode;
+    badge?: number | null;
 };
-
-const navItems: NavItem[] = [
-    {
-        label: "Dashboard",
-        href: "/admin/super-admin",
-        icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-        label: "Shops",
-        href: "/admin/super-admin/shops",
-        icon: <Store className="h-5 w-5" />,
-    },
-    {
-        label: "Service Types",
-        href: "/admin/super-admin/service-types",
-        icon: <Tags className="h-5 w-5" />,
-    },
-];
 
 export default function SuperAdminLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const t = useT();
     const router = useRouter();
     const pathname = usePathname();
-    const { user, isAuthenticated, isSuperAdmin, loading, signOut } = useAdminAuth();
+    const { user, isAuthenticated, isSuperAdmin, loading, mustChangePassword, signOut } = useAdminAuth();
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [todayBookingsCount, setTodayBookingsCount] = useState<number | null>(null);
+
+    // Fetch today's bookings count for badge
+    useEffect(() => {
+        if (!isAuthenticated || !isSuperAdmin) return;
+        const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
+        fetch(`${base}/super-admin/bookings/today-count`, { credentials: "include" })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.data?.count != null) setTodayBookingsCount(data.data.count);
+            })
+            .catch(() => {});
+    }, [isAuthenticated, isSuperAdmin]);
+
+    const navItems: NavItem[] = [
+        {
+            label: t("adminNav.dashboard"),
+            href: "/admin/super-admin",
+            icon: <LayoutDashboard className="h-5 w-5" />,
+        },
+        {
+            label: t("adminNav.shops"),
+            href: "/admin/super-admin/shops",
+            icon: <Store className="h-5 w-5" />,
+        },
+        {
+            label: t("adminNav.bookings"),
+            href: "/admin/super-admin/bookings",
+            icon: <CalendarDays className="h-5 w-5" />,
+            badge: todayBookingsCount,
+        },
+        {
+            label: t("adminNav.customers"),
+            href: "/admin/super-admin/customers",
+            icon: <Users className="h-5 w-5" />,
+        },
+        {
+            label: t("adminNav.staff"),
+            href: "/admin/super-admin/staff",
+            icon: <UserCheck className="h-5 w-5" />,
+        },
+        {
+            label: t("adminNav.companyTypes"),
+            href: "/admin/super-admin/company-types",
+            icon: <Building2 className="h-5 w-5" />,
+        },
+        {
+            label: t("adminNav.serviceTypes"),
+            href: "/admin/super-admin/service-types",
+            icon: <Tags className="h-5 w-5" />,
+        },
+    ];
 
     // Auth guard - must be super admin
     useEffect(() => {
         if (!loading && !isAuthenticated) {
             router.replace("/admin/login");
+            return;
+        }
+        if (!loading && isAuthenticated && mustChangePassword) {
+            router.replace("/admin/change-password");
+            return;
         }
         if (!loading && isAuthenticated && !isSuperAdmin) {
             router.replace("/admin/dashboard");
         }
-    }, [loading, isAuthenticated, isSuperAdmin, router]);
+    }, [loading, isAuthenticated, isSuperAdmin, mustChangePassword, router]);
 
     const handleSignOut = async () => {
         try {
@@ -78,14 +124,14 @@ export default function SuperAdminLayout({
             <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
                 <div className="text-center">
                     <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent mx-auto" />
-                    <p className="text-slate-400">Loading...</p>
+                    <p className="text-slate-400">{t("common.loading")}</p>
                 </div>
             </div>
         );
     }
 
     // Not authenticated or not super admin
-    if (!isAuthenticated || !isSuperAdmin) {
+    if (!isAuthenticated || !isSuperAdmin || mustChangePassword) {
         return null;
     }
 
@@ -108,7 +154,7 @@ export default function SuperAdminLayout({
             {/* Sidebar */}
             <aside
                 className={cn(
-                    "fixed inset-y-0 left-0 z-50 w-64 transform bg-slate-950 text-white transition-transform duration-200 lg:relative lg:translate-x-0 lg:flex-shrink-0",
+                    "fixed inset-y-0 left-0 z-50 w-64 transform bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 lg:flex-shrink-0",
                     sidebarOpen ? "translate-x-0" : "-translate-x-full",
                 )}
             >
@@ -121,10 +167,10 @@ export default function SuperAdminLayout({
                             </div>
                             <div className="flex flex-col">
                                 <span className="font-semibold text-sm">
-                                    Super Admin
+                                    {t("adminNav.superAdmin")}
                                 </span>
                                 <span className="text-xs text-slate-400">
-                                    System Management
+                                    {t("superAdminLayout.systemManagement")}
                                 </span>
                             </div>
                         </div>
@@ -153,21 +199,16 @@ export default function SuperAdminLayout({
                                     onClick={() => setSidebarOpen(false)}
                                 >
                                     {item.icon}
-                                    {item.label}
+                                    <span className="flex-1">{item.label}</span>
+                                    {item.badge != null && item.badge > 0 && (
+                                        <span className="ml-auto inline-flex items-center justify-center rounded-full bg-violet-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white min-w-[18px]">
+                                            {item.badge}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
                     </nav>
-
-                    {/* Back to Admin Link */}
-                    <div className="border-t border-slate-800 p-4">
-                        <Link
-                            href="/admin/dashboard"
-                            className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
-                        >
-                            ← Back to Admin Dashboard
-                        </Link>
-                    </div>
 
                     {/* User Section */}
                     <div className="border-t border-slate-800 p-4">
@@ -182,12 +223,12 @@ export default function SuperAdminLayout({
                                 <p className="text-sm font-medium truncate">
                                     {user?.name || user?.email}
                                 </p>
-                                <p className="text-xs text-violet-400 truncate">Super Admin</p>
+                                <p className="text-xs text-violet-400 truncate">{t("adminNav.superAdmin")}</p>
                             </div>
                             <button
                                 onClick={handleSignOut}
                                 className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-                                title="Sign out"
+                                title={t("adminNav.signOut")}
                             >
                                 <LogOut className="h-4 w-4 text-slate-400" />
                             </button>
@@ -197,7 +238,7 @@ export default function SuperAdminLayout({
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden lg:ml-64">
                 {/* Top Header */}
                 <header className="shrink-0 sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-6 shadow-sm">
                     <button
@@ -208,8 +249,8 @@ export default function SuperAdminLayout({
                     </button>
                     <div className="flex-1">
                         <h1 className="text-lg font-semibold text-slate-900">
-                            {navItems.find((item) => pathname.startsWith(item.href))?.label ||
-                                "Super Admin"}
+                            {[...navItems].sort((a, b) => b.href.length - a.href.length).find((item) => pathname === item.href || pathname.startsWith(item.href + "/"))?.label ||
+                                t("adminNav.superAdmin")}
                         </h1>
                     </div>
                 </header>

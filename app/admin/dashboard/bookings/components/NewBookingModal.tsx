@@ -23,6 +23,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { StaffMember, ServiceItem, CreateBookingData, ServiceCategory } from "@/app/admin/lib/adminApi";
+import { useT } from "@/lib/i18n";
 
 // Re-export for backwards compatibility
 export type StaffOption = StaffMember;
@@ -42,6 +43,7 @@ const formatPrice = (cents: number) => {
 };
 
 export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCreate }: NewBookingModalProps) {
+    const t = useT();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         staffId: "",
@@ -143,23 +145,23 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
             <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
-                        <DialogTitle>New Booking</DialogTitle>
+                        <DialogTitle>{t('adminBookings.newBooking')}</DialogTitle>
                         <DialogDescription>
-                            Create a new appointment for a customer.
+                            {t('adminBookings.newBookingDescription')}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="grid gap-6 py-4">
                         {/* 1. Staff */}
                         <div className="grid gap-2">
-                            <Label htmlFor="staff">Staff Member</Label>
+                            <Label htmlFor="staff">{t('adminBookings.staffMember')}</Label>
                             <Select
                                 value={formData.staffId}
                                 onValueChange={handleStaffChange}
                                 required
                             >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select staff..." />
+                                    <SelectValue placeholder={t('adminBookings.selectStaff')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {staffList
@@ -175,14 +177,14 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
 
                         {/* 2. Services - Grouped by Category */}
                         <div className="grid gap-2">
-                            <Label>Services</Label>
+                            <Label>{t('shopBooking.services')}</Label>
                             {!formData.staffId ? (
                                 <p className="text-sm text-muted-foreground p-3 border rounded-md bg-slate-50">
-                                    Select a staff member to see available services.
+                                    {t('adminBookings.selectStaffToViewServices')}
                                 </p>
                             ) : servicesByCategory.length === 0 ? (
                                 <p className="text-sm text-muted-foreground p-3 border rounded-md bg-slate-50">
-                                    No services available for this staff member.
+                                    {t('adminBookings.noServicesForStaff')}
                                 </p>
                             ) : (
                                 <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto space-y-4 bg-slate-50">
@@ -220,7 +222,7 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
                         {/* 3. Date & Time */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="date">Date</Label>
+                                <Label htmlFor="date">{t('adminBookings.date')}</Label>
                                 <Input
                                     id="date"
                                     type="date"
@@ -230,7 +232,7 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="time">Time</Label>
+                                <Label htmlFor="time">{t('adminBookings.time')}</Label>
                                 <Input
                                     id="time"
                                     type="time"
@@ -243,9 +245,9 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
 
                         {/* 4. Customer */}
                         <div className="grid gap-4 border-t pt-4">
-                            <h4 className="text-sm font-semibold">Customer Details</h4>
+                            <h4 className="text-sm font-semibold">{t('adminBookings.customerDetails')}</h4>
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Full Name</Label>
+                                <Label htmlFor="name">{t('adminBookings.fullName')}</Label>
                                 <Input
                                     id="name"
                                     value={formData.customerName}
@@ -254,7 +256,7 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">{t('adminSettings.email')}</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -263,7 +265,7 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="phone">Phone</Label>
+                                <Label htmlFor="phone">{t('adminSettings.phone')}</Label>
                                 <Input
                                     id="phone"
                                     type="tel"
@@ -276,7 +278,7 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                         <Button
                             type="submit"
@@ -284,7 +286,7 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
                             disabled={loading || !formData.staffId || formData.serviceIds.length === 0}
                         >
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Create Booking
+                            {t('adminBookings.createBooking')}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -292,4 +294,3 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
         </Dialog>
     );
 }
-

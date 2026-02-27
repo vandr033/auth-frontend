@@ -19,8 +19,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
-        heading: ["var(--font-outfit)", "var(--font-geist-sans)", "system-ui", "sans-serif"],
+        sans: ["var(--font-body)", "var(--font-geist-sans)", "system-ui", "sans-serif"],
+        heading: ["var(--font-heading)", "var(--font-outfit)", "var(--font-geist-sans)", "system-ui", "sans-serif"],
+        body: ["var(--font-body)", "var(--font-geist-sans)", "system-ui", "sans-serif"],
       },
       colors: {
         page: "var(--color-page-bg)",

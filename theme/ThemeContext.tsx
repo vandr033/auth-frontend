@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   type ThemeConfig,
@@ -14,6 +15,7 @@ import {
   computeTheme,
 } from "@/utils/themepicker";
 import { mainSiteThemeConfig } from "./mainSiteTheme";
+import { getShopSlugFromParams } from "@/app/lib/shop-context";
 
 /**
  * Developer guide for theming:
@@ -46,6 +48,12 @@ export function ThemeProvider({
   initialConfig,
   children,
 }: ThemeProviderProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isShopRoute = pathname?.startsWith("/shop/") ?? false;
+  const shopSlug = getShopSlugFromParams(searchParams);
+  const isMeRouteWithShopTheme = (pathname?.startsWith("/me") ?? false) && !!shopSlug;
+
   const [config, setConfig] = useState<ThemeConfig>(() => ({
     ...defaultConfig,
     ...(initialConfig ?? {}),
@@ -60,13 +68,14 @@ export function ThemeProvider({
   const theme = useMemo(() => computeTheme(config), [config]);
 
   useEffect(() => {
+    if (isShopRoute || isMeRouteWithShopTheme) return;
     if (typeof document !== "undefined") {
       const root = document.documentElement;
       Object.entries(theme.tokens.cssVars).forEach(([key, value]) => {
         root.style.setProperty(key, value);
       });
     }
-  }, [config, theme]);
+  }, [config, isMeRouteWithShopTheme, isShopRoute, theme]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({

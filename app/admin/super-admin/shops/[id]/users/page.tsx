@@ -44,6 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useT } from "@/lib/i18n";
 import type { SuperAdminShop, ShopUser } from "@/types/super-admin";
 
 function getApiUrl(path: string): string {
@@ -54,6 +55,8 @@ function getApiUrl(path: string): string {
 
 interface AddUserFormData {
     email: string;
+    phone_prefix: string;
+    phone: string;
     password: string;
     first_name: string;
     last_name: string;
@@ -64,6 +67,8 @@ interface AddUserFormData {
 
 const initialAddUserFormData: AddUserFormData = {
     email: "",
+    phone_prefix: "591",
+    phone: "",
     password: "",
     first_name: "",
     last_name: "",
@@ -80,6 +85,7 @@ const roleColors: Record<string, string> = {
 };
 
 export default function ShopUsersPage() {
+    const t = useT();
     const params = useParams();
     const shopId = params.id as string;
     const { isAuthenticated, loading: authLoading, user } = useAdminAuth();
@@ -107,19 +113,16 @@ export default function ShopUsersPage() {
 
     // Fetch shop and users
     const fetchData = useCallback(async () => {
-        console.log("Fetching shop and users for shop ID:", shopId);
         setLoading(true);
         setError(null);
 
         try {
-            console.log("entra al try")
             const [shopRes, usersRes] = await Promise.all([
                 fetch(getApiUrl(`/api/super-admin/shops/${shopId}`), { credentials: "include" }),
                 fetch(getApiUrl(`/api/super-admin/shops/${shopId}/users`), { credentials: "include" }),
             ]);
-            console.log("entra al try 2")
-            if (!shopRes.ok) throw new Error("Failed to fetch shop");
-            if (!usersRes.ok) throw new Error("Failed to fetch users");
+            if (!shopRes.ok) throw new Error(t("superAdminShops.fetchShopError"));
+            if (!usersRes.ok) throw new Error(t("superAdminShops.fetchUsersError"));
 
             const shopData = await shopRes.json();
             const usersData = await usersRes.json();
@@ -127,8 +130,7 @@ export default function ShopUsersPage() {
             setShop(shopData.data || shopData);
             setUsers(usersData.data || []);
         } catch (err) {
-            console.log("entra al catch")
-            setError(err instanceof Error ? err.message : "Failed to load data");
+            setError(err instanceof Error ? err.message : t("superAdminShops.loadUsersError"));
         } finally {
             setLoading(false);
         }
@@ -137,11 +139,6 @@ export default function ShopUsersPage() {
     useEffect(() => {
         if (isAuthenticated && user?.is_super_admin && shopId) {
             void fetchData();
-        } else {
-            console.log("no entra al if")
-            console.log("isAuthenticated", isAuthenticated)
-            console.log("user", user)
-            console.log("shopId", shopId)
         }
     }, [isAuthenticated, user, shopId, fetchData]);
 
@@ -158,15 +155,15 @@ export default function ShopUsersPage() {
         setAddFormError(null);
 
         if (!addFormData.email.trim()) {
-            setAddFormError("Email is required");
+            setAddFormError(t("superAdminShops.emailRequired"));
             return;
         }
         if (!addFormData.password.trim()) {
-            setAddFormError("Password is required for new users");
+            setAddFormError(t("superAdminShops.passwordRequired"));
             return;
         }
         if (addFormData.password.length < 8) {
-            setAddFormError("Password must be at least 8 characters");
+            setAddFormError(t("superAdminShops.passwordMin"));
             return;
         }
 
@@ -175,6 +172,8 @@ export default function ShopUsersPage() {
         try {
             const payload = {
                 email: addFormData.email.trim(),
+                phone_prefix: addFormData.phone_prefix.trim() || undefined,
+                phone: addFormData.phone.trim() || undefined,
                 password: addFormData.password,
                 first_name: addFormData.first_name.trim() || undefined,
                 last_name: addFormData.last_name.trim() || undefined,
@@ -192,13 +191,13 @@ export default function ShopUsersPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || data.error || "Failed to add user");
+                throw new Error(data.message || data.error || t("superAdminShops.addUserFailed"));
             }
 
             setIsAddModalOpen(false);
             await fetchData();
         } catch (err) {
-            setAddFormError(err instanceof Error ? err.message : "Failed to add user");
+            setAddFormError(err instanceof Error ? err.message : t("superAdminShops.addUserFailed"));
         } finally {
             setSubmitting(false);
         }
@@ -229,14 +228,14 @@ export default function ShopUsersPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || data.error || "Failed to update role");
+                throw new Error(data.message || data.error || t("superAdminShops.updateRoleFailed"));
             }
 
             setIsEditRoleModalOpen(false);
             setEditingUser(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update role");
+            setError(err instanceof Error ? err.message : t("superAdminShops.updateRoleFailed"));
         } finally {
             setSubmitting(false);
         }
@@ -258,14 +257,14 @@ export default function ShopUsersPage() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || data.error || "Failed to remove user");
+                throw new Error(data.message || data.error || t("superAdminShops.removeUserFailed"));
             }
 
             setIsDeleteDialogOpen(false);
             setDeletingUser(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to remove user");
+            setError(err instanceof Error ? err.message : t("superAdminShops.removeUserFailed"));
         } finally {
             setSubmitting(false);
         }
@@ -282,7 +281,7 @@ export default function ShopUsersPage() {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-                <span className="ml-2 text-slate-600">Loading users...</span>
+                <span className="ml-2 text-slate-600">{t("superAdminShops.loadingUsers")}</span>
             </div>
         );
     }
@@ -290,10 +289,10 @@ export default function ShopUsersPage() {
     if (!shop) {
         return (
             <div className="text-center py-12">
-                <p className="text-slate-500">Shop not found</p>
+                <p className="text-slate-500">{t("superAdminShops.shopNotFound")}</p>
                 <Link href="/admin/super-admin/shops">
                     <Button variant="outline" className="mt-4">
-                        Back to Shops
+                        {t("superAdminShops.backToShops")}
                     </Button>
                 </Link>
             </div>
@@ -308,21 +307,21 @@ export default function ShopUsersPage() {
                     <Link href={`/admin/super-admin/shops/${shopId}`}>
                         <Button variant="ghost" size="sm">
                             <ArrowLeft className="h-4 w-4 mr-2" />
-                            Back to Shop
+                            {t("superAdminShops.backToShop")}
                         </Button>
                     </Link>
                 </div>
                 <Button onClick={openAddModal} className="bg-violet-600 hover:bg-violet-700 text-white">
                     <UserPlus className="h-4 w-4 mr-2" />
-                    Add User
+                    {t("superAdminShops.addUser")}
                 </Button>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Users for {shop.name}</CardTitle>
+                    <CardTitle>{t("superAdminShops.usersForShop", { name: shop.name })}</CardTitle>
                     <CardDescription>
-                        Manage users and their roles for this shop
+                        {t("superAdminShops.manageUsersDescription")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -331,7 +330,7 @@ export default function ShopUsersPage() {
                             <AlertCircle className="h-4 w-4" />
                             {error}
                             <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
-                                Dismiss
+                                {t("imageUpload.dismiss")}
                             </Button>
                         </div>
                     )}
@@ -339,18 +338,18 @@ export default function ShopUsersPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>User</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Display Name</TableHead>
-                                <TableHead>Bookable</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>{t("superAdminShops.user")}</TableHead>
+                                <TableHead>{t("adminBookings.status")}</TableHead>
+                                <TableHead>{t("superAdminShops.displayName")}</TableHead>
+                                <TableHead>{t("adminStaff.bookable")}</TableHead>
+                                <TableHead className="text-right">{t("adminCustomers.actions")}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {users.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                                        No users assigned to this shop yet. Add your first user!
+                                        {t("superAdminShops.noUsers")}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -366,7 +365,7 @@ export default function ShopUsersPage() {
                                                 </Avatar>
                                                 <div>
                                                     <p className="font-medium">
-                                                        {shopUser.user.first_name || shopUser.user.name || "Unnamed"}
+                                                        {shopUser.user.first_name || shopUser.user.name || t("superAdminShops.unnamed")}
                                                         {shopUser.user.last_name ? ` ${shopUser.user.last_name}` : ""}
                                                     </p>
                                                     <p className="text-sm text-slate-500">{shopUser.user.email}</p>
@@ -384,7 +383,7 @@ export default function ShopUsersPage() {
                                         <TableCell>
                                             {shopUser.staff_profile ? (
                                                 <Badge variant={shopUser.staff_profile.is_bookable ? "default" : "secondary"}>
-                                                    {shopUser.staff_profile.is_bookable ? "Yes" : "No"}
+                                                    {shopUser.staff_profile.is_bookable ? t("superAdminShops.yes") : t("superAdminShops.no")}
                                                 </Badge>
                                             ) : (
                                                 "--"
@@ -396,7 +395,7 @@ export default function ShopUsersPage() {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => openEditRoleModal(shopUser)}
-                                                    title="Edit Role"
+                                                    title={t("superAdminShops.editRole")}
                                                 >
                                                     <Pencil className="h-4 w-4" />
                                                 </Button>
@@ -408,7 +407,7 @@ export default function ShopUsersPage() {
                                                         setIsDeleteDialogOpen(true);
                                                     }}
                                                     className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                                                    title="Remove User"
+                                                    title={t("superAdminShops.removeUser")}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -426,9 +425,9 @@ export default function ShopUsersPage() {
             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Add User to {shop.name}</DialogTitle>
+                        <DialogTitle>{t("superAdminShops.addUserToShop", { name: shop.name })}</DialogTitle>
                         <DialogDescription>
-                            Create a new user account and assign them to this shop
+                            {t("superAdminShops.addUserDescription")}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -441,49 +440,70 @@ export default function ShopUsersPage() {
 
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="first_name">First Name</Label>
+                                <Label htmlFor="first_name">{t("superAdminShops.firstName")}</Label>
                                 <Input
                                     id="first_name"
                                     value={addFormData.first_name}
                                     onChange={(e) => setAddFormData({ ...addFormData, first_name: e.target.value })}
-                                    placeholder="John"
+                                    placeholder={t("superAdminShops.firstNamePlaceholder")}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="last_name">Last Name</Label>
+                                <Label htmlFor="last_name">{t("superAdminShops.lastName")}</Label>
                                 <Input
                                     id="last_name"
                                     value={addFormData.last_name}
                                     onChange={(e) => setAddFormData({ ...addFormData, last_name: e.target.value })}
-                                    placeholder="Doe"
+                                    placeholder={t("superAdminShops.lastNamePlaceholder")}
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="email">Email *</Label>
+                            <Label htmlFor="email">{t("superAdminShops.emailRequiredLabel")}</Label>
                             <Input
                                 id="email"
                                 type="email"
                                 value={addFormData.email}
                                 onChange={(e) => setAddFormData({ ...addFormData, email: e.target.value })}
-                                placeholder="user@example.com"
+                                placeholder={t("superAdminShops.userEmailPlaceholder")}
                             />
                         </div>
 
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="space-y-2 sm:col-span-1">
+                                <Label htmlFor="phone_prefix">{t("superAdminShops.countryCode")}</Label>
+                                <Input
+                                    id="phone_prefix"
+                                    value={addFormData.phone_prefix}
+                                    onChange={(e) => setAddFormData({ ...addFormData, phone_prefix: e.target.value })}
+                                    placeholder="591"
+                                />
+                            </div>
+                            <div className="space-y-2 sm:col-span-2">
+                                <Label htmlFor="phone">{t("adminCustomers.phone")}</Label>
+                                <Input
+                                    id="phone"
+                                    value={addFormData.phone}
+                                    onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
+                                    placeholder="70000000"
+                                />
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
-                            <Label htmlFor="password">Password *</Label>
+                            <Label htmlFor="password">{t("superAdminShops.passwordRequiredLabel")}</Label>
                             <Input
                                 id="password"
                                 type="password"
                                 value={addFormData.password}
                                 onChange={(e) => setAddFormData({ ...addFormData, password: e.target.value })}
-                                placeholder="Minimum 8 characters"
+                                placeholder={t("superAdminShops.passwordPlaceholder")}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="role">Role *</Label>
+                            <Label htmlFor="role">{t("superAdminShops.roleRequiredLabel")}</Label>
                             <Select
                                 value={addFormData.role}
                                 onValueChange={(value: "OWNER" | "ADMIN" | "STAFF") =>
@@ -494,27 +514,27 @@ export default function ShopUsersPage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="OWNER">Owner - Full access</SelectItem>
-                                    <SelectItem value="ADMIN">Admin - Manage shop settings</SelectItem>
-                                    <SelectItem value="STAFF">Staff - View bookings only</SelectItem>
+                                    <SelectItem value="OWNER">{t("superAdminShops.roleOwner")}</SelectItem>
+                                    <SelectItem value="ADMIN">{t("superAdminShops.roleAdmin")}</SelectItem>
+                                    <SelectItem value="STAFF">{t("superAdminShops.roleStaff")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="display_name">Display Name</Label>
+                            <Label htmlFor="display_name">{t("superAdminShops.displayName")}</Label>
                             <Input
                                 id="display_name"
                                 value={addFormData.display_name}
                                 onChange={(e) => setAddFormData({ ...addFormData, display_name: e.target.value })}
-                                placeholder="Name shown to customers"
+                                placeholder={t("superAdminShops.displayNamePlaceholder")}
                             />
                         </div>
 
                         <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
                             <div>
-                                <Label>Can receive bookings?</Label>
-                                <p className="text-sm text-slate-500">Allow customers to book with this staff member</p>
+                                <Label>{t("superAdminShops.canReceiveBookings")}</Label>
+                                <p className="text-sm text-slate-500">{t("superAdminShops.canReceiveBookingsHint")}</p>
                             </div>
                             <Switch
                                 checked={addFormData.is_bookable}
@@ -524,18 +544,18 @@ export default function ShopUsersPage() {
 
                         <DialogFooter className="gap-2 sm:gap-0">
                             <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                                Cancel
+                                {t("common.cancel")}
                             </Button>
                             <Button type="submit" disabled={submitting} className="bg-violet-600 hover:bg-violet-700">
                                 {submitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Adding...
+                                        {t("superAdminShops.adding")}
                                     </>
                                 ) : (
                                     <>
                                         <Plus className="h-4 w-4 mr-2" />
-                                        Add User
+                                        {t("superAdminShops.addUser")}
                                     </>
                                 )}
                             </Button>
@@ -548,23 +568,23 @@ export default function ShopUsersPage() {
             <Dialog open={isEditRoleModalOpen} onOpenChange={setIsEditRoleModalOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Edit User Role</DialogTitle>
+                        <DialogTitle>{t("superAdminShops.editUserRole")}</DialogTitle>
                         <DialogDescription>
-                            Change the role for {editingUser?.user.email}
+                            {t("superAdminShops.changeRoleFor", { email: editingUser?.user.email || "" })}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Role</Label>
+                            <Label>{t("superAdminShops.role")}</Label>
                             <Select value={editRole} onValueChange={setEditRole}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="OWNER">Owner - Full access</SelectItem>
-                                    <SelectItem value="ADMIN">Admin - Manage shop settings</SelectItem>
-                                    <SelectItem value="STAFF">Staff - View bookings only</SelectItem>
+                                    <SelectItem value="OWNER">{t("superAdminShops.roleOwner")}</SelectItem>
+                                    <SelectItem value="ADMIN">{t("superAdminShops.roleAdmin")}</SelectItem>
+                                    <SelectItem value="STAFF">{t("superAdminShops.roleStaff")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -572,7 +592,7 @@ export default function ShopUsersPage() {
 
                     <DialogFooter className="gap-2 sm:gap-0">
                         <Button variant="outline" onClick={() => setIsEditRoleModalOpen(false)}>
-                            Cancel
+                            {t("common.cancel")}
                         </Button>
                         <Button
                             onClick={handleUpdateRole}
@@ -582,10 +602,10 @@ export default function ShopUsersPage() {
                             {submitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Saving...
+                                    {t("superAdminShops.saving")}
                                 </>
                             ) : (
-                                "Save Role"
+                                t("superAdminShops.saveRole")
                             )}
                         </Button>
                     </DialogFooter>
@@ -596,10 +616,9 @@ export default function ShopUsersPage() {
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Remove User</DialogTitle>
+                        <DialogTitle>{t("superAdminShops.removeUser")}</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to remove {deletingUser?.user.email} from this shop?
-                            This will revoke their access but won&apos;t delete their account.
+                            {t("superAdminShops.removeUserConfirm", { email: deletingUser?.user.email || "" })}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
@@ -610,7 +629,7 @@ export default function ShopUsersPage() {
                                 setDeletingUser(null);
                             }}
                         >
-                            Cancel
+                            {t("common.cancel")}
                         </Button>
                         <Button
                             variant="destructive"
@@ -621,10 +640,10 @@ export default function ShopUsersPage() {
                             {submitting ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Removing...
+                                    {t("superAdminShops.removing")}
                                 </>
                             ) : (
-                                "Remove User"
+                                t("superAdminShops.removeUser")
                             )}
                         </Button>
                     </DialogFooter>

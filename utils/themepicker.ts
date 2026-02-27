@@ -8,6 +8,7 @@ export type ThemeConfig = {
   cardsElevated: boolean;
   cornerRadius: "sm" | "md" | "lg";
   fontPreset: FontPreset;
+  fontPairing?: string;
 };
 
 export type ComputedTheme = {
@@ -28,6 +29,8 @@ export type ComputedTheme = {
     radiusMd: string;
     radiusLg: string;
     fontFamily: string;
+    fontHeading?: string;
+    fontBody?: string;
     cssVars: Record<string, string>;
   };
 };
@@ -48,6 +51,34 @@ const fontStacks: Record<FontPreset, string> = {
   modern: `var(--font-geist-sans), "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`,
   rounded: `"Nunito", "Quicksand", "Nunito Sans", system-ui, sans-serif`,
   heritage: `"Playfair Display", "Georgia", "Times New Roman", serif`,
+};
+
+// Font pairing system: heading + body font pairs
+export const fontPairingMap: Record<string, { heading: string; body: string }> = {
+  default: {
+    heading: `var(--font-outfit), "Outfit", system-ui, sans-serif`,
+    body: `var(--font-geist-sans), "Geist Sans", system-ui, sans-serif`,
+  },
+  classic:  {
+    heading: `var(--font-playfair-display), "Playfair Display", Georgia, serif`,
+    body: `var(--font-inter), "Inter", system-ui, sans-serif`,
+  },
+  modern:   {
+    heading: `var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif`,
+    body: `var(--font-dm-sans), "DM Sans", system-ui, sans-serif`,
+  },
+  bold:     {
+    heading: `var(--font-bebas-neue), "Bebas Neue", Impact, sans-serif`,
+    body: `var(--font-roboto), "Roboto", system-ui, sans-serif`,
+  },
+  refined:  {
+    heading: `var(--font-cormorant-garamond), "Cormorant Garamond", Georgia, serif`,
+    body: `var(--font-lato), "Lato", system-ui, sans-serif`,
+  },
+  friendly: {
+    heading: `var(--font-nunito), "Nunito", system-ui, sans-serif`,
+    body: `var(--font-nunito-sans), "Nunito Sans", system-ui, sans-serif`,
+  },
 };
 
 /* ---------- low-level helpers ---------- */
@@ -228,6 +259,8 @@ const buildCssVars = (palette: TokenPalette) => ({
   "--radius-md": palette.radiusMd,
   "--radius-lg": palette.radiusLg,
   "--font-family-base": palette.fontFamily,
+  "--font-heading": palette.fontHeading || palette.fontFamily,
+  "--font-body": palette.fontBody || palette.fontFamily,
 });
 
 /* ---------- main theme generator ---------- */
@@ -240,6 +273,7 @@ export function computeTheme(config: ThemeConfig): ComputedTheme {
     cardsElevated,
     cornerRadius,
     fontPreset,
+    fontPairing,
   } = config;
 
   const preset = resolvePreset(pageBackgroundPreset, getLuminance(pageBackgroundColor));
@@ -271,6 +305,9 @@ export function computeTheme(config: ThemeConfig): ComputedTheme {
         ? "0 18px 30px rgba(0,0,0,0.6)"
         : "none";
 
+  // Resolve font pairing for heading/body fonts
+  const pairing = fontPairing ? fontPairingMap[fontPairing] : undefined;
+
   const palette: TokenPalette = {
     pageBg,
     sectionBg,
@@ -287,6 +324,8 @@ export function computeTheme(config: ThemeConfig): ComputedTheme {
     radiusMd: radii.md,
     radiusLg: radii.lg,
     fontFamily,
+    fontHeading: pairing?.heading,
+    fontBody: pairing?.body,
   };
 
   return {

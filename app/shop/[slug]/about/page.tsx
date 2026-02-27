@@ -2,58 +2,50 @@
 
 import React from "react";
 import Link from "next/link";
-import { MapPin, Car, Train } from "lucide-react";
-import { Rating, RatingButton } from "@/components/ui/shadcn-io/rating";
 import { Button } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardFooter,
-} from "@/components/ui/card";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
 import { useShop } from "../../contexts/ShopContext";
+import { useT } from "@/lib/i18n";
 import { getImageUrl } from "@/utils/image-url";
+import { TeamWrapper } from "@/components/shop/team/TeamWrapper";
+import { LocationHours } from "@/components/shop/LocationHours";
+import { ShopFooter } from "@/components/shop/ShopFooter";
 
 export default function AboutPage() {
     const {
         company,
-        staff,
-        reviewStats,
+        hours,
         loading,
         error,
         slug,
     } = useShop();
+    const t = useT();
 
-    // Loading state
     if (loading) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-page text-text-main">
                 <div className="text-center">
                     <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent mx-auto" />
-                    <p className="text-text-muted">Loading...</p>
+                    <p className="text-text-muted">{t('common.loading')}</p>
                 </div>
             </main>
         );
     }
 
-    // Error state
     if (error || !company) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-page text-text-main">
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-4">Page Not Found</h1>
-                    <p className="text-text-muted mb-6">{error || "Unable to load company information."}</p>
+                    <h1 className="text-4xl font-bold mb-4">{t('shopHome.pageNotFound')}</h1>
+                    <p className="text-text-muted mb-6">{error || t('shopAbout.unableToLoad')}</p>
                     <Link href="/">
-                        <Button className="bg-brand text-white hover:bg-brand-hover">
-                            Go Home
-                        </Button>
+                        <Button className="bg-brand text-white hover:bg-brand-hover">{t('shopHome.goHome')}</Button>
                     </Link>
                 </div>
             </main>
         );
     }
 
-    // Gallery images
     const galleryImages = [
         company.about_image_1_url,
         company.about_image_2_url,
@@ -62,8 +54,8 @@ export default function AboutPage() {
 
     return (
         <main className="min-h-screen bg-page text-text-main">
-            {/* Hero Section */}
-            <section className="relative isolate overflow-hidden text-white">
+            {/* Hero with parallax-lite */}
+            <section className="relative isolate min-h-[50vh] overflow-hidden text-white md:min-h-[60vh]">
                 <div
                     className="absolute inset-0"
                     style={{
@@ -74,189 +66,109 @@ export default function AboutPage() {
                                 : "url('/assets/barberShop.png')",
                         backgroundPosition: "center",
                         backgroundSize: "cover",
+                        backgroundAttachment: "fixed",
                     }}
                 />
-                <div className="absolute inset-0 bg-slate-950/70" aria-hidden />
-                <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-6 px-4 py-16 text-center sm:px-6 lg:px-8 lg:py-24">
-                    <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
-                        About {company.name}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" aria-hidden />
+                <div className="relative z-10 mx-auto flex min-h-[50vh] w-full max-w-5xl flex-col items-center justify-center gap-4 px-4 py-16 text-center md:min-h-[60vh]">
+                    <h1 className="font-heading text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">
+                        {t('shopAbout.about', { name: company.name })}
                     </h1>
                     {company.hero_overlay_text && (
-                        <p className="max-w-2xl text-lg text-white/90">
+                        <p className="max-w-2xl text-lg leading-relaxed text-white/80 font-body">
                             {company.hero_overlay_text}
                         </p>
                     )}
-                    <div className="flex flex-wrap items-center justify-center gap-3">
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                         <Link href={`/shop/${slug}/book`}>
-                            <PrimaryButton>Book Now</PrimaryButton>
-                        </Link>
-                        <Link href={`/shop/${slug}/services`}>
-                            <Button className="min-w-[160px] border border-white/60 bg-white/10 px-5 py-3 text-base font-semibold text-white transition hover:bg-white/25">
-                                View Services
-                            </Button>
+                            <PrimaryButton>{t('common.bookNow')}</PrimaryButton>
                         </Link>
                     </div>
                 </div>
             </section>
 
-            <div className="mx-auto w-full max-w-5xl space-y-16 px-4 py-12 sm:px-6 lg:px-8">
-                {/* Our Story Section */}
-                <section className="space-y-6">
-                    <h2 className="text-3xl font-semibold">Our Story</h2>
+            {/* Our Story */}
+            <section className="py-16 md:py-24">
+                <div className="mx-auto max-w-3xl px-4 md:px-8">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                        {t('shopAbout.ourStory')}
+                    </p>
                     {company.our_story_text ? (
-                        <p className="text-lg leading-relaxed text-text-muted whitespace-pre-line">
+                        <div className="mt-6 text-lg leading-[1.8] text-text-main font-body whitespace-pre-line first-letter:float-left first-letter:mr-3 first-letter:text-5xl first-letter:font-bold first-letter:leading-none first-letter:text-brand first-letter:font-heading">
                             {company.our_story_text}
-                        </p>
+                        </div>
                     ) : (
-                        <p className="text-lg text-text-muted">
-                            Our story will be shared here soon. We&apos;re passionate about providing the best experience for our clients.
+                        <p className="mt-6 text-lg text-text-muted font-body">
+                            {t('shopAbout.ourStoryPlaceholder')}
                         </p>
                     )}
+                </div>
+            </section>
 
-                    {/* Gallery */}
-                    {galleryImages.length > 0 && (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {galleryImages.map((url, index) => (
-                                <div
-                                    key={index}
-                                    className="aspect-[4/3] overflow-hidden rounded-lg bg-section"
-                                >
+            {/* Gallery — asymmetric grid */}
+            {galleryImages.length > 0 && (
+                <section className="py-8 md:py-16">
+                    <div className="mx-auto max-w-6xl px-4 md:px-8">
+                        {galleryImages.length >= 3 ? (
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:grid-rows-2">
+                                <div className="overflow-hidden rounded-lg md:col-span-2 md:row-span-2">
                                     <img
-                                        src={url}
-                                        alt={`${company.name} gallery ${index + 1}`}
-                                        className="h-full w-full object-cover transition hover:scale-105"
+                                        src={galleryImages[0]}
+                                        alt={`${company.name} gallery 1`}
+                                        className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
                                     />
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </section>
-
-                {/* Meet Our Team Section */}
-                {staff.length > 0 && (
-                    <section className="space-y-6">
-                        <h2 className="text-3xl font-semibold">Meet Our Talented Team</h2>
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {staff.map((member) => (
-                                <Card
-                                    key={member.id}
-                                    className="rounded-lg border-surface-border bg-surface text-center shadow-card"
-                                >
-                                    <CardContent className="flex flex-col items-center gap-4 pt-6">
-                                        <div className="rounded-full border border-surface-border p-1 shadow-inner">
-                                            <div className="h-24 w-24 overflow-hidden rounded-full bg-section">
-                                                {member.image_url ? (
-                                                    <img
-                                                        src={getImageUrl(member.image_url) || undefined}
-                                                        alt={member.display_name}
-                                                        className="h-full w-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <div className="h-full w-full flex items-center justify-center text-2xl font-bold text-text-muted">
-                                                        {member.display_name.charAt(0).toUpperCase()}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <p className="text-lg font-semibold">{member.display_name}</p>
-                                            {member.bio && (
-                                                <p className="mt-2 text-sm text-text-muted line-clamp-3">
-                                                    {member.bio}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                    <CardFooter className="pt-0">
-                                        <Link href={`/shop/${slug}/book`} className="w-full">
-                                            <Button className="w-full rounded-md border border-transparent bg-brand-soft-bg px-4 py-2 text-brand-soft-text transition hover:border-brand hover:text-brand">
-                                                Book with {member.display_name.split(" ")[0]}
-                                            </Button>
-                                        </Link>
-                                    </CardFooter>
-                                </Card>
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                {/* Where to Find Us Section */}
-                <section className="space-y-6">
-                    <h2 className="text-3xl font-semibold">Where to Find Us</h2>
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        {/* Map */}
-                        <div className="aspect-[4/3] overflow-hidden rounded-lg bg-section lg:aspect-auto lg:h-full lg:min-h-[300px]">
-                            {company.google_maps_url ? (
-                                <iframe
-                                    title="Shop location"
-                                    src={company.google_maps_url}
-                                    loading="lazy"
-                                    className="h-full w-full border-0"
-                                />
-                            ) : (
-                                <div className="h-full w-full flex items-center justify-center text-text-muted">
-                                    Map not available
+                                <div className="overflow-hidden rounded-lg">
+                                    <img
+                                        src={galleryImages[1]}
+                                        alt={`${company.name} gallery 2`}
+                                        className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                                    />
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Address Details */}
-                        <div className="space-y-6">
-                            <div className="flex items-start gap-4">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft-bg text-brand">
-                                    <MapPin className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-text-main">Address</h3>
-                                    <p className="text-text-muted">
-                                        {company.address || "Address not set"}
-                                    </p>
-                                    {company.city && (
-                                        <p className="text-sm text-text-muted">
-                                            {company.city}{company.state && `, ${company.state}`}
-                                        </p>
-                                    )}
+                                <div className="overflow-hidden rounded-lg">
+                                    <img
+                                        src={galleryImages[2]}
+                                        alt={`${company.name} gallery 3`}
+                                        className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                                    />
                                 </div>
                             </div>
-
-                            <div className="flex items-start gap-4">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft-bg text-brand">
-                                    <Car className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-text-main">Parking</h3>
-                                    <p className="text-text-muted">
-                                        Street parking is available nearby.
-                                    </p>
-                                </div>
+                        ) : (
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                {galleryImages.map((url, index) => (
+                                    <div key={index} className="aspect-[4/3] overflow-hidden rounded-lg">
+                                        <img
+                                            src={url}
+                                            alt={`${company.name} gallery ${index + 1}`}
+                                            className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                                        />
+                                    </div>
+                                ))}
                             </div>
-
-                            <div className="flex items-start gap-4">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft-bg text-brand">
-                                    <Train className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-text-main">Public Transport</h3>
-                                    <p className="text-text-muted">
-                                        We are easily accessible via public transportation.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {company.google_maps_url && (
-                                <a
-                                    href={company.google_maps_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-block"
-                                >
-                                    <PrimaryButton>Get Directions</PrimaryButton>
-                                </a>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </section>
-            </div>
+            )}
+
+            {/* Team */}
+            <section className="bg-section py-16 md:py-24">
+                <div className="mx-auto max-w-6xl px-4 md:px-8">
+                    <div className="mb-8">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                            {t('shopAbout.ourExperts')}
+                        </p>
+                        <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                            {t('shopAbout.meetTeam')}
+                        </h2>
+                    </div>
+                    <TeamWrapper />
+                </div>
+            </section>
+
+            {/* Location & Hours */}
+            <LocationHours company={company} hours={hours} />
+
+            <ShopFooter />
         </main>
     );
 }

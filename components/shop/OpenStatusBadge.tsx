@@ -9,6 +9,7 @@ import {
     calculateOpenStatus,
     formatTimeDisplay,
 } from "@/utils/business-hours";
+import { useT } from "@/lib/i18n";
 
 interface OpenStatusBadgeProps {
     availableDates: AvailableDate[];
@@ -23,6 +24,7 @@ export function OpenStatusBadge({
     showNextOpen = true,
     className,
 }: OpenStatusBadgeProps) {
+    const t = useT();
     const status = useMemo<OpenStatus>(() => {
         return calculateOpenStatus(availableDates, timezone);
     }, [availableDates, timezone]);
@@ -34,7 +36,7 @@ export function OpenStatusBadge({
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                <span className="text-sm font-medium text-emerald-600">Open</span>
+                <span className="text-sm font-medium text-emerald-600">{t('shopHome.quickInfo.openNow')}</span>
             </div>
         );
     }
@@ -43,7 +45,7 @@ export function OpenStatusBadge({
         return (
             <div className={cn("inline-flex items-center gap-1.5", className)}>
                 <span className="h-2 w-2 rounded-full bg-rose-500" />
-                <span className="text-sm font-medium text-rose-600">Closed today</span>
+                <span className="text-sm font-medium text-rose-600">{t('shopBooking.closedToday')}</span>
             </div>
         );
     }
@@ -52,9 +54,9 @@ export function OpenStatusBadge({
         return (
             <div className={cn("inline-flex items-center gap-1.5", className)}>
                 <span className="h-2 w-2 rounded-full bg-rose-500" />
-                <span className="text-sm font-medium text-rose-600">Closed</span>
+                <span className="text-sm font-medium text-rose-600">{t('shopHome.quickInfo.closedNow')}</span>
                 <span className="text-sm text-slate-500">
-                    · Opens at {formatTimeDisplay(status.next_open_time)}
+                    · {t('shopHome.quickInfo.opensAt', { time: formatTimeDisplay(status.next_open_time) })}
                 </span>
             </div>
         );
@@ -63,7 +65,7 @@ export function OpenStatusBadge({
     return (
         <div className={cn("inline-flex items-center gap-1.5", className)}>
             <span className="h-2 w-2 rounded-full bg-rose-500" />
-            <span className="text-sm font-medium text-rose-600">Closed</span>
+            <span className="text-sm font-medium text-rose-600">{t('shopHome.quickInfo.closedNow')}</span>
         </div>
     );
 }
@@ -79,6 +81,7 @@ export function ClosedBanner({
     timezone,
     className,
 }: ClosedBannerProps) {
+    const t = useT();
     const status = useMemo<OpenStatus>(() => {
         return calculateOpenStatus(availableDates, timezone);
     }, [availableDates, timezone]);
@@ -97,8 +100,8 @@ export function ClosedBanner({
             >
                 <Clock className="h-4 w-4 text-rose-500 flex-shrink-0" />
                 <p className="text-sm text-rose-700">
-                    <span className="font-medium">Closed today.</span>
-                    {" "}Please select another date for your appointment.
+                    <span className="font-medium">{t('shopBooking.closedToday')}.</span>
+                    {" "}{t('shopBooking.closedTodayMessage')}
                 </p>
             </div>
         );
@@ -114,8 +117,8 @@ export function ClosedBanner({
             >
                 <Clock className="h-4 w-4 text-rose-500 flex-shrink-0" />
                 <p className="text-sm text-rose-700">
-                    <span className="font-medium">Currently closed.</span>
-                    {" "}Opens at {formatTimeDisplay(status.next_open_time)}
+                    <span className="font-medium">{t('shopHome.quickInfo.closedNow')}.</span>
+                    {" "}{t('shopHome.quickInfo.opensAt', { time: formatTimeDisplay(status.next_open_time) })}
                 </p>
             </div>
         );

@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useT } from "@/lib/i18n";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 import { getImageUrl } from "@/utils/image-url";
 
@@ -53,6 +54,7 @@ function getApiUrl(path: string): string {
 
 export default function PageManagementPage() {
     const { companyId, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const t = useT();
 
     // Content state
     const [content, setContent] = useState<CompanyContent>({});
@@ -135,7 +137,7 @@ export default function PageManagementPage() {
             }
         } catch (err) {
             console.error("Failed to fetch data:", err);
-            setToast({ type: 'error', message: 'Failed to load content' });
+            setToast({ type: 'error', message: t('adminPages.failedToLoad') });
         } finally {
             setLoading(false);
         }
@@ -222,7 +224,7 @@ export default function PageManagementPage() {
                 body: JSON.stringify(contentUpdates),
             });
 
-            if (!contentRes.ok) throw new Error("Failed to save content");
+            if (!contentRes.ok) throw new Error(t('adminPages.failedToSave'));
 
             // 3. Update local state
             setContent(prev => ({ ...prev, ...contentUpdates }));
@@ -235,10 +237,10 @@ export default function PageManagementPage() {
             setPendingImages({});
             setLocalPreviews({}); // Clear local previews, use real URLs now
             setHasUnsavedChanges(false);
-            setToast({ type: 'success', message: 'All changes saved successfully' });
+            setToast({ type: 'success', message: t('adminPages.savedSuccess') });
         } catch (err) {
             console.error(err);
-            setToast({ type: 'error', message: 'Failed to save changes' });
+            setToast({ type: 'error', message: t('adminPages.failedToSave') });
         } finally {
             setSaving(false);
         }
@@ -256,7 +258,6 @@ export default function PageManagementPage() {
 
     // Helper to get display URL (local preview > current backend URL)
     const getDisplayUrl = (field: keyof CompanyContent) => {
-        console.log(field);
         return localPreviews[field] || content[field];
     };
 
@@ -272,12 +273,12 @@ export default function PageManagementPage() {
                 body: JSON.stringify({ [field]: null }),
             });
 
-            if (!response.ok) throw new Error("Failed to delete");
+            if (!response.ok) throw new Error(t('adminPages.failedToDelete'));
 
             setContent(prev => ({ ...prev, [field]: undefined }));
-            setToast({ type: 'success', message: 'Image removed' });
+            setToast({ type: 'success', message: t('adminPages.imageRemoved') });
         } catch (err) {
-            setToast({ type: 'error', message: 'Failed to remove image' });
+            setToast({ type: 'error', message: t('adminPages.failedToDelete') });
         }
     };
 
@@ -308,7 +309,7 @@ export default function PageManagementPage() {
         return (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-slate-600">Loading content...</span>
+                <span className="ml-2 text-slate-600">{t('adminPages.loading')}</span>
             </div>
         );
     }
@@ -318,8 +319,8 @@ export default function PageManagementPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Page Management</h1>
-                    <p className="text-slate-500">Customize images and text for your public pages</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('adminPages.title')}</h1>
+                    <p className="text-slate-500">{t('adminPages.subtitle')}</p>
                 </div>
                 {hasUnsavedChanges && (
                     <Button
@@ -330,12 +331,12 @@ export default function PageManagementPage() {
                         {saving ? (
                             <>
                                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                Saving...
+                                {t('adminPages.saving')}
                             </>
                         ) : (
                             <>
                                 <Save className="h-4 w-4 mr-2" />
-                                Save Changes
+                                {t('common.save')}
                             </>
                         )}
                     </Button>
@@ -362,19 +363,19 @@ export default function PageManagementPage() {
                 <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
                     <TabsTrigger value="branding" className="gap-2">
                         <ImageIcon className="h-4 w-4 hidden sm:block" />
-                        Branding
+                        {t('adminPages.branding')}
                     </TabsTrigger>
                     <TabsTrigger value="home" className="gap-2">
                         <Home className="h-4 w-4 hidden sm:block" />
-                        Home
+                        {t('adminPages.home')}
                     </TabsTrigger>
                     <TabsTrigger value="about" className="gap-2">
                         <Info className="h-4 w-4 hidden sm:block" />
-                        About
+                        {t('adminPages.about')}
                     </TabsTrigger>
                     <TabsTrigger value="team" className="gap-2">
                         <Users className="h-4 w-4 hidden sm:block" />
-                        Team
+                        {t('adminPages.team')}
                     </TabsTrigger>
                 </TabsList>
 
@@ -382,9 +383,9 @@ export default function PageManagementPage() {
                 <TabsContent value="branding" className="mt-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Logo & Branding</CardTitle>
+                            <CardTitle>{t('adminPages.logo')}</CardTitle>
                             <CardDescription>
-                                Upload your company logo. Recommended size: 200x200px (square)
+                                {t('adminPages.logoDescription')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -408,9 +409,9 @@ export default function PageManagementPage() {
                 <TabsContent value="home" className="mt-6 space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Hero Image</CardTitle>
+                            <CardTitle>{t('adminPages.homeHero')}</CardTitle>
                             <CardDescription>
-                                The main banner image on your home page. Recommended: 1920x1080px (16:9)
+                                {t('adminPages.homeHeroDescription')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -429,23 +430,23 @@ export default function PageManagementPage() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>About Us Preview</CardTitle>
+                            <CardTitle>{t('adminPages.aboutUs')}</CardTitle>
                             <CardDescription>
-                                Short description shown on the home page
+                                {t('adminPages.aboutUsDescription')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2">
-                                <Label htmlFor="about-us">About Us Text</Label>
+                                <Label htmlFor="about-us">{t('adminPages.aboutUsText')}</Label>
                                 <textarea
                                     id="about-us"
                                     value={aboutUsText}
                                     onChange={handleTextChange(setAboutUsText)}
-                                    placeholder="Tell visitors about your business..."
+                                    placeholder={t('adminPages.aboutUsPlaceholder')}
                                     className="w-full h-32 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
                                 />
                                 <p className="text-xs text-slate-500">
-                                    This text appears in the About section on your home page
+                                    {t('adminPages.aboutUsHelpText')}
                                 </p>
                             </div>
                         </CardContent>
@@ -456,9 +457,9 @@ export default function PageManagementPage() {
                 <TabsContent value="about" className="mt-6 space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>About Page Hero</CardTitle>
+                            <CardTitle>{t('adminPages.aboutHero')}</CardTitle>
                             <CardDescription>
-                                Hero image and overlay text for your About page
+                                {t('adminPages.aboutHeroDescription')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -474,12 +475,12 @@ export default function PageManagementPage() {
                             />
 
                             <div className="space-y-2">
-                                <Label htmlFor="hero-overlay">Hero Overlay Text</Label>
+                                <Label htmlFor="hero-overlay">{t('adminPages.overlayText')}</Label>
                                 <textarea
                                     id="hero-overlay"
                                     value={heroOverlayText}
                                     onChange={handleTextChange(setHeroOverlayText)}
-                                    placeholder="Text shown over the hero image..."
+                                    placeholder={t('adminPages.overlayPlaceholder')}
                                     className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
                                 />
                             </div>
@@ -488,19 +489,19 @@ export default function PageManagementPage() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Our Story</CardTitle>
+                            <CardTitle>{t('adminPages.ourStory')}</CardTitle>
                             <CardDescription>
-                                The main content section of your About page
+                                {t('adminPages.ourStoryDescription')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2">
-                                <Label htmlFor="our-story">Our Story</Label>
+                                <Label htmlFor="our-story">{t('adminPages.ourStoryText')}</Label>
                                 <textarea
                                     id="our-story"
                                     value={ourStoryText}
                                     onChange={handleTextChange(setOurStoryText)}
-                                    placeholder="Share your story, history, and what makes you unique..."
+                                    placeholder={t('adminPages.ourStoryPlaceholder')}
                                     className="w-full h-48 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
                                 />
                             </div>
@@ -509,15 +510,15 @@ export default function PageManagementPage() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Gallery Images</CardTitle>
+                            <CardTitle>{t('adminPages.gallery')}</CardTitle>
                             <CardDescription>
-                                Up to 3 images showcased on your About page
+                                {t('adminPages.galleryDescription')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                                 <div>
-                                    <Label className="mb-2 block">Image 1</Label>
+                                    <Label className="mb-2 block">{t('adminPages.imageNumber', { number: 1 })}</Label>
                                     <ImageUpload
                                         companyId={companyId!}
                                         type="about_1"
@@ -530,7 +531,7 @@ export default function PageManagementPage() {
                                     />
                                 </div>
                                 <div>
-                                    <Label className="mb-2 block">Image 2</Label>
+                                    <Label className="mb-2 block">{t('adminPages.imageNumber', { number: 2 })}</Label>
                                     <ImageUpload
                                         companyId={companyId!}
                                         type="about_2"
@@ -543,7 +544,7 @@ export default function PageManagementPage() {
                                     />
                                 </div>
                                 <div>
-                                    <Label className="mb-2 block">Image 3</Label>
+                                    <Label className="mb-2 block">{t('adminPages.imageNumber', { number: 3 })}</Label>
                                     <ImageUpload
                                         companyId={companyId!}
                                         type="about_3"
@@ -564,18 +565,18 @@ export default function PageManagementPage() {
                 <TabsContent value="team" className="mt-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Team Photos</CardTitle>
+                            <CardTitle>{t('adminPages.teamPhotos')}</CardTitle>
                             <CardDescription>
-                                Upload profile photos for your staff members. Square images work best.
+                                {t('adminPages.teamPhotosDescription')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             {staff.length === 0 ? (
                                 <div className="text-center py-12 text-slate-500">
                                     <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                                    <p>No staff members found</p>
+                                    <p>{t('adminPages.noStaff')}</p>
                                     <p className="text-sm text-slate-400 mt-1">
-                                        Add staff in the Staff section first
+                                        {t('adminPages.noStaffDescription')}
                                     </p>
                                 </div>
                             ) : (

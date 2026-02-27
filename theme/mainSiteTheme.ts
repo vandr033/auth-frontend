@@ -25,6 +25,8 @@ export const mainSiteThemeConfig: ThemeConfig = {
     cornerRadius: "md",
     // Modern sans-serif font
     fontPreset: "modern",
+    // Outfit headings + Geist Sans body
+    fontPairing: "default",
 };
 
 // Pre-computed theme for performance
