@@ -27,6 +27,7 @@ const getInitials = (name?: string | null, email?: string | null) => {
 
 export function ShopNavbar() {
     const pathname = usePathname();
+    const currentPathname = pathname ?? "";
     const router = useRouter();
     const { isAuthenticated, user, signOut, loading } = useAuth();
     const { company, slug, socialLinks, loading: shopLoading } = useShop();
@@ -49,9 +50,9 @@ export function ShopNavbar() {
     const isActive = (href: string) => {
         // Exact match for home, startsWith for others
         if (href === basePath) {
-            return pathname === basePath;
+            return currentPathname === basePath;
         }
-        return pathname.startsWith(href);
+        return currentPathname.startsWith(href);
     };
 
     const linkClasses = (href: string) =>

@@ -26,7 +26,8 @@ interface InviteInfo {
 
 export default function StaffInvitePage() {
     const t = useT();
-    const { token } = useParams<{ token: string }>();
+    const params = useParams<{ token: string }>();
+    const token = params?.token ?? "";
     const router = useRouter();
 
     const [loading, setLoading] = useState(true);

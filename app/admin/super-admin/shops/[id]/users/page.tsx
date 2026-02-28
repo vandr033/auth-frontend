@@ -87,7 +87,8 @@ const roleColors: Record<string, string> = {
 export default function ShopUsersPage() {
     const t = useT();
     const params = useParams();
-    const shopId = params.id as string;
+    const shopIdParam = params?.id;
+    const shopId = Array.isArray(shopIdParam) ? shopIdParam[0] : shopIdParam ?? "";
     const { isAuthenticated, loading: authLoading, user } = useAdminAuth();
 
     const [shop, setShop] = useState<SuperAdminShop | null>(null);

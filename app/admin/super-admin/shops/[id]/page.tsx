@@ -50,7 +50,8 @@ export default function EditShopPage() {
     const { locale } = useI18n();
     const router = useRouter();
     const params = useParams();
-    const shopId = params.id as string;
+    const shopIdParam = params?.id;
+    const shopId = Array.isArray(shopIdParam) ? shopIdParam[0] : shopIdParam ?? "";
     const { isAuthenticated, isSuperAdmin, loading: authLoading, refreshSession } = useAdminAuth();
 
     const [shop, setShop] = useState<SuperAdminShop | null>(null);

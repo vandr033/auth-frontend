@@ -37,6 +37,7 @@ export default function SuperAdminLayout({
     const t = useT();
     const router = useRouter();
     const pathname = usePathname();
+    const currentPathname = pathname ?? "";
     const { user, isAuthenticated, isSuperAdmin, loading, mustChangePassword, signOut } = useAdminAuth();
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -185,7 +186,9 @@ export default function SuperAdminLayout({
                     {/* Navigation */}
                     <nav className="flex-1 overflow-y-auto p-4 space-y-1">
                         {navItems.map((item) => {
-                            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                            const isActive =
+                                currentPathname === item.href ||
+                                currentPathname.startsWith(item.href + "/");
                             return (
                                 <Link
                                     key={item.href}
@@ -249,7 +252,13 @@ export default function SuperAdminLayout({
                     </button>
                     <div className="flex-1">
                         <h1 className="text-lg font-semibold text-slate-900">
-                            {[...navItems].sort((a, b) => b.href.length - a.href.length).find((item) => pathname === item.href || pathname.startsWith(item.href + "/"))?.label ||
+                            {[...navItems]
+                                .sort((a, b) => b.href.length - a.href.length)
+                                .find(
+                                    (item) =>
+                                        currentPathname === item.href ||
+                                        currentPathname.startsWith(item.href + "/"),
+                                )?.label ||
                                 t("adminNav.superAdmin")}
                         </h1>
                     </div>
