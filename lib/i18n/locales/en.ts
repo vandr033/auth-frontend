@@ -301,6 +301,15 @@ const en = {
     paymentProof: "Payment Proof",
     clickToOpen: "Click to Open",
     noPaymentProof: "No payment proof uploaded.",
+    sendTodayReminders: "Send Today's Reminders",
+    remindersProgress: "Reminder progress",
+    remindersNothingToSend: "No pending reminders to send for today.",
+    remindersSendingProgress: "Sending reminders... {{current}}/{{total}}",
+    remindersDone: "Reminder sending completed.",
+    remindersFailed: "Failed to send reminders.",
+    remindersSent: "Sent",
+    remindersSkipped: "Skipped",
+    remindersFailedShort: "Failed",
   },
 
   // ─── Admin: Services ───
@@ -1116,6 +1125,15 @@ const en = {
     actions: "Actions",
     sendEmail: "Send email",
     whatsapp: "WhatsApp",
+    sendMassMessage: "Send mass message",
+    sendMassMessageTitle: "Mass message to customers",
+    sendMassMessageDescription: "Send a custom message to customers in the current filter. WhatsApp is preferred and email is used as fallback.",
+    massMessageBodyLabel: "Message",
+    massMessageBodyPlaceholder: "Write the message you want to send to your customers...",
+    massMessageBodyRequired: "Message body is required",
+    massMessageFailed: "Failed to send mass message",
+    massMessageAudienceHint: "Recipients in current list: {{count}}",
+    massMessageSummary: "Sent: {{sent}} (WhatsApp: {{whatsapp}}, Email: {{email}}). Failed: {{failed}}. No contact: {{noContact}}.",
   },
 
   // ─── Super Admin: Shops ───

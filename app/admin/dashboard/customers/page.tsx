@@ -16,10 +16,20 @@ import {
     downloadCustomerImportTemplate,
     getCustomers,
     importCustomersFile,
+    sendMassCustomerMessage,
+    type MassCustomerMessageResult,
     type CustomerRecord,
 } from "../../lib/adminApi";
-import { Search, Loader2, Mail, MessageCircle, Upload, Download, Users } from "lucide-react";
+import { Search, Loader2, Mail, MessageCircle, Upload, Download, Users, Send } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
@@ -39,8 +49,12 @@ export default function CustomersPage() {
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [importSummary, setImportSummary] = useState<string | null>(null);
+    const [massSummary, setMassSummary] = useState<MassCustomerMessageResult | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [isMassDialogOpen, setIsMassDialogOpen] = useState(false);
+    const [massMessageBody, setMassMessageBody] = useState("");
+    const [sendingMassMessage, setSendingMassMessage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     // Debounce search
@@ -107,6 +121,30 @@ export default function CustomersPage() {
         }
     };
 
+    const handleSendMassMessage = async () => {
+        const message = massMessageBody.trim();
+        if (!message) {
+            setError(t("adminCustomers.massMessageBodyRequired"));
+            return;
+        }
+
+        setError(null);
+        setSendingMassMessage(true);
+        try {
+            const result = await sendMassCustomerMessage({
+                message,
+                search: debouncedSearch || undefined,
+            });
+            setMassSummary(result);
+            setMassMessageBody("");
+            setIsMassDialogOpen(false);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : t("adminCustomers.massMessageFailed"));
+        } finally {
+            setSendingMassMessage(false);
+        }
+    };
+
     const buildWhatsAppUrl = (customer: CustomerRecord) => {
         if (!customer.phone) return null;
         const phone = customer.phone.replace(/\D/g, "");
@@ -141,6 +179,15 @@ export default function CustomersPage() {
                     >
                         <Download className="h-4 w-4 mr-2" />
                         {t("adminCustomers.downloadTemplate")}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsMassDialogOpen(true)}
+                        disabled={loading || importing || sendingMassMessage}
+                    >
+                        <Send className="h-4 w-4 mr-2" />
+                        {t("adminCustomers.sendMassMessage")}
                     </Button>
                     <Button
                         type="button"
@@ -182,6 +229,22 @@ export default function CustomersPage() {
                 <Card className="border-emerald-200 bg-emerald-50">
                     <CardContent className="pt-6">
                         <p className="text-emerald-700 text-sm">{importSummary}</p>
+                    </CardContent>
+                </Card>
+            )}
+
+            {massSummary && (
+                <Card className="border-sky-200 bg-sky-50">
+                    <CardContent className="pt-6">
+                        <p className="text-sky-700 text-sm">
+                            {t("adminCustomers.massMessageSummary", {
+                                sent: massSummary.sent_total,
+                                whatsapp: massSummary.sent_whatsapp,
+                                email: massSummary.sent_email,
+                                failed: massSummary.failed,
+                                noContact: massSummary.skipped_no_contact,
+                            })}
+                        </p>
                     </CardContent>
                 </Card>
             )}
@@ -279,6 +342,58 @@ export default function CustomersPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <Dialog open={isMassDialogOpen} onOpenChange={setIsMassDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t("adminCustomers.sendMassMessageTitle")}</DialogTitle>
+                        <DialogDescription>
+                            {t("adminCustomers.sendMassMessageDescription")}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">
+                            {t("adminCustomers.massMessageBodyLabel")}
+                        </label>
+                        <textarea
+                            value={massMessageBody}
+                            onChange={(e) => setMassMessageBody(e.target.value)}
+                            placeholder={t("adminCustomers.massMessageBodyPlaceholder")}
+                            rows={7}
+                            maxLength={1500}
+                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                        />
+                        <p className="text-xs text-slate-500">
+                            {t("adminCustomers.massMessageAudienceHint", { count: customers.length })}
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsMassDialogOpen(false)}
+                            disabled={sendingMassMessage}
+                        >
+                            {t("common.cancel")}
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => void handleSendMassMessage()}
+                            disabled={sendingMassMessage || !massMessageBody.trim()}
+                            className="bg-brand text-white hover:bg-brand-hover"
+                        >
+                            {sendingMassMessage ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Send className="h-4 w-4 mr-2" />
+                            )}
+                            {t("adminCustomers.sendMassMessage")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

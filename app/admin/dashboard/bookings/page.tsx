@@ -7,6 +7,7 @@ import {
     Calendar as CalendarIcon,
     List as ListIcon,
     Plus,
+    BellRing,
     ChevronLeft,
     ChevronRight,
     Loader2,
@@ -35,6 +36,8 @@ import {
     getStaff,
     getServices,
     getHours,
+    getTodayReminderPreview,
+    sendTodayReminder,
     StaffMember,
     ServiceItem,
     CreateBookingData,
@@ -77,6 +80,18 @@ export default function BookingsPage() {
     const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
+    const [isSendingReminders, setIsSendingReminders] = useState(false);
+    const [reminderProgress, setReminderProgress] = useState(0);
+    const [reminderCurrent, setReminderCurrent] = useState(0);
+    const [reminderTotal, setReminderTotal] = useState(0);
+    const [reminderStatusText, setReminderStatusText] = useState<string | null>(null);
+    const [reminderSummary, setReminderSummary] = useState<{
+        sent: number;
+        skipped: number;
+        failed: number;
+        whatsapp: number;
+        email: number;
+    } | null>(null);
 
     // Active filters count
     const activeFilterCount = useMemo(() => {
@@ -197,6 +212,87 @@ export default function BookingsPage() {
         }
     };
 
+    const handleSendTodayReminders = useCallback(async () => {
+        if (isSendingReminders) return;
+
+        setReminderSummary(null);
+        setReminderStatusText(null);
+        setReminderProgress(0);
+        setReminderCurrent(0);
+        setReminderTotal(0);
+
+        try {
+            const preview = await getTodayReminderPreview();
+            const queue = preview.items.filter(
+                (item) => item.channel !== "NONE" && !item.already_sent_recently
+            );
+
+            if (queue.length === 0) {
+                setReminderProgress(100);
+                setReminderTotal(preview.total);
+                setReminderStatusText(t("adminBookings.remindersNothingToSend"));
+                setReminderSummary({
+                    sent: 0,
+                    skipped: preview.total,
+                    failed: 0,
+                    whatsapp: 0,
+                    email: 0,
+                });
+                return;
+            }
+
+            setIsSendingReminders(true);
+            setReminderTotal(queue.length);
+
+            const counters = {
+                sent: 0,
+                skipped: 0,
+                failed: 0,
+                whatsapp: 0,
+                email: 0,
+            };
+
+            for (let i = 0; i < queue.length; i++) {
+                const item = queue[i];
+                const result = await sendTodayReminder(item.booking_id);
+
+                if (result.status === "SENT") {
+                    counters.sent += 1;
+                    if (result.channel === "WHATSAPP") counters.whatsapp += 1;
+                    if (result.channel === "EMAIL") counters.email += 1;
+                } else if (result.status === "SKIPPED") {
+                    counters.skipped += 1;
+                } else {
+                    counters.failed += 1;
+                }
+
+                const current = i + 1;
+                setReminderCurrent(current);
+                setReminderProgress(Math.round((current / queue.length) * 100));
+                setReminderStatusText(
+                    t("adminBookings.remindersSendingProgress", {
+                        current,
+                        total: queue.length,
+                    })
+                );
+
+                // Extra client pacing to avoid hammering reminder endpoints.
+                if (i < queue.length - 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 220));
+                }
+            }
+
+            setReminderSummary(counters);
+            setReminderStatusText(t("adminBookings.remindersDone"));
+        } catch (err) {
+            setReminderStatusText(
+                err instanceof Error ? err.message : t("adminBookings.remindersFailed")
+            );
+        } finally {
+            setIsSendingReminders(false);
+        }
+    }, [isSendingReminders, t]);
+
     // Date range label
     const dateRangeLabel = useMemo(() => {
         if (dayCount === 1) {
@@ -220,12 +316,72 @@ export default function BookingsPage() {
 
                 <div className="flex items-center gap-2">
                     {!isStaffRole && (
-                        <Button onClick={() => setIsNewBookingOpen(true)} className="bg-brand text-white hover:bg-brand-hover shadow-sm">
-                            <Plus className="mr-2 h-4 w-4" /> {t('adminBookings.newBooking')}
-                        </Button>
+                        <>
+                            <Button
+                                variant="outline"
+                                onClick={() => void handleSendTodayReminders()}
+                                disabled={isSendingReminders}
+                                className="border-brand/30 text-brand hover:bg-brand/5"
+                            >
+                                {isSendingReminders ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <BellRing className="mr-2 h-4 w-4" />
+                                )}
+                                {t('adminBookings.sendTodayReminders')}
+                            </Button>
+
+                            <Button onClick={() => setIsNewBookingOpen(true)} className="bg-brand text-white hover:bg-brand-hover shadow-sm">
+                                <Plus className="mr-2 h-4 w-4" /> {t('adminBookings.newBooking')}
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>
+
+            {!isStaffRole && (isSendingReminders || reminderSummary || reminderStatusText) && (
+                <div className="rounded-lg border border-surface-border bg-surface p-4 shadow-sm">
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="font-medium text-text-main">{t("adminBookings.remindersProgress")}</span>
+                        <span className="text-text-muted">
+                            {isSendingReminders
+                                ? `${reminderCurrent}/${reminderTotal || 0}`
+                                : `${reminderProgress}%`}
+                        </span>
+                    </div>
+
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                            className="h-full rounded-full bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 transition-all duration-300 ease-out"
+                            style={{ width: `${Math.max(0, Math.min(100, reminderProgress))}%` }}
+                        />
+                    </div>
+
+                    {reminderStatusText && (
+                        <p className="mt-2 text-xs text-text-muted">{reminderStatusText}</p>
+                    )}
+
+                    {reminderSummary && (
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+                            <div className="rounded-md bg-emerald-50 px-2 py-1 text-emerald-700">
+                                {t("adminBookings.remindersSent")}: {reminderSummary.sent}
+                            </div>
+                            <div className="rounded-md bg-amber-50 px-2 py-1 text-amber-700">
+                                {t("adminBookings.remindersSkipped")}: {reminderSummary.skipped}
+                            </div>
+                            <div className="rounded-md bg-rose-50 px-2 py-1 text-rose-700">
+                                {t("adminBookings.remindersFailedShort")}: {reminderSummary.failed}
+                            </div>
+                            <div className="rounded-md bg-cyan-50 px-2 py-1 text-cyan-700">
+                                WhatsApp: {reminderSummary.whatsapp}
+                            </div>
+                            <div className="rounded-md bg-indigo-50 px-2 py-1 text-indigo-700">
+                                Email: {reminderSummary.email}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Toolbar */}
             <div className="flex flex-col gap-3 bg-surface p-3 rounded-lg border border-surface-border shadow-sm">

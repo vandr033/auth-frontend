@@ -85,6 +85,16 @@ export interface CustomerImportResult {
     skipped: Array<{ row: number; reason: string }>;
 }
 
+export interface MassCustomerMessageResult {
+    total_customers: number;
+    sent_total: number;
+    sent_whatsapp: number;
+    sent_email: number;
+    skipped_no_contact: number;
+    skipped_duplicates: number;
+    failed: number;
+}
+
 export async function importCustomersFile(file: File): Promise<CustomerImportResult> {
     const formData = new FormData();
     formData.append("file", file);
@@ -102,6 +112,17 @@ export async function importCustomersFile(file: File): Promise<CustomerImportRes
     }
 
     return data?.data as CustomerImportResult;
+}
+
+export async function sendMassCustomerMessage(payload: {
+    message: string;
+    search?: string;
+}): Promise<MassCustomerMessageResult> {
+    const response = await apiFetch<{ data: MassCustomerMessageResult }>("/api/admin/customers/mass-message", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
 }
 
 export async function downloadCustomerImportTemplate(): Promise<Blob> {
@@ -181,6 +202,40 @@ export async function updateBooking(id: number, data: UpdateBookingData): Promis
     const response = await apiFetch<UpdateBookingResponse>(`/api/admin/bookings/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
+    });
+    return response.data;
+}
+
+export interface TodayReminderPreviewItem {
+    booking_id: number;
+    customer_name: string;
+    start_at: string;
+    channel: "WHATSAPP" | "EMAIL" | "NONE";
+    already_sent_recently: boolean;
+}
+
+export interface TodayReminderPreview {
+    date: string;
+    total: number;
+    sendable: number;
+    items: TodayReminderPreviewItem[];
+}
+
+export interface TodayReminderSendResult {
+    booking_id: number;
+    status: "SENT" | "SKIPPED" | "FAILED";
+    channel?: "WHATSAPP" | "EMAIL";
+    reason?: string;
+}
+
+export async function getTodayReminderPreview(): Promise<TodayReminderPreview> {
+    const response = await apiFetch<{ data: TodayReminderPreview }>("/api/admin/bookings/reminders/today/preview");
+    return response.data;
+}
+
+export async function sendTodayReminder(bookingId: number): Promise<TodayReminderSendResult> {
+    const response = await apiFetch<{ data: TodayReminderSendResult }>(`/api/admin/bookings/${bookingId}/reminders/today`, {
+        method: "POST",
     });
     return response.data;
 }
