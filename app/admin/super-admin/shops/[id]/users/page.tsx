@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
     ArrowLeft,
     Loader2,
-    AlertCircle,
     Plus,
     Pencil,
     Trash2,
@@ -46,6 +45,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import type { SuperAdminShop, ShopUser } from "@/types/super-admin";
+import { notify } from "@/lib/notify";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -93,7 +93,6 @@ export default function ShopUsersPage() {
     const [shop, setShop] = useState<SuperAdminShop | null>(null);
     const [users, setUsers] = useState<ShopUser[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     // Add user modal
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -114,7 +113,6 @@ export default function ShopUsersPage() {
     // Fetch shop and users
     const fetchData = useCallback(async () => {
         setLoading(true);
-        setError(null);
 
         try {
             const [shopRes, usersRes] = await Promise.all([
@@ -130,7 +128,7 @@ export default function ShopUsersPage() {
             setShop(shopData.data || shopData);
             setUsers(usersData.data || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.loadUsersError"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminShops.loadUsersError"));
         } finally {
             setLoading(false);
         }
@@ -195,6 +193,7 @@ export default function ShopUsersPage() {
             }
 
             setIsAddModalOpen(false);
+            await notify.success(t("superAdminShops.addUser"));
             await fetchData();
         } catch (err) {
             setAddFormError(err instanceof Error ? err.message : t("superAdminShops.addUserFailed"));
@@ -233,9 +232,10 @@ export default function ShopUsersPage() {
 
             setIsEditRoleModalOpen(false);
             setEditingUser(null);
+            await notify.success(t("superAdminShops.editRole"));
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.updateRoleFailed"));
+            await notify.error(err instanceof Error ? err.message : t("superAdminShops.updateRoleFailed"));
         } finally {
             setSubmitting(false);
         }
@@ -262,9 +262,10 @@ export default function ShopUsersPage() {
 
             setIsDeleteDialogOpen(false);
             setDeletingUser(null);
+            await notify.success(t("superAdminShops.removeUser"));
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.removeUserFailed"));
+            await notify.error(err instanceof Error ? err.message : t("superAdminShops.removeUserFailed"));
         } finally {
             setSubmitting(false);
         }
@@ -325,16 +326,6 @@ export default function ShopUsersPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {error && (
-                        <div className="mb-4 p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4" />
-                            {error}
-                            <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
-                                {t("imageUpload.dismiss")}
-                            </Button>
-                        </div>
-                    )}
-
                     <Table>
                         <TableHeader>
                             <TableRow>

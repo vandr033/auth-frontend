@@ -5,8 +5,6 @@ import {
     Palette,
     Save,
     Loader2,
-    Check,
-    AlertCircle,
     LayoutTemplate,
     Image as ImageIcon,
     Columns3,
@@ -25,8 +23,10 @@ import { VariantSelector } from "@/components/admin/theme/VariantSelector";
 import { FontPairingSelector } from "@/components/admin/theme/FontPairingSelector";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { type ThemeConfig, type PageBackgroundPreset } from "@/utils/themepicker";
 import { mainSiteThemeConfig } from "@/theme/mainSiteTheme";
+import { notify } from "@/lib/notify";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -57,8 +57,6 @@ export default function ThemePage() {
     const [config, setConfig] = useState<ExtendedThemeConfig>(defaultExtendedConfig);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
 
     // Fetch theme
     useEffect(() => {
@@ -103,8 +101,6 @@ export default function ThemePage() {
 
     const handleSave = async () => {
         setSaving(true);
-        setError(null);
-        setSuccess(null);
 
         try {
             const payload = {
@@ -133,9 +129,9 @@ export default function ThemePage() {
                 throw new Error(data.message || t('adminTheme.updateError'));
             }
 
-            setSuccess(t('adminTheme.savedLive'));
+            await notify.success(t('adminTheme.savedShort'), t('adminTheme.savedLive'));
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminTheme.genericError'));
+            await notify.error(err instanceof Error ? err.message : t('adminTheme.genericError'));
         } finally {
             setSaving(false);
         }
@@ -143,7 +139,6 @@ export default function ThemePage() {
 
     const updateConfig = <K extends keyof ExtendedThemeConfig>(key: K, value: ExtendedThemeConfig[K]) => {
         setConfig(prev => ({ ...prev, [key]: value }));
-        if (success) setSuccess(null);
     };
 
     if (authLoading || loading) {
@@ -163,20 +158,10 @@ export default function ThemePage() {
                     <p className="text-text-muted">{t('adminTheme.subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {success && (
-                        <span className="flex items-center gap-1 text-sm font-medium text-emerald-600 animate-in fade-in">
-                            <Check className="h-4 w-4" /> {t('adminTheme.savedShort')}
-                        </span>
-                    )}
-                    {error && (
-                        <span className="flex items-center gap-1 text-sm font-medium text-rose-600 animate-in fade-in">
-                            <AlertCircle className="h-4 w-4" /> {error}
-                        </span>
-                    )}
                     <Button
                         onClick={handleSave}
                         disabled={saving}
-                        className="bg-brand text-white hover:bg-brand-hover min-w-[120px]"
+                        className="hidden md:inline-flex bg-brand text-white hover:bg-brand-hover min-w-[120px]"
                     >
                         {saving ? (
                             <>
@@ -445,6 +430,15 @@ export default function ThemePage() {
                     </div>
                 </div>
             </div>
+
+            <StickyFormActions
+                onSave={handleSave}
+                loading={saving}
+                saveLabel={t('common.save')}
+                loadingLabel={t('adminTheme.saving')}
+                saveIcon={<Save className="h-4 w-4" />}
+                saveClassName="bg-brand text-white hover:bg-brand-hover"
+            />
         </div>
     );
 }

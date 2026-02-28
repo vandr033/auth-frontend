@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { notify } from "@/lib/notify";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -101,7 +102,6 @@ export default function SuperAdminStaffPage() {
 
     const [staff, setStaff] = useState<StaffRecord[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
@@ -125,7 +125,6 @@ export default function SuperAdminStaffPage() {
 
     const fetchData = useCallback(async (currentPage: number) => {
         setLoading(true);
-        setError(null);
         try {
             const params = new URLSearchParams({
                 page: currentPage.toString(),
@@ -146,7 +145,7 @@ export default function SuperAdminStaffPage() {
                 setTotal(pagination.total || 0);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Error loading staff");
+            void notify.error(err instanceof Error ? err.message : "Error loading staff");
         } finally {
             setLoading(false);
         }
@@ -209,11 +208,6 @@ export default function SuperAdminStaffPage() {
                     </Select>
                 </div>
             </div>
-
-            {/* Error */}
-            {error && (
-                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">{error}</div>
-            )}
 
             {/* Table */}
             <Card>

@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
     getMyStaffProfile,
@@ -15,6 +16,7 @@ import {
     updateMyUserProfile,
     type UserSelfProfile,
 } from "@/app/admin/lib/adminApi";
+import { notify } from "@/lib/notify";
 
 export default function AdminProfilePage() {
     const t = useT();
@@ -25,8 +27,6 @@ export default function AdminProfilePage() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
 
     const [userProfile, setUserProfile] = useState<UserSelfProfile | null>(null);
 
@@ -41,7 +41,6 @@ export default function AdminProfilePage() {
         if (!canAccess) return;
 
         setLoading(true);
-        setError(null);
 
         const load = async () => {
             try {
@@ -66,7 +65,7 @@ export default function AdminProfilePage() {
                 setPhonePrefix(data.phone_prefix || "591");
                 setPhone(data.phoneNumber || "");
             } catch (err: unknown) {
-                setError(err instanceof Error ? err.message : t("staffProfile.loadError"));
+                void notify.error(err instanceof Error ? err.message : t("staffProfile.loadError"));
             } finally {
                 setLoading(false);
             }
@@ -79,8 +78,6 @@ export default function AdminProfilePage() {
         if (!canAccess) return;
 
         setSaving(true);
-        setError(null);
-        setSuccess(null);
         try {
             if (isStaff) {
                 const updated = await updateMyStaffProfile({
@@ -112,9 +109,9 @@ export default function AdminProfilePage() {
                 setPhone(updated.phoneNumber || "");
             }
 
-            setSuccess(t("staffProfile.saveSuccess"));
+            await notify.success(t("staffProfile.saveSuccess"));
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : t("staffProfile.saveError"));
+            await notify.error(err instanceof Error ? err.message : t("staffProfile.saveError"));
         } finally {
             setSaving(false);
         }
@@ -138,22 +135,6 @@ export default function AdminProfilePage() {
                 <h2 className="text-2xl font-bold text-slate-900">{t("staffProfile.title")}</h2>
                 <p className="text-sm text-slate-500 mt-1">{t("staffProfile.subtitle")}</p>
             </div>
-
-            {error && (
-                <Card className="border-rose-200 bg-rose-50">
-                    <CardContent className="pt-6">
-                        <p className="text-rose-700 text-sm">{error}</p>
-                    </CardContent>
-                </Card>
-            )}
-
-            {success && (
-                <Card className="border-emerald-200 bg-emerald-50">
-                    <CardContent className="pt-6">
-                        <p className="text-emerald-700 text-sm">{success}</p>
-                    </CardContent>
-                </Card>
-            )}
 
             <Card className="border-slate-200">
                 <CardHeader>
@@ -240,7 +221,7 @@ export default function AdminProfilePage() {
                 </Card>
             )}
 
-            <div className="pt-2">
+            <div className="pt-2 hidden md:block">
                 <Button
                     type="button"
                     onClick={handleSave}
@@ -251,6 +232,15 @@ export default function AdminProfilePage() {
                     {saving ? t("staffProfile.saving") : t("staffProfile.save")}
                 </Button>
             </div>
+
+            <StickyFormActions
+                onSave={handleSave}
+                loading={saving}
+                disabled={firstName.trim().length === 0}
+                saveLabel={t("staffProfile.save")}
+                loadingLabel={t("staffProfile.saving")}
+                saveClassName="bg-brand hover:bg-brand-hover text-white"
+            />
         </div>
     );
 }

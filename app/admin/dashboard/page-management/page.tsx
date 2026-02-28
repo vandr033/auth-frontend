@@ -8,8 +8,6 @@ import {
     Home,
     Info,
     Users,
-    CheckCircle,
-    AlertCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,7 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { notify } from "@/lib/notify";
 
 interface StaffMember {
     id: number;
@@ -40,11 +40,6 @@ interface CompanyContent {
     about_image_3_url?: string;
 }
 
-interface Toast {
-    type: 'success' | 'error';
-    message: string;
-}
-
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
     const cleanPath = path.startsWith("/api/") ? path.slice(4) : path;
@@ -60,7 +55,6 @@ export default function PageManagementPage() {
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [toast, setToast] = useState<Toast | null>(null);
 
     // Text field state (for tracking changes)
     const [aboutUsText, setAboutUsText] = useState("");
@@ -72,14 +66,6 @@ export default function PageManagementPage() {
     const [activeTab, setActiveTab] = useState("branding");
     const [pendingImages, setPendingImages] = useState<Record<string, File>>({});
     const [localPreviews, setLocalPreviews] = useState<Record<string, string>>({});
-
-    // Auto-dismiss toast
-    useEffect(() => {
-        if (toast) {
-            const timer = setTimeout(() => setToast(null), 4000);
-            return () => clearTimeout(timer);
-        }
-    }, [toast]);
 
     // Fetch content and staff
     const fetchData = useCallback(async () => {
@@ -136,7 +122,7 @@ export default function PageManagementPage() {
             }
         } catch (err) {
             console.error("Failed to fetch data:", err);
-            setToast({ type: 'error', message: t('adminPages.failedToLoad') });
+            void notify.error(t('adminPages.failedToLoad'));
         } finally {
             setLoading(false);
         }
@@ -236,10 +222,10 @@ export default function PageManagementPage() {
             setPendingImages({});
             setLocalPreviews({}); // Clear local previews, use real URLs now
             setHasUnsavedChanges(false);
-            setToast({ type: 'success', message: t('adminPages.savedSuccess') });
+            await notify.success(t('adminPages.savedSuccess'));
         } catch (err) {
             console.error(err);
-            setToast({ type: 'error', message: t('adminPages.failedToSave') });
+            await notify.error(t('adminPages.failedToSave'));
         } finally {
             setSaving(false);
         }
@@ -275,9 +261,9 @@ export default function PageManagementPage() {
             if (!response.ok) throw new Error(t('adminPages.failedToDelete'));
 
             setContent(prev => ({ ...prev, [field]: undefined }));
-            setToast({ type: 'success', message: t('adminPages.imageRemoved') });
+            await notify.success(t('adminPages.imageRemoved'));
         } catch {
-            setToast({ type: 'error', message: t('adminPages.failedToDelete') });
+            await notify.error(t('adminPages.failedToDelete'));
         }
     };
 
@@ -325,7 +311,7 @@ export default function PageManagementPage() {
                     <Button
                         onClick={handleSave}
                         disabled={saving}
-                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                        className="hidden md:inline-flex bg-orange-500 hover:bg-orange-600 text-white"
                     >
                         {saving ? (
                             <>
@@ -341,21 +327,6 @@ export default function PageManagementPage() {
                     </Button>
                 )}
             </div>
-
-            {/* Toast */}
-            {toast && (
-                <div className={`p-4 rounded-lg flex items-center gap-2 ${toast.type === 'success'
-                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                    : 'bg-rose-50 border border-rose-200 text-rose-700'
-                    }`}>
-                    {toast.type === 'success' ? (
-                        <CheckCircle className="h-5 w-5" />
-                    ) : (
-                        <AlertCircle className="h-5 w-5" />
-                    )}
-                    {toast.message}
-                </div>
-            )}
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -609,6 +580,16 @@ export default function PageManagementPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <StickyFormActions
+                onSave={handleSave}
+                loading={saving}
+                show={hasUnsavedChanges}
+                saveLabel={t('common.save')}
+                loadingLabel={t('adminPages.saving')}
+                saveIcon={<Save className="h-4 w-4" />}
+                saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
+            />
         </div>
     );
 }

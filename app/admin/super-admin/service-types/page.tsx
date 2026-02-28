@@ -7,7 +7,6 @@ import {
     Trash2,
     Loader2,
     Search,
-    AlertCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
+import { notify } from "@/lib/notify";
 
 interface GlobalServiceType {
     id: number;
@@ -79,7 +79,6 @@ export default function ServiceTypesPage() {
     // State
     const [serviceTypes, setServiceTypes] = useState<GlobalServiceType[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
     // Modal state
@@ -94,7 +93,6 @@ export default function ServiceTypesPage() {
     // Fetch service types
     const fetchData = useCallback(async () => {
         setLoading(true);
-        setError(null);
 
         try {
             const response = await fetch(getApiUrl("/api/super-admin/service-types"), {
@@ -106,8 +104,7 @@ export default function ServiceTypesPage() {
             const data = await response.json();
             setServiceTypes(data.data || data || []);
         } catch (err) {
-            setLoading(false);
-            setError(err instanceof Error ? err.message : t("superAdminServiceTypes.loadError"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminServiceTypes.loadError"));
         } finally {
             setLoading(false);
         }
@@ -187,15 +184,21 @@ export default function ServiceTypesPage() {
             formData.name_en.trim();
 
         if (!effectiveName) {
-            setFormError(t("superAdminServiceTypes.nameRequired"));
+            const message = t("superAdminServiceTypes.nameRequired");
+            setFormError(message);
+            void notify.warning(message);
             return;
         }
         if (!formData.key.trim()) {
-            setFormError(t("superAdminServiceTypes.keyRequired"));
+            const message = t("superAdminServiceTypes.keyRequired");
+            setFormError(message);
+            void notify.warning(message);
             return;
         }
         if (!/^[A-Z][A-Z0-9_]*$/.test(formData.key)) {
-            setFormError(t("superAdminServiceTypes.keyFormatError"));
+            const message = t("superAdminServiceTypes.keyFormatError");
+            setFormError(message);
+            void notify.warning(message);
             return;
         }
 
@@ -272,7 +275,7 @@ export default function ServiceTypesPage() {
             setDeletingType(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminServiceTypes.deleteError"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminServiceTypes.deleteError"));
             setIsDeleteDialogOpen(false);
         } finally {
             setSubmitting(false);
@@ -302,22 +305,6 @@ export default function ServiceTypesPage() {
                     {t("superAdminServiceTypes.add")}
                 </Button>
             </div>
-
-            {/* Error display */}
-            {error && (
-                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {error}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setError(null)}
-                        className="ml-auto"
-                    >
-                        {t("imageUpload.dismiss")}
-                    </Button>
-                </div>
-            )}
 
             {/* Search */}
             <div className="relative max-w-md">

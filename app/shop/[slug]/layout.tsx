@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { ShopProvider } from "../contexts/ShopContext";
 import { ShopNavbar } from "../components/ShopNavbar";
 import {
@@ -6,11 +7,35 @@ import {
     type ShopApiResponse,
 } from "../lib/shopData";
 import type { ShopData } from "@/types/shop";
+import { getShopBrandingForPwa, getSizedShopIcon } from "@/lib/pwa/shopBranding";
 
 type ShopLayoutProps = {
     children: React.ReactNode;
     params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({ params }: ShopLayoutProps): Promise<Metadata> {
+    const { slug } = await params;
+    const branding = await getShopBrandingForPwa(slug);
+    const appleIconUrl = branding.logoUrl ? getSizedShopIcon(branding.logoUrl, 180) : "/icons/icon-192.png";
+    const appleIconSize = branding.logoUrl ? "180x180" : "192x192";
+
+    return {
+        manifest: `/api/manifest/${encodeURIComponent(branding.slug)}.json`,
+        appleWebApp: {
+            capable: true,
+            statusBarStyle: "default",
+            title: branding.name || "Reservas",
+        },
+        icons: {
+            icon: [
+                { url: getSizedShopIcon(branding.logoUrl, 192), sizes: "192x192", type: "image/png" },
+                { url: getSizedShopIcon(branding.logoUrl, 512), sizes: "512x512", type: "image/png" },
+            ],
+            apple: [{ url: appleIconUrl, sizes: appleIconSize, type: "image/png" }],
+        },
+    };
+}
 
 async function preloadShopData(slug: string): Promise<{
     initialData: ShopData | null;

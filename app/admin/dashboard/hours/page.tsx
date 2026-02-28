@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
+import { notify } from "@/lib/notify";
 
 // Types
 interface TimeSlot {
@@ -112,8 +114,6 @@ export default function HoursPage() {
     );
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<Record<number, string>>({});
 
     // Fetch hours
@@ -121,7 +121,6 @@ export default function HoursPage() {
         if (!companyId) return;
 
         setLoading(true);
-        setError(null);
 
         try {
             const response = await fetch(getApiUrl(`/api/admin/hours?company_id=${companyId}`), {
@@ -163,7 +162,7 @@ export default function HoursPage() {
                 setSchedule(newSchedule);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminHours.loadHoursError'));
+            void notify.error(err instanceof Error ? err.message : t('adminHours.loadHoursError'));
         } finally {
             setLoading(false);
         }
@@ -267,11 +266,8 @@ export default function HoursPage() {
     const handleSave = async () => {
         if (!companyId) return;
 
-        setError(null);
-        setSuccess(null);
-
         if (!validateAll()) {
-            setError(t('adminHours.fixValidationErrors'));
+            void notify.warning(t('adminHours.fixValidationErrors'));
             return;
         }
 
@@ -311,10 +307,9 @@ export default function HoursPage() {
                 throw new Error(data.message || t('adminHours.saveHoursError'));
             }
 
-            setSuccess(t('adminHours.saved'));
-            setTimeout(() => setSuccess(null), 3000);
+            await notify.success(t('adminHours.saved'));
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminHours.saveHoursError'));
+            await notify.error(err instanceof Error ? err.message : t('adminHours.saveHoursError'));
         } finally {
             setSaving(false);
         }
@@ -331,7 +326,7 @@ export default function HoursPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-x-hidden">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -341,7 +336,7 @@ export default function HoursPage() {
                 <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    className="hidden md:inline-flex bg-orange-500 hover:bg-orange-600 text-white"
                 >
                     {saving ? (
                         <>
@@ -357,31 +352,8 @@ export default function HoursPage() {
                 </Button>
             </div>
 
-            {/* Success message */}
-            {success && (
-                <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
-                    <Check className="h-5 w-5" />
-                    {success}
-                </div>
-            )}
-
-            {/* Error message */}
-            {error && (
-                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700">
-                    {error}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setError(null)}
-                        className="ml-2"
-                    >
-                        {t('imageUpload.dismiss')}
-                    </Button>
-                </div>
-            )}
-
             {/* Schedule Form */}
-            <Card>
+            <Card className="overflow-x-hidden">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Clock className="h-5 w-5 text-orange-500" />
@@ -397,20 +369,16 @@ export default function HoursPage() {
                             <div
                                 key={day.day}
                                 className={cn(
-                                    "py-4 border-b border-slate-100 last:border-0",
+                                    "py-4 border-b border-slate-100 last:border-0 overflow-x-hidden",
                                     hasError && "bg-rose-50/50 -mx-4 px-4 rounded-lg"
                                 )}
                             >
                                 {/* Day Header */}
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <Switch
-                                            checked={day.is_open}
-                                            onCheckedChange={() => toggleDay(dayIndex)}
-                                        />
-                                        <Label className="font-medium text-slate-900 min-w-[100px]">
-                                            {t(dayInfo.name)}
-                                        </Label>
+                                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <Label className="font-medium text-slate-900">
+                                        {t(dayInfo.name)}
+                                    </Label>
+                                    <div className="flex items-center justify-end gap-2 self-end sm:self-auto">
                                         <span
                                             className={cn(
                                                 "text-xs font-medium px-2 py-0.5 rounded-full",
@@ -421,69 +389,73 @@ export default function HoursPage() {
                                         >
                                             {day.is_open ? t('adminHours.open') : t('shopHome.closed')}
                                         </span>
+                                        <Switch
+                                            checked={day.is_open}
+                                            onCheckedChange={() => toggleDay(dayIndex)}
+                                        />
                                     </div>
-
-                                    {day.is_open && (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => addSlot(dayIndex)}
-                                            className="text-orange-500 hover:text-orange-600 hover:bg-orange-50"
-                                        >
-                                            <Plus className="h-4 w-4 mr-1" />
-                                            {t('adminHours.addSlot')}
-                                        </Button>
-                                    )}
                                 </div>
 
                                 {/* Time Slots */}
                                 {day.is_open && (
-                                    <div className="space-y-2 ml-12">
+                                    <div className="space-y-3">
                                         {day.slots.map((slot, slotIndex) => (
                                             <div
                                                 key={slotIndex}
-                                                className="flex items-center gap-2 flex-wrap sm:flex-nowrap"
+                                                className="rounded-md border border-slate-200 p-3"
                                             >
-                                                <div className="flex items-center gap-2">
+                                                <div className="grid grid-cols-2 gap-2">
                                                     <Input
                                                         type="time"
                                                         value={slot.start_time}
                                                         onChange={(e) =>
                                                             updateSlot(dayIndex, slotIndex, "start_time", e.target.value)
                                                         }
-                                                        className="w-[120px]"
+                                                        className="h-11 min-h-[44px] w-full"
                                                     />
-                                                    <span className="text-slate-400">{t('adminHours.to')}</span>
                                                     <Input
                                                         type="time"
                                                         value={slot.end_time}
                                                         onChange={(e) =>
                                                             updateSlot(dayIndex, slotIndex, "end_time", e.target.value)
                                                         }
-                                                        className="w-[120px]"
+                                                        className="h-11 min-h-[44px] w-full"
                                                     />
                                                 </div>
 
                                                 {day.slots.length > 1 && (
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => removeSlot(dayIndex, slotIndex)}
-                                                        className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    <div className="mt-2 flex justify-end">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => removeSlot(dayIndex, slotIndex)}
+                                                            className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                                                        >
+                                                            <Trash2 className="h-4 w-4 mr-1" />
+                                                            {t('common.delete')}
+                                                        </Button>
+                                                    </div>
                                                 )}
                                             </div>
                                         ))}
+
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => addSlot(dayIndex)}
+                                            className="w-full text-orange-500 hover:text-orange-600 hover:bg-orange-50 sm:w-auto"
+                                        >
+                                            <Plus className="h-4 w-4 mr-1" />
+                                            {t('adminHours.addSlot')}
+                                        </Button>
                                     </div>
                                 )}
 
                                 {/* Validation Error */}
                                 {hasError && (
-                                    <p className="text-sm text-rose-600 mt-2 ml-12">
+                                    <p className="text-sm text-rose-600 mt-2">
                                         {validationErrors[dayIndex]}
                                     </p>
                                 )}
@@ -493,26 +465,14 @@ export default function HoursPage() {
                 </CardContent>
             </Card>
 
-            {/* Bottom Save Button (mobile convenience) */}
-            <div className="sm:hidden">
-                <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                >
-                    {saving ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            {t('adminHours.saving')}
-                        </>
-                    ) : (
-                        <>
-                            <Check className="h-4 w-4 mr-2" />
-                            {t('common.save')}
-                        </>
-                    )}
-                </Button>
-            </div>
+            <StickyFormActions
+                onSave={handleSave}
+                loading={saving}
+                saveLabel={t('common.save')}
+                loadingLabel={t('adminHours.saving')}
+                saveIcon={<Check className="h-4 w-4" />}
+                saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
+            />
         </div>
     );
 }

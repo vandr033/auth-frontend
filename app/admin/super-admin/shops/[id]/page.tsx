@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, AlertCircle, Users, Check, LogIn } from "lucide-react";
+import { ArrowLeft, Loader2, Users, LogIn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,10 @@ import {
 } from "@/components/ui/select";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import type { SuperAdminShop, CompanyType } from "@/types/super-admin";
+import { notify } from "@/lib/notify";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -56,8 +58,6 @@ export default function EditShopPage() {
     const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState(false);
 
     const getCompanyTypeName = (type: CompanyType): string =>
         getLocalizedText({
@@ -97,7 +97,7 @@ export default function EditShopPage() {
             });
             setCompanyTypes(typesData.data || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.loadShopError"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminShops.loadShopError"));
         } finally {
             setLoading(false);
         }
@@ -123,7 +123,7 @@ export default function EditShopPage() {
             await refreshSession();
             router.push("/admin/dashboard");
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.impersonateFailed"));
+            await notify.error(err instanceof Error ? err.message : t("superAdminShops.impersonateFailed"));
         }
     };
 
@@ -132,15 +132,12 @@ export default function EditShopPage() {
         e.preventDefault();
         if (!formData) return;
 
-        setError(null);
-        setSuccess(false);
-
         if (!formData.name.trim()) {
-            setError(t("superAdminShops.shopNameRequired"));
+            await notify.warning(t("superAdminShops.shopNameRequired"));
             return;
         }
         if (!formData.phone.trim()) {
-            setError(t("superAdminShops.phoneRequired"));
+            await notify.warning(t("superAdminShops.phoneRequired"));
             return;
         }
 
@@ -174,10 +171,9 @@ export default function EditShopPage() {
                 throw new Error(data.message || data.error || t("superAdminShops.updateFailed"));
             }
 
-            setSuccess(true);
-            setTimeout(() => setSuccess(false), 3000);
+            await notify.success(t("superAdminShops.updatedSuccess"));
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.updateFailed"));
+            await notify.error(err instanceof Error ? err.message : t("superAdminShops.updateFailed"));
         } finally {
             setSubmitting(false);
         }
@@ -243,20 +239,6 @@ export default function EditShopPage() {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        {error && (
-                            <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                                {error}
-                            </div>
-                        )}
-
-                        {success && (
-                            <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
-                                <Check className="h-4 w-4 flex-shrink-0" />
-                                {t("superAdminShops.updatedSuccess")}
-                            </div>
-                        )}
-
                         {/* Status Toggle */}
                         <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50">
                             <div>
@@ -420,7 +402,7 @@ export default function EditShopPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-4 pt-4 border-t">
+                        <div className="hidden md:flex gap-4 pt-4 border-t">
                             <Link href="/admin/super-admin/shops" className="flex-1">
                                 <Button type="button" variant="outline" className="w-full">
                                     {t("common.cancel")}
@@ -441,6 +423,15 @@ export default function EditShopPage() {
                                 )}
                             </Button>
                         </div>
+                        <StickyFormActions
+                            type="submit"
+                            loading={submitting}
+                            saveLabel={t("adminBookings.saveChanges")}
+                            loadingLabel={t("superAdminShops.saving")}
+                            onCancel={() => router.push("/admin/super-admin/shops")}
+                            cancelLabel={t("common.cancel")}
+                            saveClassName="bg-violet-600 hover:bg-violet-700 text-white"
+                        />
                     </form>
                 </CardContent>
             </Card>

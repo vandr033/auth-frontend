@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import {
   Outfit,
@@ -108,6 +108,27 @@ export const metadata: Metadata = {
   title: "ClipBook — Discover & Book Beauty Services",
   description:
     "Find and book the best barbers, stylists, and beauty professionals near you. Online booking made simple.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Reservas",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#f97316",
 };
 
 export default function RootLayout({
@@ -121,7 +142,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} ${playfairDisplay.variable} ${inter.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${bebasNeue.variable} ${roboto.variable} ${cormorantGaramond.variable} ${lato.variable} ${nunito.variable} ${nunitoSans.variable}`}
     >
-      <body className="antialiased">
+      <body className="app-shell antialiased">
         <ThemeProvider>
           <I18nProvider>
             <AuthProvider>

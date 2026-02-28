@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import type { CompanyType } from "@/types/super-admin";
+import { notify } from "@/lib/notify";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -98,7 +100,6 @@ export default function NewShopPage() {
     const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const getCompanyTypeName = (type: CompanyType): string =>
         getLocalizedText({
@@ -142,18 +143,17 @@ export default function NewShopPage() {
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
 
         if (!formData.name.trim()) {
-            setError(t("superAdminShops.shopNameRequired"));
+            await notify.warning(t("superAdminShops.shopNameRequired"));
             return;
         }
         if (!formData.phone.trim()) {
-            setError(t("superAdminShops.phoneRequired"));
+            await notify.warning(t("superAdminShops.phoneRequired"));
             return;
         }
         if (!formData.company_type_id) {
-            setError(t("superAdminShops.companyTypeRequired"));
+            await notify.warning(t("superAdminShops.companyTypeRequired"));
             return;
         }
         const ownerEmail = ownerData.email.trim().toLowerCase();
@@ -162,19 +162,19 @@ export default function NewShopPage() {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!ownerEmail) {
-            setError(t("superAdminShops.ownerEmailRequired"));
+            await notify.warning(t("superAdminShops.ownerEmailRequired"));
             return;
         }
         if (!emailRegex.test(ownerEmail)) {
-            setError(t("superAdminShops.ownerEmailInvalid"));
+            await notify.warning(t("superAdminShops.ownerEmailInvalid"));
             return;
         }
         if (ownerPassword.length < 8) {
-            setError(t("superAdminShops.ownerPasswordMin"));
+            await notify.warning(t("superAdminShops.ownerPasswordMin"));
             return;
         }
         if (!ownerPhone) {
-            setError(t("superAdminShops.ownerPhoneRequired"));
+            await notify.warning(t("superAdminShops.ownerPhoneRequired"));
             return;
         }
 
@@ -222,7 +222,7 @@ export default function NewShopPage() {
 
             router.push("/admin/super-admin/shops");
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.createFailed"));
+            await notify.error(err instanceof Error ? err.message : t("superAdminShops.createFailed"));
         } finally {
             setSubmitting(false);
         }
@@ -258,13 +258,6 @@ export default function NewShopPage() {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        {error && (
-                            <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                                {error}
-                            </div>
-                        )}
-
                         {/* Basic Info */}
                         <div className="grid gap-4">
                             <div className="space-y-2">
@@ -513,7 +506,7 @@ export default function NewShopPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-4 pt-4 border-t">
+                        <div className="hidden md:flex gap-4 pt-4 border-t">
                             <Link href="/admin/super-admin/shops" className="flex-1">
                                 <Button type="button" variant="outline" className="w-full">
                                     {t("common.cancel")}
@@ -534,6 +527,15 @@ export default function NewShopPage() {
                                 )}
                             </Button>
                         </div>
+                        <StickyFormActions
+                            type="submit"
+                            loading={submitting}
+                            saveLabel={t("superAdminShops.createShop")}
+                            loadingLabel={t("superAdminShops.creating")}
+                            onCancel={() => router.push("/admin/super-admin/shops")}
+                            cancelLabel={t("common.cancel")}
+                            saveClassName="bg-violet-600 hover:bg-violet-700 text-white"
+                        />
                     </form>
                 </CardContent>
             </Card>

@@ -17,7 +17,6 @@ import {
     getCustomers,
     importCustomersFile,
     sendMassCustomerMessage,
-    type MassCustomerMessageResult,
     type CustomerRecord,
 } from "../../lib/adminApi";
 import { Search, Loader2, Mail, MessageCircle, Upload, Download, Users, Send } from "lucide-react";
@@ -30,6 +29,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { notify } from "@/lib/notify";
+
+type Client = CustomerRecord & {
+    createdAt?: string | null;
+};
 
 const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
@@ -42,14 +46,22 @@ const formatDate = (dateStr: string | null) => {
     });
 };
 
+function toCSV(clients: Client[]) {
+    const headers = ["Nombre", "Email", "Teléfono", "Fecha de registro"];
+    const rows = clients.map((c) => [
+        c.name ?? "",
+        c.email ?? "",
+        `${c.phonePrefix ? `+${c.phonePrefix} ` : ""}${c.phone ?? ""}`.trim(),
+        c.createdAt ?? "",
+    ].join(","));
+    return [headers.join(","), ...rows].join("\n");
+}
+
 export default function CustomersPage() {
     const t = useT();
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [importing, setImporting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [importSummary, setImportSummary] = useState<string | null>(null);
-    const [massSummary, setMassSummary] = useState<MassCustomerMessageResult | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [isMassDialogOpen, setIsMassDialogOpen] = useState(false);
@@ -65,12 +77,11 @@ export default function CustomersPage() {
 
     const fetchCustomers = useCallback(async () => {
         setLoading(true);
-        setError(null);
         try {
             const rows = await getCustomers(debouncedSearch || undefined);
             setCustomers(rows);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to load customers");
+            void notify.error(err instanceof Error ? err.message : "Failed to load customers");
         } finally {
             setLoading(false);
         }
@@ -92,8 +103,10 @@ export default function CustomersPage() {
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
-        } catch {
-            setError(t("adminCustomers.templateDownloadFailed"));
+        } catch (err: unknown) {
+            await notify.error(
+                err instanceof Error ? err.message : t("adminCustomers.templateDownloadFailed"),
+            );
         }
     };
 
@@ -101,12 +114,10 @@ export default function CustomersPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setImportSummary(null);
-        setError(null);
         setImporting(true);
         try {
             const result = await importCustomersFile(file);
-            setImportSummary(
+            await notify.success(
                 t("adminCustomers.importSuccess", {
                     imported: result.importedRows,
                     skipped: result.skippedRows,
@@ -114,7 +125,7 @@ export default function CustomersPage() {
             );
             await fetchCustomers();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : t("adminCustomers.importFailed"));
+            await notify.error(err instanceof Error ? err.message : t("adminCustomers.importFailed"));
         } finally {
             setImporting(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -124,22 +135,29 @@ export default function CustomersPage() {
     const handleSendMassMessage = async () => {
         const message = massMessageBody.trim();
         if (!message) {
-            setError(t("adminCustomers.massMessageBodyRequired"));
+            await notify.warning(t("adminCustomers.massMessageBodyRequired"));
             return;
         }
 
-        setError(null);
         setSendingMassMessage(true);
         try {
             const result = await sendMassCustomerMessage({
                 message,
                 search: debouncedSearch || undefined,
             });
-            setMassSummary(result);
+            await notify.success(
+                t("adminCustomers.massMessageSummary", {
+                    sent: result.sent_total,
+                    whatsapp: result.sent_whatsapp,
+                    email: result.sent_email,
+                    failed: result.failed,
+                    noContact: result.skipped_no_contact,
+                }),
+            );
             setMassMessageBody("");
             setIsMassDialogOpen(false);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : t("adminCustomers.massMessageFailed"));
+            await notify.error(err instanceof Error ? err.message : t("adminCustomers.massMessageFailed"));
         } finally {
             setSendingMassMessage(false);
         }
@@ -152,9 +170,25 @@ export default function CustomersPage() {
         return `https://wa.me/${prefix}${phone}`;
     };
 
+    const handleDownloadClients = () => {
+        const csv = toCSV(
+            customers.map((c) => ({
+                ...c,
+                createdAt: c.lastBookingAt ?? "",
+            })),
+        );
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "clientes.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900">
                         {t("adminNav.customers")}
@@ -163,7 +197,7 @@ export default function CustomersPage() {
                         {t("adminCustomers.count", { count: customers.length })}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -171,6 +205,15 @@ export default function CustomersPage() {
                         className="hidden"
                         onChange={handleImportFileSelected}
                     />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleDownloadClients}
+                        disabled={loading || customers.length === 0}
+                    >
+                        <Download className="h-4 w-4 mr-2" />
+                        Descargar Clientes
+                    </Button>
                     <Button
                         type="button"
                         variant="outline"
@@ -216,39 +259,6 @@ export default function CustomersPage() {
                 />
             </div>
 
-            {/* Error */}
-            {error && (
-                <Card className="border-rose-200 bg-rose-50">
-                    <CardContent className="pt-6">
-                        <p className="text-rose-700 text-sm">{error}</p>
-                    </CardContent>
-                </Card>
-            )}
-
-            {importSummary && (
-                <Card className="border-emerald-200 bg-emerald-50">
-                    <CardContent className="pt-6">
-                        <p className="text-emerald-700 text-sm">{importSummary}</p>
-                    </CardContent>
-                </Card>
-            )}
-
-            {massSummary && (
-                <Card className="border-sky-200 bg-sky-50">
-                    <CardContent className="pt-6">
-                        <p className="text-sky-700 text-sm">
-                            {t("adminCustomers.massMessageSummary", {
-                                sent: massSummary.sent_total,
-                                whatsapp: massSummary.sent_whatsapp,
-                                email: massSummary.sent_email,
-                                failed: massSummary.failed,
-                                noContact: massSummary.skipped_no_contact,
-                            })}
-                        </p>
-                    </CardContent>
-                </Card>
-            )}
-
             {/* Table */}
             <Card className="border-slate-200">
                 <CardContent className="p-0">
@@ -266,7 +276,63 @@ export default function CustomersPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <>
+                            <div className="space-y-3 p-4 md:hidden">
+                                {customers.map((customer) => {
+                                    const waUrl = buildWhatsAppUrl(customer);
+                                    const rowKey =
+                                        customer.userId ||
+                                        customer.email ||
+                                        `${customer.phonePrefix || ""}${customer.phone || ""}` ||
+                                        String(customer.id);
+                                    return (
+                                        <div key={rowKey} className="rounded-lg border border-slate-200 p-4">
+                                            <p className="font-semibold text-slate-900">{customer.name}</p>
+                                            <p className="mt-1 text-sm text-slate-600">{customer.email || "—"}</p>
+                                            <p className="text-sm text-slate-600">
+                                                {customer.phone
+                                                    ? `${customer.phonePrefix ? `+${customer.phonePrefix} ` : ""}${customer.phone}`
+                                                    : "—"}
+                                            </p>
+                                            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
+                                                <span>{t("adminCustomers.bookings")}: {customer.totalBookings}</span>
+                                                <span className="text-right">{formatCurrency(customer.totalSpentCents)}</span>
+                                            </div>
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                {t("adminCustomers.lastBooking")}: {formatDate(customer.lastBookingAt)}
+                                            </p>
+                                            <div className="mt-3 grid grid-cols-2 gap-2">
+                                                {customer.email ? (
+                                                    <a
+                                                        href={`mailto:${customer.email}`}
+                                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700"
+                                                    >
+                                                        <Mail className="h-4 w-4" />
+                                                        {t("adminCustomers.sendEmail")}
+                                                    </a>
+                                                ) : (
+                                                    <div />
+                                                )}
+                                                {waUrl ? (
+                                                    <a
+                                                        href={waUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-sm text-emerald-700"
+                                                    >
+                                                        <MessageCircle className="h-4 w-4" />
+                                                        {t("adminCustomers.whatsapp")}
+                                                    </a>
+                                                ) : (
+                                                    <div />
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="hidden overflow-x-auto md:block">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -338,7 +404,8 @@ export default function CustomersPage() {
                                     })}
                                 </TableBody>
                             </Table>
-                        </div>
+                            </div>
+                        </>
                     )}
                 </CardContent>
             </Card>

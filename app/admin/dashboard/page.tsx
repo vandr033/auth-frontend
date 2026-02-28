@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n";
 import { getDashboardMetrics, type DashboardMetrics } from "../lib/adminApi";
 import { Calendar, DollarSign, TrendingUp, Clock, Loader2, Trophy, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { notify } from "@/lib/notify";
 
 const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
@@ -15,14 +16,17 @@ export default function DashboardHomePage() {
     const t = useT();
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [loadFailed, setLoadFailed] = useState(false);
 
     useEffect(() => {
         getDashboardMetrics()
             .then(setMetrics)
-            .catch((err) => setError(err.message))
+            .catch((err) => {
+                setLoadFailed(true);
+                void notify.error(err instanceof Error ? err.message : t('adminHome.loadMetricsError'));
+            })
             .finally(() => setLoading(false));
-    }, []);
+    }, [t]);
 
     if (loading) {
         return (
@@ -32,7 +36,7 @@ export default function DashboardHomePage() {
         );
     }
 
-    if (error || !metrics) {
+    if (loadFailed || !metrics) {
         return (
             <div className="space-y-6">
                 <div>
@@ -40,11 +44,7 @@ export default function DashboardHomePage() {
                         {t('adminHome.welcome', { name: companyName || '' })}
                     </h2>
                 </div>
-                <Card className="border-rose-200 bg-rose-50">
-                    <CardContent className="pt-6">
-                        <p className="text-rose-700 text-sm">{error || t('adminHome.loadMetricsError')}</p>
-                    </CardContent>
-                </Card>
+                <p className="text-sm text-slate-500">{t('adminHome.loadMetricsError')}</p>
             </div>
         );
     }

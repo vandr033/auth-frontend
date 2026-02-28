@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
+import { notify } from "@/lib/notify";
 import {
     StaffMember,
     StaffAvailabilitySlot,
@@ -42,8 +44,6 @@ export default function AvailabilityPage() {
     const [loading, setLoading] = useState(true);
     const [savingSchedule, setSavingSchedule] = useState(false);
     const [submittingRequest, setSubmittingRequest] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
 
     const [staffList, setStaffList] = useState<StaffMember[]>([]);
     const [selectedStaffId, setSelectedStaffId] = useState<string>("ALL");
@@ -120,7 +120,6 @@ export default function AvailabilityPage() {
         if (!isAuthenticated || !role) return;
 
         setLoading(true);
-        setError(null);
         try {
             if (isOwnerOrAdmin) {
                 const staff = await getStaff();
@@ -131,7 +130,7 @@ export default function AvailabilityPage() {
                 }
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("adminAvailability.loadAvailabilityError"));
+            void notify.error(err instanceof Error ? err.message : t("adminAvailability.loadAvailabilityError"));
         } finally {
             setLoading(false);
         }
@@ -144,7 +143,7 @@ export default function AvailabilityPage() {
     useEffect(() => {
         if (!loading) {
             void loadSchedule().catch((err) =>
-                setError(err instanceof Error ? err.message : t("adminAvailability.loadScheduleError")),
+                notify.error(err instanceof Error ? err.message : t("adminAvailability.loadScheduleError")),
             );
         }
     }, [loading, loadSchedule, t]);
@@ -152,7 +151,7 @@ export default function AvailabilityPage() {
     useEffect(() => {
         if (!loading) {
             void loadRequests().catch((err) =>
-                setError(err instanceof Error ? err.message : t("adminAvailability.loadRequestsError")),
+                notify.error(err instanceof Error ? err.message : t("adminAvailability.loadRequestsError")),
             );
         }
     }, [loading, loadRequests, t]);
@@ -179,17 +178,15 @@ export default function AvailabilityPage() {
 
     const saveSchedule = async () => {
         if (!selectedStaffNumericId) {
-            setError(t("adminAvailability.selectStaffFirst"));
+            void notify.warning(t("adminAvailability.selectStaffFirst"));
             return;
         }
         setSavingSchedule(true);
-        setError(null);
-        setSuccess(null);
         try {
             await saveStaffAvailability(selectedStaffNumericId, slots);
-            setSuccess(t("adminAvailability.scheduleSaved"));
+            await notify.success(t("adminAvailability.scheduleSaved"));
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("adminAvailability.saveScheduleError"));
+            await notify.error(err instanceof Error ? err.message : t("adminAvailability.saveScheduleError"));
         } finally {
             setSavingSchedule(false);
         }
@@ -197,12 +194,10 @@ export default function AvailabilityPage() {
 
     const submitTimeOff = async () => {
         if (!startsAt || !endsAt) {
-            setError(t("adminAvailability.dateTimeRequired"));
+            void notify.warning(t("adminAvailability.dateTimeRequired"));
             return;
         }
         setSubmittingRequest(true);
-        setError(null);
-        setSuccess(null);
         try {
             await createTimeOffRequest({
                 starts_at: new Date(startsAt).toISOString(),
@@ -213,36 +208,34 @@ export default function AvailabilityPage() {
             setStartsAt("");
             setEndsAt("");
             setReason("");
-            setSuccess(t("adminAvailability.requestSubmitted"));
+            await notify.success(t("adminAvailability.requestSubmitted"));
             await loadRequests();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("adminAvailability.submitRequestError"));
+            await notify.error(err instanceof Error ? err.message : t("adminAvailability.submitRequestError"));
         } finally {
             setSubmittingRequest(false);
         }
     };
 
     const handleReview = async (requestId: number, status: "APPROVED" | "REJECTED") => {
-        setError(null);
-        setSuccess(null);
         try {
             await reviewTimeOffRequest(requestId, { status });
-            setSuccess(t("adminAvailability.requestReviewed", { status: getStatusLabel(status).toLowerCase() }));
+            await notify.success(
+                t("adminAvailability.requestReviewed", { status: getStatusLabel(status).toLowerCase() }),
+            );
             await loadRequests();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("adminAvailability.reviewRequestError"));
+            await notify.error(err instanceof Error ? err.message : t("adminAvailability.reviewRequestError"));
         }
     };
 
     const handleCancel = async (requestId: number) => {
-        setError(null);
-        setSuccess(null);
         try {
             await cancelTimeOffRequest(requestId);
-            setSuccess(t("adminAvailability.requestCancelled"));
+            await notify.success(t("adminAvailability.requestCancelled"));
             await loadRequests();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("adminAvailability.cancelRequestError"));
+            await notify.error(err instanceof Error ? err.message : t("adminAvailability.cancelRequestError"));
         }
     };
 
@@ -269,17 +262,6 @@ export default function AvailabilityPage() {
                 </p>
             </div>
 
-            {error && (
-                <Card className="border-rose-200 bg-rose-50">
-                    <CardContent className="pt-6 text-rose-700 text-sm">{error}</CardContent>
-                </Card>
-            )}
-            {success && (
-                <Card className="border-emerald-200 bg-emerald-50">
-                    <CardContent className="pt-6 text-emerald-700 text-sm">{success}</CardContent>
-                </Card>
-            )}
-
             <Card>
                 <CardHeader>
                     <CardTitle>
@@ -297,8 +279,6 @@ export default function AvailabilityPage() {
                                 value={selectedStaffId}
                                 onValueChange={(value) => {
                                     setSelectedStaffId(value);
-                                    setSuccess(null);
-                                    setError(null);
                                 }}
                             >
                                 <SelectTrigger>
@@ -369,16 +349,26 @@ export default function AvailabilityPage() {
                         })}
                     </div>
 
-                    {isOwnerOrAdmin && (
-                        <div className="pt-2">
-                            <Button onClick={saveSchedule} disabled={savingSchedule}>
-                                {savingSchedule ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                                {t("adminAvailability.saveSchedule")}
-                            </Button>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
+
+            {isOwnerOrAdmin && (
+                <>
+                    <div className="pt-2 hidden md:block">
+                        <Button onClick={saveSchedule} disabled={savingSchedule}>
+                            {savingSchedule ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                            {t("adminAvailability.saveSchedule")}
+                        </Button>
+                    </div>
+                    <StickyFormActions
+                        onSave={saveSchedule}
+                        loading={savingSchedule}
+                        saveLabel={t("adminAvailability.saveSchedule")}
+                        loadingLabel={t("adminAvailability.saveSchedule")}
+                        saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
+                    />
+                </>
+            )}
 
             <Card>
                 <CardHeader>
@@ -408,12 +398,19 @@ export default function AvailabilityPage() {
                             placeholder={t("adminAvailability.reasonPlaceholder")}
                         />
                     </div>
-                    <div>
+                    <div className="hidden md:block">
                         <Button onClick={submitTimeOff} disabled={submittingRequest}>
                             {submittingRequest ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                             {t("adminAvailability.submitRequest")}
                         </Button>
                     </div>
+                    <StickyFormActions
+                        onSave={submitTimeOff}
+                        loading={submittingRequest}
+                        saveLabel={t("adminAvailability.submitRequest")}
+                        loadingLabel={t("adminAvailability.submitRequest")}
+                        saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
+                    />
 
                     <div className="flex flex-wrap gap-3 pt-4 border-t">
                         <div className="w-[180px]">

@@ -7,7 +7,6 @@ import {
     Trash2,
     Loader2,
     Search,
-    AlertCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
+import { notify } from "@/lib/notify";
 
 interface CompanyType {
     id: number;
@@ -81,7 +81,6 @@ export default function CompanyTypesPage() {
     // State
     const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
     // Modal state
@@ -96,7 +95,6 @@ export default function CompanyTypesPage() {
     // Fetch company types
     const fetchData = useCallback(async () => {
         setLoading(true);
-        setError(null);
 
         try {
             const response = await fetch(getApiUrl("/api/super-admin/company-types"), {
@@ -108,7 +106,7 @@ export default function CompanyTypesPage() {
             const data = await response.json();
             setCompanyTypes(data.data || data || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminCompanyTypes.loadError"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminCompanyTypes.loadError"));
         } finally {
             setLoading(false);
         }
@@ -179,7 +177,9 @@ export default function CompanyTypesPage() {
             formData.name_en.trim();
 
         if (!effectiveName) {
-            setFormError(t("superAdminCompanyTypes.nameRequired"));
+            const message = t("superAdminCompanyTypes.nameRequired");
+            setFormError(message);
+            void notify.warning(message);
             return;
         }
 
@@ -256,7 +256,7 @@ export default function CompanyTypesPage() {
             setDeletingType(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminCompanyTypes.deleteError"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminCompanyTypes.deleteError"));
             setIsDeleteDialogOpen(false);
         } finally {
             setSubmitting(false);
@@ -286,22 +286,6 @@ export default function CompanyTypesPage() {
                     {t("superAdminCompanyTypes.add")}
                 </Button>
             </div>
-
-            {/* Error display */}
-            {error && (
-                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {error}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setError(null)}
-                        className="ml-auto"
-                    >
-                        {t("imageUpload.dismiss")}
-                    </Button>
-                </div>
-            )}
 
             {/* Search */}
             <div className="relative max-w-md">

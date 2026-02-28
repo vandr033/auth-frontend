@@ -44,6 +44,7 @@ import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import { cn } from "@/lib/utils";
 import { CategoriesSection } from "./components/CategoriesSection";
+import { notify } from "@/lib/notify";
 
 // Types
 interface GlobalServiceType {
@@ -121,7 +122,6 @@ export default function ServicesPage() {
     const [services, setServices] = useState<Service[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
     // Modal state
@@ -154,7 +154,6 @@ export default function ServicesPage() {
         if (!companyId) return;
 
         setLoading(true);
-        setError(null);
 
         try {
             const [servicesRes, categoriesRes, serviceTypesRes] = await Promise.all([
@@ -181,7 +180,7 @@ export default function ServicesPage() {
             setCategories(categoriesData.data || categoriesData || []);
             setGlobalServiceTypes(serviceTypesData.data || serviceTypesData || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminServices.loadDataError'));
+            void notify.error(err instanceof Error ? err.message : t('adminServices.loadDataError'));
         } finally {
             setLoading(false);
         }
@@ -296,7 +295,7 @@ export default function ServicesPage() {
             setDeletingService(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminServices.deleteFailed'));
+            void notify.error(err instanceof Error ? err.message : t('adminServices.deleteFailed'));
         } finally {
             setSubmitting(false);
         }
@@ -320,7 +319,7 @@ export default function ServicesPage() {
                 )
             );
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminServices.updateStatusFailed'));
+            void notify.error(err instanceof Error ? err.message : t('adminServices.updateStatusFailed'));
         }
     };
 
@@ -382,21 +381,6 @@ export default function ServicesPage() {
                     {t('adminServices.addService')}
                 </Button>
             </div>
-
-            {/* Error display */}
-            {error && (
-                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700">
-                    {error}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setError(null)}
-                        className="ml-2"
-                    >
-                        {t('imageUpload.dismiss')}
-                    </Button>
-                </div>
-            )}
 
             {/* Categories Section */}
             <CategoriesSection

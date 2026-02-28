@@ -12,7 +12,6 @@ import {
   Clock,
   User,
   Loader2,
-  AlertTriangle,
   ChevronRight,
   XCircle,
   Edit2,
@@ -23,6 +22,7 @@ import {
   getShopSlugFromParams,
 } from "@/app/lib/shop-context";
 import { useT } from "@/lib/i18n";
+import { notify } from "@/lib/notify";
 
 type AppointmentService = {
   id: number;
@@ -230,18 +230,16 @@ export default function AppointmentsPage() {
 
   const [data, setData] = useState<AppointmentsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const result = await api.get<{ data: AppointmentsData }>("/booking/my");
       setData(result.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("meAppointments.loadError"));
+      void notify.error(err instanceof Error ? err.message : t("meAppointments.loadError"));
     } finally {
       setLoading(false);
     }
@@ -258,14 +256,15 @@ export default function AppointmentsPage() {
   }, [authLoading, isAuthenticated, router, fetchAppointments, shopSlug]);
 
   const handleCancel = async (bookingId: number) => {
-    if (!confirm(t("meAppointments.cancelConfirm"))) return;
+    const result = await notify.confirm(t("meAppointments.cancelConfirm"));
+    if (!result.isConfirmed) return;
 
     setCancellingId(bookingId);
     try {
       await api.post(`/booking/${bookingId}/cancel`);
       await fetchAppointments();
     } catch (err) {
-      alert(err instanceof Error ? err.message : t("meAppointments.cancelFailed"));
+      await notify.error(err instanceof Error ? err.message : t("meAppointments.cancelFailed"));
     } finally {
       setCancellingId(null);
     }
@@ -290,13 +289,6 @@ export default function AppointmentsPage() {
           <h1 className="text-3xl font-bold text-text-main">{t("meAppointments.title")}</h1>
           <p className="text-text-muted">{t("meAppointments.subtitle")}</p>
         </div>
-
-        {error && (
-          <div className="mb-6 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            <AlertTriangle className="h-4 w-4" />
-            {error}
-          </div>
-        )}
 
         {/* Tabs */}
         <div className="mb-6 flex border-b border-surface-border">

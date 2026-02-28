@@ -19,6 +19,7 @@ import {
     Tags,
     Building2,
 } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
@@ -44,7 +45,7 @@ export default function SuperAdminDashboard() {
     const t = useT();
     const [metrics, setMetrics] = useState<SuperAdminMetrics | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [loadFailed, setLoadFailed] = useState(false);
 
     useEffect(() => {
         fetch(resolveUrl("/api/super-admin/dashboard/metrics"), { credentials: "include" })
@@ -53,9 +54,12 @@ export default function SuperAdminDashboard() {
                 if (!res.ok) throw new Error(json.message || "Request failed");
                 setMetrics(json.data);
             })
-            .catch((err) => setError(err.message))
+            .catch((err) => {
+                setLoadFailed(true);
+                void notify.error(err instanceof Error ? err.message : t("superAdminDashboard.loadError"));
+            })
             .finally(() => setLoading(false));
-    }, []);
+    }, [t]);
 
     if (loading) {
         return (
@@ -65,18 +69,14 @@ export default function SuperAdminDashboard() {
         );
     }
 
-    if (error || !metrics) {
+    if (loadFailed || !metrics) {
         return (
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">{t("superAdminDashboard.title")}</h1>
                     <p className="text-slate-500">{t("superAdminDashboard.subtitle")}</p>
                 </div>
-                <Card className="border-rose-200 bg-rose-50">
-                    <CardContent className="pt-6">
-                        <p className="text-rose-700 text-sm">{error || t("superAdminDashboard.loadError")}</p>
-                    </CardContent>
-                </Card>
+                <p className="text-sm text-slate-500">{t("superAdminDashboard.loadError")}</p>
             </div>
         );
     }

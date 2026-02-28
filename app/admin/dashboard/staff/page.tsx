@@ -38,6 +38,7 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 import { getImageUrl } from "@/utils/image-url";
+import { notify } from "@/lib/notify";
 
 // Types
 // Types
@@ -121,7 +122,6 @@ export default function StaffPage() {
     const [staff, setStaff] = useState<Staff[]>([]);
     const [services, setServices] = useState<Service[]>([]); // New state for services
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
     // Modal state
@@ -141,7 +141,6 @@ export default function StaffPage() {
         if (!companyId) return;
 
         setLoading(true);
-        setError(null);
 
         try {
             const [staffRes, servicesRes] = await Promise.all([
@@ -163,7 +162,7 @@ export default function StaffPage() {
             setStaff(staffData.data || staffData || []);
             setServices(servicesData.data || servicesData || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminStaff.loadDataError'));
+            void notify.error(err instanceof Error ? err.message : t('adminStaff.loadDataError'));
         } finally {
             setLoading(false);
         }
@@ -342,7 +341,7 @@ export default function StaffPage() {
             setDeletingStaff(null);
             await fetchData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminStaff.deleteFailed'));
+            void notify.error(err instanceof Error ? err.message : t('adminStaff.deleteFailed'));
         } finally {
             setSubmitting(false);
         }
@@ -366,7 +365,7 @@ export default function StaffPage() {
                 )
             );
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('adminStaff.updateStatusFailed'));
+            void notify.error(err instanceof Error ? err.message : t('adminStaff.updateStatusFailed'));
         }
     };
 
@@ -393,21 +392,6 @@ export default function StaffPage() {
                     {t('adminStaff.inviteStaff')}
                 </Button>
             </div>
-
-            {/* Error display */}
-            {error && (
-                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700">
-                    {error}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setError(null)}
-                        className="ml-2"
-                    >
-                        {t('imageUpload.dismiss')}
-                    </Button>
-                </div>
-            )}
 
             {/* Search */}
             <div className="relative max-w-md">

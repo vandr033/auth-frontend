@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Loader2, Save, CheckCircle, AlertCircle, Building2, MapPin, Globe, CreditCard, CalendarClock, Bell, Share2, Languages } from "lucide-react";
+import { Loader2, Save, Building2, MapPin, Globe, CreditCard, CalendarClock, Bell, Share2, Languages } from "lucide-react";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT, SUPPORTED_LOCALES } from "@/lib/i18n";
 import type { SocialLinks } from "@/types/shop";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { notify } from "@/lib/notify";
 
 // Combined interface
 interface CompanySettings {
@@ -46,11 +48,6 @@ interface CompanySettings {
     send_whatsapp_notifications: boolean;
     social_links: SocialLinks;
     default_language: string;
-}
-
-interface Toast {
-    type: 'success' | 'error';
-    message: string;
 }
 
 function getApiUrl(path: string): string {
@@ -96,16 +93,8 @@ export default function SettingsPage() {
     const [settings, setSettings] = useState<CompanySettings>(initialSettings);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [toast, setToast] = useState<Toast | null>(null);
     const [selectedQR, setSelectedQR] = useState<File | null>(null);
-
-    // Auto-dismiss toast
-    useEffect(() => {
-        if (toast) {
-            const timer = setTimeout(() => setToast(null), 4000);
-            return () => clearTimeout(timer);
-        }
-    }, [toast]);
+    const [activeTab, setActiveTab] = useState("general");
 
     // Fetch company settings
     const fetchData = useCallback(async () => {
@@ -159,7 +148,7 @@ export default function SettingsPage() {
 
         } catch (err) {
             console.error("Failed to fetch settings:", err);
-            setToast({ type: 'error', message: 'Failed to load settings' });
+            void notify.error('Failed to load settings');
         } finally {
             setLoading(false);
         }
@@ -207,8 +196,7 @@ export default function SettingsPage() {
     };
 
     // Save changes
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSave = async () => {
         if (!companyId) return;
 
         setSaving(true);
@@ -295,10 +283,10 @@ export default function SettingsPage() {
             // Update state with new URL if uploaded
             setSettings(prev => ({ ...prev, qr_image_url: qrUrl }));
             setSelectedQR(null); // Clear selection after upload
-            setToast({ type: 'success', message: t('common.success') });
+            await notify.success(t('common.success'));
         } catch (err) {
             console.error("Save error:", err);
-            setToast({ type: 'error', message: err instanceof Error ? err.message : t('adminSettings.saveSettingsFailed') });
+            await notify.error(err instanceof Error ? err.message : t('adminSettings.saveSettingsFailed'));
         } finally {
             setSaving(false);
         }
@@ -313,7 +301,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6 pb-12">
+        <div className="max-w-4xl mx-auto space-y-6 pb-12 overflow-x-hidden">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -323,7 +311,7 @@ export default function SettingsPage() {
                 <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    className="hidden md:inline-flex bg-orange-500 hover:bg-orange-600 text-white"
                 >
                     {saving ? (
                         <>
@@ -339,40 +327,40 @@ export default function SettingsPage() {
                 </Button>
             </div>
 
-            {/* Toast */}
-            {toast && (
-                <div className={`p-4 rounded-lg flex items-center gap-2 ${toast.type === 'success'
-                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                    : 'bg-rose-50 border border-rose-200 text-rose-700'
-                    }`}>
-                    {toast.type === 'success' ? (
-                        <CheckCircle className="h-5 w-5" />
-                    ) : (
-                        <AlertCircle className="h-5 w-5" />
-                    )}
-                    {toast.message}
-                </div>
-            )}
-
-            <Tabs defaultValue="general" className="space-y-6">
-                <TabsList className="bg-white border text-slate-600">
-                    <TabsTrigger value="general" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 min-w-0">
+                <TabsList className="config-tabs w-full justify-start gap-1 overflow-x-auto whitespace-nowrap rounded-md border bg-white p-1 text-slate-600 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    <TabsTrigger
+                        value="general"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                    >
                         <Building2 className="h-4 w-4 mr-2" />
                         {t('adminSettings.general')}
                     </TabsTrigger>
-                    <TabsTrigger value="booking" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                    <TabsTrigger
+                        value="booking"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                    >
                         <CalendarClock className="h-4 w-4 mr-2" />
                         {t('adminSettings.bookingRules')}
                     </TabsTrigger>
-                    <TabsTrigger value="payments" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                    <TabsTrigger
+                        value="payments"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                    >
                         <CreditCard className="h-4 w-4 mr-2" />
                         {t('adminSettings.payments')}
                     </TabsTrigger>
-                    <TabsTrigger value="social" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                    <TabsTrigger
+                        value="social"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                    >
                         <Share2 className="h-4 w-4 mr-2" />
                         {t('adminSettings.socialMedia')}
                     </TabsTrigger>
-                    <TabsTrigger value="language" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600">
+                    <TabsTrigger
+                        value="language"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                    >
                         <Languages className="h-4 w-4 mr-2" />
                         {t('adminSettings.language')}
                     </TabsTrigger>
@@ -807,6 +795,15 @@ export default function SettingsPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <StickyFormActions
+                onSave={handleSave}
+                loading={saving}
+                saveLabel={t('common.save')}
+                loadingLabel={t('adminSettings.saving')}
+                saveIcon={<Save className="h-4 w-4" />}
+                saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
+            />
         </div>
     );
 }

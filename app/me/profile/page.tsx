@@ -14,7 +14,6 @@ import {
   Mail,
   Phone,
   Edit2,
-  Check,
   X,
   Loader2,
   Shield,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { buildSignInRedirectPath, getShopSlugFromParams } from "@/app/lib/shop-context";
 
 type OtpFlow = null | "email" | "phone";
@@ -256,13 +256,11 @@ export default function ProfilePage() {
                   size="sm"
                   onClick={handleNameSave}
                   disabled={saving || !firstName}
-                  className="bg-brand text-white hover:bg-brand-hover"
+                  className="hidden md:inline-flex bg-brand text-white hover:bg-brand-hover"
                 >
                   {saving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4 mr-1" />
-                  )}
+                  ) : null}
                   {t("common.save")}
                 </Button>
               </div>
@@ -382,6 +380,23 @@ export default function ProfilePage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Sticky Save for Name Editing */}
+        <StickyFormActions
+          onSave={handleNameSave}
+          onCancel={() => {
+            setEditingName(false);
+            setFirstName(user.first_name || "");
+            setLastName(user.last_name || "");
+          }}
+          loading={saving}
+          disabled={!firstName}
+          show={editingName}
+          saveLabel={t("common.save")}
+          loadingLabel={t("common.save")}
+          cancelLabel={t("common.cancel")}
+          saveClassName="bg-brand text-white hover:bg-brand-hover"
+        />
 
         {/* OTP Verification Modal */}
         {otpFlow && (

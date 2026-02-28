@@ -8,7 +8,6 @@ import {
     Trash2,
     Loader2,
     Search,
-    AlertCircle,
     Users,
     ExternalLink,
     ChevronLeft,
@@ -41,6 +40,7 @@ import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import { useRouter } from "next/navigation";
 import type { SuperAdminShop } from "@/types/super-admin";
+import { notify } from "@/lib/notify";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -66,7 +66,6 @@ export default function ShopsPage() {
     // State
     const [shops, setShops] = useState<SuperAdminShop[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -83,7 +82,6 @@ export default function ShopsPage() {
     // Fetch shops with server-side pagination and search
     const fetchData = useCallback(async (currentPage: number, search: string) => {
         setLoading(true);
-        setError(null);
 
         try {
             const params = new URLSearchParams({
@@ -110,7 +108,7 @@ export default function ShopsPage() {
                 setTotal(pagination.total || 0);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.loadShopsError"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminShops.loadShopsError"));
         } finally {
             setLoading(false);
         }
@@ -152,7 +150,7 @@ export default function ShopsPage() {
             setDeletingShop(null);
             await fetchData(page, searchQuery);
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.deleteFailed"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminShops.deleteFailed"));
             setIsDeleteDialogOpen(false);
         } finally {
             setSubmitting(false);
@@ -173,7 +171,7 @@ export default function ShopsPage() {
             await refreshSession();
             router.push("/admin/dashboard");
         } catch (err) {
-            setError(err instanceof Error ? err.message : t("superAdminShops.impersonateFailed"));
+            void notify.error(err instanceof Error ? err.message : t("superAdminShops.impersonateFailed"));
         }
     };
 
@@ -202,22 +200,6 @@ export default function ShopsPage() {
                     </Button>
                 </Link>
             </div>
-
-            {/* Error display */}
-            {error && (
-                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {error}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setError(null)}
-                        className="ml-auto"
-                    >
-                        {t("imageUpload.dismiss")}
-                    </Button>
-                </div>
-            )}
 
             {/* Search */}
             <div className="relative max-w-md">
