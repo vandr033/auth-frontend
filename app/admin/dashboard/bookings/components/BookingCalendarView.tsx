@@ -58,9 +58,6 @@ function computeOverlapLayout(bookings: AdminBooking[]): Map<number, OverlapLayo
 
     // For each booking, track which column it's assigned to
     const assignments = new Map<number, { column: number; group: number[] }>();
-    // Track active columns: each entry is the end time of the booking in that column
-    const groups: number[][] = [];
-
     // Process bookings to find overlapping groups
     for (let i = 0; i < sorted.length; i++) {
         const booking = sorted[i];
@@ -177,9 +174,6 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
             scrollContainerRef.current.scrollTop = scrollPosition;
         }
     }, [earliestOpenHour]);
-
-    // Dynamic grid columns: 1 for time + dayCount for days
-    const gridCols = dayCount + 1;
 
     const getBookingStyle = (booking: AdminBooking, layout?: OverlapLayout) => {
         const start = parseISO(booking.start_at);

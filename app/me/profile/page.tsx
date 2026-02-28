@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth, AuthUser } from "@/lib/useAuth";
 import { useApi } from "@/app/hooks/useApi";
 import { Button } from "@/components/ui/button";
@@ -29,8 +29,10 @@ type OtpFlow = null | "email" | "phone";
 export default function ProfilePage() {
   const t = useT();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const shopSlug = getShopSlugFromParams(searchParams);
+  const shopSlug =
+    typeof window === "undefined"
+      ? null
+      : getShopSlugFromParams(new URLSearchParams(window.location.search));
   const {
     user: sessionUser,
     loading: authLoading,

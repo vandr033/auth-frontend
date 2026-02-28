@@ -314,7 +314,11 @@ export default function RegisterPage() {
                 value={method === "email" ? emailCode : otpCode}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9]/g, "");
-                  method === "email" ? setEmailCode(val) : setOtpCode(val);
+                  if (method === "email") {
+                    setEmailCode(val);
+                  } else {
+                    setOtpCode(val);
+                  }
                 }}
                 placeholder={t("auth.register.codePlaceholder")}
                 maxLength={6}
@@ -332,7 +336,14 @@ export default function RegisterPage() {
               </button>
 
               <button
-                onClick={() => { setStep("contact"); method === "email" ? setEmailCode("") : setOtpCode(""); }}
+                onClick={() => {
+                  setStep("contact");
+                  if (method === "email") {
+                    setEmailCode("");
+                  } else {
+                    setOtpCode("");
+                  }
+                }}
                 className="w-full text-center text-sm text-slate-500 hover:text-brand"
               >
                 {t("auth.register.resendCode")}

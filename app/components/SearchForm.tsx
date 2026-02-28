@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Calendar, MapPin, Search, Briefcase, Loader2 } from "lucide-react";
 import { MensajeApi } from "@/types/api";
 import { useApi } from "../hooks/useApi";
@@ -29,21 +29,7 @@ export function SearchForm() {
   const [serviceFocus, setServiceFocus] = useState(false);
   const [cityFocus, setCityFocus] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void getServices(serviceQuery);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [serviceQuery]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void getCities(cityQuery);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [cityQuery]);
-
-  const getServices = async (query: string) => {
+  const getServices = useCallback(async (query: string) => {
     try {
       setServicesLoading(true);
       const response: MensajeApi<ServiceType[]> = await api.get(
@@ -56,9 +42,9 @@ export function SearchForm() {
     } finally {
       setServicesLoading(false);
     }
-  };
+  }, [api]);
 
-  const getCities = async (query: string) => {
+  const getCities = useCallback(async (query: string) => {
     try {
       setCitiesLoading(true);
       const response: MensajeApi<City[]> = await api.get(
@@ -71,7 +57,21 @@ export function SearchForm() {
     } finally {
       setCitiesLoading(false);
     }
-  };
+  }, [api]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void getServices(serviceQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [serviceQuery, getServices]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void getCities(cityQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [cityQuery, getCities]);
 
   const filteredServices = useMemo(() => services, [services]);
   const filteredCities = useMemo(() => cities, [cities]);

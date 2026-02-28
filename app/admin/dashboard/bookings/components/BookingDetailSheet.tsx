@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState } from "react";
 import { format, parseISO } from "date-fns";
@@ -8,10 +9,8 @@ import {
     SheetHeader,
     SheetTitle,
     SheetDescription,
-    SheetFooter
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, User, Scissors, DollarSign, Phone, Mail, Pencil } from "lucide-react";
 import { AdminBooking } from "@/types/admin-booking";

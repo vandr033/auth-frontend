@@ -1,10 +1,10 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import {
     Loader2,
-    Search,
     ChevronLeft,
     ChevronRight,
     Calendar,
@@ -42,7 +42,6 @@ import {
     SheetTitle,
     SheetDescription,
 } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import { useT } from "@/lib/i18n";
 import { getImageUrl } from "@/utils/image-url";
 
@@ -78,6 +77,19 @@ interface BookingRecord {
 interface ShopOption {
     id: number;
     name: string;
+}
+
+function toShopOptions(value: unknown): ShopOption[] {
+    if (!Array.isArray(value)) return [];
+
+    return value
+        .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const candidate = item as { id?: unknown; name?: unknown };
+            if (typeof candidate.id !== "number" || typeof candidate.name !== "string") return null;
+            return { id: candidate.id, name: candidate.name };
+        })
+        .filter((item): item is ShopOption => item !== null);
 }
 
 const PAGE_SIZE = 20;
@@ -126,7 +138,7 @@ export default function SuperAdminBookingsPage() {
             .then((res) => res.json())
             .then((data) => {
                 const shopsList = data.data?.shops || data.data || [];
-                setShops(shopsList.map((s: any) => ({ id: s.id, name: s.name })));
+                setShops(toShopOptions(shopsList));
             })
             .catch(() => {});
     }, []);
@@ -165,12 +177,6 @@ export default function SuperAdminBookingsPage() {
     useEffect(() => {
         void fetchData(page);
     }, [page, fetchData]);
-
-    // Reset to page 1 when filters change
-    const applyFilters = () => {
-        setPage(1);
-        void fetchData(1);
-    };
 
     const clearFilters = () => {
         setShopFilter("all");

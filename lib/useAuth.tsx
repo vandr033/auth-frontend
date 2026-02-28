@@ -77,15 +77,43 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const extractUser = (payload: any): AuthUser | null => {
-  if (!payload) return null;
-  const candidate = payload.user ?? payload.session?.user ?? null;
+const toRecord = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+};
+
+const toStringOrUndefined = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+const getErrorMessage = (data: unknown, status: number): string => {
+  const payload = toRecord(data);
+  if (!payload) return `Request failed with status ${status}`;
+
+  const error = toStringOrUndefined(payload.error);
+  const message = toStringOrUndefined(payload.message);
+  const details = toStringOrUndefined(payload.details);
+  return error || message || details || `Request failed with status ${status}`;
+};
+
+const extractUser = (payload: unknown): AuthUser | null => {
+  const payloadRecord = toRecord(payload);
+  if (!payloadRecord) return null;
+
+  const sessionRecord = toRecord(payloadRecord.session);
+  const candidate = toRecord(payloadRecord.user) ?? toRecord(sessionRecord?.user);
   if (!candidate) return null;
 
   return {
     ...candidate,
-    name: candidate.name ?? candidate.full_name ?? candidate.first_name ?? null,
-    phoneNumber: candidate.phoneNumber ?? candidate.phone_number ?? null,
+    name:
+      toStringOrUndefined(candidate.name) ??
+      toStringOrUndefined(candidate.full_name) ??
+      toStringOrUndefined(candidate.first_name) ??
+      null,
+    phoneNumber:
+      toStringOrUndefined(candidate.phoneNumber) ??
+      toStringOrUndefined(candidate.phone_number) ??
+      null,
   };
 };
 
@@ -117,41 +145,15 @@ async function apiPost<TResponse>(
     ...init,
   });
 
-  let data: any = null;
+  let data: unknown = null;
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     data = null;
   }
 
   if (!response.ok) {
-    const message =
-      data?.error ||
-      data?.message ||
-      data?.details ||
-      `Request failed with status ${response.status}`;
-    throw new Error(message);
-  }
-
-  return data as TResponse;
-}
-
-async function apiGet<TResponse>(url: string): Promise<TResponse> {
-  const response = await fetch(resolveApiUrl(url), {
-    method: "GET",
-    credentials: "include",
-  });
-
-  let data: any = null;
-  try {
-    data = await response.json();
-  } catch (error) {
-    data = null;
-  }
-
-  if (!response.ok) {
-    const message = data?.error || data?.message || `Request failed with status ${response.status}`;
-    throw new Error(message);
+    throw new Error(getErrorMessage(data, response.status));
   }
 
   return data as TResponse;
@@ -165,16 +167,15 @@ async function apiPut<TResponse>(url: string, body?: Record<string, unknown>): P
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  let data: any = null;
+  let data: unknown = null;
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     data = null;
   }
 
   if (!response.ok) {
-    const message = data?.error || data?.message || `Request failed with status ${response.status}`;
-    throw new Error(message);
+    throw new Error(getErrorMessage(data, response.status));
   }
 
   return data as TResponse;

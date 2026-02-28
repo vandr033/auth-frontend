@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,17 +22,21 @@ import { Eye, EyeOff } from "lucide-react";
 export default function ResetPasswordPage() {
   const t = useT();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const tokenFromUrl = searchParams.get("token") || "";
 
   const { resetPassword, loading } = useAuth();
 
-  const [emailToken, setEmailToken] = useState(tokenFromUrl);
+  const [emailToken, setEmailToken] = useState("");
   const [newEmailPassword, setNewEmailPassword] = useState("");
 
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showEmailPassword, setShowEmailPassword] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tokenFromUrl = new URLSearchParams(window.location.search).get("token") || "";
+    setEmailToken((prev) => prev || tokenFromUrl);
+  }, []);
 
   const handleEmailReset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

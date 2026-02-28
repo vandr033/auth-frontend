@@ -31,6 +31,14 @@ interface DaySchedule {
     slots: TimeSlot[];
 }
 
+interface ApiHourRecord {
+    id?: number;
+    day_of_week: number;
+    is_closed?: boolean;
+    open_time?: string | null;
+    close_time?: string | null;
+}
+
 const DAYS = [
     { day: 0, name: "adminHours.sunday", short: "Sun" },
     { day: 1, name: "adminHours.monday", short: "Mon" },
@@ -129,11 +137,11 @@ export default function HoursPage() {
             // Transform API data to our format
             if (hoursData && hoursData.length > 0) {
                 const newSchedule = DAYS.map((d) => {
-                    const dayData = hoursData.filter((h: any) => h.day_of_week === d.day);
+                    const dayData = hoursData.filter((h: ApiHourRecord) => h.day_of_week === d.day);
 
                     // Consider it closed if there are no records for this day OR if any record is explicitly marked as closed
                     // Backend says is_closed: true, so we should trust it
-                    const isOpen = dayData.length > 0 && !dayData.some((h: any) => h.is_closed);
+                    const isOpen = dayData.length > 0 && !dayData.some((h: ApiHourRecord) => h.is_closed);
 
                     if (!isOpen) {
                         return {
@@ -145,7 +153,7 @@ export default function HoursPage() {
                     return {
                         day: d.day,
                         is_open: true,
-                        slots: dayData.map((h: any) => ({
+                        slots: dayData.map((h: ApiHourRecord) => ({
                             id: h.id,
                             start_time: h.open_time?.slice(0, 5) || "09:00",
                             end_time: h.close_time?.slice(0, 5) || "17:00",

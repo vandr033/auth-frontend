@@ -1,8 +1,9 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Clock, User, Calendar, CreditCard, Loader2, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ type PendingBookingIntent = {
     service_ids: number[];
     start_at: string;
     payment_method: "CASH" | "QR" | "NONE";
-    notes: string;
+    notes?: string;
     qr_proof_image_url?: string;
     created_at: string;
 };
@@ -260,73 +261,83 @@ function StaffStep({
     onSelectStaff: (staff: SelectedStaff) => void;
 }) {
     const t = useT();
+    const hasStaffAvailable = staffList.length > 0;
     const anyAvailableOption: SelectedStaff = {
         id: "any",
         display_name: t('shopBooking.anyAvailable'),
     };
 
-    const options = [anyAvailableOption, ...staffList];
+    const options = hasStaffAvailable ? [anyAvailableOption, ...staffList] : [];
 
     return (
         <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold text-text-main">{t('shopBooking.selectStaffTitle')}</h2>
                 <p className="text-text-muted">{t('shopBooking.selectStaffSubtitle')}</p>
+                {hasStaffAvailable && (
+                    <p className="text-xs text-text-muted mt-1.5">
+                        {t('shopBooking.anyAvailableExplanation')}
+                    </p>
+                )}
             </div>
 
-            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-                {options.map((staff) => {
-                    const isSelected = selectedStaff?.id === staff.id;
-                    return (
-                        <button
-                            key={staff.id}
-                            type="button"
-                            onClick={() => onSelectStaff(staff)}
-                            className={cn(
-                                "flex flex-col items-center gap-3 rounded-xl border p-5 transition-all min-h-[120px]",
-                                isSelected
-                                    ? "border-brand bg-brand/5 shadow-md"
-                                    : "border-surface-border hover:border-brand/40 hover:bg-surface"
-                            )}
-                        >
-                            <div
+            {hasStaffAvailable ? (
+                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {options.map((staff) => {
+                        const isSelected = selectedStaff?.id === staff.id;
+                        return (
+                            <button
+                                key={staff.id}
+                                type="button"
+                                onClick={() => onSelectStaff(staff)}
                                 className={cn(
-                                    "h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 transition-all overflow-hidden",
+                                    "flex flex-col items-center gap-3 rounded-xl border p-5 transition-all min-h-[120px]",
                                     isSelected
-                                        ? "ring-3 ring-brand ring-offset-2"
-                                        : "",
-                                    staff.id === "any"
-                                        ? "bg-brand/10 text-brand"
-                                        : "bg-section text-text-muted"
+                                        ? "border-brand bg-brand/5 shadow-md"
+                                        : "border-surface-border hover:border-brand/40 hover:bg-surface"
                                 )}
                             >
-                                {staff.id === "any" ? (
-                                    <User className="h-7 w-7" />
-                                ) : staff.image_url ? (
-                                    <img
-                                        src={getImageUrl(staff.image_url) || undefined}
-                                        alt={staff.display_name}
-                                        className="h-full w-full object-cover"
-                                    />
-                                ) : (
-                                    staff.display_name.charAt(0).toUpperCase()
-                                )}
-                            </div>
-                            <div className="text-center">
-                                <h4 className={cn(
-                                    "text-sm font-semibold",
-                                    isSelected ? "text-brand" : "text-text-main"
-                                )}>
-                                    {staff.display_name}
-                                </h4>
-                                {staff.id === "any" && (
-                                    <p className="text-xs text-text-muted mt-0.5">{t('shopBooking.firstAvailable')}</p>
-                                )}
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
+                                <div
+                                    className={cn(
+                                        "h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 transition-all overflow-hidden",
+                                        isSelected
+                                            ? "ring-3 ring-brand ring-offset-2"
+                                            : "",
+                                        staff.id === "any"
+                                            ? "bg-brand/10 text-brand"
+                                            : "bg-section text-text-muted"
+                                    )}
+                                >
+                                    {staff.id === "any" ? (
+                                        <User className="h-7 w-7" />
+                                    ) : staff.image_url ? (
+                                        <img
+                                            src={getImageUrl(staff.image_url) || undefined}
+                                            alt={staff.display_name}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        staff.display_name.charAt(0).toUpperCase()
+                                    )}
+                                </div>
+                                <div className="text-center">
+                                    <h4 className={cn(
+                                        "text-sm font-semibold",
+                                        isSelected ? "text-brand" : "text-text-main"
+                                    )}>
+                                        {staff.display_name}
+                                    </h4>
+                                    {staff.id === "any" && (
+                                        <p className="text-xs text-text-muted mt-0.5">{t('shopBooking.firstAvailable')}</p>
+                                    )}
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            ) : (
+                <p className="text-center text-text-muted py-8">{t('shopBooking.noStaffAvailable')}</p>
+            )}
         </div>
     );
 }
@@ -409,7 +420,7 @@ function DateTimeStep({
         };
 
         void fetchAvailableDates();
-    }, [companyId, api]);
+    }, [companyId, api, onSelectDate, selectedDate]);
 
     // Filter to only show open dates
     const dateOptions = useMemo(() => {
@@ -443,7 +454,7 @@ function DateTimeStep({
                 );
 
                 setSlots(response.data || []);
-            } catch (err) {
+            } catch {
                 setSlotsError("Unable to load available times. Please try again.");
                 // For demo: generate mock slots if backend not ready
                 const mockSlots: TimeSlot[] = [];
@@ -866,9 +877,14 @@ export default function BookingPage() {
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [completedAfterSignIn, setCompletedAfterSignIn] = useState(false);
-    const searchParams = useSearchParams();
-    const preselectedServiceId = searchParams.get("serviceId");
-    const preselectedStaffId = searchParams.get("staffId");
+    const preselectedServiceId =
+        typeof window === "undefined"
+            ? null
+            : new URLSearchParams(window.location.search).get("serviceId");
+    const preselectedStaffId =
+        typeof window === "undefined"
+            ? null
+            : new URLSearchParams(window.location.search).get("staffId");
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const pendingBookingHandledRef = React.useRef(false);
 
@@ -1003,7 +1019,7 @@ export default function BookingPage() {
         if (browseMode === "service-first") {
             switch (booking.step) {
                 case 1: return booking.services.length > 0;
-                case 2: return true;
+                case 2: return filteredStaff.length > 0;
                 case 3: return booking.slot !== null;
                 case 4: return true;
                 default: return false;

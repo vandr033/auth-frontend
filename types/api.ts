@@ -1,4 +1,4 @@
-export interface MensajeApi<T = any> {
+export interface MensajeApi<T = unknown> {
     code: number; //http code
     error: boolean; //if there was an error
     message: string; //message or error description (user friendly)

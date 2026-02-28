@@ -1,7 +1,8 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useRef, useCallback } from "react";
-import { Upload, X, Loader2, ImageIcon, Trash2 } from "lucide-react";
+import { Upload, X, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getImageUrl, getUploadEndpoint, type CompanyImageType } from "@/utils/image-url";
@@ -63,7 +64,7 @@ export function ImageUpload({
 
     const displayUrl = previewUrl || getImageUrl(currentUrl);
 
-    const validateFile = (file: File): string | null => {
+    const validateFile = useCallback((file: File): string | null => {
         if (!ACCEPTED_TYPES.includes(file.type)) {
             return t('imageUpload.invalidFileType');
         }
@@ -71,9 +72,9 @@ export function ImageUpload({
             return t('imageUpload.fileTooLarge', { maxSize: maxSizeMB });
         }
         return null;
-    };
+    }, [maxSizeMB, t]);
 
-    const uploadFile = async (file: File) => {
+    const uploadFile = useCallback(async (file: File) => {
         const validationError = validateFile(file);
         if (validationError) {
             setError(validationError);
@@ -139,7 +140,7 @@ export function ImageUpload({
             setIsUploading(false);
             setUploadProgress(0);
         }
-    };
+    }, [companyId, entityId, onUploadComplete, type, validateFile]);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -178,7 +179,7 @@ export function ImageUpload({
                 onFileSelect?.(file);
             }
         }
-    }, [companyId, type, entityId, autoUpload]);
+    }, [autoUpload, onFileSelect, uploadFile, validateFile]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

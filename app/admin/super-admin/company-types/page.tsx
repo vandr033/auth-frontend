@@ -112,7 +112,7 @@ export default function CompanyTypesPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         if (isAuthenticated && isSuperAdmin) {

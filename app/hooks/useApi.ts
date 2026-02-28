@@ -4,6 +4,15 @@ import { useMemo } from "react";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+const getErrorMessage = (data: unknown, status: number): string => {
+  if (typeof data === "object" && data !== null) {
+    const payload = data as { error?: unknown; message?: unknown };
+    if (typeof payload.error === "string" && payload.error) return payload.error;
+    if (typeof payload.message === "string" && payload.message) return payload.message;
+  }
+  return `Request failed with status ${status}`;
+};
+
 const resolveApiUrl = (url: string) => {
   if (url.startsWith("http")) return url;
   const base =
@@ -30,7 +39,7 @@ async function request<TResponse>(
     ...init,
   });
 
-  let data: any = null;
+  let data: unknown = null;
   try {
     data = await response.json();
   } catch {
@@ -38,9 +47,7 @@ async function request<TResponse>(
   }
 
   if (!response.ok) {
-    const message =
-      data?.error || data?.message || `Request failed with status ${response.status}`;
-    throw new Error(message);
+    throw new Error(getErrorMessage(data, response.status));
   }
 
   return data as TResponse;

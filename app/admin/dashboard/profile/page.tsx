@@ -13,7 +13,6 @@ import {
     updateMyStaffProfile,
     getMyUserProfile,
     updateMyUserProfile,
-    type StaffSelfProfile,
     type UserSelfProfile,
 } from "@/app/admin/lib/adminApi";
 
@@ -29,7 +28,6 @@ export default function AdminProfilePage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    const [staffProfile, setStaffProfile] = useState<StaffSelfProfile | null>(null);
     const [userProfile, setUserProfile] = useState<UserSelfProfile | null>(null);
 
     const [firstName, setFirstName] = useState("");
@@ -49,7 +47,6 @@ export default function AdminProfilePage() {
             try {
                 if (isStaff) {
                     const data = await getMyStaffProfile();
-                    setStaffProfile(data);
                     setUserProfile(data.user as UserSelfProfile);
                     setFirstName(data.user.first_name || "");
                     setLastName(data.user.last_name || "");
@@ -94,7 +91,6 @@ export default function AdminProfilePage() {
                     phone_prefix: phonePrefix.trim(),
                     phone: phone.trim(),
                 });
-                setStaffProfile(updated);
                 setUserProfile(updated.user as UserSelfProfile);
                 setFirstName(updated.user.first_name || "");
                 setLastName(updated.user.last_name || "");

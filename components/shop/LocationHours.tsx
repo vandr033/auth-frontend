@@ -16,16 +16,6 @@ const formatTime = (time: string) => {
     return `${hours}:${minutes} ${period}`;
 };
 
-const formatHoursForDay = (dayHours: ShopHours[] | undefined) => {
-    if (!dayHours || dayHours.length === 0 || dayHours.every(h => h.is_closed)) return "Closed";
-    const openSlots = dayHours.filter(h => !h.is_closed && h.open_time && h.close_time);
-    if (openSlots.length === 0) return "Closed";
-    return openSlots
-        .sort((a, b) => (a.open_time || "").localeCompare(b.open_time || ""))
-        .map(h => `${formatTime(h.open_time!)} - ${formatTime(h.close_time!)}`)
-        .join("\n");
-};
-
 interface LocationHoursProps {
     company: ShopCompany;
     hours: ShopHours[];

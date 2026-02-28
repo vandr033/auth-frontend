@@ -6,6 +6,7 @@ export interface Category {
   description: string;
   // icon: React.ComponentType<{ className?: string }>;
   icon_name: string;
+  icon?: string;
 }
 
 export interface Salon {

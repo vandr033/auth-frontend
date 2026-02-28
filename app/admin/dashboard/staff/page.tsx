@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -7,7 +8,6 @@ import {
     Trash2,
     Loader2,
     Search,
-    User,
     Mail,
     Calendar,
 } from "lucide-react";
@@ -37,7 +37,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { ImageUpload } from "@/components/admin/ImageUpload";
-import { getImageUrl, getStaffImageUrl } from "@/utils/image-url";
+import { getImageUrl } from "@/utils/image-url";
 
 // Types
 // Types

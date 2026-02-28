@@ -114,7 +114,7 @@ export default function ShopsPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         if (isAuthenticated && isSuperAdmin) {

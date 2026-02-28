@@ -168,7 +168,7 @@ export async function createBooking(data: CreateBookingData): Promise<AdminBooki
 export interface UpdateBookingData {
     status?: BookingStatus;
     start_at?: string;
-    notes?: string;
+    notes?: string | null;
     staff_id?: number;
     service_ids?: number[];
 }

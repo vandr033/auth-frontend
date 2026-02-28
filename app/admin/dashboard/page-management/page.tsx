@@ -19,7 +19,6 @@ import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { ImageUpload } from "@/components/admin/ImageUpload";
-import { getImageUrl } from "@/utils/image-url";
 
 interface StaffMember {
     id: number;
@@ -141,7 +140,7 @@ export default function PageManagementPage() {
         } finally {
             setLoading(false);
         }
-    }, [companyId]);
+    }, [companyId, t]);
 
     useEffect(() => {
         if (isAuthenticated && companyId) {
@@ -277,7 +276,7 @@ export default function PageManagementPage() {
 
             setContent(prev => ({ ...prev, [field]: undefined }));
             setToast({ type: 'success', message: t('adminPages.imageRemoved') });
-        } catch (err) {
+        } catch {
             setToast({ type: 'error', message: t('adminPages.failedToDelete') });
         }
     };

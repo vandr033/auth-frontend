@@ -24,7 +24,7 @@ export function PopularCategories() {
     };
 
     fetchPopularCategories();
-  }, []);
+  }, [api]);
 
   const containerVariants = prefersReducedMotion
     ? undefined

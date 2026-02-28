@@ -8,7 +8,7 @@ import {
     Check,
     AlertCircle,
     LayoutTemplate,
-    Image,
+    Image as ImageIcon,
     Columns3,
     Users,
     Type,
@@ -25,7 +25,7 @@ import { VariantSelector } from "@/components/admin/theme/VariantSelector";
 import { FontPairingSelector } from "@/components/admin/theme/FontPairingSelector";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
-import { type ThemeConfig, type PageBackgroundPreset, type FontPreset } from "@/utils/themepicker";
+import { type ThemeConfig, type PageBackgroundPreset } from "@/utils/themepicker";
 import { mainSiteThemeConfig } from "@/theme/mainSiteTheme";
 
 function getApiUrl(path: string): string {
@@ -333,7 +333,7 @@ export default function ThemePage() {
                     <Card className="border-surface-border bg-surface shadow-card">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <Image className="h-5 w-5 text-brand" />
+                                <ImageIcon className="h-5 w-5 text-brand" />
                                 {t('adminTheme.heroStyle')}
                             </CardTitle>
                             <CardDescription>

@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import {
   type ThemeConfig,
@@ -49,9 +49,11 @@ export function ThemeProvider({
   children,
 }: ThemeProviderProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const isShopRoute = pathname?.startsWith("/shop/") ?? false;
-  const shopSlug = getShopSlugFromParams(searchParams);
+  const shopSlug =
+    typeof window === "undefined"
+      ? null
+      : getShopSlugFromParams(new URLSearchParams(window.location.search));
   const isMeRouteWithShopTheme = (pathname?.startsWith("/me") ?? false) && !!shopSlug;
 
   const [config, setConfig] = useState<ThemeConfig>(() => ({

@@ -134,7 +134,7 @@ export default function ShopUsersPage() {
         } finally {
             setLoading(false);
         }
-    }, [shopId]);
+    }, [shopId, t]);
 
     useEffect(() => {
         if (isAuthenticated && user?.is_super_admin && shopId) {

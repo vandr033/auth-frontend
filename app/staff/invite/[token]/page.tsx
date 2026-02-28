@@ -96,8 +96,8 @@ export default function StaffInvitePage() {
             setTimeout(() => {
                 router.push("/admin/login");
             }, 3000);
-        } catch (err: any) {
-            setFormError(err.message);
+        } catch (err: unknown) {
+            setFormError(err instanceof Error ? err.message : t("staffInvite.acceptInviteError"));
         } finally {
             setSubmitting(false);
         }

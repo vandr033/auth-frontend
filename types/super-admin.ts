@@ -60,7 +60,7 @@ export interface CreateShopPayload {
     };
 }
 
-export interface UpdateShopPayload extends Partial<CreateShopPayload> { }
+export type UpdateShopPayload = Partial<CreateShopPayload>;
 
 export interface ShopUser {
     company_user_id: number;

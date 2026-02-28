@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { useT } from "@/lib/i18n";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -14,8 +14,10 @@ type Step = "method" | "otp";
 export default function SignInPage() {
   const t = useT();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/";
+  const redirect = React.useMemo(() => {
+    if (typeof window === "undefined") return "/";
+    return new URLSearchParams(window.location.search).get("redirect") || "/";
+  }, []);
   const {
     sendLoginEmailOtp,
     verifyLoginEmailOtp,

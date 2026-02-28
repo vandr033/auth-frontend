@@ -55,6 +55,19 @@ interface ShopOption {
     name: string;
 }
 
+function toShopOptions(value: unknown): ShopOption[] {
+    if (!Array.isArray(value)) return [];
+
+    return value
+        .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const candidate = item as { id?: unknown; name?: unknown };
+            if (typeof candidate.id !== "number" || typeof candidate.name !== "string") return null;
+            return { id: candidate.id, name: candidate.name };
+        })
+        .filter((item): item is ShopOption => item !== null);
+}
+
 const PAGE_SIZE = 20;
 
 const STATUS_STYLES: Record<string, string> = {
@@ -105,7 +118,7 @@ export default function SuperAdminStaffPage() {
             .then((res) => res.json())
             .then((data) => {
                 const shopsList = data.data?.shops || data.data || [];
-                setShops(shopsList.map((s: any) => ({ id: s.id, name: s.name })));
+                setShops(toShopOptions(shopsList));
             })
             .catch(() => {});
     }, []);

@@ -101,7 +101,7 @@ export default function EditShopPage() {
         } finally {
             setLoading(false);
         }
-    }, [shopId]);
+    }, [shopId, t]);
 
     useEffect(() => {
         if (isAuthenticated && isSuperAdmin && shopId) {
