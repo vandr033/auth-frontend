@@ -35,7 +35,7 @@ export function SearchForm() {
       const response: MensajeApi<ServiceType[]> = await api.get(
         `/home/service-types?query=${query}`,
       );
-      setServices(response.data);
+      setServices(!response.error && Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching services:", error);
       setServices([]);
@@ -50,7 +50,7 @@ export function SearchForm() {
       const response: MensajeApi<City[]> = await api.get(
         `/home/cities?query=${query}`,
       );
-      setCities(response.data);
+      setCities(!response.error && Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching cities:", error);
       setCities([]);

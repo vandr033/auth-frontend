@@ -16,10 +16,13 @@ export function PopularCategories() {
     const fetchPopularCategories = async () => {
       try {
         const response: MensajeApi<Category[]> = await api.get("/home/categories");
-        const data = response.data;
-        setPopularCategories(data);
+        const categories = !response.error && Array.isArray(response.data)
+          ? response.data
+          : [];
+        setPopularCategories(categories);
       } catch (error) {
         console.error("Error fetching popular categories:", error);
+        setPopularCategories([]);
       }
     };
 
