@@ -252,7 +252,7 @@ export default function AvailabilityPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-24 md:pb-0">
             <div>
                 <h1 className="text-2xl font-bold text-slate-900">{t("adminAvailability.title")}</h1>
                 <p className="text-slate-500">

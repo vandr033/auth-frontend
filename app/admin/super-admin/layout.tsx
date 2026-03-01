@@ -19,6 +19,7 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { APP_VERSION } from "@/lib/appVersion";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 
@@ -42,6 +43,10 @@ export default function SuperAdminLayout({
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [todayBookingsCount, setTodayBookingsCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        console.info(`[reservas-super-admin] APP_VERSION=${APP_VERSION}`);
+    }, []);
 
     // Fetch today's bookings count for badge
     useEffect(() => {
@@ -236,6 +241,9 @@ export default function SuperAdminLayout({
                                 <LogOut className="h-4 w-4 text-slate-400" />
                             </button>
                         </div>
+                        <p className="mt-3 text-[11px] text-slate-500">
+                            Version: {APP_VERSION}
+                        </p>
                     </div>
                 </div>
             </aside>

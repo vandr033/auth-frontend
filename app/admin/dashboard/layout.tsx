@@ -22,6 +22,7 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { APP_VERSION } from "@/lib/appVersion";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
 import { I18nProvider, useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -162,6 +163,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    useEffect(() => {
+        console.info(`[reservas-admin] APP_VERSION=${APP_VERSION}`);
+    }, []);
+
     const handleSignOut = async () => {
         try {
             await signOut();
@@ -294,6 +299,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                                 <LogOut className="h-4 w-4 text-slate-400" />
                             </button>
                         </div>
+                        <p className="mt-3 text-[11px] text-slate-500">
+                            Version: {APP_VERSION}
+                        </p>
                     </div>
                 </div>
             </aside>
