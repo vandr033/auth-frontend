@@ -7,6 +7,7 @@ import { SalonCard, SalonCardSkeleton } from "./SalonCard";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { getImageUrl } from "@/utils/image-url";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -47,7 +48,7 @@ export function FeaturedSalons() {
             city: c.city || "Unknown",
             neighborhood: c.neighborhood || "",
             imageUrl:
-              c.imageUrl ||
+              getImageUrl(c.imageUrl) ||
               "https://images.unsplash.com/photo-1599351431202-19a6b8da4433?q=80&w=400&auto=format&fit=crop",
             rating: c.rating || 0,
             isTopRated: c.isTopRated,

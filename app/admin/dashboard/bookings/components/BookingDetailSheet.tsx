@@ -40,7 +40,6 @@ import { notify } from "@/lib/notify";
 import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
 import { BookingEditDialog } from "./BookingEditDialog";
 import { getBookingDisplayStatus } from "../lib/bookingStatus";
-import Swal from "sweetalert2";
 
 interface BookingDetailSheetProps {
     booking: AdminBooking | null;
@@ -141,69 +140,35 @@ export function BookingDetailSheet({
     };
 
     const handleNoShowSubmit = async () => {
-        if (!notifyCustomerOnNoShow) {
-            try {
-                setNoShowSending(true);
-                void Swal.fire({
-                    title: t("adminBookings.noShowSavingTitle"),
-                    text: t("adminBookings.noShowSavingDescription"),
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    showConfirmButton: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    },
-                });
-                await onMarkNoShow(booking.id);
-                Swal.close();
-                await notify.success(t("adminBookings.noShowMarked"));
-                setNoShowPanelOpen(false);
-                onClose();
-            } catch (err: unknown) {
-                Swal.close();
-                await notify.error(
-                    t("adminBookings.noShowActionFailed"),
-                    err instanceof Error ? err.message : undefined
-                );
-            } finally {
-                setNoShowSending(false);
-            }
-            return;
-        }
-
         const customMessage = customNoShowMessage.trim();
-        if (noShowMessageMode === "CUSTOM" && !customMessage) {
+        if (notifyCustomerOnNoShow && noShowMessageMode === "CUSTOM" && !customMessage) {
             await notify.warning(t("adminBookings.customMessageRequired"));
             return;
         }
 
         try {
             setNoShowSending(true);
-            void Swal.fire({
-                title: t("adminBookings.noShowSavingTitle"),
-                text: t("adminBookings.noShowSavingDescription"),
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                },
-            });
             await onMarkNoShow(booking.id);
-            await onSendNoShowNotification(booking.id, {
-                channel: noShowChannel,
-                message: noShowMessageMode === "CUSTOM" ? customMessage : undefined,
-            });
-            Swal.close();
+
+            if (notifyCustomerOnNoShow) {
+                // Best effort by request: no-show should succeed even if notification fails.
+                try {
+                    await onSendNoShowNotification(booking.id, {
+                        channel: noShowChannel,
+                        message: noShowMessageMode === "CUSTOM" ? customMessage : undefined,
+                    });
+                } catch (notificationErr) {
+                    console.warn("No-show notification failed, continuing as sent", notificationErr);
+                }
+            }
 
             await notify.success(
                 t("adminBookings.noShowMarked"),
-                t("adminBookings.noShowNotificationSent")
+                notifyCustomerOnNoShow ? t("adminBookings.noShowNotificationSent") : undefined
             );
             setNoShowPanelOpen(false);
             onClose();
         } catch (err: unknown) {
-            Swal.close();
             await notify.error(
                 t("adminBookings.noShowActionFailed"),
                 err instanceof Error ? err.message : undefined

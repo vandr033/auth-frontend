@@ -11,12 +11,51 @@ function getBaseUrl(): string {
 }
 
 const API_BASE = getBaseUrl();
+const API_ORIGIN = (() => {
+  if (!API_BASE) return '';
+  try {
+    return new URL(API_BASE).origin;
+  } catch {
+    return '';
+  }
+})();
+
+function isLocalhostHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+}
+
+function looksLikeImageFile(value: string): boolean {
+  return /\.(jpe?g|png|gif|webp|svg)(?:\?.*)?$/i.test(value);
+}
+
+function normalizeImagePath(path: string): string {
+  if (path.startsWith('/api/')) return path;
+  if (path.startsWith('/storage/')) return `/api${path}`;
+  if (looksLikeImageFile(path) && /^\/[^/]+\.[a-z0-9]+$/i.test(path)) {
+    return `/api/storage${path}`;
+  }
+  return path;
+}
 
 export function getImageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
 
-  // If already a full URL, return as-is (for backwards compatibility)
-  if (path.startsWith('http') || path.startsWith('blob:') || path.startsWith('data:')) return path;
+  // Preserve non-http URL schemes as-is.
+  if (path.startsWith('blob:') || path.startsWith('data:')) return path;
+
+  // Normalize absolute URLs, rewriting localhost URLs to the configured API origin in production.
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    try {
+      const parsed = new URL(path);
+      if (isLocalhostHost(parsed.hostname) && API_ORIGIN) {
+        const normalizedPath = normalizeImagePath(parsed.pathname);
+        return `${API_ORIGIN}${normalizedPath}${parsed.search}${parsed.hash}`;
+      }
+      return path;
+    } catch {
+      return path;
+    }
+  }
 
   // If it's an API path, prepend base URL
   if (path.startsWith('/api/')) {
@@ -26,6 +65,11 @@ export function getImageUrl(path: string | null | undefined): string | null {
   // If it's a relative storage path, construct API URL
   if (path.startsWith('/storage/')) {
     return `${API_BASE}/api${path}`;
+  }
+
+  // If only a filename/storage key is saved (e.g. "home.jpeg"), serve from /api/storage.
+  if (!path.startsWith('/') && looksLikeImageFile(path)) {
+    return `${API_BASE}/api/storage/${path}`;
   }
 
   // For any other path, assume it needs the API base
