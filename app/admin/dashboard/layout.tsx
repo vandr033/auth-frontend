@@ -129,7 +129,7 @@ export default function DashboardLayout({
     // Loading state (before provider is ready)
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+            <div className="flex min-h-[100dvh] items-center justify-center bg-slate-950 text-white">
                 <div className="text-center">
                     <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent mx-auto" />
                 </div>
@@ -184,7 +184,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 overflow-hidden">
+        <div className="flex h-[100dvh] bg-slate-100 overflow-hidden">
             {/* Mobile sidebar overlay */}
             {sidebarOpen && (
                 <div
@@ -200,7 +200,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                     sidebarOpen ? "translate-x-0" : "-translate-x-full",
                 )}
             >
-                <div className="flex h-screen flex-col">
+                <div className="flex h-[100dvh] flex-col">
                     {/* Logo / Company Name */}
                     <div className="flex h-16 items-center justify-between border-b border-slate-800 px-4">
                         <div className="flex items-center gap-2">
@@ -299,7 +299,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+            <div className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden">
                 {/* Top Header */}
                 <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-6 shadow-sm">
                     <button

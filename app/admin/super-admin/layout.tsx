@@ -122,7 +122,7 @@ export default function SuperAdminLayout({
     // Loading state
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+            <div className="flex min-h-[100dvh] items-center justify-center bg-slate-950 text-white">
                 <div className="text-center">
                     <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent mx-auto" />
                     <p className="text-slate-400">{t("common.loading")}</p>
@@ -143,7 +143,7 @@ export default function SuperAdminLayout({
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 overflow-hidden">
+        <div className="flex h-[100dvh] bg-slate-100 overflow-hidden">
             {/* Mobile sidebar overlay */}
             {sidebarOpen && (
                 <div
@@ -159,7 +159,7 @@ export default function SuperAdminLayout({
                     sidebarOpen ? "translate-x-0" : "-translate-x-full",
                 )}
             >
-                <div className="flex h-screen flex-col">
+                <div className="flex h-[100dvh] flex-col">
                     {/* Logo / Title */}
                     <div className="flex h-16 items-center justify-between border-b border-slate-800 px-4">
                         <div className="flex items-center gap-2">

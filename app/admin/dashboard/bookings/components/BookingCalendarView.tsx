@@ -265,7 +265,7 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
             <div
                 ref={scrollContainerRef}
                 className="flex-1 overflow-y-auto relative bg-surface"
-                style={{ maxHeight: 'calc(100vh - 320px)' }}
+                style={{ maxHeight: "calc(100dvh - 320px)" }}
             >
                 <div
                     className="grid min-h-[1440px]"

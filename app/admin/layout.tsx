@@ -24,7 +24,7 @@ export default function AdminLayout({
 }) {
     return (
         <AdminAuthProvider>
-            <div className="h-screen overflow-hidden">
+            <div className="h-[100dvh] overflow-hidden">
                 {children}
             </div>
         </AdminAuthProvider>

@@ -108,7 +108,6 @@ export const metadata: Metadata = {
   title: "ClipBook — Discover & Book Beauty Services",
   description:
     "Find and book the best barbers, stylists, and beauty professionals near you. Online booking made simple.",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

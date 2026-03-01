@@ -305,7 +305,7 @@ export default function BookingsPage() {
     if (!isAuthenticated) return null;
 
     return (
-        <div className="flex flex-col h-full min-h-[calc(100vh-4rem)] space-y-4 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+        <div className="flex flex-col h-full min-h-[calc(100dvh-4rem)] space-y-4 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
 
             {/* Header Controls */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
