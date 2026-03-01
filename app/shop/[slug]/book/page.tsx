@@ -368,6 +368,9 @@ function DateTimeStep({
     const [slotsError, setSlotsError] = useState<string | null>(null);
     const [availableDates, setAvailableDates] = useState<AvailableDate[]>([]);
     const [loadingDates, setLoadingDates] = useState(true);
+    const [datePage, setDatePage] = useState(0);
+    const [timeViewMode, setTimeViewMode] = useState<"all" | "hour">("hour");
+    const [selectedHour, setSelectedHour] = useState<number | null>(null);
     const hasLoadedDates = React.useRef(false);
     const api = useApi();
 
@@ -422,17 +425,40 @@ function DateTimeStep({
         void fetchAvailableDates();
     }, [companyId, api, onSelectDate, selectedDate]);
 
-    // Filter to only show open dates
     const dateOptions = useMemo(() => {
+        const locale = typeof navigator !== "undefined" ? navigator.language : "en-US";
         return availableDates
-            .filter(d => d.is_open)
-            .map(d => {
-                const date = new Date(d.date + "T12:00:00");
-                const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-                const label = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                return { value: d.date, label, dayName };
+            .filter((d) => d.is_open)
+            .map((d) => {
+                const date = new Date(`${d.date}T12:00:00`);
+                return {
+                    value: d.date,
+                    dayName: date.toLocaleDateString(locale, { weekday: "short" }),
+                    dayNumber: date.toLocaleDateString(locale, { day: "numeric" }),
+                    monthLabel: date.toLocaleDateString(locale, { month: "short" }),
+                    label: date.toLocaleDateString(locale, { month: "short", day: "numeric" }),
+                };
             });
     }, [availableDates]);
+
+    const datesPerPage = 7;
+    const maxDatePage = Math.max(0, Math.ceil(dateOptions.length / datesPerPage) - 1);
+    const pagedDateOptions = useMemo(() => {
+        const start = datePage * datesPerPage;
+        return dateOptions.slice(start, start + datesPerPage);
+    }, [dateOptions, datePage]);
+
+    React.useEffect(() => {
+        setDatePage((prev) => Math.min(prev, maxDatePage));
+    }, [maxDatePage]);
+
+    React.useEffect(() => {
+        if (!selectedDate) return;
+        const selectedIndex = dateOptions.findIndex((d) => d.value === selectedDate);
+        if (selectedIndex < 0) return;
+        const page = Math.floor(selectedIndex / datesPerPage);
+        setDatePage(page);
+    }, [selectedDate, dateOptions]);
 
     // Get today's date for comparison
     const today = getTodayDateString(timezone);
@@ -480,6 +506,39 @@ function DateTimeStep({
         void fetchSlots();
     }, [selectedDate, selectedServices, selectedStaff, companyId, api]);
 
+    const availableHours = useMemo(() => {
+        const unique = new Set<number>();
+        slots.forEach((slot) => {
+            if (!slot.available) return;
+            const hour = Number.parseInt(slot.time.split(":")[0], 10);
+            if (!Number.isNaN(hour)) {
+                unique.add(hour);
+            }
+        });
+        return Array.from(unique).sort((a, b) => a - b);
+    }, [slots]);
+
+    React.useEffect(() => {
+        if (timeViewMode !== "hour") return;
+        if (availableHours.length === 0) {
+            setSelectedHour(null);
+            return;
+        }
+        if (selectedHour === null || !availableHours.includes(selectedHour)) {
+            setSelectedHour(availableHours[0]);
+        }
+    }, [timeViewMode, availableHours, selectedHour]);
+
+    const visibleSlots = useMemo(() => {
+        if (timeViewMode !== "hour" || selectedHour === null) {
+            return slots;
+        }
+        return slots.filter((slot) => {
+            const hour = Number.parseInt(slot.time.split(":")[0], 10);
+            return hour === selectedHour;
+        });
+    }, [slots, timeViewMode, selectedHour]);
+
     const handleSelectSlot = (slot: TimeSlot) => {
         if (!slot.available || !selectedDate) return;
         onSelectSlot({
@@ -517,9 +576,39 @@ function DateTimeStep({
                     {t('shopBooking.noDatesAvailable')}
                 </div>
             ) : (
-                <div className="overflow-x-auto pb-2">
-                    <div className="flex gap-2 min-w-max">
-                        {dateOptions.map((date) => {
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                            {pagedDateOptions.length > 0
+                                ? `${pagedDateOptions[0].label} - ${pagedDateOptions[pagedDateOptions.length - 1].label}`
+                                : ""}
+                        </p>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                disabled={datePage === 0}
+                                onClick={() => setDatePage((prev) => Math.max(0, prev - 1))}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                disabled={datePage === maxDatePage}
+                                onClick={() => setDatePage((prev) => Math.min(maxDatePage, prev + 1))}
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                        {pagedDateOptions.map((date) => {
                             const isSelected = selectedDate === date.value;
                             const isToday = date.value === today;
                             return (
@@ -527,16 +616,16 @@ function DateTimeStep({
                                     key={date.value}
                                     onClick={() => onSelectDate(date.value)}
                                     className={cn(
-                                        "flex flex-col items-center px-4 py-3 rounded-xl border-2 transition-all min-w-[72px] min-h-[72px]",
+                                        "flex min-h-[72px] flex-col items-center justify-center rounded-xl border-2 px-2 py-2 text-center transition-all",
                                         isSelected
                                             ? "border-brand bg-brand text-white shadow-md"
-                                            : "border-surface-border bg-surface hover:border-brand/50"
+                                            : "border-surface-border bg-surface hover:border-brand/50",
                                     )}
                                 >
-                                    <span className="text-xs font-medium opacity-80">{date.dayName}</span>
-                                    <span className="text-xl font-bold">{date.label.split(" ")[1]}</span>
-                                    <span className="text-xs opacity-80">
-                                        {isToday ? t('shopBooking.today') : date.label.split(" ")[0]}
+                                    <span className="text-[11px] font-semibold opacity-85">{date.dayName}</span>
+                                    <span className="text-xl font-bold leading-none">{date.dayNumber}</span>
+                                    <span className="mt-1 text-[10px] opacity-80">
+                                        {isToday ? t('shopBooking.today') : date.monthLabel}
                                     </span>
                                 </button>
                             );
@@ -551,6 +640,42 @@ function DateTimeStep({
                     <Calendar className="h-4 w-4" />
                     {t('shopBooking.availableTimes')}
                 </h3>
+                <div className="mb-3 flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant={timeViewMode === "hour" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTimeViewMode("hour")}
+                        className={timeViewMode === "hour" ? "bg-brand hover:bg-brand-hover text-white" : ""}
+                    >
+                        Por hora
+                    </Button>
+                    <Button
+                        type="button"
+                        variant={timeViewMode === "all" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTimeViewMode("all")}
+                        className={timeViewMode === "all" ? "bg-brand hover:bg-brand-hover text-white" : ""}
+                    >
+                        Todas
+                    </Button>
+                </div>
+                {timeViewMode === "hour" && availableHours.length > 0 && (
+                    <div className="mb-4 flex flex-wrap gap-2">
+                        {availableHours.map((hour) => (
+                            <Button
+                                key={hour}
+                                type="button"
+                                variant={selectedHour === hour ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setSelectedHour(hour)}
+                                className={selectedHour === hour ? "bg-brand hover:bg-brand-hover text-white" : ""}
+                            >
+                                {`${hour.toString().padStart(2, "0")}:00`}
+                            </Button>
+                        ))}
+                    </div>
+                )}
                 {loadingSlots ? (
                     <div className="flex items-center justify-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin text-brand" />
@@ -558,11 +683,11 @@ function DateTimeStep({
                     </div>
                 ) : slotsError ? (
                     <p className="text-center text-rose-500 py-8">{slotsError}</p>
-                ) : slots.length === 0 ? (
+                ) : visibleSlots.length === 0 ? (
                     <p className="text-center text-text-muted py-8">{t('shopBooking.noTimesAvailable')}</p>
                 ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                        {slots.map((slot, index) => {
+                        {visibleSlots.map((slot, index) => {
                             const isSelected =
                                 selectedSlot?.date === selectedDate && selectedSlot?.time === slot.time;
                             return (

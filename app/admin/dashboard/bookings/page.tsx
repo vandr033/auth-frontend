@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useT } from "@/lib/i18n";
-import { format, addDays, subDays } from "date-fns";
+import { format, addDays, addMonths, endOfMonth, startOfMonth, subDays, subMonths } from "date-fns";
 import {
     Calendar as CalendarIcon,
     List as ListIcon,
@@ -26,6 +26,7 @@ import {
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { AdminBooking, BookingStatus } from "@/types/admin-booking";
 import { BookingCalendarView } from "./components/BookingCalendarView";
+import { BookingMonthView } from "./components/BookingMonthView";
 import { BookingListView } from "./components/BookingListView";
 import { BookingDetailSheet } from "./components/BookingDetailSheet";
 import { NewBookingModal } from "./components/NewBookingModal";
@@ -38,11 +39,14 @@ import {
     getHours,
     getTodayReminderPreview,
     sendTodayReminder,
+    sendNoShowNotification,
     StaffMember,
     ServiceItem,
     CreateBookingData,
     DaySchedule,
 } from "@/app/admin/lib/adminApi";
+import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
+import { appendNoShowMarker, isNoShowBooking } from "./lib/bookingStatus";
 
 type DayCount = 1 | 3 | 7;
 
@@ -61,7 +65,7 @@ export default function BookingsPage() {
     const isStaffRole = role === "STAFF";
 
     // View State
-    const [viewMode, setViewMode] = useState<"calendar" | "list">(isStaffRole ? "list" : "calendar");
+    const [viewMode, setViewMode] = useState<"calendar" | "month" | "list">(isStaffRole ? "list" : "calendar");
     const [dayCount, setDayCount] = useState<DayCount>(7);
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -136,10 +140,13 @@ export default function BookingsPage() {
 
         setLoading(true);
         try {
-            const endDate = addDays(currentDate, dayCount - 1);
+            const startDate = viewMode === "month" ? startOfMonth(currentDate) : currentDate;
+            const endDate = viewMode === "month"
+                ? endOfMonth(currentDate)
+                : addDays(currentDate, dayCount - 1);
 
             const params: Parameters<typeof getBookings>[0] = {
-                start: currentDate.toISOString(),
+                start: startDate.toISOString(),
                 end: endDate.toISOString(),
             };
 
@@ -148,19 +155,32 @@ export default function BookingsPage() {
                 params.staff_id = parseInt(staffFilter);
             }
 
-            // Add status filter to API call if selected
-            if (statusFilter !== "ALL") {
+            // Backend currently persists no-shows as cancelled + marker in notes.
+            // Fetch cancelled records for both CANCELLED and NO_SHOW filters, then split locally.
+            if (statusFilter === "CANCELLED" || statusFilter === "NO_SHOW") {
+                params.status = "CANCELLED";
+            } else if (statusFilter !== "ALL") {
                 params.status = statusFilter;
             }
 
             const data = await getBookings(params);
-            setBookings(data);
+            const filteredData = data.filter((booking) => {
+                if (statusFilter === "NO_SHOW") {
+                    return isNoShowBooking(booking);
+                }
+                if (statusFilter === "CANCELLED") {
+                    return booking.status === "CANCELLED" && !isNoShowBooking(booking);
+                }
+                return true;
+            });
+
+            setBookings(filteredData);
         } catch (err) {
             console.error("Failed to fetch bookings:", err);
         } finally {
             setLoading(false);
         }
-    }, [isAuthenticated, currentDate, dayCount, staffFilter, statusFilter]);
+    }, [isAuthenticated, currentDate, dayCount, staffFilter, statusFilter, viewMode]);
 
     useEffect(() => {
         fetchBookings();
@@ -173,8 +193,10 @@ export default function BookingsPage() {
     }, [isStaffRole]);
 
     // Navigation handlers
-    const handleNext = () => setCurrentDate(prev => addDays(prev, dayCount));
-    const handlePrev = () => setCurrentDate(prev => subDays(prev, dayCount));
+    const handleNext = () =>
+        setCurrentDate((prev) => (viewMode === "month" ? addMonths(prev, 1) : addDays(prev, dayCount)));
+    const handlePrev = () =>
+        setCurrentDate((prev) => (viewMode === "month" ? subMonths(prev, 1) : subDays(prev, dayCount)));
     const handleToday = () => setCurrentDate(new Date());
 
     const handleBookingClick = (booking: AdminBooking) => {
@@ -209,6 +231,33 @@ export default function BookingsPage() {
         } catch (err) {
             console.error("Failed to update booking status:", err);
             throw err;
+        }
+    };
+
+    const handleMarkNoShow = async (id: number) => {
+        const sourceBooking =
+            bookings.find((booking) => booking.id === id) ||
+            (selectedBooking?.id === id ? selectedBooking : null);
+
+        const updatedBooking = await updateBooking(id, {
+            status: "CANCELLED",
+            notes: appendNoShowMarker(sourceBooking?.notes),
+        });
+
+        setBookings((prev) => prev.map((booking) => (booking.id === id ? updatedBooking : booking)));
+
+        if (selectedBooking && selectedBooking.id === id) {
+            setSelectedBooking(updatedBooking);
+        }
+    };
+
+    const handleSendNoShowNotification = async (
+        id: number,
+        payload: { channel: NoShowNotificationChannel; message?: string }
+    ) => {
+        const result = await sendNoShowNotification(id, payload);
+        if (result.status !== "SENT") {
+            throw new Error(result.reason || t("adminBookings.noShowNotificationError"));
         }
     };
 
@@ -295,12 +344,15 @@ export default function BookingsPage() {
 
     // Date range label
     const dateRangeLabel = useMemo(() => {
+        if (viewMode === "month") {
+            return format(currentDate, "MMMM yyyy");
+        }
         if (dayCount === 1) {
             return format(currentDate, "EEEE, MMM d, yyyy");
         }
         const endDate = addDays(currentDate, dayCount - 1);
         return `${format(currentDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
-    }, [currentDate, dayCount]);
+    }, [currentDate, dayCount, viewMode]);
 
     if (!isAuthenticated) return null;
 
@@ -314,14 +366,14 @@ export default function BookingsPage() {
                     <p className="text-text-muted">{t('adminBookings.subtitle')}</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                     {!isStaffRole && (
                         <>
                             <Button
                                 variant="outline"
                                 onClick={() => void handleSendTodayReminders()}
                                 disabled={isSendingReminders}
-                                className="border-brand/30 text-brand hover:bg-brand/5"
+                                className="w-full border-brand/30 text-brand hover:bg-brand/5 sm:w-auto"
                             >
                                 {isSendingReminders ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -331,7 +383,7 @@ export default function BookingsPage() {
                                 {t('adminBookings.sendTodayReminders')}
                             </Button>
 
-                            <Button onClick={() => setIsNewBookingOpen(true)} className="bg-brand text-white hover:bg-brand-hover shadow-sm">
+                            <Button onClick={() => setIsNewBookingOpen(true)} className="w-full bg-brand text-white hover:bg-brand-hover shadow-sm sm:w-auto">
                                 <Plus className="mr-2 h-4 w-4" /> {t('adminBookings.newBooking')}
                             </Button>
                         </>
@@ -388,11 +440,14 @@ export default function BookingsPage() {
                 {/* Top Row: View & Day Toggles */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     {/* View Mode & Day Count */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")} className="w-auto">
-                            <TabsList>
+                    <div className="flex w-full flex-wrap items-center gap-2">
+                        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "month" | "list")} className="w-full sm:w-auto">
+                            <TabsList className="grid w-full grid-cols-3 sm:flex">
                                 <TabsTrigger value="calendar" className="px-3">
                                     <CalendarIcon className="mr-2 h-4 w-4" /> {t('adminBookings.calendar')}
+                                </TabsTrigger>
+                                <TabsTrigger value="month" className="px-3">
+                                    Mes
                                 </TabsTrigger>
                                 <TabsTrigger value="list" className="px-3">
                                     <ListIcon className="mr-2 h-4 w-4" /> {t('adminBookings.list')}
@@ -401,7 +456,7 @@ export default function BookingsPage() {
                         </Tabs>
 
                         {viewMode === "calendar" && (
-                            <div className="flex items-center gap-1 ml-2">
+                            <div className="ml-0 flex items-center gap-1 sm:ml-2">
                                 {([1, 3, 7] as DayCount[]).map((count) => (
                                     <Button
                                         key={count}
@@ -418,19 +473,24 @@ export default function BookingsPage() {
                     </div>
 
                     {/* Date Navigation */}
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="icon" onClick={handlePrev}>
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="min-w-[180px] text-center font-medium text-sm">
+                    <div className="w-full sm:w-auto">
+                        <div className="flex items-center justify-between gap-2 sm:justify-end">
+                            <Button variant="outline" size="icon" onClick={handlePrev} className="shrink-0">
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="min-w-0 flex-1 text-center text-sm font-medium sm:hidden">
+                                {dateRangeLabel}
+                            </div>
+                            <Button variant="outline" size="icon" onClick={handleNext} className="shrink-0">
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={handleToday} className="shrink-0 text-xs text-text-muted">
+                                {t('shopBooking.today')}
+                            </Button>
+                        </div>
+                        <div className="mt-1 hidden min-w-[180px] text-center text-sm font-medium sm:block">
                             {dateRangeLabel}
                         </div>
-                        <Button variant="outline" size="icon" onClick={handleNext}>
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={handleToday} className="text-xs text-text-muted">
-                            {t('shopBooking.today')}
-                        </Button>
                     </div>
                 </div>
 
@@ -441,11 +501,11 @@ export default function BookingsPage() {
                         <span>{t('adminBookings.filters')}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex w-full items-center gap-2 flex-wrap">
                         {/* Staff Filter */}
                         {!isStaffRole && (
                             <Select value={staffFilter} onValueChange={setStaffFilter}>
-                                <SelectTrigger className="w-[160px] h-9">
+                                <SelectTrigger className="h-9 w-full sm:w-[160px]">
                                     <SelectValue placeholder={t('adminBookings.allStaff')} />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -463,7 +523,7 @@ export default function BookingsPage() {
 
                         {/* Status Filter */}
                         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as BookingStatus | "ALL")}>
-                            <SelectTrigger className="w-[150px] h-9">
+                            <SelectTrigger className="h-9 w-full sm:w-[150px]">
                                 <SelectValue placeholder={t('adminBookings.allStatuses')} />
                             </SelectTrigger>
                             <SelectContent>
@@ -507,6 +567,12 @@ export default function BookingsPage() {
                         onBookingClick={handleBookingClick}
                         businessHours={businessHours}
                     />
+                ) : viewMode === "month" ? (
+                    <BookingMonthView
+                        bookings={bookings}
+                        currentDate={currentDate}
+                        onBookingClick={handleBookingClick}
+                    />
                 ) : (
                     <BookingListView
                         bookings={bookings}
@@ -531,6 +597,8 @@ export default function BookingsPage() {
                 isOpen={isDetailOpen}
                 onClose={() => setIsDetailOpen(false)}
                 onStatusUpdate={handleStatusUpdate}
+                onMarkNoShow={handleMarkNoShow}
+                onSendNoShowNotification={handleSendNoShowNotification}
                 onRefresh={fetchBookings}
             />
         </div>

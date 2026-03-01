@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal } from "lucide-react";
 import { AdminBooking } from "@/types/admin-booking";
 import { useT } from "@/lib/i18n";
+import { getBookingDisplayStatus } from "../lib/bookingStatus";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -98,7 +99,7 @@ export function BookingListView({ bookings, onBookingClick }: BookingListViewPro
                                 </div>
                             </TableCell>
                             <TableCell>{booking.staff.name}</TableCell>
-                            <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                            <TableCell>{getStatusBadge(getBookingDisplayStatus(booking))}</TableCell>
                             <TableCell className="text-right font-medium">
                                 ${(booking.total_price / 100).toFixed(2)}
                             </TableCell>

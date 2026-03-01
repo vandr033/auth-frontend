@@ -5,6 +5,7 @@ import { format, addDays, isSameDay, parseISO, differenceInMinutes } from "date-
 import { AdminBooking } from "@/types/admin-booking";
 import { cn } from "@/lib/utils";
 import { type DaySchedule } from "@/app/admin/lib/adminApi";
+import { getBookingDisplayStatus } from "../lib/bookingStatus";
 
 interface BookingCalendarViewProps {
     bookings: AdminBooking[];
@@ -201,6 +202,11 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
             : "bg-slate-100 text-slate-800 border-slate-200";
     };
 
+    const timeColumnWidth = 72;
+    const dayColumnMinWidth = dayCount === 1 ? 220 : dayCount === 3 ? 130 : 96;
+    const gridTemplateColumns = `${timeColumnWidth}px repeat(${dayCount}, minmax(${dayColumnMinWidth}px, 1fr))`;
+    const gridMinWidth = timeColumnWidth + dayCount * dayColumnMinWidth;
+
     return (
         <div className="flex flex-col h-full border border-surface-border rounded-lg bg-surface overflow-hidden">
             {/* Staff Legend */}
@@ -215,155 +221,161 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                 </div>
             )}
 
-            {/* Header */}
-            <div
-                className="grid border-b border-surface-border bg-page/50"
-                style={{ gridTemplateColumns: `80px repeat(${dayCount}, 1fr)` }}
-            >
-                <div className="p-4 border-r border-surface-border text-xs font-semibold text-text-muted text-center">
-                    TIME
-                </div>
-                {days.map((date) => {
-                    const dayOfWeek = date.getDay();
-                    const dayHours = businessHours.find(h => h.day === dayOfWeek);
-                    const isDayClosed = dayHours ? !dayHours.is_open : false;
-
-                    return (
-                        <div
-                            key={date.toISOString()}
-                            className={cn(
-                                "p-3 text-center border-r border-surface-border last:border-r-0",
-                                isSameDay(date, new Date()) && "bg-brand/5",
-                                isDayClosed && "bg-rose-50/50"
-                            )}
-                        >
-                            <div className="text-xs font-medium text-text-muted uppercase mb-1">
-                                {format(date, "EEE")}
-                            </div>
-                            <div className={cn(
-                                "text-lg font-bold w-8 h-8 rounded-full flex items-center justify-center mx-auto",
-                                isSameDay(date, new Date()) && "bg-brand text-white"
-                            )}>
-                                {format(date, "d")}
-                            </div>
-                            {dayCount <= 3 && (
-                                <div className="text-xs text-text-muted mt-1">
-                                    {format(date, "MMM")}
-                                </div>
-                            )}
-                            {isDayClosed && (
-                                <div className="text-xs text-rose-500 font-medium mt-1">
-                                    Closed
-                                </div>
-                            )}
+            {/* Calendar Surface - horizontal swipe on mobile instead of squeezed columns */}
+            <div className="flex-1 min-h-0 overflow-x-auto">
+                <div className="flex min-h-0 flex-col" style={{ minWidth: `${gridMinWidth}px` }}>
+                    {/* Header */}
+                    <div
+                        className="grid border-b border-surface-border bg-page/50"
+                        style={{ gridTemplateColumns }}
+                    >
+                        <div className="sticky left-0 z-20 border-r border-surface-border bg-page/90 px-2 py-3 text-center text-[11px] font-semibold text-text-muted backdrop-blur-sm sm:text-xs">
+                            TIME
                         </div>
-                    );
-                })}
-            </div>
+                        {days.map((date) => {
+                            const dayOfWeek = date.getDay();
+                            const dayHours = businessHours.find(h => h.day === dayOfWeek);
+                            const isDayClosed = dayHours ? !dayHours.is_open : false;
 
-            {/* Grid - scrollable container */}
-            <div
-                ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto relative bg-surface"
-                style={{ maxHeight: "calc(100dvh - 320px)" }}
-            >
-                <div
-                    className="grid min-h-[1440px]"
-                    style={{ gridTemplateColumns: `80px repeat(${dayCount}, 1fr)` }}
-                >
-                    {/* Time Column */}
-                    <div className="border-r border-surface-border bg-page/30">
-                        {HOURS.map((hour) => (
-                            <div
-                                key={hour}
-                                className="h-[60px] border-b border-surface-border text-xs text-text-muted p-2 text-right"
-                            >
-                                {format(new Date().setHours(hour, 0), "h a")}
-                            </div>
-                        ))}
+                            return (
+                                <div
+                                    key={date.toISOString()}
+                                    className={cn(
+                                        "border-r border-surface-border px-1 py-2 text-center last:border-r-0 sm:px-2 sm:py-3",
+                                        isSameDay(date, new Date()) && "bg-brand/5",
+                                        isDayClosed && "bg-rose-50/50"
+                                    )}
+                                >
+                                    <div className="mb-1 text-[10px] font-medium uppercase text-text-muted sm:text-xs">
+                                        {format(date, "EEE")}
+                                    </div>
+                                    <div className={cn(
+                                        "mx-auto flex h-7 w-7 items-center justify-center rounded-full text-base font-bold sm:h-8 sm:w-8 sm:text-lg",
+                                        isSameDay(date, new Date()) && "bg-brand text-white"
+                                    )}>
+                                        {format(date, "d")}
+                                    </div>
+                                    {dayCount <= 3 && (
+                                        <div className="mt-1 text-[10px] text-text-muted sm:text-xs">
+                                            {format(date, "MMM")}
+                                        </div>
+                                    )}
+                                    {isDayClosed && (
+                                        <div className="mt-1 text-[10px] font-medium text-rose-500 sm:text-xs">
+                                            Closed
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
 
-                    {/* Days Columns */}
-                    {days.map((day) => {
-                        const dayBookings = bookings.filter(b => isSameDay(parseISO(b.start_at), day));
-                        const overlapLayout = computeOverlapLayout(dayBookings);
-                        const dayOfWeek = day.getDay(); // 0 = Sunday, 6 = Saturday
-                        const dayHours = businessHours.find(h => h.day === dayOfWeek);
-                        const isDayClosed = dayHours ? !dayHours.is_open : false;
-
-                        // Calculate which hours are within business hours
-                        const isHourOpen = (hour: number): boolean => {
-                            if (!dayHours || !dayHours.is_open || !dayHours.slots.length) return false;
-                            return dayHours.slots.some(slot => {
-                                const startHour = parseInt(slot.start_time.split(':')[0], 10);
-                                const endHour = parseInt(slot.end_time.split(':')[0], 10);
-                                const endMinute = parseInt(slot.end_time.split(':')[1], 10);
-                                // Hour is open if it starts at or after open time AND before close time
-                                return hour >= startHour && (hour < endHour || (hour === endHour && endMinute > 0));
-                            });
-                        };
-
-                        return (
-                            <div
-                                key={day.toISOString()}
-                                className="relative border-r border-surface-border last:border-r-0 group"
-                            >
-                                {/* Closed Day Overlay */}
-                                {isDayClosed && (
-                                    <div className="absolute inset-0 bg-rose-50/60 z-[1] pointer-events-none flex items-start justify-center pt-4">
-                                        <span className="bg-rose-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
-                                            Closed
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Hour Lines */}
-                                {HOURS.map((hour) => {
-                                    const hourOpen = !isDayClosed && isHourOpen(hour);
-                                    return (
+                    {/* Grid - vertical scroll */}
+                    <div
+                        ref={scrollContainerRef}
+                        className="relative flex-1 overflow-y-auto bg-surface"
+                        style={{ maxHeight: "calc(100dvh - 320px)" }}
+                    >
+                        <div
+                            className="grid min-h-[1440px]"
+                            style={{ gridTemplateColumns }}
+                        >
+                            {/* Time Column */}
+                            <div className="sticky left-0 z-10 border-r border-surface-border bg-page/90 backdrop-blur-sm">
+                                {HOURS.map((hour) => (
                                     <div
                                         key={hour}
-                                        className={cn(
-                                            "h-[60px] border-b border-surface-border/50",
-                                            !hourOpen && !isDayClosed && "bg-slate-100/50"
-                                        )}
-                                    />
-                                );})}
-
-                                {/* Bookings */}
-                                {dayBookings.map((booking) => {
-                                    const layout = overlapLayout.get(booking.id);
-                                    return (
-                                        <button
-                                            key={booking.id}
-                                            onClick={() => onBookingClick(booking)}
-                                            className={cn(
-                                                "absolute rounded-md border p-1.5 text-left text-xs transition-transform hover:scale-[1.02] hover:z-10 shadow-sm overflow-hidden",
-                                                getStaffColor(booking.staff.id)
-                                            )}
-                                            style={getBookingStyle(booking, layout)}
-                                        >
-                                            <div className="flex items-center gap-1">
-                                                <div className="font-semibold truncate flex-1">
-                                                    {booking.customer.full_name}
-                                                </div>
-                                                <span className={cn(
-                                                    "w-1.5 h-1.5 rounded-full shrink-0",
-                                                    STATUS_BADGES[booking.status] || STATUS_BADGES.PENDING
-                                                )} title={booking.status} />
-                                            </div>
-                                            <div className="opacity-90 truncate">
-                                                {booking.services.map(s => s.name).join(", ")}
-                                            </div>
-                                            <div className="mt-0.5 opacity-75 truncate text-[10px]">
-                                                {format(parseISO(booking.start_at), "h:mm a")}
-                                            </div>
-                                        </button>
-                                    );
-                                })}
+                                        className="h-[60px] border-b border-surface-border px-2 py-2 text-right text-xs text-text-muted"
+                                    >
+                                        {format(new Date().setHours(hour, 0), "h a")}
+                                    </div>
+                                ))}
                             </div>
-                        );
-                    })}
+
+                            {/* Days Columns */}
+                            {days.map((day) => {
+                                const dayBookings = bookings.filter(b => isSameDay(parseISO(b.start_at), day));
+                                const overlapLayout = computeOverlapLayout(dayBookings);
+                                const dayOfWeek = day.getDay(); // 0 = Sunday, 6 = Saturday
+                                const dayHours = businessHours.find(h => h.day === dayOfWeek);
+                                const isDayClosed = dayHours ? !dayHours.is_open : false;
+
+                                // Calculate which hours are within business hours
+                                const isHourOpen = (hour: number): boolean => {
+                                    if (!dayHours || !dayHours.is_open || !dayHours.slots.length) return false;
+                                    return dayHours.slots.some(slot => {
+                                        const startHour = parseInt(slot.start_time.split(':')[0], 10);
+                                        const endHour = parseInt(slot.end_time.split(':')[0], 10);
+                                        const endMinute = parseInt(slot.end_time.split(':')[1], 10);
+                                        // Hour is open if it starts at or after open time AND before close time
+                                        return hour >= startHour && (hour < endHour || (hour === endHour && endMinute > 0));
+                                    });
+                                };
+
+                                return (
+                                    <div
+                                        key={day.toISOString()}
+                                        className="group relative border-r border-surface-border last:border-r-0"
+                                    >
+                                        {/* Closed Day Overlay */}
+                                        {isDayClosed && (
+                                            <div className="pointer-events-none absolute inset-0 z-[1] flex items-start justify-center bg-rose-50/60 pt-4">
+                                                <span className="rounded-full bg-rose-500 px-2 py-1 text-[10px] font-semibold text-white shadow-sm sm:px-3 sm:text-xs">
+                                                    Closed
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* Hour Lines */}
+                                        {HOURS.map((hour) => {
+                                            const hourOpen = !isDayClosed && isHourOpen(hour);
+                                            return (
+                                            <div
+                                                key={hour}
+                                                className={cn(
+                                                    "h-[60px] border-b border-surface-border/50",
+                                                    !hourOpen && !isDayClosed && "bg-slate-100/50"
+                                                )}
+                                            />
+                                        );})}
+
+                                        {/* Bookings */}
+                                        {dayBookings.map((booking) => {
+                                            const layout = overlapLayout.get(booking.id);
+                                            const displayStatus = getBookingDisplayStatus(booking);
+                                            return (
+                                                <button
+                                                    key={booking.id}
+                                                    onClick={() => onBookingClick(booking)}
+                                                    className={cn(
+                                                        "absolute overflow-hidden rounded-md border p-1.5 text-left text-xs shadow-sm transition-transform hover:z-10 hover:scale-[1.02]",
+                                                        getStaffColor(booking.staff.id)
+                                                    )}
+                                                    style={getBookingStyle(booking, layout)}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="flex-1 truncate font-semibold">
+                                                            {booking.customer.full_name}
+                                                        </div>
+                                                        <span className={cn(
+                                                            "h-1.5 w-1.5 shrink-0 rounded-full",
+                                                            STATUS_BADGES[displayStatus] || STATUS_BADGES.PENDING
+                                                        )} title={displayStatus} />
+                                                    </div>
+                                                    <div className="truncate opacity-90">
+                                                        {booking.services.map(s => s.name).join(", ")}
+                                                    </div>
+                                                    <div className="mt-0.5 truncate text-[10px] opacity-75">
+                                                        {format(parseISO(booking.start_at), "h:mm a")}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

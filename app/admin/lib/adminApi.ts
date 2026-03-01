@@ -228,6 +228,20 @@ export interface TodayReminderSendResult {
     reason?: string;
 }
 
+export type NoShowNotificationChannel = "AUTO" | "WHATSAPP" | "EMAIL";
+
+export interface NoShowNotificationPayload {
+    channel?: NoShowNotificationChannel;
+    message?: string;
+}
+
+export interface NoShowNotificationResult {
+    booking_id: number;
+    status: "SENT" | "SKIPPED" | "FAILED";
+    channel?: "WHATSAPP" | "EMAIL";
+    reason?: string;
+}
+
 export async function getTodayReminderPreview(): Promise<TodayReminderPreview> {
     const response = await apiFetch<{ data: TodayReminderPreview }>("/api/admin/bookings/reminders/today/preview");
     return response.data;
@@ -236,6 +250,17 @@ export async function getTodayReminderPreview(): Promise<TodayReminderPreview> {
 export async function sendTodayReminder(bookingId: number): Promise<TodayReminderSendResult> {
     const response = await apiFetch<{ data: TodayReminderSendResult }>(`/api/admin/bookings/${bookingId}/reminders/today`, {
         method: "POST",
+    });
+    return response.data;
+}
+
+export async function sendNoShowNotification(
+    bookingId: number,
+    payload: NoShowNotificationPayload
+): Promise<NoShowNotificationResult> {
+    const response = await apiFetch<{ data: NoShowNotificationResult }>(`/api/admin/bookings/${bookingId}/notifications/no-show`, {
+        method: "POST",
+        body: JSON.stringify(payload),
     });
     return response.data;
 }
