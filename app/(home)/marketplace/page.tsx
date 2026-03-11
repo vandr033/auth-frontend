@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, ChevronDown, Clock3, List, Map as MapIcon, MapPin, Search } from "lucide-react";
 
@@ -182,7 +182,7 @@ interface CitySuggestionResponse {
   city: string;
 }
 
-export default function MarketplacePage() {
+function MarketplacePageContent() {
   const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1113,5 +1113,13 @@ export default function MarketplacePage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function MarketplacePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#ececec] pb-0 pt-20" />}>
+      <MarketplacePageContent />
+    </Suspense>
   );
 }
