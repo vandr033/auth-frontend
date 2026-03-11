@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/useAuth";
 import { useT } from "@/lib/i18n";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, UserPlus, Sparkles } from "lucide-react";
+import { useOtpResendTimer } from "@/lib/auth/otpResend";
 
 type Method = null | "email" | "phone";
 type FlowStep = "method" | "contact" | "otp" | "profile" | "done";
@@ -35,6 +36,7 @@ export default function RegisterPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dialCode, setDialCode] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [hasRequestedOtp, setHasRequestedOtp] = useState(false);
 
   // Profile state (shared)
   const [firstName, setFirstName] = useState("");
@@ -42,6 +44,7 @@ export default function RegisterPage() {
 
   const [localError, setLocalError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const { secondsRemaining, canResend, startCooldown } = useOtpResendTimer();
 
   const handleSelectMethod = (m: Method) => {
     setMethod(m);
@@ -74,6 +77,8 @@ export default function RegisterPage() {
     try {
       await startCustomerEmailRegistration(email);
       setStep("otp");
+      setHasRequestedOtp(true);
+      startCooldown();
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("auth.register.sendCodeError"));
     } finally {
@@ -116,11 +121,24 @@ export default function RegisterPage() {
     try {
       await sendPhoneOtp(phoneNumber);
       setStep("otp");
+      setHasRequestedOtp(true);
+      startCooldown();
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("auth.register.sendOtpError"));
     } finally {
       setSending(false);
     }
+  };
+
+  const handleResendCode = async () => {
+    if (!method || !canResend || sending) return;
+
+    if (method === "email") {
+      await handleEmailSend();
+      return;
+    }
+
+    await handlePhoneSend();
   };
 
   const handlePhoneVerify = async () => {
@@ -296,12 +314,21 @@ export default function RegisterPage() {
 
               <button
                 onClick={method === "email" ? handleEmailSend : handlePhoneSend}
-                disabled={sending || (method === "email" ? !email : !phoneNumber)}
+                disabled={
+                  sending ||
+                  (method === "email" ? !email : !phoneNumber) ||
+                  (hasRequestedOtp && !canResend)
+                }
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t("auth.register.sendCode")}
               </button>
+              {hasRequestedOtp && !canResend && (
+                <p className="text-center text-xs text-slate-500" aria-live="polite">
+                  {t("auth.register.resendIn", { seconds: secondsRemaining })}
+                </p>
+              )}
             </>
           )}
 
@@ -335,16 +362,15 @@ export default function RegisterPage() {
                 {t("auth.register.verifyCode")}
               </button>
 
+              <p className="text-center text-xs text-slate-500" aria-live="polite">
+                {canResend
+                  ? t("auth.register.resendReady")
+                  : t("auth.register.resendIn", { seconds: secondsRemaining })}
+              </p>
               <button
-                onClick={() => {
-                  setStep("contact");
-                  if (method === "email") {
-                    setEmailCode("");
-                  } else {
-                    setOtpCode("");
-                  }
-                }}
-                className="w-full text-center text-sm text-slate-500 hover:text-brand"
+                onClick={() => void handleResendCode()}
+                disabled={sending || !canResend}
+                className="w-full text-center text-sm text-slate-500 hover:text-brand disabled:opacity-50 disabled:hover:text-slate-500"
               >
                 {t("auth.register.resendCode")}
               </button>

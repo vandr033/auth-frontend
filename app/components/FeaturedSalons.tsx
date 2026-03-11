@@ -1,115 +1,206 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { featuredSalons as mockSalons } from "@/app/lib/mock-data";
-import { Salon } from "@/app/lib/types";
-import { SalonCard, SalonCardSkeleton } from "./SalonCard";
-import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MapPin, Star } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+
+import { useApi } from "@/app/hooks/useApi";
+import { useT } from "@/lib/i18n";
 import { getImageUrl } from "@/utils/image-url";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  "http://localhost:3001/api";
+type FeaturedProfessional = {
+  id: string;
+  slug: string;
+  name: string;
+  location: string;
+  rating: string;
+  count: string;
+  badge?: string;
+  imageUrl?: string | null;
+  imageClass: string;
+};
+
+interface FeaturedCompanyApi {
+  id: number;
+  name: string;
+  slug: string;
+  city?: string | null;
+  neighborhood?: string | null;
+  imageUrl?: string | null;
+  image_url?: string | null;
+  thumbnail_image?: string | null;
+  rating?: number | null;
+  reviewCount?: number | null;
+  review_count?: number | null;
+  isTopRated?: boolean;
+  isNew?: boolean;
+}
+
+const FEATURE_IMAGE_CLASSES = [
+  "bg-[linear-gradient(145deg,#3b2c26_0%,#141414_100%)]",
+  "bg-[linear-gradient(145deg,#d7d7d7_0%,#5f5f5f_100%)]",
+  "bg-[linear-gradient(145deg,#ececec_0%,#c8c8c8_100%)]",
+  "bg-[linear-gradient(145deg,#54434b_0%,#1d1a1d_100%)]",
+];
 
 export function FeaturedSalons() {
-  const [salons, setSalons] = useState<Salon[]>(mockSalons);
-  const [loading, setLoading] = useState(true);
+  const api = useApi();
+  const t = useT();
   const prefersReducedMotion = useReducedMotion();
 
-  useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/company/featured`);
-        const json = await res.json();
+  const [featured, setFeatured] = useState<FeaturedProfessional[]>([]);
 
-        if (!res.ok || json.error || !json.data?.length) {
-          setSalons(mockSalons);
+  useEffect(() => {
+    let cancelled = false;
+
+    void api
+      .get<{ error?: boolean; data?: FeaturedCompanyApi[] }>("/company/featured")
+      .then((response) => {
+        if (cancelled) return;
+        const rows = Array.isArray(response.data) ? response.data : [];
+        if (rows.length === 0) {
+          setFeatured([]);
           return;
         }
 
-        const mapped: Salon[] = json.data.map(
-          (c: {
-            id: number;
-            name: string;
-            slug: string;
-            city: string;
-            neighborhood: string;
-            imageUrl: string;
-            rating: number;
-            isTopRated: boolean;
-            isNew: boolean;
-          }) => ({
-            id: String(c.id),
-            name: c.name,
-            slug: c.slug,
-            city: c.city || "Unknown",
-            neighborhood: c.neighborhood || "",
-            imageUrl:
-              getImageUrl(c.imageUrl) ||
-              "https://images.unsplash.com/photo-1599351431202-19a6b8da4433?q=80&w=400&auto=format&fit=crop",
-            rating: c.rating || 0,
-            isTopRated: c.isTopRated,
-            isNew: c.isNew,
-          }),
-        );
+        const mapped = rows.slice(0, 4).map((item, index) => {
+          const rating = typeof item.rating === "number" ? item.rating.toFixed(1) : "4.8";
+          const reviewCountRaw = item.reviewCount ?? item.review_count;
+          const reviewCount = typeof reviewCountRaw === "number" && Number.isFinite(reviewCountRaw)
+            ? String(reviewCountRaw)
+            : "120";
+          const locationParts = [item.city, item.neighborhood].filter(Boolean) as string[];
+          const location = locationParts.length > 0 ? locationParts.join(" · ") : "";
 
-        setSalons(mapped.length > 0 ? mapped : mockSalons);
-      } catch {
-        setSalons(mockSalons);
-      } finally {
-        setLoading(false);
-      }
+          return {
+            id: String(item.id),
+            slug: item.slug || "marketplace",
+            name: item.name || "",
+            location,
+            rating,
+            count: reviewCount,
+            badge: item.isTopRated ? "TOP" : item.isNew ? "NEW" : undefined,
+            imageUrl: item.imageUrl || item.image_url || item.thumbnail_image,
+            imageClass: FEATURE_IMAGE_CLASSES[index % FEATURE_IMAGE_CLASSES.length],
+          } satisfies FeaturedProfessional;
+        }).filter((item) => item.name.trim().length > 0);
+
+        setFeatured(mapped);
+      })
+      .catch(() => {
+        if (!cancelled) setFeatured([]);
+      });
+
+    return () => {
+      cancelled = true;
     };
-
-    fetchFeatured();
-  }, []);
-
-  const headingVariants = prefersReducedMotion
-    ? undefined
-    : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
+  }, [api, t]);
 
   return (
-    <section className="bg-white py-20 dark:bg-slate-950 sm:py-28">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={headingVariants}
-          className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
-        >
+    <section id="profesionales" className="w-full bg-[#f3f3f3] py-16 sm:py-20 lg:py-24">
+      <div className="mx-auto w-full max-w-[1260px] px-4 sm:px-6 lg:px-8">
+        <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">
-              Handpicked
+            <p className="inline-flex border-2 border-black px-2.5 py-1 font-bebas text-[13px] leading-none tracking-[0.14em] text-biz-barbie-pink uppercase">
+              {t("homeRedesign.featured.eyebrow")}
             </p>
-            <h2 className="font-heading text-3xl font-bold text-slate-900 dark:text-white sm:text-4xl">
-              Featured &amp; Top Rated
+            <h2 className="mt-4 font-business-display text-[clamp(2.7rem,7vw,6.3rem)] leading-[0.84] font-black tracking-[-0.02em] text-black uppercase">
+              <span className="block">{t("homeRedesign.featured.title1")}</span>
+              <span className="block">{t("homeRedesign.featured.title2")}</span>
             </h2>
-            <p className="mt-2 max-w-lg text-slate-500 dark:text-slate-400">
-              Salons and barbershops with the best reviews from our community.
-            </p>
           </div>
-          <Link
-            href="/salons"
-            className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-brand-hover"
-          >
-            View all
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-        </motion.div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => (
-              <SalonCardSkeleton key={i} />
-            ))
-            : salons.map((salon, index) => (
-              <SalonCard key={salon.id} salon={salon} index={index} />
-            ))}
+          <Link
+            href="/marketplace"
+            className="mb-2 text-[11px] leading-none font-semibold tracking-[0.1em] text-slate-600 uppercase transition-colors hover:text-black"
+          >
+            {t("homeRedesign.featured.viewAll")}
+          </Link>
         </div>
+
+        {featured.length > 0 ? (
+          <motion.div
+            initial={prefersReducedMotion ? undefined : "hidden"}
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={
+              prefersReducedMotion
+                ? undefined
+                : {
+                    hidden: {},
+                    visible: {
+                      transition: {
+                        staggerChildren: 0.08,
+                        delayChildren: 0.1,
+                      },
+                    },
+                  }
+            }
+            className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5"
+          >
+            {featured.map((professional) => {
+              const imageSrc = getImageUrl(professional.imageUrl || "") || professional.imageUrl;
+
+              return (
+                <motion.article
+                  key={professional.id}
+                  variants={
+                    prefersReducedMotion
+                      ? undefined
+                      : {
+                          hidden: { opacity: 0, y: 16 },
+                          visible: { opacity: 1, y: 0 },
+                        }
+                  }
+                  className="group"
+                >
+                  <Link href={`/shop/${professional.slug}`} className="block">
+                    <div className="relative overflow-hidden border border-black/12 bg-white">
+                      {imageSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imageSrc}
+                          alt={professional.name}
+                          className="aspect-[4/5] w-full object-cover"
+                        />
+                      ) : (
+                        <div className={`aspect-[4/5] w-full ${professional.imageClass}`} />
+                      )}
+                      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04),rgba(0,0,0,0.08))]" />
+                      {professional.badge ? (
+                        <span className="absolute right-2 top-2 bg-biz-barbie-pink px-2 py-1 font-bebas text-[10px] leading-none tracking-[0.08em] text-white uppercase">
+                          {professional.badge}
+                        </span>
+                      ) : null}
+                    </div>
+                  </Link>
+
+                  <div className="mt-3 space-y-1">
+                    <h3 className="font-bebas text-[20px] leading-[0.92] font-semibold tracking-tight text-black uppercase">
+                      {professional.name}
+                    </h3>
+                    <div className="flex items-center justify-between gap-2 text-[11px] tracking-[0.04em] uppercase">
+                      <span className="inline-flex items-center gap-1 text-slate-500">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {professional.location || "—"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                        <Star className="h-3.5 w-3.5 fill-biz-yellow text-biz-yellow" />
+                        {professional.rating}
+                        <span className="text-slate-500">({professional.count})</span>
+                      </span>
+                    </div>
+                  </div>
+                </motion.article>
+              );
+            })}
+          </motion.div>
+        ) : (
+          <p className="mt-8 text-[11px] leading-none font-semibold tracking-[0.1em] text-slate-500 uppercase">
+            {t("common.noResults")}
+          </p>
+        )}
       </div>
     </section>
   );

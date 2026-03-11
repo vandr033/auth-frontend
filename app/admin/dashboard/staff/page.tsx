@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Plus,
     Pencil,
@@ -49,6 +49,10 @@ interface Service {
     duration_minutes: number;
     price: number | string;
     is_active: boolean;
+    category?: {
+        id: number;
+        name: string;
+    };
 }
 
 interface Staff {
@@ -56,7 +60,7 @@ interface Staff {
     user_id: string;
     company_id: number;
     display_name: string;
-    bio: string | null;
+    bio: string;
     image_url: string | null;
     is_bookable: boolean;
     is_active: boolean;
@@ -246,7 +250,7 @@ export default function StaffPage() {
             // STEP 1: Create or Update Staff Basic Info
             const payload = {
                 display_name: formData.display_name.trim(),
-                bio: formData.bio.trim() || null,
+                bio: formData.bio.trim(),
                 is_bookable: formData.is_bookable,
                 company_id: companyId,
                 ...(editingStaff ? {} : {
@@ -323,6 +327,29 @@ export default function StaffPage() {
             setSubmitting(false);
         }
     };
+
+    const servicesByCategory = useMemo(() => {
+        const grouped = new Map<string, { key: string; name: string; services: Service[] }>();
+
+        for (const service of services) {
+            const categoryName = service.category?.name || t("adminServices.uncategorized");
+            const categoryKey = service.category?.id
+                ? `category-${service.category.id}`
+                : "category-uncategorized";
+
+            if (!grouped.has(categoryKey)) {
+                grouped.set(categoryKey, {
+                    key: categoryKey,
+                    name: categoryName,
+                    services: [],
+                });
+            }
+
+            grouped.get(categoryKey)?.services.push(service);
+        }
+
+        return Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [services, t]);
 
     // Handle delete
     const handleDelete = async () => {
@@ -668,17 +695,30 @@ export default function StaffPage() {
                             {services.length === 0 ? (
                                 <p className="text-sm text-slate-500 italic">{t('adminStaff.noServicesHint')}</p>
                             ) : (
-                                <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-1">
-                                    {services.map(service => (
-                                        <label key={service.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded cursor-pointer transition-colors">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.service_ids.includes(service.id)}
-                                                onChange={() => toggleService(service.id)}
-                                                className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-                                            />
-                                            <span className="text-sm text-slate-700">{service.name}</span>
-                                        </label>
+                                <div className="max-h-56 overflow-y-auto border rounded-md p-2 space-y-3">
+                                    {servicesByCategory.map((group) => (
+                                        <div key={group.key} className="space-y-1">
+                                            <p className="px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                {group.name}
+                                            </p>
+                                            {group.services.length === 0 ? (
+                                                <p className="px-2 pb-2 text-xs text-slate-400">
+                                                    {t("adminStaff.emptyCategoryServices")}
+                                                </p>
+                                            ) : (
+                                                group.services.map((service) => (
+                                                    <label key={service.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded cursor-pointer transition-colors">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.service_ids.includes(service.id)}
+                                                            onChange={() => toggleService(service.id)}
+                                                            className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                                                        />
+                                                        <span className="text-sm text-slate-700">{service.name}</span>
+                                                    </label>
+                                                ))
+                                            )}
+                                        </div>
                                     ))}
                                 </div>
                             )}

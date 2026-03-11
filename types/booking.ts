@@ -50,6 +50,7 @@ export interface BookingRequest {
     payment_method: 'CASH' | 'QR' | 'NONE';
     notes?: string;
     qr_proof_image_url?: string;
+    booking_source?: 'MARKETPLACE' | 'SALON_SITE' | 'ADMIN' | 'MANUAL';
 }
 
 export interface BookingResponse {

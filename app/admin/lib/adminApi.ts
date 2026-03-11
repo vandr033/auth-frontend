@@ -44,6 +44,21 @@ export interface DashboardMetrics {
     revenue: { total: number; thisMonth: number; thisWeek: number; today: number; avgPerBooking: number };
     topServices: { id: number; name: string; count: number; percentage: number }[];
     topStaff: { id: number; name: string; bookingCount: number; revenue: number }[];
+    bookingsByStatus: { status: string; count: number }[];
+    bookingsByCategory: { categoryName: string | null; count: number }[];
+    customerInsights: {
+        totalCustomers: number;
+        newCustomersThisMonth: number;
+        newCustomersThisWeek: number;
+        returningCustomers: number;
+        repeatRate: number;
+        avgBookingsPerCustomer: number;
+    };
+    busiestMoments: {
+        busiestDays: { dayOfWeek: number; count: number }[];
+        busiestHours: { hour: number; count: number }[];
+    };
+    customerGrowthTrend: { month: string; newCustomers: number }[];
 }
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
@@ -55,6 +70,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
 
 export interface CustomerRecord {
     id: number;
+    customerKey: string;
     userId: string | null;
     name: string;
     email: string | null;
@@ -62,13 +78,76 @@ export interface CustomerRecord {
     phonePrefix: string | null;
     notes: string | null;
     totalBookings: number;
+    completedBookings: number;
+    cancelledBookings: number;
+    noShowBookings: number;
     lastBookingAt: string | null;
+    nextBookingAt: string | null;
     totalSpentCents: number;
+    avgTicketCents: number;
+    favoriteStaffName: string | null;
+    favoriteStaffBookingCount: number;
+    preferredServiceName: string | null;
+    preferredCategoryName: string | null;
+    preferredServiceBookingCount: number;
+    bookingFrequencyPerMonth: number;
+    recentActivity: {
+        bookingId: number | null;
+        happenedAt: string | null;
+        status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "NO_SHOW" | null;
+        staffName: string | null;
+        serviceName: string | null;
+    };
 }
 
 export async function getCustomers(search?: string): Promise<CustomerRecord[]> {
     const params = search ? `?search=${encodeURIComponent(search)}` : "";
     const response = await apiFetch<{ data: CustomerRecord[] }>(`/api/admin/customers${params}`);
+    return response.data;
+}
+
+export interface CustomerHistoryItem {
+    id: number;
+    startAt: string;
+    endAt: string;
+    status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
+    source: "MARKETPLACE" | "SALON_SITE" | "ADMIN" | "MANUAL";
+    totalPriceCents: number;
+    notes: string | null;
+    staffName: string;
+    services: Array<{
+        serviceName: string | null;
+        categoryName: string | null;
+        durationMinutes: number;
+        priceCents: number;
+    }>;
+}
+
+export interface CustomerHistoryResponse {
+    items: CustomerHistoryItem[];
+    pagination: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+        hasNextPage: boolean;
+    };
+}
+
+export async function getCustomerHistory(
+    customerKey: string,
+    page = 1,
+    limit = 10,
+): Promise<CustomerHistoryResponse> {
+    const query = new URLSearchParams({
+        customer_key: customerKey,
+        page: String(page),
+        limit: String(limit),
+    });
+
+    const response = await apiFetch<{ data: CustomerHistoryResponse }>(
+        `/api/admin/customers/history?${query.toString()}`
+    );
     return response.data;
 }
 
@@ -133,6 +212,31 @@ export async function downloadCustomerImportTemplate(): Promise<Blob> {
         throw new Error(`Request failed: ${response.status}`);
     }
     return response.blob();
+}
+
+export async function downloadCustomersExport(search?: string): Promise<{ blob: Blob; fileName: string | null }> {
+    const query = search ? `?search=${encodeURIComponent(search)}` : "";
+    const response = await fetch(resolveUrl(`/api/admin/customers/export${query}`), {
+        credentials: "include",
+    });
+
+    if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+            data?.error ||
+            data?.message ||
+            `Request failed: ${response.status}`;
+        throw new Error(message);
+    }
+
+    const contentDisposition = response.headers.get("content-disposition") || "";
+    const fileNameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+    const fileName = fileNameMatch?.[1] || null;
+
+    return {
+        blob: await response.blob(),
+        fileName,
+    };
 }
 
 // ============ BOOKINGS ============
@@ -298,7 +402,7 @@ export interface GetStaffResponse {
 export interface StaffSelfProfile {
     id: number;
     display_name: string;
-    bio?: string | null;
+    bio?: string;
     image_url?: string | null;
     is_bookable: boolean;
     status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';

@@ -100,6 +100,19 @@
   --font-family-base: var(--font-geist-sans), "Geist Sans", system-ui, sans-serif;
   --font-heading: var(--font-outfit), "Outfit", system-ui, sans-serif;
   --font-body: var(--font-geist-sans), "Geist Sans", system-ui, sans-serif;
+  --font-druk-text-wide: "Druk Text Wide", "Impact", "Haettenschweiler", "Arial Black", "Bebas Neue", sans-serif;
+
+  /* Business landing palette */
+  --business-blush-rose: #ef5d85;
+  --business-cherry-blossom: #fcb5bb;
+  --business-sky-surge: #06b4e3;
+  --business-barbie-pink: #e73886;
+  --business-alabaster-grey: #e7e7e7;
+  --business-yellow: #faff36;
+  --business-surface: #f3f3f3;
+  --business-heading-dark: #050505;
+  --business-cta-primary: #e73886;
+  --business-cta-hover: #d32e78;
 }
 
 .dark {
@@ -144,6 +157,20 @@ input, select, textarea {
 /* Prevent scroll bounce / overscroll bleed */
 html, body {
   overscroll-behavior: none;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: var(--business-yellow);
+  color: var(--business-heading-dark);
+}
+
+::-moz-selection {
+  background: var(--business-yellow);
+  color: var(--business-heading-dark);
 }
 
 /* Safe area insets for notch / home indicator */

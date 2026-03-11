@@ -13,6 +13,12 @@ interface QuickInfoBarProps {
 
 export function QuickInfoBar({ company, hours, className }: QuickInfoBarProps) {
     const t = useT();
+    const hasCoordinates = Number.isFinite(Number(company.latitude)) && Number.isFinite(Number(company.longitude));
+    const addressQuery = [company.address, company.city].filter(Boolean).join(", ");
+    const mapsQuery = hasCoordinates
+        ? `${company.latitude},${company.longitude}`
+        : addressQuery;
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
     // Calculate open/closed status
     const now = new Date();
     const currentDay = now.getDay();
@@ -70,7 +76,7 @@ export function QuickInfoBar({ company, hours, className }: QuickInfoBarProps) {
                 {/* Address */}
                 {company.address && (
                     <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(company.address + (company.city ? `, ${company.city}` : ''))}`}
+                        href={mapsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex shrink-0 items-center gap-2 text-text-main transition-colors hover:text-brand"

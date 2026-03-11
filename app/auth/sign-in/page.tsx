@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/useAuth";
 import { useT } from "@/lib/i18n";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, KeyRound, Sparkles } from "lucide-react";
+import { useOtpResendTimer } from "@/lib/auth/otpResend";
 
 type Method = null | "email" | "phone";
 type Step = "method" | "otp";
@@ -38,8 +39,10 @@ export default function SignInPage() {
   // OTP state
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [hasRequestedOtp, setHasRequestedOtp] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const { secondsRemaining, canResend, startCooldown } = useOtpResendTimer();
 
   const handleSelectMethod = (m: Method) => {
     setMethod(m);
@@ -69,11 +72,18 @@ export default function SignInPage() {
         await sendPhoneOtp(phoneNumber);
       }
       setOtpSent(true);
+      setHasRequestedOtp(true);
+      startCooldown();
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("auth.signIn.sendCodeError"));
     } finally {
       setSending(false);
     }
+  };
+
+  const handleResendOtp = async () => {
+    if (!canResend || sending) return;
+    await handleSendOtp();
   };
 
   const handleVerifyOtp = async () => {
@@ -209,12 +219,22 @@ export default function SignInPage() {
 
               <button
                 onClick={handleSendOtp}
-                disabled={sending || (!email && method === "email") || (!phoneNumber && method === "phone")}
+                disabled={
+                  sending ||
+                  (!email && method === "email") ||
+                  (!phoneNumber && method === "phone") ||
+                  (hasRequestedOtp && !canResend)
+                }
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t("auth.signIn.sendCode")}
               </button>
+              {hasRequestedOtp && !canResend && (
+                <p className="text-center text-xs text-slate-500" aria-live="polite">
+                  {t("auth.signIn.resendIn", { seconds: secondsRemaining })}
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -238,9 +258,15 @@ export default function SignInPage() {
                 {t("auth.signIn.verifySignIn")}
               </button>
 
+              <p className="text-center text-xs text-slate-500" aria-live="polite">
+                {canResend
+                  ? t("auth.signIn.resendReady")
+                  : t("auth.signIn.resendIn", { seconds: secondsRemaining })}
+              </p>
               <button
-                onClick={() => { setOtpSent(false); setOtpCode(""); }}
-                className="w-full text-center text-sm text-slate-500 hover:text-brand"
+                onClick={() => void handleResendOtp()}
+                disabled={sending || !canResend}
+                className="w-full text-center text-sm text-slate-500 hover:text-brand disabled:opacity-50 disabled:hover:text-slate-500"
               >
                 {t("auth.signIn.resendCode")}
               </button>

@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 
 interface LanguageSwitcherProps {
     variant?: "shop" | "admin";
+    showLabel?: boolean;
 }
 
-export function LanguageSwitcher({ variant = "shop" }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ variant = "shop", showLabel = true }: LanguageSwitcherProps) {
     const { locale, setLocale, t } = useI18n();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -31,6 +32,7 @@ export function LanguageSwitcher({ variant = "shop" }: LanguageSwitcherProps) {
             <button
                 type="button"
                 onClick={() => setOpen((prev) => !prev)}
+                aria-label={t("language.label")}
                 className={cn(
                     "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition",
                     isShop
@@ -40,7 +42,7 @@ export function LanguageSwitcher({ variant = "shop" }: LanguageSwitcherProps) {
                 title={t("language.label")}
             >
                 <Globe className="h-4 w-4" />
-                <span className="hidden sm:inline">{t(`language.${locale}`)}</span>
+                {showLabel ? <span className="hidden sm:inline">{t(`language.${locale}`)}</span> : null}
             </button>
 
             {open && (

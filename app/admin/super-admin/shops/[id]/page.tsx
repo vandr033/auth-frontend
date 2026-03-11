@@ -23,6 +23,10 @@ import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import type { SuperAdminShop, CompanyType } from "@/types/super-admin";
 import { notify } from "@/lib/notify";
+import {
+    LocationPicker,
+    type LocationAutofillUpdate,
+} from "@/components/admin/location/LocationPicker";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -41,8 +45,15 @@ interface FormData {
     state: string;
     country_code: string;
     timezone: string;
+    latitude: string;
+    longitude: string;
     company_type_id: string;
     is_active: boolean;
+}
+
+function parseNumberOrNull(value: string): number | null {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
 }
 
 export default function EditShopPage() {
@@ -59,6 +70,7 @@ export default function EditShopPage() {
     const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [timezoneManuallyEdited, setTimezoneManuallyEdited] = useState(false);
 
     const getCompanyTypeName = (type: CompanyType): string =>
         getLocalizedText({
@@ -93,6 +105,8 @@ export default function EditShopPage() {
                 state: shopInfo.state || "",
                 country_code: shopInfo.country_code || "BO",
                 timezone: shopInfo.timezone || "America/La_Paz",
+                latitude: shopInfo.latitude?.toString() || "",
+                longitude: shopInfo.longitude?.toString() || "",
                 company_type_id: shopInfo.company_type_id?.toString() || "",
                 is_active: shopInfo.is_active,
             });
@@ -109,6 +123,31 @@ export default function EditShopPage() {
             void fetchData();
         }
     }, [isAuthenticated, isSuperAdmin, shopId, fetchData]);
+
+    const handleLocationAutofill = useCallback(
+        (update: LocationAutofillUpdate) => {
+            setFormData((prev) => {
+                if (!prev) return prev;
+                const fields = { ...update.fields };
+                if (timezoneManuallyEdited) {
+                    delete fields.timezone;
+                }
+
+                // Field mapping: stateRegion -> state, countryCode -> country_code.
+                return {
+                    ...prev,
+                    address: fields.address ?? prev.address,
+                    city: fields.city ?? prev.city,
+                    state: fields.stateRegion ?? prev.state,
+                    country_code: fields.countryCode ?? prev.country_code,
+                    timezone: fields.timezone ?? prev.timezone,
+                    latitude: fields.latitude ?? prev.latitude,
+                    longitude: fields.longitude ?? prev.longitude,
+                };
+            });
+        },
+        [timezoneManuallyEdited],
+    );
 
     // Handle impersonate
     const handleImpersonate = async () => {
@@ -145,6 +184,8 @@ export default function EditShopPage() {
         setSubmitting(true);
 
         try {
+            const latitude = parseNumberOrNull(formData.latitude);
+            const longitude = parseNumberOrNull(formData.longitude);
             const payload = {
                 name: formData.name.trim(),
                 slug: formData.slug.trim(),
@@ -156,9 +197,13 @@ export default function EditShopPage() {
                 state: formData.state.trim() || null,
                 country_code: formData.country_code || null,
                 timezone: formData.timezone,
+                latitude,
+                longitude,
                 company_type_id: parseInt(formData.company_type_id),
                 is_active: formData.is_active,
             };
+            // TODO(super-admin-shops): Persist optional map metadata once backend supports it:
+            // formattedAddress, mapProvider, mapboxPlaceId, locationSource.
 
             const response = await fetch(getApiUrl(`/api/super-admin/shops/${shopId}`), {
                 method: "PUT",
@@ -340,6 +385,30 @@ export default function EditShopPage() {
                         <div className="border-t pt-4">
                             <h3 className="font-medium mb-4">{t("superAdminShops.location")}</h3>
                             <div className="grid gap-4">
+                                <LocationPicker
+                                    value={{
+                                        address: formData.address,
+                                        city: formData.city,
+                                        stateRegion: formData.state,
+                                        countryCode: formData.country_code,
+                                        timezone: formData.timezone,
+                                        latitude: formData.latitude,
+                                        longitude: formData.longitude,
+                                    }}
+                                    text={{
+                                        searchLabel: t("superAdminShops.searchLocation"),
+                                        searchPlaceholder: t("superAdminShops.searchLocationPlaceholder"),
+                                        helperText: t("superAdminShops.searchLocationHelper"),
+                                        searchLoadingText: t("superAdminShops.locationSearchLoading"),
+                                        searchErrorText: t("superAdminShops.locationSearchError"),
+                                        noResultsText: t("superAdminShops.locationSearchNoResults"),
+                                        reverseGeocodeLoadingText: t("superAdminShops.reverseGeocodeLoading"),
+                                        reverseGeocodeErrorText: t("superAdminShops.reverseGeocodeError"),
+                                        mapUnavailableText: t("superAdminShops.mapUnavailable"),
+                                        missingTokenText: t("superAdminShops.mapTokenMissing"),
+                                    }}
+                                    onLocationAutofill={handleLocationAutofill}
+                                />
                                 <div className="space-y-2">
                                     <Label htmlFor="address">{t("adminSettings.address")}</Label>
                                     <Input
@@ -384,7 +453,10 @@ export default function EditShopPage() {
                                         <Label htmlFor="timezone">{t("superAdminShops.timezone")}</Label>
                                         <Select
                                             value={formData.timezone}
-                                            onValueChange={(value) => setFormData({ ...formData, timezone: value })}
+                                            onValueChange={(value) => {
+                                                setTimezoneManuallyEdited(true);
+                                                setFormData({ ...formData, timezone: value });
+                                            }}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue />
@@ -399,6 +471,27 @@ export default function EditShopPage() {
                                         </Select>
                                     </div>
                                 </div>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="latitude">{t("adminSettings.latitude")}</Label>
+                                        <Input
+                                            id="latitude"
+                                            value={formData.latitude}
+                                            onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                                            placeholder="-17.783327"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="longitude">{t("adminSettings.longitude")}</Label>
+                                        <Input
+                                            id="longitude"
+                                            value={formData.longitude}
+                                            onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                                            placeholder="-63.182140"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-500">{t("superAdminShops.coordinatesHelper")}</p>
                             </div>
                         </div>
 

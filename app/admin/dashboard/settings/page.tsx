@@ -16,6 +16,10 @@ import { useT, SUPPORTED_LOCALES } from "@/lib/i18n";
 import type { SocialLinks } from "@/types/shop";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { notify } from "@/lib/notify";
+import {
+    LocationPicker,
+    type LocationAutofillUpdate,
+} from "@/components/admin/location/LocationPicker";
 
 // Combined interface
 interface CompanySettings {
@@ -95,6 +99,7 @@ export default function SettingsPage() {
     const [saving, setSaving] = useState(false);
     const [selectedQR, setSelectedQR] = useState<File | null>(null);
     const [activeTab, setActiveTab] = useState("general");
+    const [timezoneManuallyEdited, setTimezoneManuallyEdited] = useState(false);
 
     // Fetch company settings
     const fetchData = useCallback(async () => {
@@ -194,6 +199,27 @@ export default function SettingsPage() {
             return next;
         });
     };
+
+    const handleLocationAutofill = useCallback((update: LocationAutofillUpdate) => {
+        setSettings((prev) => {
+            const fields = { ...update.fields };
+            if (timezoneManuallyEdited) {
+                delete fields.timezone;
+            }
+
+            // Field mapping: stateRegion -> state, countryCode -> country_code.
+            return {
+                ...prev,
+                address: fields.address ?? prev.address,
+                city: fields.city ?? prev.city,
+                state: fields.stateRegion ?? prev.state,
+                country_code: fields.countryCode ?? prev.country_code,
+                timezone: fields.timezone ?? prev.timezone,
+                latitude: fields.latitude ?? prev.latitude,
+                longitude: fields.longitude ?? prev.longitude,
+            };
+        });
+    }, [timezoneManuallyEdited]);
 
     // Save changes
     const handleSave = async () => {
@@ -456,6 +482,32 @@ export default function SettingsPage() {
                         </CardHeader>
                         <CardContent className="grid gap-6 sm:grid-cols-2">
                             <div className="space-y-2 sm:col-span-2">
+                                <LocationPicker
+                                    value={{
+                                        address: settings.address,
+                                        city: settings.city,
+                                        stateRegion: settings.state,
+                                        countryCode: settings.country_code,
+                                        timezone: settings.timezone,
+                                        latitude: settings.latitude,
+                                        longitude: settings.longitude,
+                                    }}
+                                    text={{
+                                        searchLabel: t('adminSettings.searchLocation'),
+                                        searchPlaceholder: t('adminSettings.searchLocationPlaceholder'),
+                                        helperText: t('adminSettings.searchLocationHelper'),
+                                        searchLoadingText: t('adminSettings.locationSearchLoading'),
+                                        searchErrorText: t('adminSettings.locationSearchError'),
+                                        noResultsText: t('adminSettings.locationSearchNoResults'),
+                                        reverseGeocodeLoadingText: t('adminSettings.reverseGeocodeLoading'),
+                                        reverseGeocodeErrorText: t('adminSettings.reverseGeocodeError'),
+                                        mapUnavailableText: t('adminSettings.mapUnavailable'),
+                                        missingTokenText: t('adminSettings.mapTokenMissing'),
+                                    }}
+                                    onLocationAutofill={handleLocationAutofill}
+                                />
+                            </div>
+                            <div className="space-y-2 sm:col-span-2">
                                 <Label htmlFor="address">{t('adminSettings.address')}</Label>
                                 <Input
                                     id="address"
@@ -487,7 +539,7 @@ export default function SettingsPage() {
                                 <Input
                                     id="country_code"
                                     value={settings.country_code}
-                                    onChange={(e) => handleChange('country_code', e.target.value)}
+                                    onChange={(e) => handleChange('country_code', e.target.value.toUpperCase())}
                                     placeholder={t('adminSettings.countryCodePlaceholder')}
                                     maxLength={2}
                                 />
@@ -497,7 +549,10 @@ export default function SettingsPage() {
                                 <Input
                                     id="timezone"
                                     value={settings.timezone}
-                                    onChange={(e) => handleChange('timezone', e.target.value)}
+                                    onChange={(e) => {
+                                        setTimezoneManuallyEdited(true);
+                                        handleChange('timezone', e.target.value);
+                                    }}
                                     placeholder={t('adminSettings.timezonePlaceholder')}
                                 />
                             </div>
@@ -549,6 +604,7 @@ export default function SettingsPage() {
                                     />
                                 </div>
                             </div>
+                            <p className="text-xs text-slate-500">{t('adminSettings.coordinatesHelper')}</p>
                         </CardContent>
                     </Card>
                 </TabsContent>

@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Clock, User, Calendar, CreditCard, Loader2, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import { ClosedBanner } from "@/components/shop/OpenStatusBadge";
 import { getImageUrl } from "@/utils/image-url";
 import { ShopSettings } from "@/types/shop";
 import { appendShopParam, buildSignInRedirectPath } from "@/app/lib/shop-context";
+import { parseMarketplaceBookingHandoff } from "@/lib/marketplace/handoff";
 
 // Helper to resolve API URL (duplicate of logic in ShopContext, consider exported helper)
 const resolveApiUrl = (url: string) => {
@@ -45,6 +46,17 @@ const resolveApiUrl = (url: string) => {
 const PENDING_BOOKING_STORAGE_KEY = "pending-booking-intent-v1";
 const PENDING_BOOKING_MAX_AGE_MS = 30 * 60 * 1000;
 
+const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)/;
+const SLOT_UNAVAILABLE_PATTERN = /(slot|time|hora|available|disponible|occupied|ocupad|conflict)/i;
+const STAFF_UNAVAILABLE_PATTERN = /(staff|barber|professional|employee|personal)/i;
+const SERVICE_UNAVAILABLE_PATTERN = /(service|servicio)/i;
+
+const toMinutes = (time: string): number | null => {
+    const match = time.match(TIME_PATTERN);
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+};
+
 type PendingBookingIntent = {
     slug: string;
     company_id: number;
@@ -54,6 +66,7 @@ type PendingBookingIntent = {
     payment_method: "CASH" | "QR" | "NONE";
     notes?: string;
     qr_proof_image_url?: string;
+    booking_source?: BookingRequest["booking_source"];
     created_at: string;
 };
 
@@ -352,6 +365,8 @@ function DateTimeStep({
     selectedDate,
     onSelectDate,
     timezone,
+    preferredSlotTime,
+    marketplacePrefillEnabled,
 }: {
     companyId: number;
     selectedServices: SelectedService[];
@@ -361,6 +376,8 @@ function DateTimeStep({
     selectedDate: string | null;
     onSelectDate: (date: string) => void;
     timezone?: string;
+    preferredSlotTime?: string | null;
+    marketplacePrefillEnabled?: boolean;
 }) {
     const t = useT();
     const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -372,6 +389,7 @@ function DateTimeStep({
     const [timeViewMode, setTimeViewMode] = useState<"all" | "hour">("hour");
     const [selectedHour, setSelectedHour] = useState<number | null>(null);
     const hasLoadedDates = React.useRef(false);
+    const prefillSlotAppliedRef = React.useRef(false);
     const api = useApi();
 
     // Fetch available dates on mount (only once)
@@ -538,6 +556,45 @@ function DateTimeStep({
             return hour === selectedHour;
         });
     }, [slots, timeViewMode, selectedHour]);
+
+    React.useEffect(() => {
+        prefillSlotAppliedRef.current = false;
+    }, [selectedDate, preferredSlotTime, marketplacePrefillEnabled]);
+
+    React.useEffect(() => {
+        if (!marketplacePrefillEnabled || prefillSlotAppliedRef.current) return;
+        if (!selectedDate || !preferredSlotTime || loadingSlots) return;
+
+        const availableSlots = slots.filter((slot) => slot.available);
+        if (availableSlots.length === 0) return;
+
+        let target = availableSlots.find((slot) => slot.time === preferredSlotTime) ?? null;
+        if (!target) {
+            const preferredMinutes = toMinutes(preferredSlotTime);
+            if (preferredMinutes !== null) {
+                target = availableSlots.reduce<TimeSlot | null>((best, slot) => {
+                    const slotMinutes = toMinutes(slot.time);
+                    if (slotMinutes === null) return best;
+                    if (!best) return slot;
+                    const bestMinutes = toMinutes(best.time);
+                    if (bestMinutes === null) return slot;
+                    return Math.abs(slotMinutes - preferredMinutes) < Math.abs(bestMinutes - preferredMinutes)
+                        ? slot
+                        : best;
+                }, null);
+            }
+        }
+
+        if (target) {
+            onSelectSlot({
+                date: selectedDate,
+                time: target.time,
+                staff_id: target.staff_id,
+                staff_name: target.staff_name,
+            });
+            prefillSlotAppliedRef.current = true;
+        }
+    }, [loadingSlots, marketplacePrefillEnabled, onSelectSlot, preferredSlotTime, selectedDate, slots]);
 
     const handleSelectSlot = (slot: TimeSlot) => {
         if (!slot.available || !selectedDate) return;
@@ -983,12 +1040,31 @@ function ConfirmStep({
 // Main Booking Page
 export default function BookingPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, loading: authLoading } = useAuth();
     const { company, services, staff, categories, settings, loading, error, slug } = useShop();
     const t = useT();
     const api = useApi();
+    const searchParamsString = searchParams?.toString() || "";
+    const marketplaceHandoff = useMemo(
+        () => parseMarketplaceBookingHandoff(new URLSearchParams(searchParamsString)),
+        [searchParamsString],
+    );
+    const isMarketplaceSource = marketplaceHandoff.source === "marketplace";
+    const preselectedServiceId = marketplaceHandoff.serviceId;
+    const preselectedStaffId = marketplaceHandoff.staffId;
+    const preselectedDate = marketplaceHandoff.date;
+    const preselectedSlotTime = marketplaceHandoff.matchedSlotTime;
+    const hasMarketplacePrefillData = Boolean(
+        preselectedServiceId ||
+        preselectedStaffId ||
+        preselectedDate ||
+        preselectedSlotTime ||
+        marketplaceHandoff.requestedTime
+    );
+    const bookingSource: BookingRequest["booking_source"] = isMarketplaceSource ? "MARKETPLACE" : "SALON_SITE";
 
-    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const [selectedDate, setSelectedDate] = useState<string | null>(preselectedDate);
     const [booking, setBooking] = useState<BookingState>({
         step: 1,
         services: [],
@@ -1002,21 +1078,71 @@ export default function BookingPage() {
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [completedAfterSignIn, setCompletedAfterSignIn] = useState(false);
-    const preselectedServiceId =
-        typeof window === "undefined"
-            ? null
-            : new URLSearchParams(window.location.search).get("serviceId");
-    const preselectedStaffId =
-        typeof window === "undefined"
-            ? null
-            : new URLSearchParams(window.location.search).get("staffId");
     const [preselectionApplied, setPreselectionApplied] = useState(false);
+    const [prefillWarnings, setPrefillWarnings] = useState<string[]>([]);
+    const [showMarketplacePrefillBanner, setShowMarketplacePrefillBanner] = useState(isMarketplaceSource && hasMarketplacePrefillData);
+    const [marketplaceAutoAdvanceEnabled, setMarketplaceAutoAdvanceEnabled] = useState(isMarketplaceSource && hasMarketplacePrefillData);
     const pendingBookingHandledRef = React.useRef(false);
+    const bookingStartedTrackedRef = React.useRef(false);
 
     // Browse mode: service-first (default) or staff-first
     const [browseMode, setBrowseMode] = useState<BrowseMode>(
         preselectedStaffId ? "staff-first" : "service-first"
     );
+
+    useEffect(() => {
+        setShowMarketplacePrefillBanner(isMarketplaceSource && hasMarketplacePrefillData);
+        setMarketplaceAutoAdvanceEnabled(isMarketplaceSource && hasMarketplacePrefillData);
+    }, [hasMarketplacePrefillData, isMarketplaceSource]);
+
+    useEffect(() => {
+        if (selectedDate || !preselectedDate) return;
+        setSelectedDate(preselectedDate);
+    }, [preselectedDate, selectedDate]);
+
+    useEffect(() => {
+        if (loading || !company || bookingStartedTrackedRef.current) return;
+        bookingStartedTrackedRef.current = true;
+
+        const source = bookingSource === "MARKETPLACE" ? "marketplace" : "salon_site";
+        const eventDate = marketplaceHandoff.date || selectedDate || getTodayDateString(company.timezone);
+        const eventTime = marketplaceHandoff.requestedTime || marketplaceHandoff.matchedSlotTime || undefined;
+
+        void api.post("/marketplace/events", {
+            event_name: "booking_started",
+            source,
+            company_id: company.id,
+            service_type_id: marketplaceHandoff.serviceTypeId,
+            date: eventDate,
+            time: eventTime,
+            surface: marketplaceHandoff.surface,
+            metadata: {
+                companySlug: slug,
+                fromMarketplace: isMarketplaceSource,
+                resume: searchParams?.get("resume") === "1",
+                serviceId: marketplaceHandoff.serviceId,
+                staffId: marketplaceHandoff.staffId,
+            },
+        }).catch(() => {
+            // Non-blocking analytics failure.
+        });
+    }, [
+        api,
+        bookingSource,
+        company,
+        isMarketplaceSource,
+        loading,
+        marketplaceHandoff.date,
+        marketplaceHandoff.matchedSlotTime,
+        marketplaceHandoff.requestedTime,
+        marketplaceHandoff.serviceId,
+        marketplaceHandoff.serviceTypeId,
+        marketplaceHandoff.staffId,
+        marketplaceHandoff.surface,
+        searchParams,
+        selectedDate,
+        slug,
+    ]);
 
     // Convert shop services to SelectedService format
     const selectableServices: SelectedService[] = services.map((s) => ({
@@ -1067,38 +1193,111 @@ export default function BookingPage() {
         }
     }, [filteredStaff, booking.staff, browseMode]);
 
-    // Pre-select from query params (stay on step 1, don't auto-advance)
+    // Pre-select from marketplace handoff params.
     useEffect(() => {
         if (preselectionApplied || loading || services.length === 0) return;
 
+        const warnings: string[] = [];
+        let serviceToSelect: SelectedService | null = null;
+        let staffToSelect: SelectedStaff | null = null;
+
         if (preselectedServiceId) {
-            const serviceId = parseInt(preselectedServiceId, 10);
-            const serviceToSelect = selectableServices.find((s) => s.id === serviceId);
-            if (serviceToSelect && !booking.services.find((s) => s.id === serviceId)) {
-                setBooking((prev) => ({
-                    ...prev,
-                    services: [serviceToSelect],
-                }));
+            serviceToSelect = selectableServices.find((s) => s.id === preselectedServiceId) || null;
+            if (!serviceToSelect && isMarketplaceSource) {
+                warnings.push("The selected marketplace service is no longer available. Please pick another service.");
             }
         }
 
         if (preselectedStaffId) {
-            const staffId = parseInt(preselectedStaffId, 10);
-            const staffToSelect = selectableStaff.find((s) => s.id === staffId);
-            if (staffToSelect) {
-                setBooking((prev) => ({
-                    ...prev,
-                    staff: staffToSelect,
-                }));
-                setBrowseMode("staff-first");
+            staffToSelect = selectableStaff.find((s) => s.id === preselectedStaffId) || null;
+            if (!staffToSelect && isMarketplaceSource) {
+                warnings.push("Your preselected staff member is unavailable. We'll use the first available professional.");
             }
         }
 
+        if (serviceToSelect || staffToSelect) {
+            setBooking((prev) => {
+                const next = { ...prev };
+                if (serviceToSelect && !prev.services.some((s) => s.id === serviceToSelect?.id)) {
+                    next.services = [serviceToSelect];
+                }
+                if (staffToSelect) {
+                    next.staff = staffToSelect;
+                }
+                return next;
+            });
+        }
+
+        if (staffToSelect) {
+            setBrowseMode("staff-first");
+        }
+        if (warnings.length > 0) {
+            setPrefillWarnings(warnings);
+        }
+
         setPreselectionApplied(true);
-    }, [preselectedServiceId, preselectedStaffId, loading, services.length, selectableServices, selectableStaff, preselectionApplied, booking.services]);
+    }, [
+        preselectedServiceId,
+        preselectedStaffId,
+        loading,
+        services.length,
+        selectableServices,
+        selectableStaff,
+        preselectionApplied,
+        isMarketplaceSource,
+    ]);
+
+    // Marketplace fallback: if no valid staff is preselected, default to "any available".
+    useEffect(() => {
+        if (!isMarketplaceSource || !preselectionApplied) return;
+        if (booking.services.length === 0 || booking.staff || filteredStaff.length === 0) return;
+        setBooking((prev) => ({
+            ...prev,
+            staff: {
+                id: "any",
+                display_name: t('shopBooking.anyAvailable'),
+            },
+        }));
+    }, [booking.services.length, booking.staff, filteredStaff.length, isMarketplaceSource, preselectionApplied, t]);
+
+    // Auto-advance prefilled marketplace bookings without skipping required selections.
+    useEffect(() => {
+        if (!isMarketplaceSource || !preselectionApplied || !marketplaceAutoAdvanceEnabled) return;
+
+        if (booking.step === 1) {
+            const stepOneReady = browseMode === "service-first" ? booking.services.length > 0 : booking.staff !== null;
+            if (stepOneReady) {
+                setBooking((prev) => ({ ...prev, step: 2 }));
+            }
+            return;
+        }
+
+        if (booking.step === 2) {
+            const stepTwoReady = browseMode === "service-first" ? booking.staff !== null : booking.services.length > 0;
+            if (stepTwoReady) {
+                setBooking((prev) => ({ ...prev, step: 3 }));
+            }
+            return;
+        }
+
+        if (booking.step === 3 && booking.slot) {
+            setBooking((prev) => ({ ...prev, step: 4 }));
+            setMarketplaceAutoAdvanceEnabled(false);
+        }
+    }, [
+        isMarketplaceSource,
+        preselectionApplied,
+        marketplaceAutoAdvanceEnabled,
+        booking.step,
+        booking.services.length,
+        booking.staff,
+        booking.slot,
+        browseMode,
+    ]);
 
     // Handlers
     const toggleService = (service: SelectedService) => {
+        if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setBooking((prev) => {
             const exists = prev.services.find((s) => s.id === service.id);
             return {
@@ -1111,6 +1310,7 @@ export default function BookingPage() {
     };
 
     const selectStaff = (staff: SelectedStaff) => {
+        if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setBooking((prev) => ({ ...prev, staff }));
     };
 
@@ -1119,16 +1319,19 @@ export default function BookingPage() {
     };
 
     const nextStep = () => {
+        if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setBooking((prev) => ({ ...prev, step: Math.min(prev.step + 1, 4) as BookingStep }));
     };
 
     const prevStep = () => {
+        if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setBooking((prev) => ({ ...prev, step: Math.max(prev.step - 1, 1) as BookingStep }));
     };
 
     // Handle browse mode toggle (only allowed at step 1)
     const handleToggleBrowseMode = (mode: BrowseMode) => {
         if (booking.step !== 1) return;
+        if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setBrowseMode(mode);
         // Reset selections when switching modes
         setBooking((prev) => ({
@@ -1216,6 +1419,7 @@ export default function BookingPage() {
             payment_method: booking.paymentMethod,
             notes: booking.notes,
             qr_proof_image_url: qrProofUrl,
+            booking_source: bookingSource,
         };
     };
 
@@ -1249,6 +1453,7 @@ export default function BookingPage() {
             payment_method: pending.payment_method,
             notes: pending.notes,
             qr_proof_image_url: pending.qr_proof_image_url,
+            booking_source: pending.booking_source,
         };
 
         void (async () => {
@@ -1284,7 +1489,9 @@ export default function BookingPage() {
                     ...payload,
                     created_at: new Date().toISOString(),
                 });
-                router.push(buildSignInRedirectPath(`/shop/${slug}/book?resume=1`, slug));
+                const resumeParams = new URLSearchParams(searchParams?.toString() || "");
+                resumeParams.set("resume", "1");
+                router.push(buildSignInRedirectPath(`/shop/${slug}/book?${resumeParams.toString()}`, slug));
                 return;
             }
 
@@ -1292,11 +1499,48 @@ export default function BookingPage() {
             clearPendingBookingIntent();
             setSuccess(true);
         } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : t('shopBooking.bookingError');
             if (uploadedQrUrl) {
                 await deleteUploadedQrProof(uploadedQrUrl);
             }
+
+            if (SLOT_UNAVAILABLE_PATTERN.test(errorMessage)) {
+                setBooking((prev) => ({
+                    ...prev,
+                    step: 3,
+                    slot: null,
+                }));
+                setSubmitError("That slot is no longer available. Please choose another time.");
+                return;
+            }
+
+            if (STAFF_UNAVAILABLE_PATTERN.test(errorMessage)) {
+                setBooking((prev) => ({
+                    ...prev,
+                    step: 2,
+                    staff: {
+                        id: "any",
+                        display_name: t('shopBooking.anyAvailable'),
+                    },
+                    slot: null,
+                }));
+                setSubmitError("Your selected staff member is unavailable now. Pick another option to continue.");
+                return;
+            }
+
+            if (SERVICE_UNAVAILABLE_PATTERN.test(errorMessage)) {
+                setBooking((prev) => ({
+                    ...prev,
+                    step: 1,
+                    services: [],
+                    slot: null,
+                }));
+                setSubmitError("One or more services are no longer available. Please reselect your service.");
+                return;
+            }
+
             console.error("Booking failed:", err);
-            setSubmitError(err instanceof Error ? err.message : t('shopBooking.bookingError'));
+            setSubmitError(errorMessage);
         } finally {
             setSubmitting(false);
         }
@@ -1361,6 +1605,38 @@ export default function BookingPage() {
                 </Link>
                 <h1 className="text-3xl font-bold font-heading text-text-main">{t('shopBooking.bookAnAppointment')}</h1>
             </div>
+
+            {isMarketplaceSource && showMarketplacePrefillBanner && (
+                <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="font-semibold">Prefilled from Marketplace</p>
+                            <p className="mt-1 text-emerald-700">
+                                We preselected your booking details. Review and adjust staff/date/time if needed before confirming.
+                            </p>
+                            {marketplaceHandoff.requestedTime && (
+                                <p className="mt-1 text-emerald-700">
+                                    Requested time: {marketplaceHandoff.requestedTime}
+                                </p>
+                            )}
+                            {prefillWarnings.length > 0 && (
+                                <ul className="mt-2 list-disc pl-5 text-amber-700">
+                                    {prefillWarnings.map((warning) => (
+                                        <li key={warning}>{warning}</li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            className="text-xs font-medium text-emerald-700 hover:text-emerald-900"
+                            onClick={() => setShowMarketplacePrefillBanner(false)}
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <StepIndicator currentStep={booking.step} browseMode={browseMode} />
 
@@ -1437,6 +1713,8 @@ export default function BookingPage() {
                         selectedDate={selectedDate}
                         onSelectDate={setSelectedDate}
                         timezone={company.timezone}
+                        preferredSlotTime={preselectedSlotTime}
+                        marketplacePrefillEnabled={isMarketplaceSource}
                     />
                 </div>
                 {booking.step === 4 && (

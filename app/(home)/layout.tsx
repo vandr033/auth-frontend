@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { Navbar } from "@/app/components/navbar";
+import { HomeNavbar } from "@/app/components/home-navbar";
 
 export const metadata: Metadata = {
   manifest: "/manifest.json",
@@ -21,8 +21,8 @@ export const metadata: Metadata = {
 
 export default function HomeLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
-      <Navbar />
+    <div className="min-h-screen bg-white">
+      <HomeNavbar />
       {children}
     </div>
   );

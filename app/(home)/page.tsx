@@ -3,6 +3,7 @@ import { PopularCategories } from "@/app/components/PopularCategories";
 import { FeaturedSalons } from "@/app/components/FeaturedSalons";
 import { HowItWorks } from "@/app/components/HowItWorks";
 import { ForBusinesses } from "@/app/components/ForBusinesses";
+import { HomeFinalCta } from "@/app/components/HomeFinalCta";
 import { Footer } from "@/app/components/Footer";
 
 export default function HomePage() {
@@ -14,6 +15,7 @@ export default function HomePage() {
         <FeaturedSalons />
         <HowItWorks />
         <ForBusinesses />
+        <HomeFinalCta />
       </main>
       <Footer />
     </div>

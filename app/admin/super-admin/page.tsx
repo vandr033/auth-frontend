@@ -18,6 +18,11 @@ import {
     ArrowRight,
     Tags,
     Building2,
+    BarChart3,
+    MousePointerClick,
+    Compass,
+    MapPin,
+    Search,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
 
@@ -37,18 +42,63 @@ interface SuperAdminMetrics {
     topShopsByBookings: { id: number; name: string; slug: string; bookingCount: number; revenue: number }[];
     topServices: { id: number; name: string; shopName: string; count: number; percentage: number }[];
     entityCounts: { activeShops: number; totalStaff: number; totalCustomers: number };
+    marketplace?: {
+        range: { preset: "today" | "7d" | "30d"; start: string; end: string; label: string };
+        bookingsBySource: {
+            marketplace: number;
+            salonSite: number;
+            admin: number;
+            manual: number;
+            total: number;
+            marketplaceShare: number;
+        };
+        funnel: {
+            searches: number;
+            resultsViewed: number;
+            resultClicks: number;
+            pinClicks: number;
+            resultCardClicks: number;
+            bookNowClicks: number;
+            viewSalonClicks: number;
+            bookingStarts: number;
+            bookingConfirmed: number;
+            bookingConfirmedEvents: number;
+            noExactMatches: number;
+            noExactRate: number;
+            searchToClickRate: number;
+            searchToBookNowRate: number;
+            bookNowToStartRate: number;
+            startToConfirmRate: number;
+            searchToConfirmRate: number;
+        };
+        demand: {
+            topSearchedServiceTypes: { serviceTypeId: number; name: string; count: number }[];
+            topSearchedLocations: { label: string; city: string | null; zone: string | null; count: number }[];
+            topSearchedDates: { date: string; count: number }[];
+            demandByHour: { hour: number; count: number }[];
+            peakDemandHour: { hour: number; count: number };
+        };
+        diagnostics: {
+            trackedEventRows: number;
+        };
+    };
 }
 
 const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const formatPercent = (ratio: number) => `${(ratio * 100).toFixed(1)}%`;
+type DashboardRangePreset = "today" | "7d" | "30d";
 
 export default function SuperAdminDashboard() {
     const t = useT();
     const [metrics, setMetrics] = useState<SuperAdminMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
+    const [rangePreset, setRangePreset] = useState<DashboardRangePreset>("7d");
 
     useEffect(() => {
-        fetch(resolveUrl("/api/super-admin/dashboard/metrics"), { credentials: "include" })
+        setLoading(true);
+        setLoadFailed(false);
+        fetch(resolveUrl(`/api/super-admin/dashboard/metrics?range=${rangePreset}`), { credentials: "include" })
             .then(async (res) => {
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.message || "Request failed");
@@ -59,7 +109,7 @@ export default function SuperAdminDashboard() {
                 void notify.error(err instanceof Error ? err.message : t("superAdminDashboard.loadError"));
             })
             .finally(() => setLoading(false));
-    }, [t]);
+    }, [rangePreset, t]);
 
     if (loading) {
         return (
@@ -133,13 +183,61 @@ export default function SuperAdminDashboard() {
         },
     ];
 
+    const marketplace = metrics.marketplace;
+    const rangeOptions: Array<{ value: DashboardRangePreset; label: string }> = [
+        { value: "today", label: t("superAdminDashboard.rangeToday") },
+        { value: "7d", label: t("superAdminDashboard.rangeLast7Days") },
+        { value: "30d", label: t("superAdminDashboard.rangeLast30Days") },
+    ];
+    const maxDemandHourCount = Math.max(
+        1,
+        ...(marketplace?.demand.demandByHour.map((hour) => hour.count) || [0]),
+    );
+
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">{t("superAdminDashboard.title")}</h1>
-                <p className="text-slate-500">{t("superAdminDashboard.subtitle")}</p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">{t("superAdminDashboard.title")}</h1>
+                    <p className="text-slate-500">{t("superAdminDashboard.subtitle")}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-1">
+                    <div className="flex items-center gap-1">
+                        {rangeOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setRangePreset(option.value)}
+                                className={cn(
+                                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                                    rangePreset === option.value
+                                        ? "bg-violet-600 text-white"
+                                        : "text-slate-600 hover:bg-slate-100",
+                                )}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
+
+            {marketplace && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h2 className="text-base font-semibold text-slate-900">{t("superAdminDashboard.marketplaceTitle")}</h2>
+                            <p className="text-xs text-slate-500">
+                                {t("superAdminDashboard.marketplaceRange", { range: marketplace.range.label })}
+                            </p>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            {t("superAdminDashboard.marketplaceEventsTracked", { count: marketplace.diagnostics.trackedEventRows })}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Primary Stat Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -173,6 +271,205 @@ export default function SuperAdminDashboard() {
                     </Card>
                 ))}
             </div>
+
+            {marketplace && (
+                <>
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        <Card className="border-slate-200">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <Compass className="h-4 w-4 text-violet-500" />
+                                    {t("superAdminDashboard.bookingsBySource")}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-slate-600">{t("superAdminDashboard.marketplaceSource")}</span>
+                                    <span className="font-semibold text-slate-900">{marketplace.bookingsBySource.marketplace}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-slate-600">{t("superAdminDashboard.salonSiteSource")}</span>
+                                    <span className="font-semibold text-slate-900">{marketplace.bookingsBySource.salonSite}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-slate-600">{t("superAdminDashboard.otherSources")}</span>
+                                    <span className="font-semibold text-slate-900">
+                                        {marketplace.bookingsBySource.admin + marketplace.bookingsBySource.manual}
+                                    </span>
+                                </div>
+                                <div className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-700">
+                                    {t("superAdminDashboard.marketplaceShare", {
+                                        percent: formatPercent(marketplace.bookingsBySource.marketplaceShare),
+                                    })}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-slate-200 lg:col-span-2">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <BarChart3 className="h-4 w-4 text-blue-500" />
+                                    {t("superAdminDashboard.marketplaceFunnel")}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                                    <div className="rounded-lg bg-slate-50 p-3">
+                                        <p className="text-xs text-slate-500">{t("superAdminDashboard.funnelSearches")}</p>
+                                        <p className="text-lg font-bold text-slate-900">{marketplace.funnel.searches}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-slate-50 p-3">
+                                        <p className="text-xs text-slate-500">{t("superAdminDashboard.funnelClicks")}</p>
+                                        <p className="text-lg font-bold text-slate-900">{marketplace.funnel.resultClicks}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-slate-50 p-3">
+                                        <p className="text-xs text-slate-500">{t("superAdminDashboard.funnelBookNow")}</p>
+                                        <p className="text-lg font-bold text-slate-900">{marketplace.funnel.bookNowClicks}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-slate-50 p-3">
+                                        <p className="text-xs text-slate-500">{t("superAdminDashboard.funnelBookingStarts")}</p>
+                                        <p className="text-lg font-bold text-slate-900">{marketplace.funnel.bookingStarts}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-slate-50 p-3">
+                                        <p className="text-xs text-slate-500">{t("superAdminDashboard.funnelConfirmed")}</p>
+                                        <p className="text-lg font-bold text-slate-900">{marketplace.funnel.bookingConfirmed}</p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+                                    <p>{t("superAdminDashboard.searchToClickRate", { percent: formatPercent(marketplace.funnel.searchToClickRate) })}</p>
+                                    <p>{t("superAdminDashboard.searchToBookRate", { percent: formatPercent(marketplace.funnel.searchToBookNowRate) })}</p>
+                                    <p>{t("superAdminDashboard.startToConfirmRate", { percent: formatPercent(marketplace.funnel.startToConfirmRate) })}</p>
+                                    <p>{t("superAdminDashboard.searchToConfirmRate", { percent: formatPercent(marketplace.funnel.searchToConfirmRate) })}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <Card className="border-slate-200">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <Search className="h-4 w-4 text-violet-500" />
+                                    {t("superAdminDashboard.topSearchedServiceTypes")}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {marketplace.demand.topSearchedServiceTypes.length === 0 ? (
+                                    <p className="text-sm text-slate-500">{t("superAdminDashboard.noDataYet")}</p>
+                                ) : (
+                                    <div className="space-y-2 text-sm">
+                                        {marketplace.demand.topSearchedServiceTypes.map((item, index) => (
+                                            <div key={item.serviceTypeId} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                                                <span className="text-slate-700">
+                                                    {index + 1}. {item.name}
+                                                </span>
+                                                <span className="font-semibold text-slate-900">{item.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-slate-200">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <MapPin className="h-4 w-4 text-emerald-500" />
+                                    {t("superAdminDashboard.topSearchedLocations")}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {marketplace.demand.topSearchedLocations.length === 0 ? (
+                                    <p className="text-sm text-slate-500">{t("superAdminDashboard.noDataYet")}</p>
+                                ) : (
+                                    <div className="space-y-2 text-sm">
+                                        {marketplace.demand.topSearchedLocations.map((item, index) => (
+                                            <div key={`${item.label}-${index}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                                                <span className="text-slate-700">{item.label}</span>
+                                                <span className="font-semibold text-slate-900">{item.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <Card className="border-slate-200">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <MousePointerClick className="h-4 w-4 text-amber-500" />
+                                    {t("superAdminDashboard.noExactMatchesTitle")}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                <div className="text-2xl font-bold text-slate-900">{marketplace.funnel.noExactMatches}</div>
+                                <p className="text-sm text-slate-500">
+                                    {t("superAdminDashboard.noExactMatchesRate", { percent: formatPercent(marketplace.funnel.noExactRate) })}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                    {t("superAdminDashboard.peakDemandHour", {
+                                        hour: `${String(marketplace.demand.peakDemandHour.hour).padStart(2, "0")}:00`,
+                                        count: marketplace.demand.peakDemandHour.count,
+                                    })}
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-slate-200">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <Calendar className="h-4 w-4 text-indigo-500" />
+                                    {t("superAdminDashboard.topSearchedDates")}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {marketplace.demand.topSearchedDates.length === 0 ? (
+                                    <p className="text-sm text-slate-500">{t("superAdminDashboard.noDataYet")}</p>
+                                ) : (
+                                    <div className="space-y-2 text-sm">
+                                        {marketplace.demand.topSearchedDates.map((item) => (
+                                            <div key={item.date} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                                                <span className="text-slate-700">{item.date}</span>
+                                                <span className="font-semibold text-slate-900">{item.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <Card className="border-slate-200">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <Clock className="h-4 w-4 text-rose-500" />
+                                {t("superAdminDashboard.demandByHour")}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-12">
+                                {marketplace.demand.demandByHour.map((item) => {
+                                    const ratio = item.count / maxDemandHourCount;
+                                    return (
+                                        <div key={item.hour} className="flex flex-col items-center gap-1">
+                                            <div className="flex h-20 w-full items-end rounded bg-slate-100 p-1">
+                                                <div
+                                                    className="w-full rounded bg-rose-400 transition-all"
+                                                    style={{ height: `${Math.max(4, ratio * 100)}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-[10px] text-slate-500">{String(item.hour).padStart(2, "0")}</span>
+                                            <span className="text-[10px] font-medium text-slate-700">{item.count}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </>
+            )}
 
             {/* Top Shops Tables */}
             <div className="grid gap-6 md:grid-cols-2">

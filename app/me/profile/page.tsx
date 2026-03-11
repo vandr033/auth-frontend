@@ -23,6 +23,7 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { buildSignInRedirectPath, getShopSlugFromParams } from "@/app/lib/shop-context";
+import { useOtpResendTimer } from "@/lib/auth/otpResend";
 
 type OtpFlow = null | "email" | "phone";
 
@@ -64,6 +65,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { secondsRemaining, canResend, startCooldown, resetCooldown } = useOtpResendTimer();
 
   // Fetch full profile from our /v1/auth/me endpoint
   const fetchProfile = useCallback(async () => {
@@ -142,6 +144,7 @@ export default function ProfilePage() {
     setOtpSent(false);
     setError(null);
     setStatus(null);
+    resetCooldown();
   };
 
   const handleSendOtp = async () => {
@@ -156,6 +159,7 @@ export default function ProfilePage() {
         setStatus(t("meProfile.phoneCodeSent"));
       }
       setOtpSent(true);
+      startCooldown();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("meProfile.sendCodeError"));
     } finally {
@@ -187,6 +191,7 @@ export default function ProfilePage() {
   const handleCancelOtp = () => {
     setOtpFlow(null);
     setError(null);
+    resetCooldown();
   };
 
   return (
@@ -446,6 +451,11 @@ export default function ProfilePage() {
                     <p className="text-xs text-text-muted">
                       {t("meProfile.codeSentTo", { target: newContactValue })}
                     </p>
+                    <p className="text-xs text-text-muted" aria-live="polite">
+                      {canResend
+                        ? t("meProfile.resendReady")
+                        : t("meProfile.resendIn", { seconds: secondsRemaining })}
+                    </p>
                   </div>
                 )}
 
@@ -469,16 +479,26 @@ export default function ProfilePage() {
                       {t("meProfile.sendCode")}
                     </Button>
                   ) : (
-                    <Button
-                      onClick={handleVerifyOtp}
-                      disabled={saving || !otpCode}
-                      className="bg-brand text-white hover:bg-brand-hover"
-                    >
-                      {saving ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                      ) : null}
-                      {t("meProfile.verifyAndUpdate")}
-                    </Button>
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleSendOtp()}
+                        disabled={saving || !canResend}
+                      >
+                        {t("meProfile.resendCode")}
+                      </Button>
+                      <Button
+                        onClick={handleVerifyOtp}
+                        disabled={saving || !otpCode}
+                        className="bg-brand text-white hover:bg-brand-hover"
+                      >
+                        {saving ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : null}
+                        {t("meProfile.verifyAndUpdate")}
+                      </Button>
+                    </>
                   )}
                 </div>
               </CardContent>

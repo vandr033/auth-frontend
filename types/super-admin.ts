@@ -47,6 +47,8 @@ export interface CreateShopPayload {
     state?: string;
     country_code?: string;
     timezone?: string;
+    latitude?: number;
+    longitude?: number;
     company_type_id: number;
     owner: {
         email: string;

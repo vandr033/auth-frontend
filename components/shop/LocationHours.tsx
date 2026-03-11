@@ -1,8 +1,10 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ShopCompany, ShopHours } from "@/types/shop";
 import { useT } from "@/lib/i18n";
+import { ShopLocationMap } from "@/components/shop/ShopLocationMap";
 
 const dayKeys = ["adminHours.sunday", "adminHours.monday", "adminHours.tuesday", "adminHours.wednesday", "adminHours.thursday", "adminHours.friday", "adminHours.saturday"];
 const orderedDayIndexes = [1, 2, 3, 4, 5, 6, 0]; // Mon-Sun
@@ -24,6 +26,16 @@ interface LocationHoursProps {
 
 export function LocationHours({ company, hours, className }: LocationHoursProps) {
     const t = useT();
+
+    const mapQuery = [company.address, company.city, company.state, company.country_code]
+        .filter(Boolean)
+        .join(", ");
+    const hasCoordinates = Number.isFinite(Number(company.latitude)) && Number.isFinite(Number(company.longitude));
+    const directionsUrl = hasCoordinates
+        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${company.latitude},${company.longitude}`)}`
+        : mapQuery
+            ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapQuery)}`
+            : null;
 
     const formatHoursForDayLocalized = (dayHours: ShopHours[] | undefined) => {
         if (!dayHours || dayHours.length === 0 || dayHours.every(h => h.is_closed)) return t('shopHome.closed');
@@ -104,23 +116,40 @@ export function LocationHours({ company, hours, className }: LocationHoursProps)
                     {/* Map */}
                     <div className="order-2 md:order-1">
                         <div className="overflow-hidden rounded-lg border border-surface-border bg-surface shadow-card">
-                            {company.google_maps_url ? (
-                                <iframe
-                                    title={t('sharedUi.shopLocation')}
-                                    src={company.google_maps_url}
-                                    loading="lazy"
-                                    className="h-80 w-full border-0 md:h-full md:min-h-[400px]"
-                                />
-                            ) : (
-                                <div className="flex h-80 w-full items-center justify-center bg-section text-text-muted md:h-full md:min-h-[400px]">
-                                    {t('sharedUi.mapNotAvailable')}
-                                </div>
-                            )}
+                            <ShopLocationMap
+                                company={company}
+                                className="h-80 w-full md:h-full md:min-h-[400px]"
+                                fallback={
+                                    company.google_maps_url ? (
+                                        <iframe
+                                            title={t('sharedUi.shopLocation')}
+                                            src={company.google_maps_url}
+                                            loading="lazy"
+                                            className="h-80 w-full border-0 md:h-full md:min-h-[400px]"
+                                        />
+                                    ) : (
+                                        <div className="flex h-80 w-full items-center justify-center bg-section text-text-muted md:h-full md:min-h-[400px]">
+                                            {t('sharedUi.mapNotAvailable')}
+                                        </div>
+                                    )
+                                }
+                            />
                         </div>
                         {company.address && (
                             <p className="mt-3 text-sm text-text-muted">
                                 {company.address}{company.city ? `, ${company.city}` : ""}
                             </p>
+                        )}
+                        {directionsUrl && (
+                            <a
+                                href={directionsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand-hover"
+                            >
+                                {t('sharedUi.getDirections')}
+                                <ExternalLink className="h-4 w-4" />
+                            </a>
                         )}
                     </div>
                 </div>

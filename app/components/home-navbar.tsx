@@ -1,66 +1,114 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { Globe } from "lucide-react";
+import { usePathname } from "next/navigation";
+
 import { useT } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function HomeNavbar() {
   const t = useT();
-  const marketingLinks = [
-    { href: "/", label: t("homeNavbar.home") },
-    { href: "/#how-it-works", label: t("homeNavbar.howItWorks") },
-    { href: "/#for-businesses", label: t("homeNavbar.forBusinesses") },
+  const pathname = usePathname();
+  const isMarketplace = pathname === "/marketplace";
+
+  const navLinks = [
+    { href: "#home", label: t("homeRedesign.nav.home") },
+    { href: "#sectores", label: t("homeRedesign.nav.sectors") },
+    { href: "#profesionales", label: t("homeRedesign.nav.professionals") },
+    { href: "#como-funciona", label: t("homeRedesign.nav.howItWorks") },
+    { href: "#negocios", label: t("homeRedesign.nav.businesses") },
   ];
 
+  if (isMarketplace) {
+    return (
+      <header className="sticky top-0 z-50 w-full border-b border-black/10 bg-[#ececec]/95 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-[1260px] items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-8">
+            <Link
+              href="/"
+              className="text-[20px] leading-none font-black tracking-[-0.02em] text-black"
+            >
+              PRICONPRI.
+            </Link>
+            <nav
+              aria-label="Navegación marketplace"
+              className="hidden items-center gap-8 lg:flex"
+            >
+              <Link
+                href="/#sectores"
+                className="text-[11px] leading-none font-semibold tracking-[0.08em] text-black uppercase transition-opacity hover:opacity-70"
+              >
+                {t("marketplaceRedesign.nav.sectors")}
+              </Link>
+              <Link
+                href="/negocios#precios"
+                className="text-[11px] leading-none font-semibold tracking-[0.08em] text-black uppercase transition-opacity hover:opacity-70"
+              >
+                {t("marketplaceRedesign.nav.prices")}
+              </Link>
+              <Link
+                href="/auth/sign-in"
+                className="text-[11px] leading-none font-semibold tracking-[0.08em] text-black uppercase transition-opacity hover:opacity-70"
+              >
+                {t("marketplaceRedesign.nav.login")}
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher variant="shop" showLabel={false} />
+            <Link
+              href="/negocios#demo"
+              className="inline-flex h-9 items-center justify-center bg-black px-4 text-[10px] leading-none font-semibold tracking-[0.08em] text-white uppercase transition-opacity hover:opacity-80"
+            >
+              {t("marketplaceRedesign.nav.demo")}
+            </Link>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-[#f1f4f9] py-4">
-      <div className="mx-auto w-full max-w-6xl px-3 sm:px-0">
-        <div className="flex h-16 items-center justify-between rounded-full border border-slate-200 bg-white/95 px-4 sm:px-6 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
-          <Link href="/" className="flex items-center gap-3 text-slate-900">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-[#e9edf5]">
-              <span className="h-5 w-5 -rotate-45 rounded-md bg-slate-900"></span>
-            </div>
-            <span className="text-lg font-semibold tracking-tight">{t("homeNavbar.brand")}</span>
+    <header className="sticky top-0 z-50 w-full border-b border-black/8 bg-[#f3f3f3]/95 backdrop-blur">
+      <div className="mx-auto flex h-16 w-full max-w-[1260px] items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link
+          href="/"
+          className="text-[20px] leading-none font-black tracking-[-0.02em] text-black"
+        >
+          PRICONPRI.
+        </Link>
+
+        <nav
+          aria-label="Navegación principal"
+          className="hidden items-center gap-6 lg:flex"
+        >
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-[12px] leading-none font-semibold tracking-[0.02em] text-slate-800 transition-colors hover:text-black"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher variant="shop" showLabel={false} />
+          <Link
+            href="/auth/sign-in"
+            className="hidden text-[11px] leading-none font-semibold tracking-[0.08em] text-black uppercase transition-colors hover:text-slate-700 sm:inline"
+          >
+            {t("homeRedesign.nav.login")}
           </Link>
 
-          <nav className="hidden items-center gap-8 text-sm font-semibold text-slate-600 md:flex">
-            {marketingLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="transition hover:text-slate-900"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              className="rounded-2xl border border-[#cdd6e4] bg-[#e5edf6] px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-[#d9e4f4]"
-            >
-              {t("homeNavbar.loginRegister")}
-            </button>
-            <button
-              type="button"
-              aria-label={t("homeNavbar.changeLanguage")}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100"
-            >
-              <Globe className="h-5 w-5" />
-            </button>
-            <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-200">
-              <Image
-                src="https://randomuser.me/api/portraits/women/68.jpg"
-                alt={t("homeNavbar.profileAvatar")}
-                width={40}
-                height={40}
-                className="h-full w-full object-cover"
-                priority
-              />
-            </div>
-          </div>
+          <Link
+            href="/negocios#demo"
+            className="inline-flex h-9 items-center justify-center bg-biz-barbie-pink px-4 text-[10px] leading-none font-semibold tracking-[0.07em] text-white uppercase transition-colors hover:bg-[#d8307b]"
+          >
+            {t("homeRedesign.nav.demo")}
+          </Link>
         </div>
       </div>
     </header>
