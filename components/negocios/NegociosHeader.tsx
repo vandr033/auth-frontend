@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { type MouseEvent, useMemo, useState } from "react";
@@ -44,8 +45,15 @@ export function NegociosHeader() {
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-8">
-          <Link href="/" className="shrink-0 text-[17px] font-black tracking-tight text-black">
-            PRICONPRI.
+          <Link href="/" className="shrink-0 inline-flex items-center" aria-label="PRICONPRI">
+            <Image
+              src="/assets/priconpri/logo-horizontal-black.png"
+              alt="PRICONPRI"
+              width={600}
+              height={370}
+              className="h-8 w-auto"
+              priority
+            />
           </Link>
 
           <nav aria-label="Navegación principal de negocios" className="hidden items-center gap-6 lg:flex">

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -26,9 +27,16 @@ export function HomeNavbar() {
           <div className="flex items-center gap-8">
             <Link
               href="/"
-              className="text-[20px] leading-none font-black tracking-[-0.02em] text-black"
+              className="shrink-0 inline-flex items-center"
             >
-              PRICONPRI.
+              <Image
+                src="/assets/priconpri/logo-horizontal-black.png"
+                alt="PRICONPRI"
+                width={600}
+                height={370}
+                className="h-9 w-auto"
+                priority
+              />
             </Link>
             <nav
               aria-label="Navegación marketplace"
@@ -74,9 +82,16 @@ export function HomeNavbar() {
       <div className="mx-auto flex h-16 w-full max-w-[1260px] items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="text-[20px] leading-none font-black tracking-[-0.02em] text-black"
+          className="shrink-0 inline-flex items-center"
         >
-          PRICONPRI.
+          <Image
+            src="/assets/priconpri/logo-horizontal-black.png"
+            alt="PRICONPRI"
+            width={600}
+            height={370}
+            className="h-9 w-auto"
+            priority
+          />
         </Link>
 
         <nav

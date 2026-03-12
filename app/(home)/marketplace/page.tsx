@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, ChevronDown, Clock3, List, Map as MapIcon, MapPin, Search } from "lucide-react";
@@ -1090,7 +1091,13 @@ function MarketplacePageContent() {
 
       <footer className="border-t border-black/10 bg-white">
         <div className="mx-auto flex w-full max-w-[1260px] flex-col gap-4 px-4 py-8 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-          <p className="text-[20px] leading-none font-black tracking-[-0.02em] text-black">PRICONPRI.</p>
+          <Image
+            src="/assets/priconpri/logo-horizontal-pink-outline.png"
+            alt="PRICONPRI"
+            width={600}
+            height={370}
+            className="h-12 w-auto"
+          />
 
           <nav aria-label={t("marketplaceRedesign.footer.linksLabel")} className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <a href="#" className="text-[10px] leading-none font-semibold tracking-[0.1em] text-black/55 uppercase transition-colors hover:text-black">

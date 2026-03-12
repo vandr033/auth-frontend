@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { FaInstagram, FaWhatsapp } from "react-icons/fa";
 import { FaTiktok } from "react-icons/fa6";
@@ -17,7 +18,13 @@ export function NegociosFooter() {
       <div className="mx-auto w-full max-w-7xl px-6 py-14 sm:px-8 lg:px-10">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4 md:gap-8">
           <div className="md:col-span-2">
-            <p className="text-[30px] font-black tracking-tight text-black">PRICONPRI.</p>
+            <Image
+              src="/assets/priconpri/wordmark-stacked.png"
+              alt="PRICONPRI"
+              width={600}
+              height={370}
+              className="h-20 w-auto"
+            />
             <p className="mt-4 max-w-[420px] text-sm leading-relaxed text-gray-600">
               La plataforma definitiva para negocios que viven de su tiempo. Barberías, salones,
               spas y wellness centers unidos en una sola visión.

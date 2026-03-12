@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
@@ -63,8 +64,19 @@ export function BusinessNavbar() {
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-8">
-          <Link href="/" className="shrink-0 text-[17px] font-black tracking-tight text-black">
-            {t("businessNavbar.brand")}
+          <Link
+            href="/"
+            aria-label={t("businessNavbar.brand")}
+            className="shrink-0 inline-flex items-center"
+          >
+            <Image
+              src="/assets/priconpri/logo-horizontal-black.png"
+              alt="PRICONPRI"
+              width={600}
+              height={370}
+              className="h-8 w-auto"
+              priority
+            />
           </Link>
 
           <nav

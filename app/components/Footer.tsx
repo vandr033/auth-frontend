@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
 import { useT } from "@/lib/i18n";
@@ -27,9 +28,13 @@ export function Footer() {
       <div className="mx-auto w-full max-w-[1260px] px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.6fr_1fr_1fr] md:gap-8">
           <div>
-            <p className="text-[20px] leading-none font-black tracking-[-0.02em] text-black">
-              PRICONPRI.
-            </p>
+            <Image
+              src="/assets/priconpri/wordmark-stacked.png"
+              alt="PRICONPRI"
+              width={600}
+              height={370}
+              className="h-20 w-auto"
+            />
             <p className="mt-4 max-w-[410px] text-[13px] leading-relaxed text-slate-600">
               {t("homeRedesign.footer.tagline")}
             </p>
