@@ -6,8 +6,10 @@ import { Check, Minus } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import {
+  type BillingCycle,
   type BusinessPlanId,
   type CompareCell,
+  BUSINESS_DEMO_PATH,
   businessPricingCompareCategories,
   businessPricingSummaryPlans,
 } from "@/app/components/business-pricing-data";
@@ -51,23 +53,6 @@ function CellValue({
     );
   }
 
-  if (cell.type === "custom") {
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center border px-2.5 py-1 font-bebas text-[12px] leading-none tracking-[0.06em] uppercase",
-          selected
-            ? "border-biz-yellow bg-biz-yellow/25 text-black"
-            : featured
-              ? "border-biz-yellow text-biz-yellow"
-              : "border-biz-sky-surge text-biz-sky-surge",
-        )}
-      >
-        {cell.valueKey}
-      </span>
-    );
-  }
-
   return (
     <span
       className={cn(
@@ -84,8 +69,11 @@ function FeaturedSummaryCard({
   planId,
   featured,
   name,
-  priceMain,
-  priceSuffix,
+  price,
+  currency,
+  period,
+  billingCycle,
+  saveTwoMonths,
   description,
   highlights,
   cta,
@@ -96,8 +84,11 @@ function FeaturedSummaryCard({
   planId: BusinessPlanId;
   featured: boolean;
   name: string;
-  priceMain: string;
-  priceSuffix: string;
+  price: string;
+  currency: string;
+  period: string;
+  billingCycle: BillingCycle;
+  saveTwoMonths: string;
   description: string;
   highlights: string[];
   cta: string;
@@ -118,7 +109,7 @@ function FeaturedSummaryCard({
         }
       }}
       className={cn(
-        "flex min-h-[258px] cursor-pointer flex-col px-5 py-5 transition-all duration-250 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-biz-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-biz-surface",
+        "flex min-h-[278px] cursor-pointer flex-col px-5 py-5 transition-all duration-250 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-biz-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-biz-surface",
         featured
           ? "bg-black text-white shadow-[0_14px_32px_rgba(2,6,23,0.3)]"
           : "border border-black/15 bg-white text-black",
@@ -143,7 +134,7 @@ function FeaturedSummaryCard({
             selected && !featured ? "text-black" : featured ? "text-white" : "text-black",
           )}
         >
-          {priceMain}
+          {price}
         </p>
         <p
           className={cn(
@@ -151,9 +142,23 @@ function FeaturedSummaryCard({
             selected && !featured ? "text-black/65" : featured ? "text-white/75" : "text-black/65",
           )}
         >
-          {priceSuffix}
+          {currency} {period}
         </p>
       </div>
+
+      {billingCycle === "yearly" && (
+        <span
+          className={cn(
+            "mt-2 inline-flex w-fit items-center border px-2.5 py-1 font-bebas text-[12px] leading-none tracking-[0.06em] uppercase",
+            featured
+              ? "border-biz-yellow bg-biz-yellow text-black"
+              : "border-black/20 bg-black text-white",
+          )}
+        >
+          {saveTwoMonths}
+        </span>
+      )}
+
       <p
         className={cn(
           "mt-2 text-[0.9rem] leading-relaxed",
@@ -199,17 +204,19 @@ export default function NegociosPreciosPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<BusinessPlanId>(
     () => businessPricingSummaryPlans.find((plan) => plan.featured)?.id ?? "business",
   );
-  const includedLabel = t("businessPricing.compare.included");
-  const excludedLabel = t("businessPricing.compare.notIncluded");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+
+  const includedLabel = t("businessPricing.comparison.values.included");
+  const excludedLabel = t("businessPricing.comparison.values.notIncluded");
 
   const plans = businessPricingSummaryPlans.map((plan) => ({
     ...plan,
     name: t(plan.nameKey),
-    priceMain: t(plan.priceMainKey),
-    priceSuffix: t(plan.priceSuffixKey),
+    price: t(plan.priceKeys[billingCycle]),
+    period: t(`businessPricing.billing.period.${billingCycle}`),
     description: t(plan.descriptionKey),
     cta: t(plan.ctaKey),
-    highlights: (plan.summaryHighlightKeys ?? []).map((item) => t(item)),
+    highlights: plan.highlightKeys.map((item) => t(item)),
   }));
 
   return (
@@ -222,7 +229,7 @@ export default function NegociosPreciosPage() {
           transition={{ duration: 0.4, ease: "easeOut" }}
           className="font-bebas text-[16px] leading-none tracking-[0.08em] text-biz-barbie-pink uppercase"
         >
-          {t("businessPricing.comparePage.eyebrow")}
+          {t("businessPricing.comparison.eyebrow")}
         </motion.p>
         <motion.h1
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 22 }}
@@ -231,8 +238,7 @@ export default function NegociosPreciosPage() {
           transition={{ duration: 0.54, ease: [0.22, 1, 0.36, 1] }}
           className="mt-2 font-business-display text-[clamp(3rem,8.4vw,7rem)] leading-[0.82] font-black uppercase tracking-[-0.02em] text-biz-heading-dark"
         >
-          <span className="block">{t("businessPricing.comparePage.line1")}</span>
-          <span className="block">{t("businessPricing.comparePage.line2")}</span>
+          {t("businessPricing.comparison.title")}
         </motion.h1>
         <motion.p
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 12 }}
@@ -241,11 +247,45 @@ export default function NegociosPreciosPage() {
           transition={{ duration: 0.42, delay: prefersReducedMotion ? 0 : 0.1, ease: "easeOut" }}
           className="mt-4 max-w-[760px] text-[1rem] leading-relaxed text-slate-700"
         >
-          {t("businessPricing.comparePage.subtitle")}
+          {t("businessPricing.comparison.subtitle")}
         </motion.p>
       </section>
 
       <section className="mx-auto w-full max-w-[1280px] px-6 pb-8 lg:px-10">
+        <motion.div
+          initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.36, delay: prefersReducedMotion ? 0 : 0.08, ease: "easeOut" }}
+          className="mb-6 flex justify-center"
+        >
+          <div
+            role="tablist"
+            aria-label={t("businessPricing.billing.ariaLabel")}
+            className="inline-flex items-center rounded-full border border-black/20 bg-white p-1"
+          >
+            {(["monthly", "yearly"] as const).map((cycle) => {
+              const selected = billingCycle === cycle;
+              return (
+                <button
+                  key={cycle}
+                  type="button"
+                  onClick={() => setBillingCycle(cycle)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "rounded-full px-4 py-2 font-bebas text-[14px] leading-none tracking-[0.06em] uppercase transition-colors",
+                    selected
+                      ? "bg-black text-white"
+                      : "text-slate-600 hover:bg-black/5 hover:text-black",
+                  )}
+                >
+                  {t(`businessPricing.billing.${cycle}`)}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+
         <motion.div
           initial={prefersReducedMotion ? undefined : "hidden"}
           whileInView="visible"
@@ -262,7 +302,7 @@ export default function NegociosPreciosPage() {
                   },
                 }
           }
-          aria-label={t("businessPricing.comparePage.summaryAria")}
+          aria-label={t("businessPricing.comparison.summaryAria")}
           className="grid grid-cols-1 gap-5 lg:grid-cols-3"
         >
           {plans.map((plan) => (
@@ -281,8 +321,11 @@ export default function NegociosPreciosPage() {
                 planId={plan.id}
                 featured={plan.featured}
                 name={plan.name}
-                priceMain={plan.priceMain}
-                priceSuffix={plan.priceSuffix}
+                price={plan.price}
+                currency={t("businessPricing.currency")}
+                period={plan.period}
+                billingCycle={billingCycle}
+                saveTwoMonths={t("businessPricing.billing.saveTwoMonths")}
                 description={plan.description}
                 highlights={plan.highlights}
                 cta={plan.cta}
@@ -297,7 +340,7 @@ export default function NegociosPreciosPage() {
 
       <section className="mx-auto w-full max-w-[1280px] px-6 pb-10 lg:px-10">
         <h2 className="font-bebas text-[30px] leading-none font-semibold tracking-[0.03em] text-biz-heading-dark uppercase">
-          {t("businessPricing.comparePage.matrixHeading")}
+          {t("businessPricing.comparison.matrixHeading")}
         </h2>
 
         <div className="mt-6 hidden overflow-x-auto border border-black/15 bg-white lg:block">
@@ -305,7 +348,7 @@ export default function NegociosPreciosPage() {
             <thead className="sticky top-14 z-20">
               <tr className="border-b border-black/15">
                 <th className="sticky left-0 z-30 w-[315px] bg-white px-5 py-4 text-left font-bebas text-[14px] tracking-[0.05em] text-slate-500 uppercase">
-                  {t("businessPricing.comparePage.featureColumn")}
+                  {t("businessPricing.comparison.featureColumn")}
                 </th>
                 {plans.map((plan) => (
                   <th
@@ -332,7 +375,7 @@ export default function NegociosPreciosPage() {
                             : "text-black/70",
                       )}
                     >
-                      {plan.priceMain} {plan.priceSuffix}
+                      {plan.price} {t("businessPricing.currency")} {plan.period}
                     </p>
                   </th>
                 ))}
@@ -342,7 +385,7 @@ export default function NegociosPreciosPage() {
               {businessPricingCompareCategories.map((category) => (
                 <Fragment key={category.id}>
                   <tr key={`${category.id}-category`} className="border-y border-black/12 bg-[#f8f8f8]">
-                    <td colSpan={4} className="px-5 py-2.5 font-bebas text-[14px] tracking-[0.05em] text-slate-600 uppercase">
+                    <td colSpan={plans.length + 1} className="px-5 py-2.5 font-bebas text-[14px] tracking-[0.05em] text-slate-600 uppercase">
                       {t(category.titleKey)}
                     </td>
                   </tr>
@@ -456,26 +499,18 @@ export default function NegociosPreciosPage() {
       <section className="mx-auto w-full max-w-[1280px] px-6 pb-16 lg:px-10 lg:pb-20">
         <div className="border border-black/15 bg-white px-5 py-6 lg:px-7">
           <p className="font-bebas text-[28px] leading-none font-semibold tracking-[0.03em] text-biz-heading-dark uppercase">
-            {t("businessPricing.comparePage.enterpriseTitle")}
+            {t("businessPricing.comparisonFooter.title")}
           </p>
           <p className="mt-2 max-w-[760px] text-[0.98rem] leading-relaxed text-slate-700">
-            {t("businessPricing.comparePage.enterpriseBody")}
+            {t("businessPricing.comparisonFooter.body")}
           </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {plans.map((plan) => (
-              <Link
-                key={`${plan.id}-bottom-cta`}
-                href={plan.ctaHref}
-                className={cn(
-                  "inline-flex h-10 items-center justify-center border px-4 font-bebas text-[14px] leading-none font-semibold tracking-[0.05em] uppercase transition-colors",
-                  plan.featured
-                    ? "border-black bg-black text-white hover:bg-black/90"
-                    : "border-black text-black hover:bg-black hover:text-white",
-                )}
-              >
-                {plan.cta}
-              </Link>
-            ))}
+          <div className="mt-4">
+            <Link
+              href={BUSINESS_DEMO_PATH}
+              className="inline-flex h-10 items-center justify-center border border-black bg-black px-4 font-bebas text-[14px] leading-none font-semibold tracking-[0.05em] text-white uppercase transition-colors hover:bg-black/90"
+            >
+              {t("businessPricing.comparisonFooter.cta")}
+            </Link>
           </div>
         </div>
       </section>

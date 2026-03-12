@@ -1,14 +1,13 @@
-export type BusinessPlanId = "starter" | "business" | "enterprise";
+export type BusinessPlanId = "starter" | "business" | "pro";
+export type BillingCycle = "monthly" | "yearly";
 
 export type BusinessPricingSummaryPlan = {
   id: BusinessPlanId;
   featured: boolean;
   nameKey: string;
-  priceMainKey: string;
-  priceSuffixKey: string;
   descriptionKey: string;
-  featureKeys: string[];
-  summaryHighlightKeys: string[];
+  priceKeys: Record<BillingCycle, string>;
+  highlightKeys: string[];
   ctaKey: string;
   ctaHref: string;
 };
@@ -19,7 +18,7 @@ export type CompareCell =
       value: boolean;
     }
   | {
-      type: "limit" | "text" | "custom";
+      type: "text";
       valueKey: string;
     };
 
@@ -42,414 +41,268 @@ export const businessPricingSummaryPlans: BusinessPricingSummaryPlan[] = [
     id: "starter",
     featured: false,
     nameKey: "businessPricing.plans.starter.name",
-    priceMainKey: "businessPricing.plans.starter.priceMain",
-    priceSuffixKey: "businessPricing.plans.starter.priceSuffix",
     descriptionKey: "businessPricing.plans.starter.description",
-    featureKeys: [
-      "businessPricing.plans.starter.features.staff",
-      "businessPricing.plans.starter.features.bookings",
-      "businessPricing.plans.starter.features.landing",
-      "businessPricing.plans.starter.features.metrics",
+    priceKeys: {
+      monthly: "businessPricing.plans.starter.prices.monthly",
+      yearly: "businessPricing.plans.starter.prices.yearly",
+    },
+    highlightKeys: [
+      "businessPricing.plans.starter.highlights.0",
+      "businessPricing.plans.starter.highlights.1",
+      "businessPricing.plans.starter.highlights.2",
     ],
-    summaryHighlightKeys: [
-      "businessPricing.plans.starter.highlights.h1",
-      "businessPricing.plans.starter.highlights.h2",
-      "businessPricing.plans.starter.highlights.h3",
-    ],
-    ctaKey: "businessPricing.plans.starter.cta",
+    ctaKey: "businessPricing.plans.cta",
     ctaHref: BUSINESS_DEMO_PATH,
   },
   {
     id: "business",
     featured: true,
     nameKey: "businessPricing.plans.business.name",
-    priceMainKey: "businessPricing.plans.business.priceMain",
-    priceSuffixKey: "businessPricing.plans.business.priceSuffix",
     descriptionKey: "businessPricing.plans.business.description",
-    featureKeys: [
-      "businessPricing.plans.business.features.staff",
-      "businessPricing.plans.business.features.reminders",
-      "businessPricing.plans.business.features.branding",
-      "businessPricing.plans.business.features.metrics",
-      "businessPricing.plans.business.features.support",
+    priceKeys: {
+      monthly: "businessPricing.plans.business.prices.monthly",
+      yearly: "businessPricing.plans.business.prices.yearly",
+    },
+    highlightKeys: [
+      "businessPricing.plans.business.highlights.0",
+      "businessPricing.plans.business.highlights.1",
+      "businessPricing.plans.business.highlights.2",
     ],
-    summaryHighlightKeys: [
-      "businessPricing.plans.business.highlights.h1",
-      "businessPricing.plans.business.highlights.h2",
-      "businessPricing.plans.business.highlights.h3",
-    ],
-    ctaKey: "businessPricing.plans.business.cta",
+    ctaKey: "businessPricing.plans.cta",
     ctaHref: BUSINESS_DEMO_PATH,
   },
   {
-    id: "enterprise",
+    id: "pro",
     featured: false,
-    nameKey: "businessPricing.plans.enterprise.name",
-    priceMainKey: "businessPricing.plans.enterprise.priceMain",
-    priceSuffixKey: "businessPricing.plans.enterprise.priceSuffix",
-    descriptionKey: "businessPricing.plans.enterprise.description",
-    featureKeys: [
-      "businessPricing.plans.enterprise.features.staff",
-      "businessPricing.plans.enterprise.features.api",
-      "businessPricing.plans.enterprise.features.manager",
-      "businessPricing.plans.enterprise.features.integrations",
-      "businessPricing.plans.enterprise.features.multilocation",
+    nameKey: "businessPricing.plans.pro.name",
+    descriptionKey: "businessPricing.plans.pro.description",
+    priceKeys: {
+      monthly: "businessPricing.plans.pro.prices.monthly",
+      yearly: "businessPricing.plans.pro.prices.yearly",
+    },
+    highlightKeys: [
+      "businessPricing.plans.pro.highlights.0",
+      "businessPricing.plans.pro.highlights.1",
+      "businessPricing.plans.pro.highlights.2",
     ],
-    summaryHighlightKeys: [
-      "businessPricing.plans.enterprise.highlights.h1",
-      "businessPricing.plans.enterprise.highlights.h2",
-      "businessPricing.plans.enterprise.highlights.h3",
-    ],
-    ctaKey: "businessPricing.plans.enterprise.cta",
+    ctaKey: "businessPricing.plans.cta",
     ctaHref: BUSINESS_DEMO_PATH,
   },
 ];
 
 export const businessPricingCompareCategories: BusinessPricingCompareCategory[] = [
   {
-    id: "staff",
-    titleKey: "businessPricing.compare.categories.staff",
+    id: "team",
+    titleKey: "businessPricing.comparison.categories.team",
     features: [
       {
-        key: "businessPricing.compare.features.staffUsers",
+        key: "businessPricing.comparison.rows.staffUsers",
         values: {
-          starter: { type: "limit", valueKey: "businessPricing.compare.values.upTo3" },
-          business: { type: "limit", valueKey: "businessPricing.compare.values.upTo10" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.unlimited" },
+          starter: { type: "text", valueKey: "businessPricing.comparison.values.upTo3" },
+          business: { type: "text", valueKey: "businessPricing.comparison.values.upTo10" },
+          pro: { type: "text", valueKey: "businessPricing.comparison.values.unlimited" },
         },
       },
       {
-        key: "businessPricing.compare.features.rolesPermissions",
+        key: "businessPricing.comparison.rows.rolesPermissions",
         values: {
           starter: { type: "boolean", value: false },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.userAccessControl",
-        values: {
-          starter: { type: "text", valueKey: "businessPricing.compare.values.basic" },
-          business: { type: "text", valueKey: "businessPricing.compare.values.advanced" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.enterprise" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.branchManagement",
+        key: "businessPricing.comparison.rows.staffAvailability",
         values: {
           starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "boolean", value: true },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
     ],
   },
   {
     id: "bookings",
-    titleKey: "businessPricing.compare.categories.bookings",
+    titleKey: "businessPricing.comparison.categories.bookings",
     features: [
       {
-        key: "businessPricing.compare.features.monthlyBookings",
-        values: {
-          starter: { type: "limit", valueKey: "businessPricing.compare.values.upTo300Bookings" },
-          business: { type: "limit", valueKey: "businessPricing.compare.values.upTo1500Bookings" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.customVolume" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.onlineCalendar",
+        key: "businessPricing.comparison.rows.onlineBooking",
         values: {
           starter: { type: "boolean", value: true },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.reschedules",
+        key: "businessPricing.comparison.rows.smartAvailability",
         values: {
           starter: { type: "boolean", value: true },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.capacityControl",
+        key: "businessPricing.comparison.rows.appointmentLifecycle",
         values: {
-          starter: { type: "text", valueKey: "businessPricing.compare.values.basic" },
-          business: { type: "text", valueKey: "businessPricing.compare.values.advanced" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.customRules" },
+          starter: { type: "text", valueKey: "businessPricing.comparison.values.basic" },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
+        },
+      },
+      {
+        key: "businessPricing.comparison.rows.bookingReminders",
+        values: {
+          starter: { type: "boolean", value: false },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
     ],
   },
   {
-    id: "branding",
-    titleKey: "businessPricing.compare.categories.branding",
+    id: "publicPage",
+    titleKey: "businessPricing.comparison.categories.publicPage",
     features: [
       {
-        key: "businessPricing.compare.features.publicLanding",
+        key: "businessPricing.comparison.rows.publicPage",
         values: {
           starter: { type: "boolean", value: true },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.logoColorsTypography",
-        values: {
-          starter: { type: "text", valueKey: "businessPricing.compare.values.basic" },
-          business: { type: "text", valueKey: "businessPricing.compare.values.advanced" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.fullCustom" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.layouts",
-        values: {
-          starter: { type: "limit", valueKey: "businessPricing.compare.values.standardLayouts" },
-          business: { type: "limit", valueKey: "businessPricing.compare.values.proLayouts" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.customLayouts" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.customDomain",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
-        },
-      },
-    ],
-  },
-  {
-    id: "notifications",
-    titleKey: "businessPricing.compare.categories.notifications",
-    features: [
-      {
-        key: "businessPricing.compare.features.emailAutomation",
+        key: "businessPricing.comparison.rows.branding",
         values: {
           starter: { type: "boolean", value: true },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.smsReminders",
+        key: "businessPricing.comparison.rows.marketplacePresence",
         values: {
-          starter: { type: "boolean", value: false },
+          starter: { type: "boolean", value: true },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.reminderTemplates",
-        values: {
-          starter: { type: "text", valueKey: "businessPricing.compare.values.basic" },
-          business: { type: "text", valueKey: "businessPricing.compare.values.advanced" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.custom" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.clientMessages",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
     ],
   },
   {
     id: "crm",
-    titleKey: "businessPricing.compare.categories.crm",
+    titleKey: "businessPricing.comparison.categories.crm",
     features: [
       {
-        key: "businessPricing.compare.features.clientDatabase",
+        key: "businessPricing.comparison.rows.customerDatabase",
         values: {
           starter: { type: "boolean", value: true },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.visitHistory",
+        key: "businessPricing.comparison.rows.customerMetrics",
         values: {
-          starter: { type: "boolean", value: true },
+          starter: { type: "text", valueKey: "businessPricing.comparison.values.basic" },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.segmentation",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.internalNotes",
+        key: "businessPricing.comparison.rows.customerImportExport",
         values: {
           starter: { type: "boolean", value: false },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
     ],
   },
   {
-    id: "metrics",
-    titleKey: "businessPricing.compare.categories.metrics",
+    id: "notifications",
+    titleKey: "businessPricing.comparison.categories.notifications",
     features: [
       {
-        key: "businessPricing.compare.features.basicMetrics",
-        values: {
-          starter: { type: "boolean", value: true },
-          business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.operationalMetrics",
+        key: "businessPricing.comparison.rows.transactionalNotifications",
         values: {
           starter: { type: "boolean", value: false },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.salesInsights",
+        key: "businessPricing.comparison.rows.staffClientReminders",
         values: {
           starter: { type: "boolean", value: false },
           business: { type: "boolean", value: true },
-          enterprise: { type: "boolean", value: true },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.dataExport",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "text", valueKey: "businessPricing.compare.values.csv" },
-          enterprise: { type: "text", valueKey: "businessPricing.compare.values.csvApi" },
+          pro: { type: "boolean", value: true },
         },
       },
     ],
   },
   {
-    id: "integrations",
-    titleKey: "businessPricing.compare.categories.integrations",
+    id: "reporting",
+    titleKey: "businessPricing.comparison.categories.reporting",
     features: [
       {
-        key: "businessPricing.compare.features.apiAccess",
+        key: "businessPricing.comparison.rows.basicMetrics",
         values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "boolean", value: true },
+          starter: { type: "boolean", value: true },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.webhooks",
+        key: "businessPricing.comparison.rows.operationalDashboard",
+        values: {
+          starter: { type: "boolean", value: false },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
+        },
+      },
+    ],
+  },
+  {
+    id: "growth",
+    titleKey: "businessPricing.comparison.categories.growth",
+    features: [
+      {
+        key: "businessPricing.comparison.rows.bulkWhatsapp",
         values: {
           starter: { type: "boolean", value: false },
           business: { type: "boolean", value: false },
-          enterprise: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
         },
       },
       {
-        key: "businessPricing.compare.features.customIntegrations",
+        key: "businessPricing.comparison.rows.bulkEmail",
         values: {
           starter: { type: "boolean", value: false },
           business: { type: "boolean", value: false },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.customIntegrations" },
+          pro: { type: "boolean", value: true },
+        },
+      },
+      {
+        key: "businessPricing.comparison.rows.outreach",
+        values: {
+          starter: { type: "boolean", value: false },
+          business: { type: "boolean", value: false },
+          pro: { type: "boolean", value: true },
         },
       },
     ],
   },
   {
     id: "support",
-    titleKey: "businessPricing.compare.categories.support",
+    titleKey: "businessPricing.comparison.categories.support",
     features: [
       {
-        key: "businessPricing.compare.features.supportChannel",
+        key: "businessPricing.comparison.rows.support",
         values: {
-          starter: { type: "text", valueKey: "businessPricing.compare.values.standard" },
-          business: { type: "text", valueKey: "businessPricing.compare.values.priority" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.accountManager" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.onboarding",
-        values: {
-          starter: { type: "text", valueKey: "businessPricing.compare.values.guided" },
-          business: { type: "text", valueKey: "businessPricing.compare.values.personalized" },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.enterpriseOnboarding" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.sla",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.slaEnterprise" },
-        },
-      },
-    ],
-  },
-  {
-    id: "multiLocation",
-    titleKey: "businessPricing.compare.categories.multiLocation",
-    features: [
-      {
-        key: "businessPricing.compare.features.multiLocation",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "boolean", value: true },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.centralizedOps",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "boolean", value: true },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.branchPermissions",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "boolean", value: true },
-        },
-      },
-    ],
-  },
-  {
-    id: "advanced",
-    titleKey: "businessPricing.compare.categories.advanced",
-    features: [
-      {
-        key: "businessPricing.compare.features.customWorkflows",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.customWorkflows" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.dedicatedEnvironment",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.dedicatedEnvironment" },
-        },
-      },
-      {
-        key: "businessPricing.compare.features.dataMigration",
-        values: {
-          starter: { type: "boolean", value: false },
-          business: { type: "boolean", value: false },
-          enterprise: { type: "custom", valueKey: "businessPricing.compare.values.dataMigration" },
+          starter: { type: "text", valueKey: "businessPricing.comparison.values.standard" },
+          business: { type: "text", valueKey: "businessPricing.comparison.values.priority" },
+          pro: { type: "text", valueKey: "businessPricing.comparison.values.priority" },
         },
       },
     ],

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import {
-  type BusinessPlanId,
+  type BillingCycle,
   BUSINESS_COMPARE_PATH,
   businessPricingSummaryPlans,
 } from "@/app/components/business-pricing-data";
@@ -16,9 +16,16 @@ import { cn } from "@/lib/utils";
 export function BusinessPricingSection() {
   const t = useT();
   const prefersReducedMotion = useReducedMotion();
-  const [selectedPlanId, setSelectedPlanId] = useState<BusinessPlanId>(
-    () => businessPricingSummaryPlans.find((plan) => plan.featured)?.id ?? "business",
-  );
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+
+  const plans = businessPricingSummaryPlans.map((plan) => ({
+    ...plan,
+    name: t(plan.nameKey),
+    price: t(plan.priceKeys[billingCycle]),
+    description: t(plan.descriptionKey),
+    cta: t(plan.ctaKey),
+    highlights: plan.highlightKeys.map((item) => t(item)),
+  }));
 
   return (
     <section
@@ -40,6 +47,40 @@ export function BusinessPricingSection() {
         </motion.h2>
 
         <motion.div
+          initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.36, delay: prefersReducedMotion ? 0 : 0.08, ease: "easeOut" }}
+          className="mt-8 flex justify-center"
+        >
+          <div
+            role="tablist"
+            aria-label={t("businessPricing.billing.ariaLabel")}
+            className="inline-flex items-center rounded-full border border-black/20 bg-white p-1"
+          >
+            {(["monthly", "yearly"] as const).map((cycle) => {
+              const selected = billingCycle === cycle;
+              return (
+                <button
+                  key={cycle}
+                  type="button"
+                  onClick={() => setBillingCycle(cycle)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "rounded-full px-4 py-2 font-bebas text-[14px] leading-none tracking-[0.06em] uppercase transition-colors",
+                    selected
+                      ? "bg-black text-white"
+                      : "text-slate-600 hover:bg-black/5 hover:text-black",
+                  )}
+                >
+                  {t(`businessPricing.billing.${cycle}`)}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        <motion.div
           initial={prefersReducedMotion ? undefined : "hidden"}
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
@@ -57,11 +98,10 @@ export function BusinessPricingSection() {
                 }
           }
           aria-label={t("businessPricing.cardsAria")}
-          className="mt-11 grid grid-cols-1 gap-5 md:grid-cols-2 lg:mt-12 lg:grid-cols-3 lg:gap-6"
+          className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:mt-10 lg:grid-cols-3 lg:gap-6"
         >
-          {businessPricingSummaryPlans.map((plan) => {
+          {plans.map((plan) => {
             const isFeatured = plan.featured;
-            const isSelected = selectedPlanId === plan.id;
 
             return (
               <motion.article
@@ -79,64 +119,66 @@ export function BusinessPricingSection() {
                   isFeatured
                     ? "bg-black text-white shadow-[0_18px_38px_rgba(2,6,23,0.24)] hover:shadow-[0_24px_44px_rgba(2,6,23,0.3)]"
                     : "border border-black/18 bg-white text-biz-heading-dark hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(15,23,42,0.12)]",
-                  isSelected &&
-                    (isFeatured
-                      ? "ring-2 ring-biz-yellow ring-offset-2 ring-offset-biz-surface"
-                      : "border-biz-yellow bg-biz-yellow/12"),
                 )}
               >
                 <p className={cn("font-bebas text-[31px] leading-none font-semibold uppercase tracking-tight", isFeatured ? "text-white" : "text-black")}>
-                  {t(plan.nameKey)}
+                  {plan.name}
                 </p>
 
-                <div className="mt-2 flex items-end gap-1.5">
+                <div className="mt-2 flex items-end gap-2">
                   <p className={cn("font-bebas text-[52px] leading-[0.92] font-semibold uppercase tracking-tight", isFeatured ? "text-white" : "text-black")}>
-                    {t(plan.priceMainKey)}
+                    {plan.price}
                   </p>
                   <p className={cn("pb-1 font-bebas text-[14px] leading-none tracking-[0.06em] uppercase", isFeatured ? "text-white/75" : "text-black/65")}>
-                    {t(plan.priceSuffixKey)}
+                    {t("businessPricing.currency")} {t(`businessPricing.billing.period.${billingCycle}`)}
                   </p>
                 </div>
 
+                {billingCycle === "yearly" && (
+                  <span
+                    className={cn(
+                      "mt-2 inline-flex w-fit items-center border px-2.5 py-1 font-bebas text-[12px] leading-none tracking-[0.06em] uppercase",
+                      isFeatured
+                        ? "border-biz-yellow bg-biz-yellow text-black"
+                        : "border-black/20 bg-black text-white",
+                    )}
+                  >
+                    {t("businessPricing.billing.saveTwoMonths")}
+                  </span>
+                )}
+
                 <p className={cn("mt-3 max-w-[290px] text-[0.93rem] leading-relaxed", isFeatured ? "text-white/78" : "text-slate-700")}>
-                  {t(plan.descriptionKey)}
+                  {plan.description}
                 </p>
 
                 <ul className="mt-6 space-y-2.5">
-                  {plan.featureKeys.map((featureKey) => (
-                    <li key={featureKey} className="flex items-start gap-2.5">
+                  {plan.highlights.map((highlight) => (
+                    <li key={`${plan.id}-${highlight}`} className="flex items-start gap-2.5">
                       <Check
                         className={cn(
                           "mt-[0.18rem] h-3.5 w-3.5 shrink-0",
-                          isSelected
-                            ? "text-biz-yellow"
-                            : isFeatured
-                              ? "text-biz-yellow"
-                              : "text-biz-barbie-pink",
+                          isFeatured ? "text-biz-yellow" : "text-biz-barbie-pink",
                         )}
                         strokeWidth={2.5}
                       />
                       <span className={cn("font-bebas text-[13px] leading-none font-semibold tracking-[0.04em] uppercase", isFeatured ? "text-white" : "text-black")}>
-                        {t(featureKey)}
+                        {highlight}
                       </span>
                     </li>
                   ))}
                 </ul>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlanId(plan.id)}
-                  aria-pressed={isSelected}
+                <Link
+                  href={plan.ctaHref}
                   className={cn(
-                    "mt-auto h-11 w-full border text-center font-bebas text-[15px] leading-none font-semibold tracking-[0.05em] uppercase transition-colors duration-300",
-                    isSelected && "border-biz-yellow bg-biz-yellow text-black hover:bg-[#ecf029]",
+                    "mt-auto inline-flex h-11 w-full items-center justify-center border text-center font-bebas text-[15px] leading-none font-semibold tracking-[0.05em] uppercase transition-colors duration-300",
                     isFeatured
                       ? "border-biz-yellow bg-biz-yellow text-black hover:bg-[#ecf029]"
                       : "border-black bg-transparent text-black hover:bg-black hover:text-white",
                   )}
                 >
-                  {t(plan.ctaKey)}
-                </button>
+                  {plan.cta}
+                </Link>
               </motion.article>
             );
           })}
