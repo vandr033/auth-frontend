@@ -78,7 +78,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const ROLE_STYLES: Record<string, string> = {
-    OWNER: "bg-violet-100 text-violet-800",
+    OWNER: "bg-brand-soft-bg text-brand",
     ADMIN: "bg-blue-100 text-blue-800",
     STAFF: "bg-slate-100 text-slate-700",
 };
@@ -214,7 +214,7 @@ export default function SuperAdminStaffPage() {
                 <div className="relative">
                     {loading && (
                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-lg">
-                            <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
+                            <Loader2 className="h-6 w-6 animate-spin text-brand" />
                         </div>
                     )}
                     <div className="overflow-x-auto">

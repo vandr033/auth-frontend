@@ -275,7 +275,7 @@ export default function NewShopPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
                 <span className="ml-2 text-slate-600">{t("common.loading")}</span>
             </div>
         );
@@ -609,7 +609,7 @@ export default function NewShopPage() {
                             <Button
                                 type="submit"
                                 disabled={submitting}
-                                className="flex-1 bg-violet-600 hover:bg-violet-700"
+                                className="flex-1 bg-brand hover:bg-brand-hover"
                             >
                                 {submitting ? (
                                     <>
@@ -628,7 +628,7 @@ export default function NewShopPage() {
                             loadingLabel={t("superAdminShops.creating")}
                             onCancel={() => router.push("/admin/super-admin/shops")}
                             cancelLabel={t("common.cancel")}
-                            saveClassName="bg-violet-600 hover:bg-violet-700 text-white"
+                            saveClassName="bg-brand hover:bg-brand-hover text-white"
                         />
                     </form>
                 </CardContent>

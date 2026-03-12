@@ -22,7 +22,7 @@ import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 
 const LOGIN_HREF = "/auth/sign-in";
-const DEMO_HREF = "/contact";
+const DEMO_HREF = "https://cal.com/priconpri/demo";
 
 const getInitials = (name?: string | null, email?: string | null) => {
   if (name && name.length > 0) return name.charAt(0).toUpperCase();
@@ -39,7 +39,7 @@ export function BusinessNavbar() {
   const navLinks = [
     { href: "/#for-businesses", label: t("businessNavbar.sectors") },
     { href: "/#how-it-works", label: t("businessNavbar.features") },
-    { href: "/contact", label: t("businessNavbar.pricing") },
+    { href: "/negocios#precios", label: t("businessNavbar.pricing") },
     { href: LOGIN_HREF, label: t("businessNavbar.login") },
   ];
 

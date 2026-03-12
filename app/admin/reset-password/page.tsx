@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -145,6 +146,14 @@ export default function AdminResetPasswordPage() {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-black flex items-center justify-center px-4 py-10">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
+                    <Image
+                        src="/assets/priconpri/logo-horizontal-pink-outline.png"
+                        alt="PriConPri"
+                        width={600}
+                        height={370}
+                        className="mx-auto mb-4 h-8 w-auto"
+                        priority
+                    />
                     <h1 className="text-3xl font-bold text-white">{t("adminResetPassword.title")}</h1>
                     <p className="text-white/70 mt-2">{t("adminResetPassword.subtitle")}</p>
                 </div>

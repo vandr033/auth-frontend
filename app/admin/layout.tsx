@@ -6,11 +6,12 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 export const metadata: Metadata = {
+    title: "PriConPri Admin",
     manifest: "/manifest-admin.json",
     appleWebApp: {
         capable: true,
         statusBarStyle: "default",
-        title: "Reservas Admin",
+        title: "PriConPri Admin",
     },
     icons: {
         icon: [

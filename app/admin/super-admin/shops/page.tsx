@@ -179,7 +179,7 @@ export default function ShopsPage() {
     if (authLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
                 <span className="ml-2 text-slate-600">{t("superAdminShops.loadingShops")}</span>
             </div>
         );
@@ -194,7 +194,7 @@ export default function ShopsPage() {
                     <p className="text-slate-500">{t("superAdminShops.subtitle")}</p>
                 </div>
                 <Link href="/admin/super-admin/shops/new">
-                    <Button className="bg-violet-600 hover:bg-violet-700 text-white">
+                    <Button className="bg-brand hover:bg-brand-hover text-white">
                         <Plus className="h-4 w-4 mr-2" />
                         {t("superAdminShops.createShop")}
                     </Button>
@@ -217,7 +217,7 @@ export default function ShopsPage() {
                 <div className="relative">
                     {loading && (
                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-lg">
-                            <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
+                            <Loader2 className="h-6 w-6 animate-spin text-brand" />
                         </div>
                     )}
                     <Table>
@@ -274,7 +274,7 @@ export default function ShopsPage() {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleImpersonate(shop.id)}
-                                                    className="text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                                                    className="text-brand hover:text-brand hover:bg-brand-soft-bg"
                                                     title={t("superAdminShops.enterShop")}
                                                 >
                                                     <LogIn className="h-4 w-4" />

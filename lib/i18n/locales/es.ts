@@ -19,7 +19,7 @@ const es: TranslationKeys = {
     optional: "Opcional",
     success: "Guardado exitosamente",
     error: "Algo sali\u00f3 mal. Por favor, int\u00e9ntalo de nuevo.",
-    poweredBy: "Desarrollado por Reservas",
+    poweredBy: "Desarrollado por PriConPri",
   },
 
   shopNav: {
@@ -76,7 +76,7 @@ const es: TranslationKeys = {
     todayHours: "Hoy",
     closed: "Cerrado",
     ctaTitle: "\u00bfTienes una barber\u00eda?",
-    ctaSubtitle: "\u00danete a Reservas y empieza a gestionar tus reservas en l\u00ednea.",
+    ctaSubtitle: "\u00danete a PriConPri y empieza a gestionar tus reservas en l\u00ednea.",
     ctaButton: "Comenzar",
   },
 
@@ -183,6 +183,7 @@ const es: TranslationKeys = {
     navigation: "Navegaci\u00f3n",
     contact: "Contacto",
     followUs: "S\u00edguenos",
+    poweredByCta: "Solicitar demo",
   },
 
   language: {
@@ -234,7 +235,7 @@ const es: TranslationKeys = {
     bookingsCount: "{{count}} reservas",
     totalCustomers: "Clientes totales",
     newCustomersThisMonth: "{{count}} nuevos este mes",
-    newCustomersThisWeek: "{{count}} nuevos esta semana",
+    newCustomersThisWeek: "Nuevos esta semana",
     returningCustomers: "Clientes recurrentes",
     repeatRate: "Tasa de repetición {{rate}}",
     avgBookingsPerCustomer: "Promedio {{count}} reservas/cliente",
@@ -934,7 +935,7 @@ const es: TranslationKeys = {
     home: "Inicio",
     howItWorks: "Cómo funciona",
     forBusinesses: "Para negocios",
-    brand: "ClipBook",
+    brand: "PriConPri",
     toggleDarkMode: "Cambiar modo oscuro",
     menu: "Menú",
     signIn: "Iniciar sesión",
@@ -1373,13 +1374,13 @@ const es: TranslationKeys = {
     home: "Inicio",
     howItWorks: "Cómo funciona",
     forBusinesses: "Para negocios",
-    brand: "StyleSeat",
+    brand: "PriConPri",
     loginRegister: "Ingresar / Registrarse",
     changeLanguage: "Cambiar idioma",
     profileAvatar: "Avatar de perfil",
   },
   header: {
-    brand: "ClipBook",
+    brand: "PriConPri",
     home: "Inicio",
     howItWorks: "Cómo funciona",
     forProfessionals: "Para profesionales",
@@ -1483,7 +1484,7 @@ const es: TranslationKeys = {
     privacyPolicy: "Política de privacidad",
     support: "Soporte",
     description: "Encuentra y reserva a los mejores profesionales de belleza cerca de ti. Reserva online y confirmación instantánea.",
-    copyright: "© {{year}} ClipBook. Todos los derechos reservados.",
+    copyright: "© {{year}} PriConPri. Todos los derechos reservados.",
     twitter: "Twitter",
     instagram: "Instagram",
     linkedin: "LinkedIn",

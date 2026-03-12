@@ -189,7 +189,7 @@ export default function SuperAdminCustomersPage() {
                 <div className="relative">
                     {loading && (
                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-lg">
-                            <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
+                            <Loader2 className="h-6 w-6 animate-spin text-brand" />
                         </div>
                     )}
                     <div className="overflow-x-auto">

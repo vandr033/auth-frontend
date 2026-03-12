@@ -78,7 +78,7 @@ const initialAddUserFormData: AddUserFormData = {
 };
 
 const roleColors: Record<string, string> = {
-    OWNER: "bg-violet-100 text-violet-700",
+    OWNER: "bg-brand-soft-bg text-brand",
     ADMIN: "bg-blue-100 text-blue-700",
     STAFF: "bg-emerald-100 text-emerald-700",
     CUSTOMER: "bg-slate-100 text-slate-600",
@@ -282,7 +282,7 @@ export default function ShopUsersPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
                 <span className="ml-2 text-slate-600">{t("superAdminShops.loadingUsers")}</span>
             </div>
         );
@@ -313,7 +313,7 @@ export default function ShopUsersPage() {
                         </Button>
                     </Link>
                 </div>
-                <Button onClick={openAddModal} className="bg-violet-600 hover:bg-violet-700 text-white">
+                <Button onClick={openAddModal} className="bg-brand hover:bg-brand-hover text-white">
                     <UserPlus className="h-4 w-4 mr-2" />
                     {t("superAdminShops.addUser")}
                 </Button>
@@ -538,7 +538,7 @@ export default function ShopUsersPage() {
                             <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
                                 {t("common.cancel")}
                             </Button>
-                            <Button type="submit" disabled={submitting} className="bg-violet-600 hover:bg-violet-700">
+                            <Button type="submit" disabled={submitting} className="bg-brand hover:bg-brand-hover">
                                 {submitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -589,7 +589,7 @@ export default function ShopUsersPage() {
                         <Button
                             onClick={handleUpdateRole}
                             disabled={submitting}
-                            className="bg-violet-600 hover:bg-violet-700"
+                            className="bg-brand hover:bg-brand-hover"
                         >
                             {submitting ? (
                                 <>

@@ -4,16 +4,37 @@ import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { type MouseEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { negociosHeaderLinks } from "@/components/negocios/negocios-links";
+import { useT } from "@/lib/i18n";
+import { useAuth } from "@/lib/useAuth";
 
 const LOGIN_HREF = "/auth/sign-in";
-const DEMO_HREF = "/contact";
+const DEMO_HREF = "https://cal.com/priconpri/demo";
+
+const getInitials = (name?: string | null, email?: string | null) => {
+  if (name && name.length > 0) return name.charAt(0).toUpperCase();
+  if (email && email.length > 0) return email.charAt(0).toUpperCase();
+  return "U";
+};
 
 export function NegociosHeader() {
+  const t = useT();
+  const router = useRouter();
+  const { isAuthenticated, user, signOut, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const links = useMemo(
@@ -24,6 +45,13 @@ export function NegociosHeader() {
       })),
     [],
   );
+
+  const displayName = useMemo(() => {
+    const firstName = typeof user?.first_name === "string" ? user.first_name : "";
+    const lastName = typeof user?.last_name === "string" ? user.last_name : "";
+    const fullName = `${firstName} ${lastName}`.trim();
+    return user?.name || fullName || user?.email || t("businessNavbar.user");
+  }, [t, user?.email, user?.first_name, user?.last_name, user?.name]);
 
   const handleAnchorClick = (
     event: MouseEvent<HTMLAnchorElement>,
@@ -39,6 +67,16 @@ export function NegociosHeader() {
     window.scrollTo({ top: targetPosition, behavior: "smooth" });
     window.history.replaceState(null, "", `#${id}`);
     setMobileOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setMobileOpen(false);
+      router.push("/");
+    } catch (error) {
+      console.error("Sign out failed", error);
+    }
   };
 
   return (
@@ -73,19 +111,63 @@ export function NegociosHeader() {
         <div className="hidden items-center gap-2 lg:flex">
           <LanguageSwitcher variant="shop" showLabel={false} />
 
-          <Link
-            href={LOGIN_HREF}
-            className="px-2 text-[10px] font-semibold tracking-[0.08em] text-black transition-colors hover:text-slate-700"
-          >
-            LOGIN
-          </Link>
+          {loading ? (
+            <div className="h-9 w-9 animate-pulse rounded-full bg-slate-200" />
+          ) : isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:outline-none"
+                  aria-label={displayName}
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.image ?? undefined} alt={displayName} />
+                    <AvatarFallback className="bg-slate-900 text-xs font-semibold text-white">
+                      {getInitials(user?.name, user?.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 border-slate-200 bg-white">
+                <DropdownMenuLabel className="truncate text-slate-900">
+                  {displayName}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/me/profile">{t("mainNavbar.myProfile")}</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/me/appointments">{t("mainNavbar.myAppointments")}</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => {
+                    void handleSignOut();
+                  }}
+                  className="text-rose-600 focus:text-rose-600"
+                >
+                  {t("mainNavbar.signOut")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link
+              href={LOGIN_HREF}
+              className="px-2 text-[10px] font-semibold tracking-[0.08em] text-black transition-colors hover:text-slate-700"
+            >
+              LOGIN
+            </Link>
+          )}
 
-          <Button
-            asChild
-            className="h-9 rounded-sm bg-biz-cta-primary px-4 text-[10px] font-semibold tracking-[0.06em] text-white uppercase hover:bg-biz-cta-hover"
+          <a
+            href={DEMO_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-9 items-center justify-center rounded-sm bg-biz-cta-primary px-4 text-[10px] font-semibold tracking-[0.06em] text-white uppercase transition-colors hover:bg-biz-cta-hover"
           >
-            <Link href={DEMO_HREF}>AGENDAR DEMO</Link>
-          </Button>
+            AGENDAR DEMO
+          </a>
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
@@ -123,24 +205,53 @@ export function NegociosHeader() {
 
                 <div className="my-3 h-px w-full bg-slate-200" />
 
-                <Link
-                  href={LOGIN_HREF}
-                  onClick={() => setMobileOpen(false)}
-                  className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
-                >
-                  LOGIN
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <Link
+                      href="/me/profile"
+                      onClick={() => setMobileOpen(false)}
+                      className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
+                    >
+                      {t("mainNavbar.myProfile")}
+                    </Link>
+                    <Link
+                      href="/me/appointments"
+                      onClick={() => setMobileOpen(false)}
+                      className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
+                    >
+                      {t("mainNavbar.myAppointments")}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleSignOut();
+                      }}
+                      className="block rounded-md px-2 py-2 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
+                    >
+                      {t("mainNavbar.signOut")}
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href={LOGIN_HREF}
+                    onClick={() => setMobileOpen(false)}
+                    className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
+                  >
+                    LOGIN
+                  </Link>
+                )}
 
                 <div className="mt-auto space-y-3 pb-8">
                   <LanguageSwitcher variant="shop" />
-                  <Button
-                    asChild
-                    className="h-10 w-full rounded-sm bg-biz-cta-primary text-xs font-semibold tracking-[0.06em] text-white uppercase hover:bg-biz-cta-hover"
+                  <a
+                    href={DEMO_HREF}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMobileOpen(false)}
+                    className="inline-flex h-10 w-full items-center justify-center rounded-sm bg-biz-cta-primary text-xs font-semibold tracking-[0.06em] text-white uppercase transition-colors hover:bg-biz-cta-hover"
                   >
-                    <Link href={DEMO_HREF} onClick={() => setMobileOpen(false)}>
-                      AGENDAR DEMO
-                    </Link>
-                  </Button>
+                    AGENDAR DEMO
+                  </a>
                 </div>
               </div>
             </SheetContent>

@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, KeyRound, Sparkles } from "lucide-react";
 import { useOtpResendTimer } from "@/lib/auth/otpResend";
+import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
 
 type Method = null | "email" | "phone";
 type Step = "method" | "otp";
@@ -17,7 +18,8 @@ export default function SignInPage() {
   const router = useRouter();
   const redirect = React.useMemo(() => {
     if (typeof window === "undefined") return "/";
-    return new URLSearchParams(window.location.search).get("redirect") || "/";
+    const redirectTarget = new URLSearchParams(window.location.search).get("redirect");
+    return sanitizeInternalRedirectTarget(redirectTarget, "/");
   }, []);
   const {
     sendLoginEmailOtp,

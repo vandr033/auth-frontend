@@ -4,11 +4,12 @@ import type { ReactNode } from "react";
 import { HomeNavbar } from "@/app/components/home-navbar";
 
 export const metadata: Metadata = {
+  title: "PriConPri",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Reservas",
+    title: "PriConPri",
   },
   icons: {
     icon: [

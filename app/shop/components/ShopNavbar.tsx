@@ -17,7 +17,10 @@ import { getImageUrl } from "@/utils/image-url";
 import { SocialIcons } from "@/components/shop/SocialIcons";
 import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { appendShopParam } from "@/app/lib/shop-context";
+import {
+    appendShopParam,
+    buildSignInRedirectFromCurrentLocation,
+} from "@/app/lib/shop-context";
 
 const getInitials = (name?: string | null, email?: string | null) => {
     if (name && name.length > 0) return name.charAt(0).toUpperCase();
@@ -96,7 +99,7 @@ export function ShopNavbar() {
         if (!isAuthenticated) {
             return (
                 <Button
-                    onClick={() => router.push("/auth/sign-in")}
+                    onClick={() => router.push(buildSignInRedirectFromCurrentLocation(basePath))}
                     variant="outline"
                     className="rounded-md border-surface-border px-4 py-2 text-sm font-semibold text-text-main transition hover:border-brand hover:text-brand"
                 >
@@ -303,7 +306,7 @@ export function ShopNavbar() {
                                         className="w-full border-surface-border text-text-main"
                                         onClick={() => {
                                             setOpen(false);
-                                            router.push("/auth/sign-in");
+                                            router.push(buildSignInRedirectFromCurrentLocation(basePath));
                                         }}
                                     >
                                         {t('shopNav.signInOrCreate')}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -129,7 +130,7 @@ export default function SuperAdminLayout({
         return (
             <div className="flex min-h-[100dvh] items-center justify-center bg-slate-950 text-white">
                 <div className="text-center">
-                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-violet-500 border-t-transparent mx-auto" />
+                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent mx-auto" />
                     <p className="text-slate-400">{t("common.loading")}</p>
                 </div>
             </div>
@@ -168,10 +169,18 @@ export default function SuperAdminLayout({
                     {/* Logo / Title */}
                     <div className="flex h-16 items-center justify-between border-b border-slate-800 px-4">
                         <div className="flex items-center gap-2">
-                            <div className="h-8 w-8 rounded-lg bg-violet-600 flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-lg bg-brand flex items-center justify-center">
                                 <Shield className="h-5 w-5" />
                             </div>
                             <div className="flex flex-col">
+                                <Image
+                                    src="/assets/priconpri/logo-horizontal-pink-outline.png"
+                                    alt="PriConPri"
+                                    width={600}
+                                    height={370}
+                                    className="mb-0.5 h-3.5 w-auto"
+                                    priority
+                                />
                                 <span className="font-semibold text-sm">
                                     {t("adminNav.superAdmin")}
                                 </span>
@@ -201,7 +210,7 @@ export default function SuperAdminLayout({
                                     className={cn(
                                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                                         isActive
-                                            ? "bg-violet-600 text-white"
+                                            ? "bg-brand text-white"
                                             : "text-slate-300 hover:bg-slate-800 hover:text-white",
                                     )}
                                     onClick={() => setSidebarOpen(false)}
@@ -209,7 +218,7 @@ export default function SuperAdminLayout({
                                     {item.icon}
                                     <span className="flex-1">{item.label}</span>
                                     {item.badge != null && item.badge > 0 && (
-                                        <span className="ml-auto inline-flex items-center justify-center rounded-full bg-violet-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white min-w-[18px]">
+                                        <span className="ml-auto inline-flex min-w-[18px] items-center justify-center rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
                                             {item.badge}
                                         </span>
                                     )}
@@ -231,7 +240,7 @@ export default function SuperAdminLayout({
                                 <p className="text-sm font-medium truncate">
                                     {user?.name || user?.email}
                                 </p>
-                                <p className="text-xs text-violet-400 truncate">{t("adminNav.superAdmin")}</p>
+                                <p className="text-xs text-brand truncate">{t("adminNav.superAdmin")}</p>
                             </div>
                             <button
                                 onClick={handleSignOut}

@@ -5,7 +5,9 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import { useT } from "@/lib/i18n";
 
-const CTA_HREF = "/contact";
+const DEMO_HREF = "https://cal.com/priconpri/demo";
+const WHATSAPP_MESSAGE = "Hola, quiero agendar una demo de PriConPri.";
+const CONTACT_HREF = `https://wa.me/59175789524?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
 export function BusinessFinalCtaSection() {
   const t = useT();
@@ -62,7 +64,9 @@ export function BusinessFinalCtaSection() {
             }
           >
             <Link
-              href={CTA_HREF}
+              href={DEMO_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex h-16 min-w-[340px] items-center justify-center bg-biz-yellow px-10 font-bebas text-[22px] leading-none font-semibold tracking-[0.06em] text-black uppercase transition-colors duration-300 hover:bg-[#eef429]"
             >
               {t("businessFinalCta.primaryCta")}
@@ -80,7 +84,9 @@ export function BusinessFinalCtaSection() {
             }
           >
             <Link
-              href={CTA_HREF}
+              href={CONTACT_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex h-16 min-w-[300px] items-center justify-center border border-white px-10 font-bebas text-[22px] leading-none font-semibold tracking-[0.06em] text-white uppercase transition-colors duration-300 hover:bg-white hover:text-biz-barbie-pink"
             >
               {t("businessFinalCta.secondaryCta")}

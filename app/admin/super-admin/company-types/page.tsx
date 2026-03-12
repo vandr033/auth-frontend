@@ -267,7 +267,7 @@ export default function CompanyTypesPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
                 <span className="ml-2 text-slate-600">{t("superAdminCompanyTypes.loading")}</span>
             </div>
         );
@@ -281,7 +281,7 @@ export default function CompanyTypesPage() {
                     <h1 className="text-2xl font-bold text-slate-900">{t("superAdminCompanyTypes.title")}</h1>
                     <p className="text-slate-500">{t("superAdminCompanyTypes.subtitle")}</p>
                 </div>
-                <Button onClick={openAddModal} className="bg-violet-600 hover:bg-violet-700 text-white">
+                <Button onClick={openAddModal} className="bg-brand hover:bg-brand-hover text-white">
                     <Plus className="h-4 w-4 mr-2" />
                     {t("superAdminCompanyTypes.add")}
                 </Button>
@@ -441,7 +441,7 @@ export default function CompanyTypesPage() {
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 placeholder={t("superAdminCompanyTypes.descriptionPlaceholder")}
-                                className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand"
                             />
                         </div>
 
@@ -453,7 +453,7 @@ export default function CompanyTypesPage() {
                                     value={formData.description_es}
                                     onChange={(e) => setFormData({ ...formData, description_es: e.target.value })}
                                     placeholder={t("superAdminCompanyTypes.descriptionEsPlaceholder")}
-                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -463,7 +463,7 @@ export default function CompanyTypesPage() {
                                     value={formData.description_en}
                                     onChange={(e) => setFormData({ ...formData, description_en: e.target.value })}
                                     placeholder={t("superAdminCompanyTypes.descriptionEnPlaceholder")}
-                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand"
                                 />
                             </div>
                         </div>
@@ -492,7 +492,7 @@ export default function CompanyTypesPage() {
                             <Button
                                 type="submit"
                                 disabled={submitting}
-                                className="bg-violet-600 hover:bg-violet-700"
+                                className="bg-brand hover:bg-brand-hover"
                             >
                                 {submitting ? (
                                     <>

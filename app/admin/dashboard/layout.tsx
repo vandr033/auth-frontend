@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -208,17 +209,27 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 <div className="flex h-[100dvh] flex-col">
                     {/* Logo / Company Name */}
                     <div className="flex h-16 items-center justify-between border-b border-slate-800 px-4">
-                        <div className="flex items-center gap-2">
-                            <div className="h-8 w-8 rounded-lg bg-brand flex items-center justify-center font-bold">
-                                {companyName?.charAt(0) || "S"}
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="font-semibold text-sm truncate max-w-[140px]">
-                                    {companyName || "Shop Admin"}
-                                </span>
-                                <span className="text-xs text-slate-400 capitalize">
-                                    {role?.toLowerCase()}
-                                </span>
+                        <div className="min-w-0">
+                            <Image
+                                src="/assets/priconpri/logo-horizontal-pink-outline.png"
+                                alt="PriConPri"
+                                width={600}
+                                height={370}
+                                className="h-4 w-auto"
+                                priority
+                            />
+                            <div className="mt-1 flex items-center gap-2">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-[11px] font-bold text-white">
+                                    {companyName?.charAt(0) || "S"}
+                                </div>
+                                <div className="flex min-w-0 flex-col">
+                                    <span className="truncate text-sm font-semibold">
+                                        {companyName || "Shop Admin"}
+                                    </span>
+                                    <span className="text-xs text-slate-400 capitalize">
+                                        {role?.toLowerCase()}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <button

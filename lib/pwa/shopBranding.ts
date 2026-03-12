@@ -1,6 +1,6 @@
 import { getImageUrl } from "@/utils/image-url";
 
-export const DEFAULT_PWA_THEME_COLOR = "#f97316";
+export const DEFAULT_PWA_THEME_COLOR = "#e73886";
 
 export const FALLBACK_PWA_ICONS = [
     { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" as const },
@@ -60,7 +60,7 @@ export async function getShopBrandingForPwa(shopSlug: string): Promise<ShopPwaBr
     const safeSlug = shopSlug.trim();
     const fallback: ShopPwaBranding = {
         slug: safeSlug,
-        name: safeSlug || "Reservas",
+        name: safeSlug || "PriConPri",
         logoUrl: null,
         themeColor: DEFAULT_PWA_THEME_COLOR,
     };

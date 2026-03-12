@@ -47,7 +47,7 @@ export default async function handler(
     res.setHeader("Content-Type", "application/manifest+json");
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.status(200).json({
-        name: `${shop.name} — Reservas`,
+        name: `${shop.name} - By PriConPri`,
         short_name: shop.name,
         start_url: `/shop/${shop.slug}`,
         scope: `/shop/${shop.slug}`,

@@ -1,9 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
+
+const DEMO_HREF = "https://cal.com/priconpri/demo";
+const HOW_IT_WORKS_HREF = "#funcionalidades";
 
 export function BusinessHero() {
   const t = useT();
@@ -49,27 +53,28 @@ export function BusinessHero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
             <Button
-              type="button"
+              asChild
               className="h-11 rounded-none bg-biz-cta-primary px-6 text-[11px] font-bold tracking-[0.04em] text-white uppercase hover:bg-biz-cta-hover"
             >
-              {t("businessHero.requestDemo")}
+              <a href={DEMO_HREF} target="_blank" rel="noopener noreferrer">
+                {t("businessHero.requestDemo")}
+              </a>
             </Button>
             <Button
-              type="button"
+              asChild
               variant="outline"
               className="h-11 rounded-none border border-slate-900 bg-transparent px-6 text-[11px] font-bold tracking-[0.04em] text-slate-900 uppercase hover:bg-slate-100"
             >
-              {t("businessHero.viewHowItWorks")}
+              <a href={HOW_IT_WORKS_HREF}>{t("businessHero.viewHowItWorks")}</a>
             </Button>
           </div>
 
-          <a
-            href="#"
-            onClick={(event) => event.preventDefault()}
+          <Link
+            href="/"
             className="mt-6 inline-flex items-center gap-2 font-bebas text-[13px] tracking-[0.12em] text-slate-500 uppercase transition-colors hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
           >
             {t("businessHero.bookingMicrocopy")}
-          </a>
+          </Link>
         </motion.div>
 
         <motion.div

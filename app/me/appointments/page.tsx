@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/useAuth";
 import { useApi } from "@/app/hooks/useApi";
@@ -218,13 +218,11 @@ function AppointmentCard({
   );
 }
 
-export default function AppointmentsPage() {
+function AppointmentsPageContent() {
   const t = useT();
   const router = useRouter();
-  const shopSlug =
-    typeof window === "undefined"
-      ? null
-      : getShopSlugFromParams(new URLSearchParams(window.location.search));
+  const searchParams = useSearchParams();
+  const shopSlug = getShopSlugFromParams(searchParams);
   const { loading: authLoading, isAuthenticated } = useAuth();
   const api = useApi();
 
@@ -354,5 +352,18 @@ export default function AppointmentsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AppointmentsPage() {
+  return (
+    <Suspense fallback={(
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      </div>
+    )}
+    >
+      <AppointmentsPageContent />
+    </Suspense>
   );
 }

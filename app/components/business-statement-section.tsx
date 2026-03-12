@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { Check } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
+
+const DEMO_HREF = "https://cal.com/priconpri/demo";
 
 const benefitKeys = [
   "businessStatement.benefits.bookings247",
@@ -137,10 +140,12 @@ export function BusinessStatementSection() {
             className="mt-7"
           >
             <Button
-              type="button"
+              asChild
               className="h-11 rounded-none bg-biz-cta-primary px-9 font-bebas text-[17px] font-semibold uppercase tracking-[0.05em] text-white hover:bg-biz-cta-hover"
             >
-              {t("businessStatement.cta")}
+              <Link href={DEMO_HREF} target="_blank" rel="noopener noreferrer">
+                {t("businessStatement.cta")}
+              </Link>
             </Button>
           </motion.div>
         </motion.div>

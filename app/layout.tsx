@@ -105,13 +105,13 @@ const nunitoSans = Nunito_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "ClipBook — Discover & Book Beauty Services",
+  title: "PriConPri",
   description:
-    "Find and book the best barbers, stylists, and beauty professionals near you. Online booking made simple.",
+    "Find and book the best barbers, stylists, and beauty professionals near you with PriConPri.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Reservas",
+    title: "PriConPri",
   },
   icons: {
     icon: [
@@ -127,7 +127,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#f97316",
+  themeColor: "#e73886",
 };
 
 export default function RootLayout({

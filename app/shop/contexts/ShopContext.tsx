@@ -8,6 +8,7 @@ import React, {
     useMemo,
     useState,
 } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import type {
     ShopData,
     ShopCompany,
@@ -57,7 +58,7 @@ const ShopContext = createContext<ShopContextValue | null>(null);
 const shopDataCache = new Map<string, ShopData>();
 
 const defaultTheme: ShopTheme = {
-    brand_color: "#2563eb",
+    brand_color: "#e73886",
     page_background_color: "#f3f4f6",
     page_background_preset: "auto",
     cards_elevated: true,
@@ -94,6 +95,11 @@ export function ShopProvider({
     initialData = null,
     initialError = null,
 }: ShopProviderProps) {
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const meShopSlug = (pathname?.startsWith("/me") ?? false)
+        ? getShopSlugFromParams(searchParams)
+        : null;
     const cachedData = initialData ?? shopDataCache.get(slug) ?? null;
     const hasWarmData = !!cachedData;
 
@@ -172,16 +178,11 @@ export function ShopProvider({
             root.style.removeProperty("--font-heading");
             root.style.removeProperty("--font-body");
 
-            if (typeof window !== "undefined" && window.location.pathname.startsWith("/me")) {
-                const nextShopSlug = getShopSlugFromParams(
-                    new URLSearchParams(window.location.search),
-                );
-                if (nextShopSlug === slug) return;
-            }
+            if ((pathname?.startsWith("/me") ?? false) && meShopSlug === slug) return;
 
             applyMainSiteTheme();
         };
-    }, [data?.theme, slug]);
+    }, [data?.theme, meShopSlug, pathname, slug]);
 
     const value = useMemo<ShopContextValue>(
         () => ({

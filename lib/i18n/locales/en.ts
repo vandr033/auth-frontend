@@ -18,7 +18,7 @@ const en = {
     optional: "Optional",
     success: "Saved successfully",
     error: "Something went wrong. Please try again.",
-    poweredBy: "Powered by Reservas",
+    poweredBy: "Powered by PriConPri",
   },
 
   // ─── Shop Navbar ───
@@ -77,7 +77,7 @@ const en = {
     todayHours: "Today",
     closed: "Closed",
     ctaTitle: "Own a barbershop?",
-    ctaSubtitle: "Join Reservas and start managing your bookings online.",
+    ctaSubtitle: "Join PriConPri and start managing your bookings online.",
     ctaButton: "Get Started",
   },
 
@@ -188,6 +188,7 @@ const en = {
     navigation: "Navigation",
     contact: "Contact",
     followUs: "Follow Us",
+    poweredByCta: "Request demo",
   },
 
   // ─── Language Switcher ───
@@ -242,7 +243,7 @@ const en = {
     bookingsCount: "{{count}} bookings",
     totalCustomers: "Total Customers",
     newCustomersThisMonth: "{{count}} new this month",
-    newCustomersThisWeek: "{{count}} new this week",
+    newCustomersThisWeek: "New this week",
     returningCustomers: "Returning Customers",
     repeatRate: "Repeat rate {{rate}}",
     avgBookingsPerCustomer: "Avg {{count}} bookings/customer",
@@ -962,7 +963,7 @@ const en = {
     home: "Home",
     howItWorks: "How It Works",
     forBusinesses: "For Businesses",
-    brand: "ClipBook",
+    brand: "PriConPri",
     toggleDarkMode: "Toggle dark mode",
     menu: "Menu",
     signIn: "Sign in",
@@ -1402,7 +1403,7 @@ const en = {
     home: "Home",
     howItWorks: "How it works",
     forBusinesses: "For businesses",
-    brand: "StyleSeat",
+    brand: "PriConPri",
     loginRegister: "Login / Register",
     changeLanguage: "Change language",
     profileAvatar: "Profile avatar",
@@ -1410,7 +1411,7 @@ const en = {
 
   // ─── Legacy Header ───
   header: {
-    brand: "ClipBook",
+    brand: "PriConPri",
     home: "Home",
     howItWorks: "How It Works",
     forProfessionals: "For Professionals",
@@ -1526,7 +1527,7 @@ const en = {
     privacyPolicy: "Privacy Policy",
     support: "Support",
     description: "Find and book the best beauty professionals near you. Online booking, instant confirmation.",
-    copyright: "© {{year}} ClipBook. All rights reserved.",
+    copyright: "© {{year}} PriConPri. All rights reserved.",
     twitter: "Twitter",
     instagram: "Instagram",
     linkedin: "LinkedIn",

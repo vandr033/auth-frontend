@@ -87,10 +87,10 @@
   --color-text-main: #0f172a;
   --color-text-muted: #6b7280;
 
-  --color-brand: #2563eb;
-  --color-brand-hover: #1d4ed8;
-  --color-brand-soft-bg: rgba(37, 99, 235, 0.12);
-  --color-brand-soft-text: #2563eb;
+  --color-brand: #e73886;
+  --color-brand-hover: #d32e78;
+  --color-brand-soft-bg: rgba(231, 56, 134, 0.12);
+  --color-brand-soft-text: #e73886;
 
   --shadow-card: 0 18px 30px rgba(15, 23, 42, 0.08);
 

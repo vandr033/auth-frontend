@@ -6,6 +6,8 @@ import { SocialIcons } from "./SocialIcons";
 import { useShop } from "@/app/shop/contexts/ShopContext";
 import { useT } from "@/lib/i18n";
 
+const PRICONPRI_DEMO_HREF = "https://cal.com/priconpri/demo";
+
 export function ShopFooter() {
     const { company, socialLinks, slug } = useShop();
     const t = useT();
@@ -84,8 +86,18 @@ export function ShopFooter() {
                 </div>
 
                 {/* Bottom bar */}
-                <div className="mt-10 border-t border-surface-border pt-6 text-center text-xs text-text-muted">
-                    <p>{t('common.poweredBy')}</p>
+                <div className="mt-10 border-t border-surface-border pt-6">
+                    <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-text-muted">
+                        <p>{t('common.poweredBy')}</p>
+                        <a
+                            href={PRICONPRI_DEMO_HREF}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center rounded-sm border border-surface-border px-2 py-1 text-[11px] font-medium uppercase tracking-[0.04em] text-brand transition-colors hover:bg-brand-soft-bg"
+                        >
+                            {t("shopFooter.poweredByCta")}
+                        </a>
+                    </div>
                 </div>
             </div>
         </footer>

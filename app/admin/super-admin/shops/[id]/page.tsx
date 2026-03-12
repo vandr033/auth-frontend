@@ -228,7 +228,7 @@ export default function EditShopPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
                 <span className="ml-2 text-slate-600">{t("superAdminShops.loadingShop")}</span>
             </div>
         );
@@ -262,7 +262,7 @@ export default function EditShopPage() {
                 <div className="flex items-center gap-2">
                     <Button
                         onClick={handleImpersonate}
-                        className="bg-violet-600 hover:bg-violet-700 text-white"
+                        className="bg-brand hover:bg-brand-hover text-white"
                     >
                         <LogIn className="h-4 w-4 mr-2" />
                         {t("superAdminShops.enterShop")}
@@ -505,7 +505,7 @@ export default function EditShopPage() {
                             <Button
                                 type="submit"
                                 disabled={submitting}
-                                className="flex-1 bg-violet-600 hover:bg-violet-700"
+                                className="flex-1 bg-brand hover:bg-brand-hover"
                             >
                                 {submitting ? (
                                     <>
@@ -524,7 +524,7 @@ export default function EditShopPage() {
                             loadingLabel={t("superAdminShops.saving")}
                             onCancel={() => router.push("/admin/super-admin/shops")}
                             cancelLabel={t("common.cancel")}
-                            saveClassName="bg-violet-600 hover:bg-violet-700 text-white"
+                            saveClassName="bg-brand hover:bg-brand-hover text-white"
                         />
                     </form>
                 </CardContent>

@@ -35,6 +35,7 @@ export type BusinessPricingCompareCategory = {
 };
 
 export const BUSINESS_COMPARE_PATH = "/negocios/precios";
+export const BUSINESS_DEMO_PATH = "https://cal.com/priconpri/demo";
 
 export const businessPricingSummaryPlans: BusinessPricingSummaryPlan[] = [
   {
@@ -56,7 +57,7 @@ export const businessPricingSummaryPlans: BusinessPricingSummaryPlan[] = [
       "businessPricing.plans.starter.highlights.h3",
     ],
     ctaKey: "businessPricing.plans.starter.cta",
-    ctaHref: "/contact",
+    ctaHref: BUSINESS_DEMO_PATH,
   },
   {
     id: "business",
@@ -78,7 +79,7 @@ export const businessPricingSummaryPlans: BusinessPricingSummaryPlan[] = [
       "businessPricing.plans.business.highlights.h3",
     ],
     ctaKey: "businessPricing.plans.business.cta",
-    ctaHref: "/contact",
+    ctaHref: BUSINESS_DEMO_PATH,
   },
   {
     id: "enterprise",
@@ -100,7 +101,7 @@ export const businessPricingSummaryPlans: BusinessPricingSummaryPlan[] = [
       "businessPricing.plans.enterprise.highlights.h3",
     ],
     ctaKey: "businessPricing.plans.enterprise.cta",
-    ctaHref: "/contact",
+    ctaHref: BUSINESS_DEMO_PATH,
   },
 ];
 

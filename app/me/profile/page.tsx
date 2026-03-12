@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, AuthUser } from "@/lib/useAuth";
 import { useApi } from "@/app/hooks/useApi";
 import { Button } from "@/components/ui/button";
@@ -27,13 +27,11 @@ import { useOtpResendTimer } from "@/lib/auth/otpResend";
 
 type OtpFlow = null | "email" | "phone";
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const t = useT();
   const router = useRouter();
-  const shopSlug =
-    typeof window === "undefined"
-      ? null
-      : getShopSlugFromParams(new URLSearchParams(window.location.search));
+  const searchParams = useSearchParams();
+  const shopSlug = getShopSlugFromParams(searchParams);
   const {
     user: sessionUser,
     loading: authLoading,
@@ -507,5 +505,18 @@ export default function ProfilePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={(
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      </div>
+    )}
+    >
+      <ProfilePageContent />
+    </Suspense>
   );
 }

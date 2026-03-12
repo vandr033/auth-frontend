@@ -1,11 +1,11 @@
 {
-  "name": "Reservas Admin",
-  "short_name": "Admin",
+  "name": "PriConPri Admin",
+  "short_name": "PriConPri",
   "start_url": "/admin",
   "scope": "/admin",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#f97316",
+  "theme_color": "#e73886",
   "icons": [
     {
       "src": "/icons/icon-192.png",

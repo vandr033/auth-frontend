@@ -1,13 +1,14 @@
 "use client";
 
 import React, {
+  Suspense,
   createContext,
   useContext,
   useEffect,
   useMemo,
   useState,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   type ThemeConfig,
@@ -44,18 +45,15 @@ type ThemeProviderProps = {
   children: React.ReactNode;
 };
 
-export function ThemeProvider({
+function ThemeProviderCore({
   initialConfig,
+  isShopRoute,
+  isMeRouteWithShopTheme,
   children,
-}: ThemeProviderProps) {
-  const pathname = usePathname();
-  const isShopRoute = pathname?.startsWith("/shop/") ?? false;
-  const shopSlug =
-    typeof window === "undefined"
-      ? null
-      : getShopSlugFromParams(new URLSearchParams(window.location.search));
-  const isMeRouteWithShopTheme = (pathname?.startsWith("/me") ?? false) && !!shopSlug;
-
+}: ThemeProviderProps & {
+  isShopRoute: boolean;
+  isMeRouteWithShopTheme: boolean;
+}) {
   const [config, setConfig] = useState<ThemeConfig>(() => ({
     ...defaultConfig,
     ...(initialConfig ?? {}),
@@ -77,7 +75,7 @@ export function ThemeProvider({
         root.style.setProperty(key, value);
       });
     }
-  }, [config, isMeRouteWithShopTheme, isShopRoute, theme]);
+  }, [isMeRouteWithShopTheme, isShopRoute, theme]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
@@ -90,6 +88,50 @@ export function ThemeProvider({
 
   return (
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
+}
+
+function ThemeProviderWithRouteContext({
+  initialConfig,
+  children,
+}: ThemeProviderProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isShopRoute = pathname?.startsWith("/shop/") ?? false;
+  const shopSlug = getShopSlugFromParams(searchParams);
+  const isMeRouteWithShopTheme = (pathname?.startsWith("/me") ?? false) && !!shopSlug;
+
+  return (
+    <ThemeProviderCore
+      initialConfig={initialConfig}
+      isShopRoute={isShopRoute}
+      isMeRouteWithShopTheme={isMeRouteWithShopTheme}
+    >
+      {children}
+    </ThemeProviderCore>
+  );
+}
+
+export function ThemeProvider({
+  initialConfig,
+  children,
+}: ThemeProviderProps) {
+  return (
+    <Suspense
+      fallback={(
+        <ThemeProviderCore
+          initialConfig={initialConfig}
+          isShopRoute={false}
+          isMeRouteWithShopTheme={false}
+        >
+          {children}
+        </ThemeProviderCore>
+      )}
+    >
+      <ThemeProviderWithRouteContext initialConfig={initialConfig}>
+        {children}
+      </ThemeProviderWithRouteContext>
+    </Suspense>
   );
 }
 

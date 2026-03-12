@@ -1,6 +1,6 @@
 /**
  * Main Site Theme Configuration
- * 
+ *
  * This defines the sleek, professional, modern theme used for the main site
  * (landing page, auth pages, etc.) - separate from individual shop themes.
  */
@@ -9,13 +9,13 @@ import { computeTheme, type ThemeConfig, type ComputedTheme } from "@/utils/them
 
 /**
  * Main site brand colors and styling
- * - Sleek blue brand color for a professional look
+ * - PriConPri pink accent color
  * - Light, clean background
  * - Modern font and elevated cards
  */
 export const mainSiteThemeConfig: ThemeConfig = {
-    // Sleek professional blue
-    brandColor: "#2563eb",
+    // PriConPri accent
+    brandColor: "#e73886",
     // Clean light gray background
     pageBackgroundColor: "#f8fafc",
     pageBackgroundPreset: "light",

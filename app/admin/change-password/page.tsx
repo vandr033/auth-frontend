@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -117,6 +118,14 @@ export default function AdminChangePasswordPage() {
     return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-10">
             <div className="w-full max-w-md">
+                <Image
+                    src="/assets/priconpri/logo-horizontal-pink-outline.png"
+                    alt="PriConPri"
+                    width={600}
+                    height={370}
+                    className="mx-auto mb-6 h-8 w-auto"
+                    priority
+                />
                 <Card className="border-white/10 bg-white/5 text-white shadow-lg backdrop-blur">
                     <CardHeader>
                         <CardTitle>{t("adminChangePassword.title")}</CardTitle>

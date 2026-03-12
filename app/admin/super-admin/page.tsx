@@ -114,7 +114,7 @@ export default function SuperAdminDashboard() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+                <Loader2 className="h-8 w-8 animate-spin text-brand" />
             </div>
         );
     }
@@ -137,7 +137,7 @@ export default function SuperAdminDashboard() {
             value: metrics.bookings.total.toLocaleString(),
             sub: t("superAdminDashboard.thisMonthCount", { count: metrics.bookings.thisMonth }),
             icon: <Calendar className="h-5 w-5" />,
-            color: "text-violet-600 bg-violet-50",
+            color: "text-brand bg-brand-soft-bg",
         },
         {
             label: t("superAdminDashboard.revenueThisMonth"),
@@ -167,7 +167,7 @@ export default function SuperAdminDashboard() {
             label: t("superAdminDashboard.activeShops"),
             value: metrics.entityCounts.activeShops,
             icon: <Store className="h-5 w-5" />,
-            color: "text-violet-600 bg-violet-50",
+            color: "text-brand bg-brand-soft-bg",
         },
         {
             label: t("superAdminDashboard.totalStaff"),
@@ -212,7 +212,7 @@ export default function SuperAdminDashboard() {
                                 className={cn(
                                     "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                                     rangePreset === option.value
-                                        ? "bg-violet-600 text-white"
+                                        ? "bg-brand text-white"
                                         : "text-slate-600 hover:bg-slate-100",
                                 )}
                             >
@@ -278,7 +278,7 @@ export default function SuperAdminDashboard() {
                         <Card className="border-slate-200">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
-                                    <Compass className="h-4 w-4 text-violet-500" />
+                                    <Compass className="h-4 w-4 text-brand" />
                                     {t("superAdminDashboard.bookingsBySource")}
                                 </CardTitle>
                             </CardHeader>
@@ -297,7 +297,7 @@ export default function SuperAdminDashboard() {
                                         {marketplace.bookingsBySource.admin + marketplace.bookingsBySource.manual}
                                     </span>
                                 </div>
-                                <div className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-700">
+                                <div className="mt-3 rounded-lg bg-brand-soft-bg px-3 py-2 text-xs text-brand">
                                     {t("superAdminDashboard.marketplaceShare", {
                                         percent: formatPercent(marketplace.bookingsBySource.marketplaceShare),
                                     })}
@@ -349,7 +349,7 @@ export default function SuperAdminDashboard() {
                         <Card className="border-slate-200">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
-                                    <Search className="h-4 w-4 text-violet-500" />
+                                    <Search className="h-4 w-4 text-brand" />
                                     {t("superAdminDashboard.topSearchedServiceTypes")}
                                 </CardTitle>
                             </CardHeader>
@@ -554,7 +554,7 @@ export default function SuperAdminDashboard() {
             <Card className="border-slate-200">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
-                        <Trophy className="h-4 w-4 text-violet-500" />
+                        <Trophy className="h-4 w-4 text-brand" />
                         {t("superAdminDashboard.topServices")}
                     </CardTitle>
                 </CardHeader>
@@ -578,7 +578,7 @@ export default function SuperAdminDashboard() {
                                         </div>
                                         <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                                             <div
-                                                className="h-full rounded-full bg-violet-500 transition-all"
+                                                className="h-full rounded-full bg-brand-soft-bg0 transition-all"
                                                 style={{ width: `${service.percentage}%` }}
                                             />
                                         </div>
@@ -596,8 +596,8 @@ export default function SuperAdminDashboard() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-violet-100 flex items-center justify-center">
-                                    <Store className="h-5 w-5 text-violet-600" />
+                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
+                                    <Store className="h-5 w-5 text-brand" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">{t("superAdminDashboard.manageShops")}</p>
@@ -612,8 +612,8 @@ export default function SuperAdminDashboard() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-violet-100 flex items-center justify-center">
-                                    <Tags className="h-5 w-5 text-violet-600" />
+                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
+                                    <Tags className="h-5 w-5 text-brand" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">{t("superAdminDashboard.manageServiceTypes")}</p>
@@ -628,8 +628,8 @@ export default function SuperAdminDashboard() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-violet-100 flex items-center justify-center">
-                                    <Building2 className="h-5 w-5 text-violet-600" />
+                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
+                                    <Building2 className="h-5 w-5 text-brand" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">{t("superAdminDashboard.manageCompanyTypes")}</p>

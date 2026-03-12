@@ -21,11 +21,12 @@ export async function generateMetadata({ params }: ShopLayoutProps): Promise<Met
     const appleIconSize = branding.logoUrl ? "180x180" : "192x192";
 
     return {
+        title: `${branding.name} - By PriConPri`,
         manifest: `/api/manifest/${encodeURIComponent(branding.slug)}.json`,
         appleWebApp: {
             capable: true,
             statusBarStyle: "default",
-            title: branding.name || "Reservas",
+            title: `${branding.name} - By PriConPri`,
         },
         icons: {
             icon: [

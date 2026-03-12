@@ -1,11 +1,11 @@
 {
-  "name": "Reservas",
-  "short_name": "Reservas",
+  "name": "PriConPri",
+  "short_name": "PriConPri",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#f97316",
+  "theme_color": "#e73886",
   "icons": [
     {
       "src": "/icons/icon-192.png",
