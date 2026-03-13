@@ -51,6 +51,8 @@ interface BookingDetailSheetProps {
         id: number,
         payload: { channel: NoShowNotificationChannel; message?: string }
     ) => Promise<void>;
+    canSendNoShowNotification?: boolean;
+    noShowNotificationUpgradeMessage?: string;
     onRefresh?: () => void;
 }
 
@@ -69,6 +71,8 @@ export function BookingDetailSheet({
     onStatusUpdate,
     onMarkNoShow,
     onSendNoShowNotification,
+    canSendNoShowNotification = true,
+    noShowNotificationUpgradeMessage,
     onRefresh,
 }: BookingDetailSheetProps) {
     const t = useT();
@@ -90,16 +94,16 @@ export function BookingDetailSheet({
         if (!isOpen) return;
         setNoShowPanelOpen(false);
         setNoShowSending(false);
-        setNotifyCustomerOnNoShow(hasContactMethod);
+        setNotifyCustomerOnNoShow(hasContactMethod && canSendNoShowNotification);
         setNoShowChannel("AUTO");
         setNoShowMessageMode("PRESET");
         setCustomNoShowMessage("");
-    }, [booking?.id, hasContactMethod, isOpen]);
+    }, [booking?.id, canSendNoShowNotification, hasContactMethod, isOpen]);
 
     useEffect(() => {
-        if (hasContactMethod) return;
+        if (hasContactMethod && canSendNoShowNotification) return;
         setNotifyCustomerOnNoShow(false);
-    }, [hasContactMethod]);
+    }, [canSendNoShowNotification, hasContactMethod]);
 
     useEffect(() => {
         if (noShowChannel === "WHATSAPP" && !hasPhone) {
@@ -245,26 +249,33 @@ export function BookingDetailSheet({
                             <p className="text-xs text-text-muted">
                                 {t("adminBookings.noShowNotificationDescription")}
                             </p>
+                            {!canSendNoShowNotification && (
+                                <p className="mt-1 text-xs font-medium text-amber-700">
+                                    {noShowNotificationUpgradeMessage || t("planEnforcement.availableOnBusiness")}
+                                </p>
+                            )}
                         </div>
 
-                        <div className="flex items-start gap-2">
-                            <Checkbox
-                                id="notify-no-show"
-                                checked={hasContactMethod && notifyCustomerOnNoShow}
-                                disabled={!hasContactMethod}
-                                onCheckedChange={(value) => setNotifyCustomerOnNoShow(Boolean(value))}
-                            />
-                            <div>
-                                <Label htmlFor="notify-no-show" className="text-sm font-medium">
-                                    {t("adminBookings.sendNoShowNotification")}
-                                </Label>
-                                {!hasContactMethod && (
-                                    <p className="mt-1 text-xs text-amber-700">
-                                        {t("adminBookings.noShowNoContact")}
-                                    </p>
-                                )}
+                        {canSendNoShowNotification && (
+                            <div className="flex items-start gap-2">
+                                <Checkbox
+                                    id="notify-no-show"
+                                    checked={hasContactMethod && notifyCustomerOnNoShow}
+                                    disabled={!hasContactMethod}
+                                    onCheckedChange={(value) => setNotifyCustomerOnNoShow(Boolean(value))}
+                                />
+                                <div>
+                                    <Label htmlFor="notify-no-show" className="text-sm font-medium">
+                                        {t("adminBookings.sendNoShowNotification")}
+                                    </Label>
+                                    {!hasContactMethod && (
+                                        <p className="mt-1 text-xs text-amber-700">
+                                            {t("adminBookings.noShowNoContact")}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {notifyCustomerOnNoShow && (
                             <>

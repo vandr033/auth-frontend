@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { getLocalizedText } from "@/lib/i18n/localized";
-import type { CompanyType } from "@/types/super-admin";
+import type { BillingCycle, CompanyType, ShopPlan } from "@/types/super-admin";
 import { notify } from "@/lib/notify";
 import {
     LocationPicker,
@@ -48,6 +48,11 @@ interface FormData {
     latitude: string;
     longitude: string;
     company_type_id: string;
+    plan: ShopPlan;
+    billingCycle: BillingCycle;
+    availableUntil: string;
+    pricePaid: string;
+    isMarketplaceVisible: boolean;
 }
 
 interface OwnerFormData {
@@ -59,6 +64,27 @@ interface OwnerFormData {
     phone: string;
     display_name: string;
     is_bookable: boolean;
+}
+
+type OwnerMode = "existing" | "new";
+
+interface ExistingOwnerUser {
+    id: string;
+    email: string;
+    name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    phone_prefix: string | null;
+    phone: string | null;
+    is_active: boolean;
+    memberships?: Array<{
+        role: string;
+        company: {
+            id: number;
+            name: string;
+            slug: string;
+        };
+    }>;
 }
 
 const initialFormData: FormData = {
@@ -75,11 +101,38 @@ const initialFormData: FormData = {
     latitude: "",
     longitude: "",
     company_type_id: "",
+    plan: "BUSINESS",
+    billingCycle: "MONTHLY",
+    availableUntil: toDateTimeLocalInput("2027-03-12T23:59:59.000Z"),
+    pricePaid: "",
+    isMarketplaceVisible: true,
 };
 
 function parseNumberOrUndefined(value: string): number | undefined {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseNonNegativeNumberOrNull(value: string): number | null {
+    if (!value.trim()) return null;
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return parsed;
+}
+
+function toDateTimeLocalInput(value: string | Date): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const offsetMs = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function toIsoDateTimeOrNull(value: string): string | null {
+    if (!value.trim()) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString();
 }
 
 const initialOwnerFormData: OwnerFormData = {
@@ -110,6 +163,11 @@ export default function NewShopPage() {
 
     const [formData, setFormData] = useState<FormData>(initialFormData);
     const [ownerData, setOwnerData] = useState<OwnerFormData>(initialOwnerFormData);
+    const [ownerMode, setOwnerMode] = useState<OwnerMode>("existing");
+    const [ownerSearch, setOwnerSearch] = useState("");
+    const [ownerSearchResults, setOwnerSearchResults] = useState<ExistingOwnerUser[]>([]);
+    const [ownerSearchLoading, setOwnerSearchLoading] = useState(false);
+    const [selectedExistingOwner, setSelectedExistingOwner] = useState<ExistingOwnerUser | null>(null);
     const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -121,6 +179,11 @@ export default function NewShopPage() {
             translations: type.name_i18n,
             locale,
         });
+
+    const getExistingOwnerDisplayName = (user: ExistingOwnerUser): string => {
+        const fromNames = `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
+        return fromNames || user.name || user.email;
+    };
 
     // Fetch company types
     const fetchCompanyTypes = useCallback(async () => {
@@ -144,6 +207,56 @@ export default function NewShopPage() {
             void fetchCompanyTypes();
         }
     }, [isAuthenticated, isSuperAdmin, fetchCompanyTypes]);
+
+    useEffect(() => {
+        if (ownerMode !== "existing") {
+            setOwnerSearchLoading(false);
+            return;
+        }
+
+        const term = ownerSearch.trim();
+        if (term.length < 2) {
+            setOwnerSearchResults([]);
+            setOwnerSearchLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setOwnerSearchLoading(true);
+
+        const timeoutId = window.setTimeout(() => {
+            void (async () => {
+                try {
+                    const response = await fetch(
+                        getApiUrl(`/api/super-admin/users/search?q=${encodeURIComponent(term)}&limit=10`),
+                        { credentials: "include" },
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(t("superAdminShops.ownerSearchFailed"));
+                    }
+
+                    const data = await response.json();
+                    if (!cancelled) {
+                        setOwnerSearchResults(Array.isArray(data?.data) ? data.data : []);
+                    }
+                } catch {
+                    if (!cancelled) {
+                        setOwnerSearchResults([]);
+                    }
+                } finally {
+                    if (!cancelled) {
+                        setOwnerSearchLoading(false);
+                    }
+                }
+            })();
+        }, 300);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeoutId);
+        };
+    }, [ownerMode, ownerSearch, t]);
 
     // Update slug when name changes
     const handleNameChange = (name: string) => {
@@ -194,26 +307,49 @@ export default function NewShopPage() {
             await notify.warning(t("superAdminShops.companyTypeRequired"));
             return;
         }
+        if (!formData.availableUntil) {
+            await notify.warning("Available until is required.");
+            return;
+        }
+
+        const availableUntilIso = toIsoDateTimeOrNull(formData.availableUntil);
+        if (!availableUntilIso) {
+            await notify.warning("Available until must be a valid date and time.");
+            return;
+        }
+
+        if (formData.pricePaid.trim().length > 0 && parseNonNegativeNumberOrNull(formData.pricePaid) === null) {
+            await notify.warning("Price paid must be a non-negative number.");
+            return;
+        }
+
         const ownerEmail = ownerData.email.trim().toLowerCase();
         const ownerPassword = ownerData.password.trim();
         const ownerPhone = ownerData.phone.replace(/\D/g, "");
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!ownerEmail) {
-            await notify.warning(t("superAdminShops.ownerEmailRequired"));
-            return;
-        }
-        if (!emailRegex.test(ownerEmail)) {
-            await notify.warning(t("superAdminShops.ownerEmailInvalid"));
-            return;
-        }
-        if (ownerPassword.length < 8) {
-            await notify.warning(t("superAdminShops.ownerPasswordMin"));
-            return;
-        }
-        if (!ownerPhone) {
-            await notify.warning(t("superAdminShops.ownerPhoneRequired"));
-            return;
+        if (ownerMode === "existing") {
+            if (!selectedExistingOwner) {
+                await notify.warning(t("superAdminShops.ownerSelectRequired"));
+                return;
+            }
+        } else {
+            if (!ownerEmail) {
+                await notify.warning(t("superAdminShops.ownerEmailRequired"));
+                return;
+            }
+            if (!emailRegex.test(ownerEmail)) {
+                await notify.warning(t("superAdminShops.ownerEmailInvalid"));
+                return;
+            }
+            if (ownerPassword.length < 8) {
+                await notify.warning(t("superAdminShops.ownerPasswordMin"));
+                return;
+            }
+            if (!ownerPhone) {
+                await notify.warning(t("superAdminShops.ownerPhoneRequired"));
+                return;
+            }
         }
 
         setSubmitting(true);
@@ -223,6 +359,25 @@ export default function NewShopPage() {
             const ownerPhonePrefix = ownerData.phone_prefix.trim();
             const latitude = parseNumberOrUndefined(formData.latitude);
             const longitude = parseNumberOrUndefined(formData.longitude);
+            const pricePaid = parseNonNegativeNumberOrNull(formData.pricePaid);
+
+            const ownerPayload =
+                ownerMode === "existing" && selectedExistingOwner
+                    ? {
+                        existingUserId: selectedExistingOwner.id,
+                        display_name: ownerData.display_name.trim() || undefined,
+                        is_bookable: ownerData.is_bookable,
+                    }
+                    : {
+                        email: ownerData.email.trim().toLowerCase(),
+                        password: ownerData.password.trim(),
+                        first_name: ownerData.first_name.trim() || undefined,
+                        last_name: ownerData.last_name.trim() || undefined,
+                        phone_prefix: ownerPhonePrefix || "591",
+                        phone: ownerPhone,
+                        display_name: ownerData.display_name.trim() || undefined,
+                        is_bookable: ownerData.is_bookable,
+                    };
 
             const payload = {
                 name: formData.name.trim(),
@@ -238,16 +393,12 @@ export default function NewShopPage() {
                 latitude,
                 longitude,
                 company_type_id: parseInt(formData.company_type_id),
-                owner: {
-                    email: ownerData.email.trim().toLowerCase(),
-                    password: ownerData.password.trim(),
-                    first_name: ownerData.first_name.trim() || undefined,
-                    last_name: ownerData.last_name.trim() || undefined,
-                    phone_prefix: ownerPhonePrefix || "591",
-                    phone: ownerPhone,
-                    display_name: ownerData.display_name.trim() || undefined,
-                    is_bookable: ownerData.is_bookable,
-                },
+                plan: formData.plan,
+                billingCycle: formData.billingCycle,
+                availableUntil: availableUntilIso,
+                pricePaid,
+                isMarketplaceVisible: formData.isMarketplaceVisible,
+                owner: ownerPayload,
             };
             // TODO(super-admin-shops): Persist optional map metadata once backend supports it:
             // formattedAddress, mapProvider, mapboxPlaceId, locationSource.
@@ -345,6 +496,90 @@ export default function NewShopPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </div>
+
+                        {/* Commercial Settings */}
+                        <div className="border-t pt-4">
+                            <h3 className="font-medium mb-4">Commercial settings</h3>
+                            <div className="grid gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="plan">Plan</Label>
+                                    <Select
+                                        value={formData.plan}
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, plan: value as ShopPlan })
+                                        }
+                                    >
+                                        <SelectTrigger id="plan">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="STARTER">STARTER</SelectItem>
+                                            <SelectItem value="BUSINESS">BUSINESS</SelectItem>
+                                            <SelectItem value="PRO">PRO</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="billing_cycle">Billing cycle</Label>
+                                    <Select
+                                        value={formData.billingCycle}
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, billingCycle: value as BillingCycle })
+                                        }
+                                    >
+                                        <SelectTrigger id="billing_cycle">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="MONTHLY">MONTHLY</SelectItem>
+                                            <SelectItem value="YEARLY">YEARLY</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="available_until">Available until</Label>
+                                    <Input
+                                        id="available_until"
+                                        type="datetime-local"
+                                        value={formData.availableUntil}
+                                        onChange={(e) => setFormData({ ...formData, availableUntil: e.target.value })}
+                                    />
+                                    <p className="text-xs text-slate-500">
+                                        After this date, the shop becomes inactive until reactivated.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="price_paid">Price paid</Label>
+                                    <Input
+                                        id="price_paid"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.pricePaid}
+                                        onChange={(e) => setFormData({ ...formData, pricePaid: e.target.value })}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                                    <div>
+                                        <p className="text-sm font-medium">Visible in marketplace</p>
+                                        <p className="text-xs text-slate-500">
+                                            If disabled, the public page still works by direct link, but the shop will not appear in marketplace discovery.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={formData.isMarketplaceVisible}
+                                        onCheckedChange={(checked) =>
+                                            setFormData({ ...formData, isMarketplaceVisible: checked })
+                                        }
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -508,71 +743,164 @@ export default function NewShopPage() {
                                 <p className="text-sm text-slate-500">{t("superAdminShops.ownerProfileSectionHint")}</p>
                             </div>
 
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                <Button
+                                    type="button"
+                                    variant={ownerMode === "existing" ? "default" : "outline"}
+                                    onClick={() => setOwnerMode("existing")}
+                                    className={ownerMode === "existing" ? "bg-brand hover:bg-brand-hover text-white" : ""}
+                                >
+                                    {t("superAdminShops.ownerUseExisting")}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant={ownerMode === "new" ? "default" : "outline"}
+                                    onClick={() => setOwnerMode("new")}
+                                    className={ownerMode === "new" ? "bg-brand hover:bg-brand-hover text-white" : ""}
+                                >
+                                    {t("superAdminShops.ownerCreateNew")}
+                                </Button>
+                            </div>
+
                             <div className="grid gap-4">
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="owner_email">{t("superAdminShops.emailRequiredLabel")}</Label>
-                                        <Input
-                                            id="owner_email"
-                                            type="email"
-                                            value={ownerData.email}
-                                            onChange={(e) => setOwnerData({ ...ownerData, email: e.target.value })}
-                                            placeholder={t("superAdminShops.userEmailPlaceholder")}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="owner_password">{t("superAdminShops.tempPasswordRequiredLabel")}</Label>
-                                        <Input
-                                            id="owner_password"
-                                            type="password"
-                                            value={ownerData.password}
-                                            onChange={(e) => setOwnerData({ ...ownerData, password: e.target.value })}
-                                            placeholder={t("superAdminShops.passwordPlaceholder")}
-                                        />
-                                    </div>
-                                </div>
+                                {ownerMode === "existing" ? (
+                                    <div className="space-y-3">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="owner_search">{t("superAdminShops.ownerSearchLabel")}</Label>
+                                            <div className="relative">
+                                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                                <Input
+                                                    id="owner_search"
+                                                    value={ownerSearch}
+                                                    onChange={(e) => setOwnerSearch(e.target.value)}
+                                                    placeholder={t("superAdminShops.ownerSearchPlaceholder")}
+                                                    className="pl-9"
+                                                />
+                                            </div>
+                                            <p className="text-xs text-slate-500">{t("superAdminShops.ownerSearchHint")}</p>
+                                        </div>
 
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="owner_first_name">{t("superAdminShops.firstName")}</Label>
-                                        <Input
-                                            id="owner_first_name"
-                                            value={ownerData.first_name}
-                                            onChange={(e) => setOwnerData({ ...ownerData, first_name: e.target.value })}
-                                            placeholder={t("superAdminShops.firstNamePlaceholder")}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="owner_last_name">{t("superAdminShops.lastName")}</Label>
-                                        <Input
-                                            id="owner_last_name"
-                                            value={ownerData.last_name}
-                                            onChange={(e) => setOwnerData({ ...ownerData, last_name: e.target.value })}
-                                            placeholder={t("superAdminShops.lastNamePlaceholder")}
-                                        />
-                                    </div>
-                                </div>
+                                        {ownerSearch.trim().length > 0 && ownerSearch.trim().length < 2 ? (
+                                            <p className="text-xs text-amber-700">{t("superAdminShops.ownerSearchMinChars")}</p>
+                                        ) : null}
 
-                                <div className="grid gap-4 sm:grid-cols-3">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="owner_phone_prefix">{t("superAdminShops.countryCode")}</Label>
-                                        <Input
-                                            id="owner_phone_prefix"
-                                            value={ownerData.phone_prefix}
-                                            onChange={(e) => setOwnerData({ ...ownerData, phone_prefix: e.target.value })}
-                                            placeholder="591"
-                                        />
+                                        {ownerSearchLoading ? (
+                                            <div className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                {t("superAdminShops.ownerSearching")}
+                                            </div>
+                                        ) : null}
+
+                                        {!ownerSearchLoading && ownerSearch.trim().length >= 2 ? (
+                                            ownerSearchResults.length > 0 ? (
+                                                <div className="max-h-56 overflow-y-auto rounded-md border border-slate-200">
+                                                    {ownerSearchResults.map((user) => (
+                                                        <button
+                                                            key={user.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedExistingOwner(user)}
+                                                            className="flex w-full items-start justify-between gap-3 border-b border-slate-100 px-3 py-2 text-left last:border-b-0 hover:bg-slate-50"
+                                                        >
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-sm font-medium text-slate-900">
+                                                                    {getExistingOwnerDisplayName(user)}
+                                                                </p>
+                                                                <p className="truncate text-xs text-slate-600">{user.email}</p>
+                                                                {user.phone ? (
+                                                                    <p className="truncate text-xs text-slate-500">
+                                                                        +{user.phone_prefix || "591"} {user.phone}
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+                                                            <span className="text-xs text-brand">{t("superAdminShops.ownerSelectThisUser")}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-slate-500">{t("superAdminShops.ownerNoResults")}</p>
+                                            )
+                                        ) : null}
+
+                                        {selectedExistingOwner ? (
+                                            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                                                <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+                                                    {t("superAdminShops.ownerSelected")}
+                                                </p>
+                                                <p className="text-sm font-semibold text-emerald-900">
+                                                    {getExistingOwnerDisplayName(selectedExistingOwner)}
+                                                </p>
+                                                <p className="text-xs text-emerald-800">{selectedExistingOwner.email}</p>
+                                            </div>
+                                        ) : null}
                                     </div>
-                                    <div className="space-y-2 sm:col-span-2">
-                                        <Label htmlFor="owner_phone">{t("superAdminShops.ownerPhoneRequiredLabel")}</Label>
-                                        <Input
-                                            id="owner_phone"
-                                            value={ownerData.phone}
-                                            onChange={(e) => setOwnerData({ ...ownerData, phone: e.target.value })}
-                                            placeholder="70000000"
-                                        />
-                                    </div>
-                                </div>
+                                ) : (
+                                    <>
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="owner_email">{t("superAdminShops.emailRequiredLabel")}</Label>
+                                                <Input
+                                                    id="owner_email"
+                                                    type="email"
+                                                    value={ownerData.email}
+                                                    onChange={(e) => setOwnerData({ ...ownerData, email: e.target.value })}
+                                                    placeholder={t("superAdminShops.userEmailPlaceholder")}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="owner_password">{t("superAdminShops.tempPasswordRequiredLabel")}</Label>
+                                                <Input
+                                                    id="owner_password"
+                                                    type="password"
+                                                    value={ownerData.password}
+                                                    onChange={(e) => setOwnerData({ ...ownerData, password: e.target.value })}
+                                                    placeholder={t("superAdminShops.passwordPlaceholder")}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="owner_first_name">{t("superAdminShops.firstName")}</Label>
+                                                <Input
+                                                    id="owner_first_name"
+                                                    value={ownerData.first_name}
+                                                    onChange={(e) => setOwnerData({ ...ownerData, first_name: e.target.value })}
+                                                    placeholder={t("superAdminShops.firstNamePlaceholder")}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="owner_last_name">{t("superAdminShops.lastName")}</Label>
+                                                <Input
+                                                    id="owner_last_name"
+                                                    value={ownerData.last_name}
+                                                    onChange={(e) => setOwnerData({ ...ownerData, last_name: e.target.value })}
+                                                    placeholder={t("superAdminShops.lastNamePlaceholder")}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-4 sm:grid-cols-3">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="owner_phone_prefix">{t("superAdminShops.countryCode")}</Label>
+                                                <Input
+                                                    id="owner_phone_prefix"
+                                                    value={ownerData.phone_prefix}
+                                                    onChange={(e) => setOwnerData({ ...ownerData, phone_prefix: e.target.value })}
+                                                    placeholder="591"
+                                                />
+                                            </div>
+                                            <div className="space-y-2 sm:col-span-2">
+                                                <Label htmlFor="owner_phone">{t("superAdminShops.ownerPhoneRequiredLabel")}</Label>
+                                                <Input
+                                                    id="owner_phone"
+                                                    value={ownerData.phone}
+                                                    onChange={(e) => setOwnerData({ ...ownerData, phone: e.target.value })}
+                                                    placeholder="70000000"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
 
                                 <div className="space-y-2">
                                     <Label htmlFor="owner_display_name">{t("superAdminShops.displayName")}</Label>

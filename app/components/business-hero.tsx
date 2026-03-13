@@ -69,12 +69,21 @@ export function BusinessHero() {
             </Button>
           </div>
 
-          <Link
-            href="/"
-            className="mt-6 inline-flex items-center gap-2 font-bebas text-[13px] tracking-[0.12em] text-slate-500 uppercase transition-colors hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
-          >
-            {t("businessHero.bookingMicrocopy")}
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <Link
+              href="/demo"
+              className="inline-flex items-center gap-2 font-bebas text-[13px] tracking-[0.12em] text-biz-barbie-pink uppercase transition-colors hover:text-biz-barbie-pink/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+            >
+              {t("businessHero.previewPanel")}
+            </Link>
+            <span className="text-slate-300">|</span>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 font-bebas text-[13px] tracking-[0.12em] text-slate-500 uppercase transition-colors hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+            >
+              {t("businessHero.bookingMicrocopy")}
+            </Link>
+          </div>
         </motion.div>
 
         <motion.div

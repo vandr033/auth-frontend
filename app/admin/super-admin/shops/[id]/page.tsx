@@ -10,6 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import {
     Select,
     SelectContent,
@@ -21,7 +30,11 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { getLocalizedText } from "@/lib/i18n/localized";
-import type { SuperAdminShop, CompanyType } from "@/types/super-admin";
+import type { BillingCycle, CompanyType, ShopPlan, SuperAdminShop } from "@/types/super-admin";
+import type {
+    ShopSubscriptionHistoryItem,
+    ShopSubscriptionSnapshot,
+} from "@/types/subscription-history";
 import { notify } from "@/lib/notify";
 import {
     LocationPicker,
@@ -49,11 +62,61 @@ interface FormData {
     longitude: string;
     company_type_id: string;
     is_active: boolean;
+    plan: ShopPlan;
+    billingCycle: BillingCycle;
+    availableUntil: string;
+    pricePaid: string;
+    isMarketplaceVisible: boolean;
 }
 
 function parseNumberOrNull(value: string): number | null {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseNonNegativeNumberOrNull(value: string): number | null {
+    if (!value.trim()) return null;
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return parsed;
+}
+
+function toDateTimeLocalInput(value: string | Date): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const offsetMs = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function toIsoDateTimeOrNull(value: string): string | null {
+    if (!value.trim()) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString();
+}
+
+function formatDateTime(value: string | null | undefined): string {
+    if (!value) return "—";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "—";
+    return parsed.toLocaleString();
+}
+
+function formatPrice(value: string | null): string {
+    if (!value) return "—";
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed)) return value;
+    return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(parsed);
+}
+
+function formatChangePair(previousValue: string, nextValue: string): string {
+    return `${previousValue} → ${nextValue}`;
 }
 
 export default function EditShopPage() {
@@ -68,6 +131,9 @@ export default function EditShopPage() {
     const [shop, setShop] = useState<SuperAdminShop | null>(null);
     const [formData, setFormData] = useState<FormData | null>(null);
     const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
+    const [subscriptionSummary, setSubscriptionSummary] = useState<ShopSubscriptionSnapshot | null>(null);
+    const [subscriptionHistory, setSubscriptionHistory] = useState<ShopSubscriptionHistoryItem[]>([]);
+    const [historyError, setHistoryError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [timezoneManuallyEdited, setTimezoneManuallyEdited] = useState(false);
@@ -82,15 +148,21 @@ export default function EditShopPage() {
     // Fetch shop and company types
     const fetchData = useCallback(async () => {
         try {
-            const [shopRes, typesRes] = await Promise.all([
+            const [shopRes, typesRes, historyRes] = await Promise.all([
                 fetch(getApiUrl(`/api/super-admin/shops/${shopId}`), { credentials: "include" }),
                 fetch(getApiUrl("/api/super-admin/company-types"), { credentials: "include" }),
+                fetch(getApiUrl(`/api/super-admin/shops/${shopId}/subscription-history`), {
+                    credentials: "include",
+                }),
             ]);
 
             if (!shopRes.ok) throw new Error(t("superAdminShops.fetchShopError"));
 
             const shopData = await shopRes.json();
             const typesData = await typesRes.json().catch(() => ({ data: [] }));
+            const historyData = historyRes.ok
+                ? await historyRes.json()
+                : null;
 
             const shopInfo: SuperAdminShop = shopData.data || shopData;
             setShop(shopInfo);
@@ -109,10 +181,28 @@ export default function EditShopPage() {
                 longitude: shopInfo.longitude?.toString() || "",
                 company_type_id: shopInfo.company_type_id?.toString() || "",
                 is_active: shopInfo.is_active,
+                plan: shopInfo.plan || "BUSINESS",
+                billingCycle: shopInfo.billingCycle || "MONTHLY",
+                availableUntil: toDateTimeLocalInput(shopInfo.availableUntil || "2027-03-12T23:59:59.000Z"),
+                pricePaid: shopInfo.pricePaid === null || shopInfo.pricePaid === undefined
+                    ? ""
+                    : String(shopInfo.pricePaid),
+                isMarketplaceVisible: shopInfo.isMarketplaceVisible ?? true,
             });
             setCompanyTypes(typesData.data || []);
+
+            if (historyData?.data) {
+                setSubscriptionSummary(historyData.data.company ?? null);
+                setSubscriptionHistory(historyData.data.history ?? []);
+                setHistoryError(null);
+            } else {
+                setSubscriptionSummary(null);
+                setSubscriptionHistory([]);
+                setHistoryError(t("superAdminShops.historyLoadFailed"));
+            }
         } catch (err) {
             void notify.error(err instanceof Error ? err.message : t("superAdminShops.loadShopError"));
+            setHistoryError(t("superAdminShops.historyLoadFailed"));
         } finally {
             setLoading(false);
         }
@@ -180,12 +270,28 @@ export default function EditShopPage() {
             await notify.warning(t("superAdminShops.phoneRequired"));
             return;
         }
+        if (!formData.availableUntil) {
+            await notify.warning("Available until is required.");
+            return;
+        }
+
+        const availableUntilIso = toIsoDateTimeOrNull(formData.availableUntil);
+        if (!availableUntilIso) {
+            await notify.warning("Available until must be a valid date and time.");
+            return;
+        }
+
+        if (formData.pricePaid.trim().length > 0 && parseNonNegativeNumberOrNull(formData.pricePaid) === null) {
+            await notify.warning("Price paid must be a non-negative number.");
+            return;
+        }
 
         setSubmitting(true);
 
         try {
             const latitude = parseNumberOrNull(formData.latitude);
             const longitude = parseNumberOrNull(formData.longitude);
+            const pricePaid = parseNonNegativeNumberOrNull(formData.pricePaid);
             const payload = {
                 name: formData.name.trim(),
                 slug: formData.slug.trim(),
@@ -201,6 +307,11 @@ export default function EditShopPage() {
                 longitude,
                 company_type_id: parseInt(formData.company_type_id),
                 is_active: formData.is_active,
+                plan: formData.plan,
+                billingCycle: formData.billingCycle,
+                availableUntil: availableUntilIso,
+                pricePaid,
+                isMarketplaceVisible: formData.isMarketplaceVisible,
             };
             // TODO(super-admin-shops): Persist optional map metadata once backend supports it:
             // formattedAddress, mapProvider, mapboxPlaceId, locationSource.
@@ -218,6 +329,7 @@ export default function EditShopPage() {
             }
 
             await notify.success(t("superAdminShops.updatedSuccess"));
+            await fetchData();
         } catch (err) {
             await notify.error(err instanceof Error ? err.message : t("superAdminShops.updateFailed"));
         } finally {
@@ -342,6 +454,90 @@ export default function EditShopPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </div>
+
+                        {/* Commercial Settings */}
+                        <div className="border-t pt-4">
+                            <h3 className="font-medium mb-4">Commercial settings</h3>
+                            <div className="grid gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="plan">Plan</Label>
+                                    <Select
+                                        value={formData.plan}
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, plan: value as ShopPlan })
+                                        }
+                                    >
+                                        <SelectTrigger id="plan">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="STARTER">STARTER</SelectItem>
+                                            <SelectItem value="BUSINESS">BUSINESS</SelectItem>
+                                            <SelectItem value="PRO">PRO</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="billing_cycle">Billing cycle</Label>
+                                    <Select
+                                        value={formData.billingCycle}
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, billingCycle: value as BillingCycle })
+                                        }
+                                    >
+                                        <SelectTrigger id="billing_cycle">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="MONTHLY">MONTHLY</SelectItem>
+                                            <SelectItem value="YEARLY">YEARLY</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="available_until">Available until</Label>
+                                    <Input
+                                        id="available_until"
+                                        type="datetime-local"
+                                        value={formData.availableUntil}
+                                        onChange={(e) => setFormData({ ...formData, availableUntil: e.target.value })}
+                                    />
+                                    <p className="text-xs text-slate-500">
+                                        After this date, the shop becomes inactive until reactivated.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="price_paid">Price paid</Label>
+                                    <Input
+                                        id="price_paid"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.pricePaid}
+                                        onChange={(e) => setFormData({ ...formData, pricePaid: e.target.value })}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                                    <div>
+                                        <p className="text-sm font-medium">Visible in marketplace</p>
+                                        <p className="text-xs text-slate-500">
+                                            If disabled, the public page still works by direct link, but the shop will not appear in marketplace discovery.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={formData.isMarketplaceVisible}
+                                        onCheckedChange={(checked) =>
+                                            setFormData({ ...formData, isMarketplaceVisible: checked })
+                                        }
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -527,6 +723,97 @@ export default function EditShopPage() {
                             saveClassName="bg-brand hover:bg-brand-hover text-white"
                         />
                     </form>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>{t("superAdminShops.planHistory")}</CardTitle>
+                    <CardDescription>{t("superAdminShops.subscriptionChanges")}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {subscriptionSummary ? (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-lg border p-3">
+                                <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.currentPlan")}</p>
+                                <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.plan}</p>
+                            </div>
+                            <div className="rounded-lg border p-3">
+                                <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.billingCycle")}</p>
+                                <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.billingCycle}</p>
+                            </div>
+                            <div className="rounded-lg border p-3">
+                                <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.availableUntil")}</p>
+                                <p className="text-sm font-semibold text-slate-900">{formatDateTime(subscriptionSummary.availableUntil)}</p>
+                            </div>
+                            <div className="rounded-lg border p-3">
+                                <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.expirationStatus")}</p>
+                                <Badge className={subscriptionSummary.isExpired ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}>
+                                    {subscriptionSummary.isExpired ? t("superAdminShops.expired") : t("superAdminShops.active")}
+                                </Badge>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {historyError ? (
+                        <p className="text-sm text-rose-600">{historyError}</p>
+                    ) : (
+                        <div className="overflow-x-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>{t("superAdminShops.changedAt")}</TableHead>
+                                        <TableHead>{t("superAdminShops.changedBy")}</TableHead>
+                                        <TableHead>{t("superAdminShops.plan")}</TableHead>
+                                        <TableHead>{t("superAdminShops.billingCycle")}</TableHead>
+                                        <TableHead>{t("superAdminShops.pricePaid")}</TableHead>
+                                        <TableHead>{t("superAdminShops.availableUntil")}</TableHead>
+                                        <TableHead>{t("superAdminShops.visibleInMarketplace")}</TableHead>
+                                        <TableHead>{t("superAdminShops.note")}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {subscriptionHistory.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="py-6 text-center text-slate-500">
+                                                {t("superAdminShops.noSubscriptionChanges")}
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        subscriptionHistory.map((entry) => (
+                                            <TableRow key={entry.id}>
+                                                <TableCell>{formatDateTime(entry.changedAt)}</TableCell>
+                                                <TableCell>{entry.changedBy?.displayName || entry.changedBy?.email || t("superAdminShops.systemActor")}</TableCell>
+                                                <TableCell>
+                                                    {formatChangePair(entry.previousPlan ?? "—", entry.newPlan)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatChangePair(entry.previousBillingCycle ?? "—", entry.newBillingCycle)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatChangePair(formatPrice(entry.previousPricePaid), formatPrice(entry.newPricePaid))}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatChangePair(formatDateTime(entry.previousAvailableUntil), formatDateTime(entry.newAvailableUntil))}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatChangePair(
+                                                        entry.previousMarketplaceVisible === null
+                                                            ? "—"
+                                                            : entry.previousMarketplaceVisible
+                                                                ? t("superAdminShops.yes")
+                                                                : t("superAdminShops.no"),
+                                                        entry.newMarketplaceVisible ? t("superAdminShops.yes") : t("superAdminShops.no"),
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>{entry.note || "—"}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

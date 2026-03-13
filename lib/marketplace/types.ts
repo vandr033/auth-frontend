@@ -15,6 +15,7 @@ export interface MarketplaceResultItem {
   slug: string;
   name: string;
   businessType: string | null;
+  businessTypeI18n?: Record<string, string> | null;
   zoneOrArea: string | null;
   city: string | null;
   latitude: number | null;
@@ -60,6 +61,7 @@ export interface MarketplaceMapPin {
   popup?: {
     name: string;
     businessType: string | null;
+    businessTypeI18n?: Record<string, string> | null;
     rating: number;
     reviewCount: number;
     serviceName?: string;

@@ -45,6 +45,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { notify } from "@/lib/notify";
+import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -97,6 +100,10 @@ function getSourceTranslationKey(source: CustomerHistoryItem["source"]) {
 
 export default function CustomersPage() {
     const t = useT();
+    const { companyUser, user } = useAdminAuth();
+    const plan = resolveShopPlan(companyUser?.company?.plan);
+    const canImportExport = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "CUSTOMER_IMPORT_EXPORT");
+    const canBulkMessaging = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BULK_WHATSAPP_MESSAGING");
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [importing, setImporting] = useState(false);
@@ -137,6 +144,10 @@ export default function CustomersPage() {
     }, [fetchCustomers]);
 
     const handleDownloadTemplate = async () => {
+        if (!canImportExport) {
+            await notify.warning(t("planEnforcement.availableOnBusiness"));
+            return;
+        }
         try {
             const blob = await downloadCustomerImportTemplate();
             const url = URL.createObjectURL(blob);
@@ -155,6 +166,11 @@ export default function CustomersPage() {
     };
 
     const handleImportFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!canImportExport) {
+            await notify.warning(t("planEnforcement.availableOnBusiness"));
+            return;
+        }
+
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -177,6 +193,11 @@ export default function CustomersPage() {
     };
 
     const handleSendMassMessage = async () => {
+        if (!canBulkMessaging) {
+            await notify.warning(t("planEnforcement.availableOnPro"));
+            return;
+        }
+
         const message = massMessageBody.trim();
         if (!message) {
             await notify.warning(t("adminCustomers.massMessageBodyRequired"));
@@ -215,6 +236,11 @@ export default function CustomersPage() {
     };
 
     const handleDownloadClients = async () => {
+        if (!canImportExport) {
+            await notify.warning(t("planEnforcement.availableOnBusiness"));
+            return;
+        }
+
         setExporting(true);
         try {
             const { blob, fileName } = await downloadCustomersExport(debouncedSearch || undefined);
@@ -292,7 +318,7 @@ export default function CustomersPage() {
                         type="button"
                         variant="outline"
                         onClick={() => void handleDownloadClients()}
-                        disabled={loading || customers.length === 0 || exporting}
+                        disabled={loading || customers.length === 0 || exporting || !canImportExport}
                     >
                         {exporting ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -305,7 +331,7 @@ export default function CustomersPage() {
                         type="button"
                         variant="outline"
                         onClick={handleDownloadTemplate}
-                        disabled={importing}
+                        disabled={importing || !canImportExport}
                     >
                         <Download className="h-4 w-4 mr-2" />
                         {t("adminCustomers.downloadTemplate")}
@@ -314,7 +340,7 @@ export default function CustomersPage() {
                         type="button"
                         variant="outline"
                         onClick={() => setIsMassDialogOpen(true)}
-                        disabled={loading || importing || sendingMassMessage}
+                        disabled={loading || importing || sendingMassMessage || !canBulkMessaging}
                     >
                         <Send className="h-4 w-4 mr-2" />
                         {t("adminCustomers.sendMassMessage")}
@@ -323,7 +349,7 @@ export default function CustomersPage() {
                         type="button"
                         className="bg-orange-500 hover:bg-orange-600"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={importing}
+                        disabled={importing || !canImportExport}
                     >
                         {importing ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -334,6 +360,21 @@ export default function CustomersPage() {
                     </Button>
                 </div>
             </div>
+
+            {!canImportExport && (
+                <PlanUpgradeNotice
+                    title={t("planEnforcement.featureLockedTitle")}
+                    message={t("planEnforcement.availableOnBusiness")}
+                    feature="CUSTOMER_IMPORT_EXPORT"
+                />
+            )}
+            {!canBulkMessaging && (
+                <PlanUpgradeNotice
+                    title={t("planEnforcement.featureLockedTitle")}
+                    message={t("planEnforcement.availableOnPro")}
+                    feature="BULK_WHATSAPP_MESSAGING"
+                />
+            )}
 
             <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

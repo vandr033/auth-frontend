@@ -33,7 +33,7 @@ export function ShopNavbar() {
     const currentPathname = pathname ?? "";
     const router = useRouter();
     const { isAuthenticated, user, signOut, loading } = useAuth();
-    const { company, slug, socialLinks, loading: shopLoading } = useShop();
+    const { company, slug, socialLinks, loading: shopLoading, isShopActive } = useShop();
     const t = useT();
 
     const [open, setOpen] = useState(false);
@@ -219,22 +219,26 @@ export function ShopNavbar() {
                 {/* Desktop Actions */}
                 <div className="hidden items-center gap-3 md:flex">
                     <SocialIcons socialLinks={socialLinks} iconSize={16} className="gap-2" />
-                    <Link href={`${basePath}/book`}>
-                        <Button className="rounded-md bg-brand px-6 py-2 text-white shadow-card transition hover:bg-brand-hover">
-                            {t('shopNav.book')}
-                        </Button>
-                    </Link>
+                    {isShopActive ? (
+                        <Link href={`${basePath}/book`}>
+                            <Button className="rounded-md bg-brand px-6 py-2 text-white shadow-card transition hover:bg-brand-hover">
+                                {t('shopNav.book')}
+                            </Button>
+                        </Link>
+                    ) : null}
                     <LanguageSwitcher variant="shop" />
                     <AuthActions />
                 </div>
 
                 {/* Mobile Actions */}
                 <div className="flex items-center gap-2 md:hidden">
-                    <Link href={`${basePath}/book`}>
-                        <Button className="rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover">
-                            {t('shopNav.bookShort')}
-                        </Button>
-                    </Link>
+                    {isShopActive ? (
+                        <Link href={`${basePath}/book`}>
+                            <Button className="rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover">
+                                {t('shopNav.bookShort')}
+                            </Button>
+                        </Link>
+                    ) : null}
                     <Sheet open={open} onOpenChange={setOpen}>
                         <SheetTrigger asChild>
                             <Button
@@ -286,11 +290,13 @@ export function ShopNavbar() {
                                 <Separator className="border-surface-border" />
 
                                 {/* Book Now */}
-                                <Link href={`${basePath}/book`} onClick={() => setOpen(false)}>
-                                    <Button className="w-full rounded-md bg-brand px-4 py-2 text-white shadow-card hover:bg-brand-hover">
-                                        {t('shopNav.book')}
-                                    </Button>
-                                </Link>
+                                {isShopActive ? (
+                                    <Link href={`${basePath}/book`} onClick={() => setOpen(false)}>
+                                        <Button className="w-full rounded-md bg-brand px-4 py-2 text-white shadow-card hover:bg-brand-hover">
+                                            {t('shopNav.book')}
+                                        </Button>
+                                    </Link>
+                                ) : null}
 
                                 {/* Social Links */}
                                 <SocialIcons socialLinks={socialLinks} iconSize={18} className="justify-center gap-4" />

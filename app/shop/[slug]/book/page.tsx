@@ -32,6 +32,7 @@ import { getImageUrl } from "@/utils/image-url";
 import { ShopSettings } from "@/types/shop";
 import { appendShopParam, buildSignInRedirectPath } from "@/app/lib/shop-context";
 import { parseMarketplaceBookingHandoff } from "@/lib/marketplace/handoff";
+import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 
 // Helper to resolve API URL (duplicate of logic in ShopContext, consider exported helper)
 const resolveApiUrl = (url: string) => {
@@ -385,6 +386,7 @@ function DateTimeStep({
     const [slotsError, setSlotsError] = useState<string | null>(null);
     const [availableDates, setAvailableDates] = useState<AvailableDate[]>([]);
     const [loadingDates, setLoadingDates] = useState(true);
+    const [datesError, setDatesError] = useState<string | null>(null);
     const [datePage, setDatePage] = useState(0);
     const [timeViewMode, setTimeViewMode] = useState<"all" | "hour">("hour");
     const [selectedHour, setSelectedHour] = useState<number | null>(null);
@@ -399,6 +401,7 @@ function DateTimeStep({
         const fetchAvailableDates = async () => {
             hasLoadedDates.current = true;
             setLoadingDates(true);
+            setDatesError(null);
             try {
                 const response = await api.get<{ data: { dates: AvailableDate[]; timezone: string } }>(
                     `/booking/available-dates?company_id=${companyId}&days=14`
@@ -418,23 +421,8 @@ function DateTimeStep({
                 }
             } catch (err) {
                 console.error("Failed to fetch available dates:", err);
-                // Fallback: generate dates without availability info
-                const fallbackDates: AvailableDate[] = [];
-                const today = new Date();
-                for (let i = 0; i < 14; i++) {
-                    const date = new Date(today);
-                    date.setDate(today.getDate() + i);
-                    fallbackDates.push({
-                        date: date.toISOString().split("T")[0],
-                        day_of_week: date.getDay(),
-                        is_open: true,
-                        windows: [],
-                    });
-                }
-                setAvailableDates(fallbackDates);
-                if (!selectedDate) {
-                    onSelectDate(fallbackDates[0].date);
-                }
+                setAvailableDates([]);
+                setDatesError(err instanceof Error ? err.message : "Unable to load available dates. Please try again.");
             } finally {
                 setLoadingDates(false);
             }
@@ -488,6 +476,7 @@ function DateTimeStep({
 
             setLoadingSlots(true);
             setSlotsError(null);
+            setSlots([]);
 
             try {
                 const serviceIds = selectedServices.map((s) => s.id).join(",");
@@ -498,24 +487,8 @@ function DateTimeStep({
                 );
 
                 setSlots(response.data || []);
-            } catch {
-                setSlotsError("Unable to load available times. Please try again.");
-                // For demo: generate mock slots if backend not ready
-                const mockSlots: TimeSlot[] = [];
-                const startHour = 9;
-                const endHour = 18;
-                for (let hour = startHour; hour < endHour; hour++) {
-                    for (const minutes of ["00", "30"]) {
-                        mockSlots.push({
-                            time: `${hour.toString().padStart(2, "0")}:${minutes}`,
-                            staff_id: typeof selectedStaff?.id === "number" ? selectedStaff.id : 1,
-                            staff_name: selectedStaff?.display_name || "Available Staff",
-                            available: Math.random() > 0.3, // Random availability for demo
-                        });
-                    }
-                }
-                setSlots(mockSlots);
-                setSlotsError(null); // Clear error since we have mock data
+            } catch (err) {
+                setSlotsError(err instanceof Error ? err.message : "Unable to load available times. Please try again.");
             } finally {
                 setLoadingSlots(false);
             }
@@ -623,7 +596,11 @@ function DateTimeStep({
             )}
 
             {/* Date Selection - only shows open days */}
-            {loadingDates ? (
+            {datesError ? (
+                <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+                    {datesError}
+                </div>
+            ) : loadingDates ? (
                 <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-5 w-5 animate-spin text-brand" />
                     <span className="ml-2 text-slate-500">{t('shopBooking.loadingDates')}</span>
@@ -1042,7 +1019,7 @@ export default function BookingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, loading: authLoading } = useAuth();
-    const { company, services, staff, categories, settings, loading, error, slug } = useShop();
+    const { company, services, staff, categories, settings, loading, error, slug, isShopActive } = useShop();
     const t = useT();
     const api = useApi();
     const searchParamsString = searchParams?.toString() || "";
@@ -1564,6 +1541,10 @@ export default function BookingPage() {
                 </Button>
             </div>
         );
+    }
+
+    if (!isShopActive) {
+        return <ShopUnavailableState slug={slug} />;
     }
 
     if (success) {

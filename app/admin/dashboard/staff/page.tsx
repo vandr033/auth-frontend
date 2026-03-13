@@ -39,6 +39,8 @@ import { cn } from "@/lib/utils";
 import { ImageUpload } from "@/components/admin/ImageUpload";
 import { getImageUrl } from "@/utils/image-url";
 import { notify } from "@/lib/notify";
+import { canUsePlanFeature, getStaffLimitForPlan, resolveShopPlan } from "@/lib/plans/capabilities";
+import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 
 // Types
 // Types
@@ -119,8 +121,11 @@ function getApiUrl(path: string): string {
 }
 
 export default function StaffPage() {
-    const { companyId, isAuthenticated, loading: authLoading, role: currentRole } = useAdminAuth();
+    const { companyId, isAuthenticated, loading: authLoading, role: currentRole, companyUser, user } = useAdminAuth();
     const t = useT();
+    const plan = resolveShopPlan(companyUser?.company?.plan);
+    const maxStaffMembers = getStaffLimitForPlan(plan);
+    const canManageRoles = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "ROLES_PERMISSIONS");
 
     // State
     const [staff, setStaff] = useState<Staff[]>([]);
@@ -183,9 +188,15 @@ export default function StaffPage() {
         member.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         member.user?.email?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+    const isStaffLimitReached = maxStaffMembers !== null && staff.length >= maxStaffMembers;
 
     // Open modal for add/edit
     const openAddModal = () => {
+        if (isStaffLimitReached) {
+            void notify.warning(t("planEnforcement.staffLimitReached"));
+            return;
+        }
+
         setEditingStaff(null);
         setFormData(initialFormData);
         setFormError(null);
@@ -238,7 +249,7 @@ export default function StaffPage() {
             setFormError(t('adminStaff.emailRequiredInvite'));
             return;
         }
-        if (!editingStaff && !["OWNER", "ADMIN", "STAFF"].includes(formData.role)) {
+        if (!editingStaff && canManageRoles && !["OWNER", "ADMIN", "STAFF"].includes(formData.role)) {
             setFormError(t("superAdminShops.roleRequiredLabel"));
             return;
         }
@@ -255,7 +266,7 @@ export default function StaffPage() {
                 company_id: companyId,
                 ...(editingStaff ? {} : {
                     email: formData.email.trim(),
-                    role: formData.role,
+                    role: canManageRoles ? formData.role : "STAFF",
                     phone_prefix: formData.phone_prefix.trim() || undefined,
                     phone: formData.phone.trim() || undefined,
                     service_ids: formData.service_ids,
@@ -414,11 +425,29 @@ export default function StaffPage() {
                     <h1 className="text-2xl font-bold text-slate-900">{t('adminStaff.title')}</h1>
                     <p className="text-slate-500">{t('adminStaff.subtitle')}</p>
                 </div>
-                <Button onClick={openAddModal} className="bg-orange-500 hover:bg-orange-600 text-white">
+                <Button
+                    onClick={openAddModal}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={isStaffLimitReached}
+                >
                     <Plus className="h-4 w-4 mr-2" />
                     {t('adminStaff.inviteStaff')}
                 </Button>
             </div>
+
+            {isStaffLimitReached && (
+                <PlanUpgradeNotice
+                    title={t("planEnforcement.featureLockedTitle")}
+                    message={t("planEnforcement.staffLimitReached")}
+                />
+            )}
+            {!canManageRoles && (
+                <PlanUpgradeNotice
+                    title={t("planEnforcement.featureLockedTitle")}
+                    message={t("planEnforcement.availableOnBusiness")}
+                    feature="ROLES_PERMISSIONS"
+                />
+            )}
 
             {/* Search */}
             <div className="relative max-w-md">
@@ -596,7 +625,7 @@ export default function StaffPage() {
                             </div>
                         )}
 
-                        {!editingStaff && (
+                        {!editingStaff && canManageRoles && (
                             <div className="space-y-2">
                                 <Label htmlFor="role">{t("superAdminShops.roleRequiredLabel")}</Label>
                                 <Select

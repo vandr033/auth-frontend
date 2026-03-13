@@ -11,6 +11,7 @@ import { getImageUrl } from "@/utils/image-url";
 import { TeamWrapper } from "@/components/shop/team/TeamWrapper";
 import { LocationHours } from "@/components/shop/LocationHours";
 import { ShopFooter } from "@/components/shop/ShopFooter";
+import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 
 export default function AboutPage() {
     const {
@@ -19,6 +20,7 @@ export default function AboutPage() {
         loading,
         error,
         slug,
+        isShopActive,
     } = useShop();
     const t = useT();
 
@@ -45,6 +47,10 @@ export default function AboutPage() {
                 </div>
             </main>
         );
+    }
+
+    if (!isShopActive) {
+        return <ShopUnavailableState slug={slug} />;
     }
 
     const galleryImages = [

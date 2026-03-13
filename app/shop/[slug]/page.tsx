@@ -12,6 +12,7 @@ import { TeamWrapper } from "@/components/shop/team/TeamWrapper";
 import { ReviewsBanner } from "@/components/shop/ReviewsBanner";
 import { LocationHours } from "@/components/shop/LocationHours";
 import { ShopFooter } from "@/components/shop/ShopFooter";
+import { ShopUnavailableState } from "../components/ShopUnavailableState";
 
 export default function ShopPage() {
     const {
@@ -21,6 +22,7 @@ export default function ShopPage() {
         loading,
         error,
         slug,
+        isShopActive,
     } = useShop();
     const t = useT();
 
@@ -51,6 +53,10 @@ export default function ShopPage() {
                 </div>
             </main>
         );
+    }
+
+    if (!isShopActive) {
+        return <ShopUnavailableState slug={slug} />;
     }
 
     return (

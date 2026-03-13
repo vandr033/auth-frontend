@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notify";
+import { canUsePlanFeature, getRequiredPlanForFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 
 const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat(undefined, {
@@ -57,13 +59,26 @@ function getMonthLabel(monthKey: string) {
 }
 
 export default function DashboardHomePage() {
-    const { companyName, role, companySlug } = useAdminAuth();
+    const { companyId, companyName, role, companySlug, companyUser, user } = useAdminAuth();
     const t = useT();
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
+    const plan = resolveShopPlan(companyUser?.company?.plan);
+    const dashboardFeature = "OPERATIONAL_DASHBOARD" as const;
+    const canAccessDashboard = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, dashboardFeature);
 
     useEffect(() => {
+        setLoading(true);
+        setLoadFailed(false);
+
+        if (!canAccessDashboard) {
+            setLoading(false);
+            setMetrics(null);
+            setLoadFailed(false);
+            return;
+        }
+
         getDashboardMetrics()
             .then(setMetrics)
             .catch((err) => {
@@ -71,7 +86,7 @@ export default function DashboardHomePage() {
                 void notify.error(err instanceof Error ? err.message : t("adminHome.loadMetricsError"));
             })
             .finally(() => setLoading(false));
-    }, [t]);
+    }, [canAccessDashboard, companyId, t]);
 
     const maxStatusCount = useMemo(() => {
         if (!metrics || metrics.bookingsByStatus.length === 0) return 0;
@@ -96,6 +111,27 @@ export default function DashboardHomePage() {
         );
     }
 
+    if (!canAccessDashboard) {
+        const requiredPlan = getRequiredPlanForFeature(dashboardFeature);
+        return (
+            <div className="space-y-4">
+                <h2 className="text-2xl font-bold text-slate-900">{t("adminNav.dashboard")}</h2>
+                <PlanUpgradeNotice
+                    title={t("planEnforcement.featureLockedTitle")}
+                    message={
+                        requiredPlan === "PRO"
+                            ? t("planEnforcement.availableOnPro")
+                            : t("planEnforcement.availableOnBusiness")
+                    }
+                    feature={dashboardFeature}
+                    currentPlan={plan}
+                    requiredPlan={requiredPlan}
+                    fullPage
+                />
+            </div>
+        );
+    }
+
     if (loadFailed || !metrics) {
         return (
             <div className="space-y-6">
@@ -114,28 +150,28 @@ export default function DashboardHomePage() {
             label: t("adminHome.totalBookings"),
             value: metrics.bookings.total.toLocaleString(),
             sub: t("adminHome.thisMonthCount", { count: metrics.bookings.thisMonth }),
-            icon: <Calendar className="h-5 w-5" />,
+            icon: <Calendar className="h-5 w-5 shrink-0" />,
             color: "text-blue-600 bg-blue-50",
         },
         {
             label: t("adminHome.revenueThisMonth"),
             value: formatCurrency(metrics.revenue.thisMonth),
             sub: t("adminHome.revenueAllTime", { amount: formatCurrency(metrics.revenue.total) }),
-            icon: <DollarSign className="h-5 w-5" />,
+            icon: <DollarSign className="h-5 w-5 shrink-0" />,
             color: "text-emerald-600 bg-emerald-50",
         },
         {
             label: t("adminHome.today"),
             value: metrics.bookings.today.toLocaleString(),
             sub: t("adminHome.todayRevenue", { amount: formatCurrency(metrics.revenue.today) }),
-            icon: <TrendingUp className="h-5 w-5" />,
+            icon: <TrendingUp className="h-5 w-5 shrink-0" />,
             color: "text-purple-600 bg-purple-50",
         },
         {
             label: t("adminHome.upcoming7Days"),
             value: metrics.bookings.upcoming7Days.toLocaleString(),
             sub: t("adminHome.avgPerBooking", { amount: formatCurrency(metrics.revenue.avgPerBooking) }),
-            icon: <Clock className="h-5 w-5" />,
+            icon: <Clock className="h-5 w-5 shrink-0" />,
             color: "text-amber-600 bg-amber-50",
         },
     ];
@@ -147,7 +183,7 @@ export default function DashboardHomePage() {
             sub: t("adminHome.newCustomersThisMonth", {
                 count: metrics.customerInsights.newCustomersThisMonth,
             }),
-            icon: <Users className="h-5 w-5" />,
+            icon: <Users className="h-5 w-5 shrink-0" />,
             color: "text-cyan-700 bg-cyan-50",
         },
         {
@@ -156,7 +192,7 @@ export default function DashboardHomePage() {
             sub: t("adminHome.repeatRate", {
                 rate: formatPercent(metrics.customerInsights.repeatRate),
             }),
-            icon: <Repeat className="h-5 w-5" />,
+            icon: <Repeat className="h-5 w-5 shrink-0" />,
             color: "text-slate-700 bg-slate-100",
         },
         {
@@ -165,14 +201,14 @@ export default function DashboardHomePage() {
             sub: t("adminHome.avgBookingsPerCustomer", {
                 count: metrics.customerInsights.avgBookingsPerCustomer,
             }),
-            icon: <UserPlus className="h-5 w-5" />,
+            icon: <UserPlus className="h-5 w-5 shrink-0" />,
             color: "text-rose-700 bg-rose-50",
         },
         {
             label: t("adminHome.bookingsByStatus"),
             value: metrics.bookingsByStatus.reduce((sum, item) => sum + item.count, 0).toLocaleString(),
             sub: t("adminHome.statusGroups", { count: metrics.bookingsByStatus.length }),
-            icon: <BarChart3 className="h-5 w-5" />,
+            icon: <BarChart3 className="h-5 w-5 shrink-0" />,
             color: "text-indigo-700 bg-indigo-50",
         },
     ];

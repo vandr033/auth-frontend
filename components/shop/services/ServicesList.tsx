@@ -78,7 +78,7 @@ export function ServicesList({ categories, services, slug, maxItems }: ServicesL
                                         <div className="flex items-center gap-4 text-sm">
                                             <span className="font-bold text-brand">{formatPrice(service.price_cents)}</span>
                                             <span className="flex items-center gap-1 text-text-muted">
-                                                <Clock className="h-3.5 w-3.5" />
+                                                <Clock className="h-3.5 w-3.5 shrink-0" />
                                                 {t('shopServices.duration', { minutes: service.duration_minutes })}
                                             </span>
                                         </div>

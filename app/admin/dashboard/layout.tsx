@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     LayoutDashboard,
     Calendar,
@@ -22,84 +22,100 @@ import {
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/appVersion";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
 import { I18nProvider, useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    canUsePlanFeature,
+    resolveShopPlan,
+    type PlanFeatureKey,
+} from "@/lib/plans/capabilities";
 
 type NavItem = {
     label: string;
     href: string;
     icon: React.ReactNode;
     roles?: string[];
+    feature?: PlanFeatureKey;
 };
 
 const navItems: NavItem[] = [
     {
         label: "adminNav.dashboard",
         href: "/admin/dashboard",
-        icon: <LayoutDashboard className="h-5 w-5" />,
+        icon: <LayoutDashboard className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
+        feature: "OPERATIONAL_DASHBOARD",
     },
     {
         label: "adminNav.bookings",
         href: "/admin/dashboard/bookings",
-        icon: <Calendar className="h-5 w-5" />,
+        icon: <Calendar className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
     },
     {
         label: "adminNav.services",
         href: "/admin/dashboard/services",
-        icon: <Scissors className="h-5 w-5" />,
+        icon: <Scissors className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
         label: "adminNav.staff",
         href: "/admin/dashboard/staff",
-        icon: <Users className="h-5 w-5" />,
+        icon: <Users className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
         label: "adminNav.customers",
         href: "/admin/dashboard/customers",
-        icon: <UserCheck className="h-5 w-5" />,
+        icon: <UserCheck className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
         label: "adminNav.availability",
         href: "/admin/dashboard/availability",
-        icon: <Calendar className="h-5 w-5" />,
+        icon: <Calendar className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
+        feature: "STAFF_AVAILABILITY",
     },
     {
         label: "adminNav.hours",
         href: "/admin/dashboard/hours",
-        icon: <Clock className="h-5 w-5" />,
+        icon: <Clock className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
         label: "adminNav.theme",
         href: "/admin/dashboard/theme",
-        icon: <Palette className="h-5 w-5" />,
+        icon: <Palette className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
         label: "adminNav.pages",
         href: "/admin/dashboard/page-management",
-        icon: <FileText className="h-5 w-5" />,
+        icon: <FileText className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
         label: "adminNav.settings",
         href: "/admin/dashboard/settings",
-        icon: <Settings className="h-5 w-5" />,
+        icon: <Settings className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
         label: "adminNav.profile",
         href: "/admin/dashboard/profile",
-        icon: <UserCircle className="h-5 w-5" />,
+        icon: <UserCircle className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
     },
 ];
@@ -110,12 +126,29 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const {
+        user,
+        companyId,
+        companyUsers,
         companyUser,
+        isSwitchingShop,
         isAuthenticated,
         loading,
         mustChangePassword,
+        switchActiveShop,
     } = useAdminAuth();
     const router = useRouter();
+    const availableUntilRaw = companyUser?.company?.availableUntil;
+    const availableUntilMs = availableUntilRaw ? new Date(availableUntilRaw).getTime() : Number.NaN;
+    const isCompanyExpired = Boolean(
+        !user?.is_super_admin &&
+        Number.isFinite(availableUntilMs) &&
+        Date.now() > availableUntilMs,
+    );
+
+    const expiredAt = useMemo(() => {
+        if (!isCompanyExpired || !Number.isFinite(availableUntilMs)) return null;
+        return new Date(availableUntilMs);
+    }, [availableUntilMs, isCompanyExpired]);
 
     // Auth guard
     useEffect(() => {
@@ -145,8 +178,103 @@ export default function DashboardLayout({
 
     return (
         <I18nProvider defaultLocale={companyUser?.company?.default_language ?? 'es'}>
-            <DashboardShell>{children}</DashboardShell>
+            {isCompanyExpired && expiredAt ? (
+                <ExpiredAdminState
+                    expiredAt={expiredAt}
+                    companyId={companyId}
+                    companyUsers={companyUsers}
+                    isSwitchingShop={isSwitchingShop}
+                    onSwitchShop={switchActiveShop}
+                />
+            ) : (
+                <DashboardShell>{children}</DashboardShell>
+            )}
         </I18nProvider>
+    );
+}
+
+function ExpiredAdminState({
+    expiredAt,
+    companyId,
+    companyUsers,
+    isSwitchingShop,
+    onSwitchShop,
+}: {
+    expiredAt: Date;
+    companyId: number | null;
+    companyUsers: Array<{
+        id: number;
+        company_id: number;
+        role: string;
+        company?: { name?: string };
+    }>;
+    isSwitchingShop: boolean;
+    onSwitchShop: (companyId: number) => Promise<void>;
+}) {
+    const t = useT();
+    const formattedDate = useMemo(
+        () =>
+            new Intl.DateTimeFormat(undefined, {
+                dateStyle: "long",
+                timeStyle: "short",
+            }).format(expiredAt),
+        [expiredAt],
+    );
+    const showSwitcher = companyUsers.length > 1 && companyId;
+
+    const handleSwitch = async (value: string) => {
+        const nextCompanyId = Number.parseInt(value, 10);
+        if (!Number.isInteger(nextCompanyId) || nextCompanyId <= 0) return;
+        if (nextCompanyId === companyId) return;
+        await onSwitchShop(nextCompanyId);
+    };
+
+    return (
+        <div className="flex min-h-[100dvh] items-center justify-center bg-slate-100 px-4">
+            <div className="w-full max-w-2xl rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+                    {t("adminSubscription.expiredTitle")}
+                </h1>
+                <p className="mt-3 text-base text-slate-600 md:text-lg">
+                    {t("adminSubscription.expiredSubtitle")}
+                </p>
+                <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                    {t("adminSubscription.expiredBanner", { date: formattedDate })}
+                </div>
+                {showSwitcher ? (
+                    <div className="mx-auto mt-5 max-w-sm">
+                        <Select
+                            value={companyId.toString()}
+                            onValueChange={(value) => {
+                                void handleSwitch(value).catch(() => undefined);
+                            }}
+                            disabled={isSwitchingShop}
+                        >
+                            <SelectTrigger className="h-10">
+                                <SelectValue placeholder={t("adminNav.currentShop")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {companyUsers.map((membership) => (
+                                    <SelectItem
+                                        key={membership.id}
+                                        value={membership.company_id.toString()}
+                                    >
+                                        {membership.company?.name || `Shop #${membership.company_id}`} · {membership.role}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                ) : null}
+                <div className="mt-7 flex items-center justify-center">
+                    <Link href="/">
+                        <Button className="bg-brand text-white hover:bg-brand-hover">
+                            {t("shopHome.goHome")}
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -155,18 +283,26 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const {
         user,
+        companyId,
         companyName,
         companySlug,
+        companyUsers,
+        isSwitchingShop,
         role,
+        switchActiveShop,
         signOut,
     } = useAdminAuth();
     const t = useT();
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const activeMembership = companyUsers.find((membership) => membership.company_id === companyId) ?? null;
+    const activePlan = resolveShopPlan(activeMembership?.company?.plan);
 
     useEffect(() => {
         console.info(`[reservas-admin] APP_VERSION=${APP_VERSION}`);
     }, []);
+
+    const hasMultipleShops = !user?.is_super_admin && companyUsers.length > 1;
 
     const handleSignOut = async () => {
         try {
@@ -180,13 +316,43 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     // Filter nav items based on role
     const filteredNavItems = navItems.filter((item) => {
         if (!item.roles) return true;
-        return role && item.roles.includes(role);
+        if (!role || !item.roles.includes(role)) return false;
+        if (!item.feature) return true;
+        if (user?.is_super_admin) return true;
+        return canUsePlanFeature(activePlan, item.feature);
     });
 
     const getInitials = () => {
         if (user?.name) return user.name.charAt(0).toUpperCase();
         if (user?.email) return user.email.charAt(0).toUpperCase();
         return "A";
+    };
+
+    const handleShopSwitch = async (value: string) => {
+        const nextCompanyId = Number.parseInt(value, 10);
+        if (!Number.isInteger(nextCompanyId) || nextCompanyId <= 0) return;
+        if (nextCompanyId === companyId) return;
+
+        try {
+            await switchActiveShop(nextCompanyId);
+
+            // If the current page is feature-gated, check whether the new
+            // shop's plan supports it. If not, redirect to bookings so the
+            // user never sees a "feature locked" dead-end after switching.
+            const nextMembership = companyUsers.find((m) => m.company_id === nextCompanyId);
+            const nextPlan = resolveShopPlan(nextMembership?.company?.plan);
+            const currentNavItem = navItems.find((item) => item.href === pathname);
+
+            const isCurrentPageLocked =
+                currentNavItem?.feature &&
+                !user?.is_super_admin &&
+                !canUsePlanFeature(nextPlan, currentNavItem.feature);
+
+            router.replace(isCurrentPageLocked ? "/admin/dashboard/bookings" : "/admin/dashboard");
+            router.refresh();
+        } catch {
+            // Error state is handled in auth context.
+        }
     };
 
     return (
@@ -236,9 +402,33 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                             className="lg:hidden p-1 hover:bg-slate-800 rounded"
                             onClick={() => setSidebarOpen(false)}
                         >
-                            <X className="h-5 w-5" />
+                            <X className="h-5 w-5 shrink-0" />
                         </button>
                     </div>
+
+                    {hasMultipleShops && companyId ? (
+                        <div className="border-b border-slate-800 px-4 py-3 lg:hidden">
+                            <Select
+                                value={companyId.toString()}
+                                onValueChange={handleShopSwitch}
+                                disabled={isSwitchingShop}
+                            >
+                                <SelectTrigger className="h-9 border-slate-700 bg-slate-800 text-white">
+                                    <SelectValue placeholder={t("adminNav.currentShop")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {companyUsers.map((membership) => (
+                                        <SelectItem
+                                            key={membership.id}
+                                            value={membership.company_id.toString()}
+                                        >
+                                            {membership.company?.name || `Shop #${membership.company_id}`} · {membership.role}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ) : null}
 
                     {/* Navigation */}
                     <nav className="flex-1 overflow-y-auto p-4 space-y-1">
@@ -280,7 +470,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                                     target="_blank"
                                     className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
                                 >
-                                    <ChevronRight className="h-4 w-4" />
+                                    <ChevronRight className="h-4 w-4 shrink-0" />
                                     {t('adminNav.backToShop')}
                                 </Link>
                             )}
@@ -307,7 +497,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                                 className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
                                 title={t('adminNav.signOut')}
                             >
-                                <LogOut className="h-4 w-4 text-slate-400" />
+                                <LogOut className="h-4 w-4 shrink-0 text-slate-400" />
                             </button>
                         </div>
                         <p className="mt-3 text-[11px] text-slate-500">
@@ -325,13 +515,36 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                         className="lg:hidden p-2 hover:bg-slate-100 rounded-lg"
                         onClick={() => setSidebarOpen(true)}
                     >
-                        <Menu className="h-5 w-5" />
+                        <Menu className="h-5 w-5 shrink-0" />
                     </button>
                     <div className="flex-1">
                         <h1 className="text-lg font-semibold text-slate-900">
                             {t(filteredNavItems.find((item) => item.href === pathname)?.label || 'adminNav.dashboard')}
                         </h1>
                     </div>
+                    {hasMultipleShops && companyId ? (
+                        <div className="hidden min-w-[220px] md:block">
+                            <Select
+                                value={companyId.toString()}
+                                onValueChange={handleShopSwitch}
+                                disabled={isSwitchingShop}
+                            >
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder={t("adminNav.currentShop")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {companyUsers.map((membership) => (
+                                        <SelectItem
+                                            key={membership.id}
+                                            value={membership.company_id.toString()}
+                                        >
+                                            {membership.company?.name || `Shop #${membership.company_id}`} · {membership.role}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ) : null}
                     <LanguageSwitcher variant="admin" />
                 </header>
 

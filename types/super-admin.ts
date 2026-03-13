@@ -11,6 +11,9 @@ export interface CompanyType {
     is_active: boolean;
 }
 
+export type ShopPlan = "STARTER" | "BUSINESS" | "PRO";
+export type BillingCycle = "MONTHLY" | "YEARLY";
+
 export interface SuperAdminShop {
     id: number;
     slug: string;
@@ -26,6 +29,11 @@ export interface SuperAdminShop {
     latitude?: number;
     longitude?: number;
     timezone: string;
+    plan: ShopPlan;
+    billingCycle: BillingCycle;
+    pricePaid?: string | number | null;
+    availableUntil: string;
+    isMarketplaceVisible: boolean;
     logo_url?: string;
     is_active: boolean;
     company_type_id: number;
@@ -50,13 +58,19 @@ export interface CreateShopPayload {
     latitude?: number;
     longitude?: number;
     company_type_id: number;
+    plan: ShopPlan;
+    billingCycle: BillingCycle;
+    pricePaid?: number | null;
+    availableUntil: string;
+    isMarketplaceVisible: boolean;
     owner: {
-        email: string;
-        password: string;
+        existingUserId?: string;
+        email?: string;
+        password?: string;
         first_name?: string;
         last_name?: string;
         phone_prefix?: string;
-        phone: string;
+        phone?: string;
         display_name?: string;
         is_bookable?: boolean;
     };

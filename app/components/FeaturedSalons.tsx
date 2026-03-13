@@ -182,11 +182,11 @@ export function FeaturedSalons() {
                     </h3>
                     <div className="flex items-center justify-between gap-2 text-[11px] tracking-[0.04em] uppercase">
                       <span className="inline-flex items-center gap-1 text-slate-500">
-                        <MapPin className="h-3.5 w-3.5" />
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
                         {professional.location || "—"}
                       </span>
                       <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                        <Star className="h-3.5 w-3.5 fill-biz-yellow text-biz-yellow" />
+                        <Star className="h-3.5 w-3.5 shrink-0 fill-biz-yellow text-biz-yellow" />
                         {professional.rating}
                         <span className="text-slate-500">({professional.count})</span>
                       </span>

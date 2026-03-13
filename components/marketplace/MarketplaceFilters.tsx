@@ -1,6 +1,7 @@
 "use client";
 
-import { Calendar, Clock3, Loader2, LocateFixed, Search, SlidersHorizontal } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Calendar, Clock3, Loader2, LocateFixed, Navigation, Search, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MarketplaceFilterState, MarketplaceServiceTypeOption, MarketplaceSort } from "@/lib/marketplace/types";
+import { getMapboxToken } from "@/lib/mapbox/loadMapboxGl";
+import { reverseGeocodeMapbox, parseMapboxFeature } from "@/lib/mapbox/location";
 
 interface MarketplaceFiltersProps {
   value: MarketplaceFilterState;
@@ -55,6 +58,39 @@ export function MarketplaceFilters({
   onSearchInAreaChange,
   onSearchAreaClick,
 }: MarketplaceFiltersProps) {
+  const [locating, setLocating] = useState(false);
+
+  const handleUseMyLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const token = getMapboxToken();
+          if (!token) { setLocating(false); return; }
+          const feature = await reverseGeocodeMapbox(
+            position.coords.longitude,
+            position.coords.latitude,
+            token,
+          );
+          if (feature) {
+            const parsed = parseMapboxFeature(feature);
+            const cityName = parsed?.city || parsed?.stateRegion || parsed?.formattedAddress?.split(",")[0] || "";
+            if (cityName) {
+              onChange({ cityOrZone: cityName });
+            }
+          }
+        } catch {
+          // Reverse geocoding failed, ignore
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+  }, [onChange]);
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -132,7 +168,22 @@ export function MarketplaceFilters({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="city-zone">City / Zone</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="city-zone">City / Zone</Label>
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={locating}
+              className="inline-flex items-center gap-1 text-xs font-medium text-brand transition-colors hover:text-brand-hover disabled:opacity-50"
+            >
+              {locating ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Navigation className="h-3 w-3" />
+              )}
+              Use my location
+            </button>
+          </div>
           <Input
             id="city-zone"
             value={value.cityOrZone}

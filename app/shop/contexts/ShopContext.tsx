@@ -37,6 +37,8 @@ import {
 
 type ShopContextValue = {
     company: ShopCompany | null;
+    availableUntil: string | null;
+    isShopActive: boolean;
     categories: ShopCategory[];
     services: ShopService[];
     staff: ShopStaff[];
@@ -185,24 +187,36 @@ export function ShopProvider({
     }, [data?.theme, meShopSlug, pathname, slug]);
 
     const value = useMemo<ShopContextValue>(
-        () => ({
-            company: data?.company ?? null,
-            categories: data?.categories ?? [],
-            services: data?.services ?? [],
-            staff: data?.staff ?? [],
-            hours: data?.hours ?? [],
-            settings: data?.settings ?? null,
-            theme: data?.theme ?? defaultTheme,
-            reviewStats: data?.reviewStats ?? null,
-            heroVariant: data?.theme?.hero_variant ?? "hero-cinematic",
-            servicesVariant: data?.theme?.services_variant ?? "services-grid",
-            teamVariant: data?.theme?.team_variant ?? "team-cards",
-            fontPairing: data?.theme?.font_pairing ?? "classic",
-            socialLinks: data?.settings?.social_links ?? {},
-            loading,
-            error,
-            slug,
-        }),
+        () => {
+            const availableUntil = data?.company?.availableUntil ?? null;
+            const availableUntilMs = availableUntil ? new Date(availableUntil).getTime() : Number.POSITIVE_INFINITY;
+            const isAvailabilityDateValid = Number.isFinite(availableUntilMs);
+            const withinAvailabilityWindow = !availableUntil
+                ? true
+                : isAvailabilityDateValid && Date.now() <= availableUntilMs;
+            const isShopActive = Boolean(data?.company?.is_active ?? true) && withinAvailabilityWindow;
+
+            return {
+                company: data?.company ?? null,
+                availableUntil,
+                isShopActive,
+                categories: data?.categories ?? [],
+                services: data?.services ?? [],
+                staff: data?.staff ?? [],
+                hours: data?.hours ?? [],
+                settings: data?.settings ?? null,
+                theme: data?.theme ?? defaultTheme,
+                reviewStats: data?.reviewStats ?? null,
+                heroVariant: data?.theme?.hero_variant ?? "hero-cinematic",
+                servicesVariant: data?.theme?.services_variant ?? "services-grid",
+                teamVariant: data?.theme?.team_variant ?? "team-cards",
+                fontPairing: data?.theme?.font_pairing ?? "classic",
+                socialLinks: data?.settings?.social_links ?? {},
+                loading,
+                error,
+                slug,
+            };
+        },
         [data, loading, error, slug],
     );
 

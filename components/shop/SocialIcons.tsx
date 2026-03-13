@@ -56,7 +56,7 @@ export function SocialIcons({ socialLinks, className, iconSize = 20 }: SocialIco
                     className="text-text-muted transition-colors duration-200 hover:text-brand"
                 >
                     <Icon
-                        className={key === "tiktok" || key === "whatsapp" ? "" : undefined}
+                        className="shrink-0"
                         style={{ width: iconSize, height: iconSize }}
                     />
                 </a>

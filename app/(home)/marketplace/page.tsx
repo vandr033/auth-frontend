@@ -8,7 +8,8 @@ import { Calendar, ChevronDown, Clock3, List, Map as MapIcon, MapPin, Search } f
 import { useApi } from "@/app/hooks/useApi";
 import { MarketplaceMap } from "@/components/marketplace/MarketplaceMap";
 import { MarketplaceResultsList } from "@/components/marketplace/MarketplaceResultsList";
-import { useT } from "@/lib/i18n";
+import { useI18n, useT } from "@/lib/i18n";
+import { getLocalizedText } from "@/lib/i18n/localized";
 import { useMarketplaceAnalytics } from "@/lib/marketplace/analytics";
 import { buildMarketplaceBookingHandoffParams } from "@/lib/marketplace/handoff";
 import type {
@@ -185,6 +186,7 @@ interface CitySuggestionResponse {
 
 function MarketplacePageContent() {
   const t = useT();
+  const { locale } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const api = useApi();
@@ -221,6 +223,20 @@ function MarketplacePageContent() {
   const [mapFitKey, setMapFitKey] = useState(0);
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
 
+  const resolveBusinessType = useCallback(
+    (businessType: string | null | undefined, businessTypeI18n?: Record<string, string> | null) => {
+      const localized = getLocalizedText({
+        text: businessType ?? "",
+        translations: businessTypeI18n,
+        locale,
+      }).trim();
+      if (localized) return localized;
+      const fallback = typeof businessType === "string" ? businessType.trim() : "";
+      return fallback || null;
+    },
+    [locale],
+  );
+
   const runSearch = useCallback(
     async (filters: MarketplaceFilterState, bounds: MarketplaceBounds | null) => {
       const normalizedFilters = withRequiredServiceTypeId(filters, serviceTypes);
@@ -238,8 +254,14 @@ function MarketplacePageContent() {
         const apiQuery = buildMarketplaceApiQuery(normalizedFilters, bounds);
         const response = await api.get<MarketplaceSearchApiResponse>(`/marketplace/search?${apiQuery.toString()}`);
 
-        const nextResults = response.data?.results || [];
-        const nextSimilar = response.data?.similarBookings || [];
+        const nextResults = (response.data?.results || []).map((item) => ({
+          ...item,
+          businessType: resolveBusinessType(item.businessType, item.businessTypeI18n),
+        }));
+        const nextSimilar = (response.data?.similarBookings || []).map((item) => ({
+          ...item,
+          businessType: resolveBusinessType(item.businessType, item.businessTypeI18n),
+        }));
         const nextPins = (response.data?.mapPins || []) as MarketplaceMapPin[];
         const allItems = [...nextResults, ...nextSimilar];
         const firstByCompanyId = new Map<number, MarketplaceResultItem>();
@@ -263,6 +285,11 @@ function MarketplacePageContent() {
                     matchedSlotTime: "",
                     priceFrom: 0,
                   }),
+                  businessType: resolveBusinessType(
+                    pin.popup?.businessType ?? matched?.businessType ?? null,
+                    pin.popup?.businessTypeI18n ?? matched?.businessTypeI18n ?? null,
+                  ),
+                  businessTypeI18n: pin.popup?.businessTypeI18n ?? matched?.businessTypeI18n ?? null,
                   serviceName: pin.popup?.serviceName ?? matched?.serviceName,
                   serviceId: pin.popup?.serviceId ?? matched?.serviceId,
                   serviceTypeId: pin.popup?.serviceTypeId ?? matched?.globalServiceTypeId,
@@ -286,6 +313,7 @@ function MarketplacePageContent() {
                 popup: {
                   name: item.name,
                   businessType: item.businessType,
+                  businessTypeI18n: item.businessTypeI18n ?? null,
                   rating: item.rating,
                   reviewCount: item.reviewCount,
                   serviceName: item.serviceName,
@@ -335,7 +363,7 @@ function MarketplacePageContent() {
         setLoadingSearch(false);
       }
     },
-    [api, serviceTypes, t, trackEvent],
+    [api, locale, resolveBusinessType, serviceTypes, t, trackEvent],
   );
 
   useEffect(() => {

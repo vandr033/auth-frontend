@@ -18,6 +18,7 @@ export interface ShopCompany {
     id: number;
     slug: string;
     name: string;
+    availableUntil: string;
     address?: string;
     phone_prefix: string;
     phone: string;

@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n";
 import { ServicesWrapper } from "@/components/shop/services/ServicesWrapper";
 import { FloatingBookCTA } from "@/components/shop/FloatingBookCTA";
 import { ShopFooter } from "@/components/shop/ShopFooter";
+import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 
 // Icon mapping for categories
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -43,6 +44,7 @@ export default function ServicesPage() {
         loading,
         error,
         slug,
+        isShopActive,
     } = useShop();
     const t = useT();
 
@@ -82,6 +84,10 @@ export default function ServicesPage() {
                 </div>
             </main>
         );
+    }
+
+    if (!isShopActive) {
+        return <ShopUnavailableState slug={slug} />;
     }
 
     return (

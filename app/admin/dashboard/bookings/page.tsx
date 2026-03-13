@@ -47,6 +47,8 @@ import {
 } from "@/app/admin/lib/adminApi";
 import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
 import { appendNoShowMarker, isNoShowBooking } from "./lib/bookingStatus";
+import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 
 type DayCount = 1 | 3 | 7;
 
@@ -60,9 +62,13 @@ const STATUS_OPTIONS: { value: BookingStatus | "ALL"; label: string }[] = [
 ];
 
 export default function BookingsPage() {
-    const { isAuthenticated, role } = useAdminAuth();
+    const { isAuthenticated, role, companyUser, user } = useAdminAuth();
     const t = useT();
     const isStaffRole = role === "STAFF";
+    const plan = resolveShopPlan(companyUser?.company?.plan);
+    const canSendReminders = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BOOKING_REMINDERS");
+    const canSendTransactionalNotifications =
+        Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
 
     // View State
     const [viewMode, setViewMode] = useState<"calendar" | "month" | "list">(isStaffRole ? "list" : "calendar");
@@ -255,6 +261,9 @@ export default function BookingsPage() {
         id: number,
         payload: { channel: NoShowNotificationChannel; message?: string }
     ) => {
+        if (!canSendTransactionalNotifications) {
+            throw new Error(t("planEnforcement.availableOnBusiness"));
+        }
         const result = await sendNoShowNotification(id, payload);
         if (result.status !== "SENT") {
             throw new Error(result.reason || t("adminBookings.noShowNotificationError"));
@@ -263,6 +272,10 @@ export default function BookingsPage() {
 
     const handleSendTodayReminders = useCallback(async () => {
         if (isSendingReminders) return;
+        if (!canSendReminders) {
+            setReminderStatusText(t("planEnforcement.availableOnBusiness"));
+            return;
+        }
 
         setReminderSummary(null);
         setReminderStatusText(null);
@@ -340,7 +353,7 @@ export default function BookingsPage() {
         } finally {
             setIsSendingReminders(false);
         }
-    }, [isSendingReminders, t]);
+    }, [canSendReminders, isSendingReminders, t]);
 
     // Date range label
     const dateRangeLabel = useMemo(() => {
@@ -372,7 +385,7 @@ export default function BookingsPage() {
                             <Button
                                 variant="outline"
                                 onClick={() => void handleSendTodayReminders()}
-                                disabled={isSendingReminders}
+                                disabled={isSendingReminders || !canSendReminders}
                                 className="w-full border-brand/30 text-brand hover:bg-brand/5 sm:w-auto"
                             >
                                 {isSendingReminders ? (
@@ -390,6 +403,14 @@ export default function BookingsPage() {
                     )}
                 </div>
             </div>
+
+            {!isStaffRole && !canSendReminders && (
+                <PlanUpgradeNotice
+                    title={t("planEnforcement.featureLockedTitle")}
+                    message={t("planEnforcement.availableOnBusiness")}
+                    feature="BOOKING_REMINDERS"
+                />
+            )}
 
             {!isStaffRole && (isSendingReminders || reminderSummary || reminderStatusText) && (
                 <div className="rounded-lg border border-surface-border bg-surface p-4 shadow-sm">
@@ -599,6 +620,8 @@ export default function BookingsPage() {
                 onStatusUpdate={handleStatusUpdate}
                 onMarkNoShow={handleMarkNoShow}
                 onSendNoShowNotification={handleSendNoShowNotification}
+                canSendNoShowNotification={canSendTransactionalNotifications}
+                noShowNotificationUpgradeMessage={t("planEnforcement.availableOnBusiness")}
                 onRefresh={fetchBookings}
             />
         </div>

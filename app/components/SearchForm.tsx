@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Calendar, Clock3, MapPin, Search, Loader2 } from "lucide-react";
+import { Calendar, Clock3, MapPin, Navigation, Search, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { MensajeApi } from "@/types/api";
 import { useApi } from "../hooks/useApi";
 import { useT } from "@/lib/i18n";
+import { getMapboxToken } from "@/lib/mapbox/loadMapboxGl";
+import { reverseGeocodeMapbox, parseMapboxFeature } from "@/lib/mapbox/location";
 
 interface ServiceType {
   id: string;
@@ -57,6 +59,7 @@ export function SearchForm() {
   const [cityQuery, setCityQuery] = useState("");
   const [cities, setCities] = useState<City[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   const [dateQuery, setDateQuery] = useState("");
   const [timeQuery, setTimeQuery] = useState("");
@@ -122,6 +125,37 @@ export function SearchForm() {
     return () => clearTimeout(timer);
   }, [cityQuery, getCities]);
 
+  const handleUseMyLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const token = getMapboxToken();
+          if (!token) { setLocating(false); return; }
+          const feature = await reverseGeocodeMapbox(
+            position.coords.longitude,
+            position.coords.latitude,
+            token,
+          );
+          if (feature) {
+            const parsed = parseMapboxFeature(feature);
+            const cityName = parsed?.city || parsed?.stateRegion || parsed?.formattedAddress?.split(",")[0] || "";
+            if (cityName) {
+              setCityQuery(cityName);
+            }
+          }
+        } catch {
+          // Reverse geocoding failed, ignore
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+  }, []);
+
   /* Close dropdowns on outside click */
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -167,9 +201,7 @@ export function SearchForm() {
           style={{ height: 52, borderBottom: "1px solid #e5e5e5" }}
         >
           <Search
-            size={15}
-            className="absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#a3a3a3" }}
+            className="absolute left-5 top-1/2 h-[15px] w-[15px] shrink-0 -translate-y-1/2 pointer-events-none text-[#a3a3a3]"
           />
           <input
             type="text"
@@ -190,9 +222,7 @@ export function SearchForm() {
           />
           {servicesLoading && (
             <Loader2
-              size={14}
-              className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin"
-              style={{ color: "#a3a3a3" }}
+              className="absolute right-3 top-1/2 h-3.5 w-3.5 shrink-0 -translate-y-1/2 animate-spin text-[#a3a3a3]"
             />
           )}
           {/* separator */}
@@ -238,9 +268,7 @@ export function SearchForm() {
           style={{ height: 52, borderBottom: "1px solid #e5e5e5" }}
         >
           <MapPin
-            size={15}
-            className="absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#a3a3a3" }}
+            className="absolute left-5 top-1/2 h-[15px] w-[15px] shrink-0 -translate-y-1/2 pointer-events-none text-[#a3a3a3]"
           />
           <input
             type="text"
@@ -251,7 +279,7 @@ export function SearchForm() {
             className="w-full h-full bg-transparent focus:outline-none"
             style={{
               paddingLeft: 48,
-              paddingRight: 12,
+              paddingRight: 40,
               fontSize: 11,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
@@ -259,12 +287,19 @@ export function SearchForm() {
             }}
             autoComplete="off"
           />
-          {citiesLoading && (
+          {citiesLoading || locating ? (
             <Loader2
-              size={14}
-              className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin"
-              style={{ color: "#a3a3a3" }}
+              className="absolute right-3 top-1/2 h-3.5 w-3.5 shrink-0 -translate-y-1/2 animate-spin text-[#a3a3a3]"
             />
+          ) : (
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+              title="Use my location"
+            >
+              <Navigation className="h-3.5 w-3.5 text-[#e73886]" />
+            </button>
           )}
           <span
             className="hidden md:block absolute right-0"
@@ -306,9 +341,7 @@ export function SearchForm() {
           style={{ height: 52, width: undefined, borderBottom: "1px solid #e5e5e5" }}
         >
           <Calendar
-            size={15}
-            className="absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#a3a3a3" }}
+            className="absolute left-5 top-1/2 h-[15px] w-[15px] shrink-0 -translate-y-1/2 pointer-events-none text-[#a3a3a3]"
           />
           <input
             type="date"
@@ -340,9 +373,7 @@ export function SearchForm() {
           style={{ height: 52, borderBottom: "1px solid #e5e5e5" }}
         >
           <Clock3
-            size={15}
-            className="absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#a3a3a3" }}
+            className="absolute left-5 top-1/2 h-[15px] w-[15px] shrink-0 -translate-y-1/2 pointer-events-none text-[#a3a3a3]"
           />
           <input
             type="text"

@@ -12,6 +12,8 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { notify } from "@/lib/notify";
+import { canUsePlanFeature, getRequiredPlanForFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import {
     StaffMember,
     StaffAvailabilitySlot,
@@ -35,11 +37,14 @@ function statusVariant(status: StaffTimeOffStatus): "default" | "secondary" | "d
 }
 
 export default function AvailabilityPage() {
-    const { role, isAuthenticated } = useAdminAuth();
+    const { role, isAuthenticated, companyUser, user } = useAdminAuth();
     const { locale } = useI18n();
     const t = useT();
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
     const isStaff = role === "STAFF";
+    const availabilityFeature = "STAFF_AVAILABILITY" as const;
+    const plan = resolveShopPlan(companyUser?.company?.plan);
+    const canUseAvailability = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, availabilityFeature);
 
     const [loading, setLoading] = useState(true);
     const [savingSchedule, setSavingSchedule] = useState(false);
@@ -241,6 +246,27 @@ export default function AvailabilityPage() {
 
     if (!isAuthenticated || !role) {
         return null;
+    }
+
+    if (!canUseAvailability) {
+        const requiredPlan = getRequiredPlanForFeature(availabilityFeature);
+        return (
+            <div className="space-y-4">
+                <h1 className="text-2xl font-bold text-slate-900">{t("adminNav.availability")}</h1>
+                <PlanUpgradeNotice
+                    title={t("planEnforcement.featureLockedTitle")}
+                    message={
+                        requiredPlan === "PRO"
+                            ? t("planEnforcement.availableOnPro")
+                            : t("planEnforcement.availableOnBusiness")
+                    }
+                    feature={availabilityFeature}
+                    currentPlan={plan}
+                    requiredPlan={requiredPlan}
+                    fullPage
+                />
+            </div>
+        );
     }
 
     if (loading) {
