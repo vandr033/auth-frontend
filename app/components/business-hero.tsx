@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 
@@ -27,6 +28,9 @@ export function BusinessHero() {
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-[20%] top-[28%] h-44 w-44 rounded-full bg-biz-cherry-blossom/35 blur-[88px]" />
         <div className="absolute bottom-0 right-0 h-28 w-28 bg-biz-yellow/45 blur-[40px]" />
+        <div className="absolute -left-12 top-[10%] h-36 w-64 rotate-[-11deg] bg-[radial-gradient(ellipse_at_center,rgba(240,52,162,0.24)_0%,rgba(240,52,162,0.1)_42%,rgba(240,52,162,0)_74%)] blur-[16px]" />
+        <div className="absolute left-[52%] top-[12%] h-40 w-56 rotate-[16deg] bg-[radial-gradient(ellipse_at_center,rgba(242,242,87,0.22)_0%,rgba(242,242,87,0.08)_44%,rgba(242,242,87,0)_75%)] blur-[18px]" />
+        <div className="absolute right-[3%] top-[34%] h-48 w-64 rotate-[-8deg] bg-[radial-gradient(ellipse_at_center,rgba(45,191,255,0.2)_0%,rgba(45,191,255,0.08)_42%,rgba(45,191,255,0)_76%)] blur-[18px]" />
       </div>
 
       <div className="mx-auto grid min-h-[calc(100svh-3.5rem)] w-full max-w-[1240px] grid-cols-1 items-center gap-10 px-6 py-12 lg:grid-cols-[1.02fr_0.98fr] lg:px-10 lg:py-16">
@@ -90,42 +94,22 @@ export function BusinessHero() {
           initial={visualInitial}
           animate={visualAnimate}
           transition={{ duration: 0.6, delay: prefersReducedMotion ? 0 : 0.12, ease: "easeOut" }}
-          className="relative mx-auto w-full max-w-[560px]"
+          className="relative mx-auto w-full max-w-[660px]"
         >
           <div className="relative aspect-[10/9] w-full">
-            <div className="absolute right-[2%] top-[3%] h-[62%] w-[68%] rotate-[8deg] rounded-[24px] border border-black/5 bg-white/75 p-4 shadow-[0_20px_48px_rgba(15,23,42,0.12)] backdrop-blur-sm">
-              <div className="h-3 w-24 rounded-sm bg-slate-200" />
-              <div className="mt-4 h-5 w-20 rounded-sm bg-biz-sky-surge" />
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {Array.from({ length: 9 }).map((_, index) => (
-                  <div key={index} className="h-10 rounded-sm bg-slate-200/90" />
-                ))}
-              </div>
-            </div>
+            <div className="absolute -left-3 top-8 h-28 w-28 rounded-full bg-biz-barbie-pink/18 blur-[38px]" />
+            <div className="absolute bottom-6 right-4 h-24 w-24 rounded-full bg-biz-sky-surge/18 blur-[32px]" />
+            <div className="absolute left-[42%] top-[14%] h-28 w-36 rotate-[12deg] bg-[radial-gradient(ellipse_at_center,rgba(242,242,87,0.18)_0%,rgba(242,242,87,0.06)_42%,rgba(242,242,87,0)_74%)] blur-[14px]" />
 
-            <div className="absolute left-[12%] top-[20%] h-[75%] w-[52%] rotate-[-13deg] rounded-[28px] border-[4px] border-black bg-[#f3f3f3] shadow-[0_18px_40px_rgba(0,0,0,0.2)]">
-              <div className="h-full w-full rounded-[22px] bg-[#f4f4f4] p-4">
-                <div className="h-3 w-24 rounded bg-white/90" />
-                <div className="mt-3 flex gap-2">
-                  <div className="h-12 flex-1 rounded-sm bg-biz-cherry-blossom/90" />
-                  <div className="h-12 flex-1 rounded-sm bg-[#b9d6e3]" />
-                </div>
-
-                <div className="mt-4 grid grid-cols-[1fr_auto] gap-4">
-                  <div className="space-y-2">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <div key={index} className="h-2.5 w-full rounded bg-slate-300/85" />
-                    ))}
-                  </div>
-                  <div className="space-y-2 pt-1">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                      <div key={index} className="h-2.5 w-12 rounded bg-biz-yellow" />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="absolute bottom-5 left-5 right-5 h-20 rounded-md border border-black/5 bg-white/45" />
-              </div>
+            <div className="relative h-full w-full">
+              <Image
+                src="/assets/priconpri/hero.png"
+                alt="Vista previa de PRICONPRI"
+                fill
+                priority
+                sizes="(min-width: 1024px) 660px, 92vw"
+                className="object-contain object-center scale-[1.16] drop-shadow-[0_26px_50px_rgba(15,23,42,0.22)]"
+              />
             </div>
           </div>
         </motion.div>
