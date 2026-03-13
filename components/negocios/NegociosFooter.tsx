@@ -26,8 +26,8 @@ export function NegociosFooter() {
               className="h-20 w-auto"
             />
             <p className="mt-4 max-w-[420px] text-sm leading-relaxed text-gray-600">
-              La plataforma definitiva para negocios que viven de su tiempo. Barberías, salones,
-              spas y wellness centers unidos en una sola visión.
+              Turnos, operación y marca para negocios que ayudan a otros a verse, sentirse o
+              rendir mejor.
             </p>
 
             <div className="mt-6 flex items-center gap-3">

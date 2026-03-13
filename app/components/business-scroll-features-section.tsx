@@ -42,8 +42,7 @@ export function BusinessScrollFeaturesSection() {
         title: t("businessWalkthrough.steps.landing.title"),
         description: t("businessWalkthrough.steps.landing.description"),
         captionTitle: t("businessWalkthrough.steps.landing.captionTitle"),
-        mediaUrl:
-          "https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1800&q=80",
+        mediaUrl: "/assets/priconpri/featured%20section/1.png",
         mediaPosition: "center",
       },
       {
@@ -53,8 +52,7 @@ export function BusinessScrollFeaturesSection() {
         title: t("businessWalkthrough.steps.agenda.title"),
         description: t("businessWalkthrough.steps.agenda.description"),
         captionTitle: t("businessWalkthrough.steps.agenda.captionTitle"),
-        mediaUrl:
-          "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&w=1800&q=80",
+        mediaUrl: "/assets/priconpri/featured%20section/2.png",
         mediaPosition: "center",
       },
       {
@@ -64,8 +62,7 @@ export function BusinessScrollFeaturesSection() {
         title: t("businessWalkthrough.steps.database.title"),
         description: t("businessWalkthrough.steps.database.description"),
         captionTitle: t("businessWalkthrough.steps.database.captionTitle"),
-        mediaUrl:
-          "https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=1800&q=80",
+        mediaUrl: "/assets/priconpri/featured%20section/3.png",
         mediaPosition: "center",
       },
       {
@@ -75,8 +72,7 @@ export function BusinessScrollFeaturesSection() {
         title: t("businessWalkthrough.steps.metrics.title"),
         description: t("businessWalkthrough.steps.metrics.description"),
         captionTitle: t("businessWalkthrough.steps.metrics.captionTitle"),
-        mediaUrl:
-          "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1800&q=80",
+        mediaUrl: "/assets/priconpri/featured%20section/4.png",
         mediaPosition: "center",
       },
     ],
@@ -141,7 +137,7 @@ export function BusinessScrollFeaturesSection() {
                 initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 16, scale: 1.018 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.995 }}
-                transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-0"
               >
                 <div
@@ -156,13 +152,23 @@ export function BusinessScrollFeaturesSection() {
             </AnimatePresence>
 
             <div className="absolute inset-x-0 bottom-0 z-10 p-7 text-white">
-              <div className="mb-2 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/80">
-                <FeatureIcon id={activeStep.id} />
-                <span>{t("businessWalkthrough.captionLabel")}</span>
-              </div>
-              <p className="font-bebas text-[3rem] leading-[0.86] font-semibold uppercase tracking-tight">
-                {activeStep.captionTitle}
-              </p>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeStep.id}
+                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+                  <div className="mb-2 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-biz-barbie-pink">
+                    <FeatureIcon id={activeStep.id} />
+                    <span>{t("businessWalkthrough.captionLabel")}</span>
+                  </div>
+                  <p className="font-bebas text-[3rem] leading-[0.86] font-semibold uppercase tracking-tight text-biz-barbie-pink">
+                    {activeStep.captionTitle}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -178,11 +184,11 @@ export function BusinessScrollFeaturesSection() {
               />
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(8,10,12,0.9)_0%,rgba(8,10,12,0.55)_30%,rgba(8,10,12,0.08)_62%,rgba(0,0,0,0)_86%)]" />
               <div className="absolute inset-x-0 bottom-0 z-10 p-5 text-white">
-                <div className="mb-1.5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/80">
+                <div className="mb-1.5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-biz-barbie-pink">
                   <FeatureIcon id={step.id} />
                   <span>{t("businessWalkthrough.captionLabel")}</span>
                 </div>
-                <p className="font-bebas text-[2.35rem] leading-none font-semibold uppercase tracking-tight">
+                <p className="font-bebas text-[2.35rem] leading-none font-semibold uppercase tracking-tight text-biz-barbie-pink">
                   {step.captionTitle}
                 </p>
               </div>

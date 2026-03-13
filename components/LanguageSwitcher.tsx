@@ -42,6 +42,7 @@ export function LanguageSwitcher({ variant = "shop", showLabel = true }: Languag
                 title={t("language.label")}
             >
                 <Globe className="h-4 w-4" />
+                <span className="text-xs font-medium uppercase">{locale}</span>
                 {showLabel ? <span className="hidden sm:inline">{t(`language.${locale}`)}</span> : null}
             </button>
 

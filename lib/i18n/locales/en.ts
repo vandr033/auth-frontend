@@ -1065,46 +1065,46 @@ const en = {
     line3: "TURNOS.",
     line4: "LLENA TU",
     line5: "AGENDA.",
-    description: "La plataforma que convierte tu agenda en un sistema operativo para tu negocio.",
-    requestDemo: "SOLICITAR DEMO",
-    viewHowItWorks: "VER CÓMO FUNCIONA",
-    bookingMicrocopy: "¿BUSCAS RESERVAR? →",
+    description: "Online bookings, operational control, and brand experience for businesses built around every appointment.",
+    requestDemo: "Book a demo",
+    viewHowItWorks: "SEE HOW IT WORKS",
+    bookingMicrocopy: "Looking for your next appointment?",
     previewPanel: "PREVIEW ADMIN PANEL →",
   },
 
   businessTypes: {
-    line1: "BARBERSHOPS.",
-    line2: "SALONS.",
+    line1: "Aesthetics.",
+    line2: "Wellness.",
     previousSlide: "Previous",
     nextSlide: "Next",
     carouselAria: "Business types",
     typingWords: {
-      spas: "SPAS",
-      unas: "NAILS",
-      wellness: "WELLNESS",
-      masajes: "MASSAGE",
-      estetica: "AESTHETICS",
-      tattoo: "TATTOO",
-      cejas: "BROWS",
-      pestanas: "LASHES",
-      makeup: "MAKEUP",
-      fisioterapia: "PHYSIOTHERAPY",
+      estetica: "Aesthetics.",
+      wellness: "Wellness.",
+      salud: "Health.",
+      fitness: "Fitness.",
+      spas: "Recovery.",
+      unas: "Performance.",
+      masajes: "Beauty.",
+      tattoo: "Skincare.",
+      cejas: "Movement.",
+      pestanas: "Care.",
+      nutrition: "Nutrition.",
+      barbering: "Barbering.",
     },
     cards: {
-      barberias: "BARBERSHOPS",
-      salones: "SALONS",
-      spas: "SPAS",
-      unas: "NAILS",
-      wellness: "WELLNESS",
-      masajes: "MASSAGE",
-      cejas: "BROWS",
-      pestanas: "LASHES",
-      makeup: "MAKEUP",
-      tattoo: "TATTOO",
-      skincare: "SKINCARE",
-      depilacion: "HAIR REMOVAL",
       estetica: "AESTHETICS",
-      fisio: "PHYSIO",
+      wellness: "WELLNESS",
+      salud: "HEALTH",
+      fitness: "FITNESS",
+      spas: "RECOVERY",
+      unas: "Performance",
+      masajes: "BEAUTY",
+      tattoo: "SKINCARE",
+      cejas: "MOVEMENT",
+      pestanas: "CARE",
+      nutrition: "NUTRITION",
+      barbering: "BARBERING",
     },
   },
 
@@ -1114,72 +1114,72 @@ const en = {
     line3: "SOLUTION.",
     eyebrow: "WITH PRICONPRI",
     cta: "START TODAY",
-    marketingLine: "YOUR OPERATIONS SHOULD SHINE LIKE YOUR BRAND.",
+    marketingLine: "Your operation has to live up to your brand.",
     benefits: {
-      bookings247: "ONLINE BOOKINGS 24/7",
-      reminders: "AUTOMATED REMINDERS",
-      teamControl: "TEAM CONTROL",
-      clientDatabase: "CLIENT DATABASE",
-      metrics: "OPERATIONAL METRICS",
+      bookings247: "24/7 bookings",
+      reminders: "Automated reminders",
+      teamControl: "Team control",
+      clientDatabase: "Better client management",
+      metrics: "Real-time metrics",
     },
     before: {
-      title: "BEFORE",
+      title: "Without PriConPri",
       items: {
-        manualAgendas: "MANUAL AGENDAS",
-        whatsappBookings: "WHATSAPP BOOKINGS",
-        scheduleErrors: "SCHEDULING ERRORS",
-        lowTeamControl: "LOW TEAM CONTROL",
-        noFollowUp: "CLIENTS WITHOUT FOLLOW-UP",
+        manualAgendas: "Your schedule depends on messages",
+        whatsappBookings: "Your operation depends on memory",
+        scheduleErrors: "Your team depends on you",
+        lowTeamControl: "Your clients don't come back on their own",
+        noFollowUp: "And everything takes longer than it should",
       },
     },
   },
 
   businessWalkthrough: {
-    kicker: "FEATURE WALKTHROUGH",
-    heading: "EVERY TOOL, EXACTLY WHEN YOU NEED IT.",
+    kicker: "Where everything starts flowing better",
+    heading: "Where everything starts flowing better",
     captionLabel: "KEY CAPABILITY",
     steps: {
       landing: {
         number: "01",
         label: "DIGITAL PRESENCE",
-        title: "PUBLIC LANDING",
+        title: "PUBLIC LANDING PAGE",
         description:
-          "Your business deserves a digital presence that converts. Customize your brand, showcase services, and receive bookings from a mobile-optimized site.",
-        captionTitle: "PUBLIC LANDING",
+          "A page designed to make your business look good, easy to understand, and ready to receive bookings without friction.",
+        captionTitle: "PUBLIC LANDING PAGE",
       },
       agenda: {
         number: "02",
         label: "DAILY MANAGEMENT",
-        title: "OPERATIONAL SCHEDULE",
+        title: "Your schedule, in real time",
         description:
-          "Control bookings, availability, and changes in real time. Reschedule, block hours, and prevent overbooking in seconds.",
-        captionTitle: "OPERATIONAL SCHEDULE",
+          "Reschedule, block time slots, and adjust availability in seconds without losing control of the day.",
+        captionTitle: "Your schedule, in real time",
       },
       database: {
         number: "03",
         label: "CLIENTS & FOLLOW-UP",
-        title: "CUSTOMER DATABASE",
+        title: "Every client, better understood",
         description:
-          "Turn every visit into a relationship. Store history, preferences, and automated reminders to retain every client more effectively.",
-        captionTitle: "CUSTOMER DATABASE",
+          "Every visit leaves valuable information. PRICONPRI turns it into a smarter relationship.",
+        captionTitle: "Every client, better understood",
       },
       metrics: {
         number: "04",
         label: "CONTROL PANEL",
-        title: "OPERATIONAL METRICS",
+        title: "Metrics for smarter growth",
         description:
-          "Decide with data, not guesswork. See sales, team performance, and business growth in one unified dashboard.",
-        captionTitle: "OPERATIONAL METRICS",
+          "Visualize sales, team performance, and business growth in one panel.",
+        captionTitle: "Metrics for smarter growth",
       },
     },
   },
 
   businessCrmMemory: {
-    line1: "CLIENT DATABASE",
-    line2: "THAT REMEMBERS",
-    line3: "YOUR CLIENTS",
+    line1: "Every client",
+    line2: "leaves a signal.",
+    line3: "PRICONPRI captures it.",
     description:
-      "Never lose sight of the people who trust your business. Centralize history, preferences, and segmentation to activate precise follow-up in one click.",
+      "Centralize history, preferences, and segmentation to follow up with more precision and less effort.",
     support: {
       history: "HISTORY",
       lastVisit: "LAST VISIT",
@@ -1217,7 +1217,7 @@ const en = {
     line3: "NO MICRO-",
     line4: "MANAGEMENT",
     description:
-      "Give your team full visibility to run daily schedules autonomously, while you keep total control of cash flow and real-time availability.",
+      "Your team needs autonomy. Your operation needs control. Here, you get both.",
     labels: {
       bookable: {
         value: "100%",
@@ -1256,7 +1256,7 @@ const en = {
     line1: "YOUR BRAND.",
     line2: "YOUR RULES.",
     description:
-      "CUSTOMIZE EVERY VISUAL DETAIL SO THE BOOKING EXPERIENCE SPEAKS LIKE YOUR BUSINESS, NOT LIKE A GENERIC APP.",
+      "Your brand doesn't end on Instagram. It also has to be felt when someone books.",
     cardsAria: "Visual customization options",
     cards: {
       branding: "BRANDING",
@@ -1267,12 +1267,13 @@ const en = {
   },
 
   businessDemoPreview: {
-    eyebrow: "INTERACTIVE PREVIEW",
-    title1: "EXPLORE THE",
-    title2: "ADMIN PANEL",
-    description: "Browse through the full admin dashboard with sample data. See how you'll manage bookings, services, staff, customers, and more — no account needed.",
-    cta: "OPEN LIVE DEMO →",
-    noAccount: "NO REGISTRATION REQUIRED",
+    eyebrow: "See the system from the inside",
+    title1: "Get to know your business's",
+    title2: "control center",
+    description:
+      "Explore the full panel with sample data and discover how to manage bookings, services, team, and clients in one place.",
+    cta: "Open live demo",
+    noAccount: "No account required",
   },
 
   businessGettingStarted: {
@@ -1282,23 +1283,23 @@ const en = {
     steps: {
       demo: {
         number: "01",
-        title: "DEMO",
-        body: "We schedule a call to understand your business and show you the platform’s potential.",
+        title: "We get to know your business",
+        body: "We schedule a call to understand your operation and show you how PRICONPRI can adapt to your business.",
       },
       onboarding: {
         number: "02",
-        title: "CUSTOM ONBOARDING",
-        body: "We configure your services, staff, site, and schedule together with our experts.",
+        title: "Tailored setup",
+        body: "We get your operation ready so PRICONPRI adapts to the way you work, not the other way around.",
       },
       review: {
         number: "03",
-        title: "DATA REVIEW",
-        body: "We validate that all information and brand customization are perfectly set.",
+        title: "We fine-tune every detail",
+        body: "We review your information, setup, and visual customization so everything launches flawlessly.",
       },
       online: {
         number: "04",
         title: "YOU ARE LIVE!",
-        body: "We launch your landing page and you start receiving bookings immediately.",
+        body: "We launch your landing page and leave your operation ready to receive bookings from day one.",
       },
     },
   },
@@ -1308,7 +1309,7 @@ const en = {
     line2: "GROW.",
     cardsAria: "Commercial plans",
     compareCta: "VIEW FULL COMPARISON",
-    compareHint: "Review all capabilities and limits in a clear plan comparison.",
+    compareHint: "Review features, limits, and differences in a clear plan comparison.",
     currency: "Bs",
     billing: {
       ariaLabel: "Billing cycle",
@@ -1325,7 +1326,7 @@ const en = {
       starter: {
         name: "STARTER",
         description:
-          "Perfect for businesses that need to operate smoothly and receive bookings.",
+          "For businesses that need to organize their operation and start receiving bookings without friction.",
         prices: {
           monthly: "350",
           yearly: "3500",
@@ -1339,7 +1340,7 @@ const en = {
       business: {
         name: "BUSINESS",
         description:
-          "Ideal for businesses that want to automate operations and gain more control.",
+          "For businesses that want more automation, greater control, and more consistent operations.",
         prices: {
           monthly: "500",
           yearly: "5000",
@@ -1353,7 +1354,7 @@ const en = {
       pro: {
         name: "PRO",
         description:
-          "Built for businesses that want to grow through campaigns and active customer communication.",
+          "For businesses that want to grow with campaigns, retention, and more active communication with their clients.",
         prices: {
           monthly: "700",
           yearly: "7000",
@@ -1425,12 +1426,12 @@ const en = {
   },
 
   businessFinalCta: {
-    line1: "IT'S TIME",
-    line2: "TO ELEVATE",
-    line3: "YOUR OPERATIONS.",
-    primaryCta: "REQUEST DEMO",
-    secondaryCta: "CONTACT",
-    microcopy: "# ASSISTED IMPLEMENTATION INCLUDED",
+    line1: "Every appointment matters.",
+    line2: "Make it",
+    line3: "matter more.",
+    primaryCta: "Book a demo",
+    secondaryCta: "Talk to the team",
+    microcopy: "Built for businesses where every appointment drives revenue, reputation, and growth.",
   },
 
   // ─── Home Navbar ───

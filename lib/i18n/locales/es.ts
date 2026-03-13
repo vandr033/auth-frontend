@@ -1037,46 +1037,46 @@ const es: TranslationKeys = {
     line3: "TURNOS.",
     line4: "LLENA TU",
     line5: "AGENDA.",
-    description: "La plataforma que convierte tu agenda en un sistema operativo para tu negocio.",
-    requestDemo: "SOLICITAR DEMO",
+    description: "Reservas online, control operativo y experiencia de marca para negocios que viven de cada cita.",
+    requestDemo: "Agendá una demo",
     viewHowItWorks: "VER CÓMO FUNCIONA",
-    bookingMicrocopy: "¿BUSCAS RESERVAR? →",
+    bookingMicrocopy: "¿Buscás tu próximo turno?",
     previewPanel: "VER PANEL DE ADMIN →",
   },
 
   businessTypes: {
-    line1: "BARBERÍAS.",
-    line2: "SALONES.",
+    line1: "Estética.",
+    line2: "Wellness.",
     previousSlide: "Anterior",
     nextSlide: "Siguiente",
     carouselAria: "Tipos de negocio",
     typingWords: {
-      spas: "SPAS",
-      unas: "UÑAS",
-      wellness: "WELLNESS",
-      masajes: "MASAJES",
-      estetica: "ESTÉTICA",
-      tattoo: "TATTOO",
-      cejas: "CEJAS",
-      pestanas: "PESTAÑAS",
-      makeup: "MAKEUP",
-      fisioterapia: "FISIOTERAPIA",
+      estetica: "Estética.",
+      wellness: "Wellness.",
+      salud: "Salud.",
+      fitness: "Fitness.",
+      spas: "Recovery.",
+      unas: "Performance.",
+      masajes: "Belleza.",
+      tattoo: "Skincare.",
+      cejas: "Movimiento.",
+      pestanas: "Cuidado.",
+      nutrition: "Nutrición.",
+      barbering: "Barbería.",
     },
     cards: {
-      barberias: "BARBERÍAS",
-      salones: "SALONES",
-      spas: "SPAS",
-      unas: "UÑAS",
-      wellness: "WELLNESS",
-      masajes: "MASAJES",
-      cejas: "CEJAS",
-      pestanas: "PESTAÑAS",
-      makeup: "MAKEUP",
-      tattoo: "TATTOO",
-      skincare: "SKINCARE",
-      depilacion: "DEPILACIÓN",
       estetica: "ESTÉTICA",
-      fisio: "FISIO",
+      wellness: "WELLNESS",
+      salud: "SALUD",
+      fitness: "FITNESS",
+      spas: "RECOVERY",
+      unas: "PERFORMANCE",
+      masajes: "BELLEZA",
+      tattoo: "SKINCARE",
+      cejas: "MOVIMIENTO",
+      pestanas: "CUIDADO",
+      nutrition: "NUTRICIÓN",
+      barbering: "BARBERÍA",
     },
   },
 
@@ -1086,72 +1086,72 @@ const es: TranslationKeys = {
     line3: "SOLUCIÓN.",
     eyebrow: "CON PRICONPRI",
     cta: "EMPIEZA HOY",
-    marketingLine: "TU OPERACIÓN DEBE BRILLAR COMO TU MARCA.",
+    marketingLine: "Tu operación tiene que estar a la altura de tu marca.",
     benefits: {
-      bookings247: "RESERVAS ONLINE 24/7",
-      reminders: "RECORDATORIOS AUTOMÁTICOS",
-      teamControl: "CONTROL DEL EQUIPO",
-      clientDatabase: "BASE DE DATOS DE CLIENTES",
-      metrics: "MÉTRICAS OPERATIVAS",
+      bookings247: "Reservas 24/7",
+      reminders: "Recordatorios automáticos",
+      teamControl: "Control del equipo",
+      clientDatabase: "Clientes mejor gestionados",
+      metrics: "Métricas en tiempo real",
     },
     before: {
-      title: "ANTES",
+      title: "Sin PriConPri",
       items: {
-        manualAgendas: "AGENDAS MANUALES",
-        whatsappBookings: "RESERVAS POR WHATSAPP",
-        scheduleErrors: "ERRORES DE HORARIO",
-        lowTeamControl: "POCO CONTROL DEL EQUIPO",
-        noFollowUp: "CLIENTES SIN SEGUIMIENTO",
+        manualAgendas: "Tu agenda depende de mensajes",
+        whatsappBookings: "Tu operación depende de memoria",
+        scheduleErrors: "Tu equipo depende de vos",
+        lowTeamControl: "Tus clientes no vuelven solos",
+        noFollowUp: "Y todo tarda más de lo que debería",
       },
     },
   },
 
   businessWalkthrough: {
-    kicker: "RECORRIDO DE FUNCIONALIDADES",
-    heading: "CADA HERRAMIENTA, EN EL MOMENTO EXACTO.",
+    kicker: "Donde todo empieza a fluir mejor",
+    heading: "Donde todo empieza a fluir mejor",
     captionLabel: "FUNCIONALIDAD CLAVE",
     steps: {
       landing: {
         number: "01",
         label: "PRESENCIA DIGITAL",
-        title: "LANDING PÚBLICA",
+        title: "LANDING PAGE PÚBLICA",
         description:
-          "Tu negocio merece una presencia digital que convierta. Personaliza tu imagen, muestra tus servicios y recibe reservas desde una web optimizada para móvil.",
-        captionTitle: "LANDING PÚBLICA",
+          "Una página pensada para que tu negocio se vea bien, se entienda rápido y reciba reservas sin fricción.",
+        captionTitle: "LANDING PAGE PÚBLICA",
       },
       agenda: {
         number: "02",
         label: "GESTIÓN DIARIA",
-        title: "AGENDA OPERATIVA",
+        title: "Tu agenda, en tiempo real",
         description:
-          "Controla turnos, disponibilidad y cambios en tiempo real. Reprograma, bloquea horarios y evita sobrecupos en segundos.",
-        captionTitle: "AGENDA OPERATIVA",
+          "Reprogramá, bloqueá horarios y ajustá disponibilidad en segundos, sin perder el control del día.",
+        captionTitle: "Tu agenda, en tiempo real",
       },
       database: {
         number: "03",
         label: "CLIENTES Y SEGUIMIENTO",
-        title: "BASE DE DATOS",
+        title: "Cada cliente, mejor recordado",
         description:
-          "Convierte cada visita en una relación. Guarda historial, preferencias y recordatorios automáticos para fidelizar mejor a cada cliente.",
-        captionTitle: "BASE DE DATOS",
+          "Cada visita deja información valiosa. PRICONPRI la convierte en una relación más inteligente.",
+        captionTitle: "Cada cliente, mejor recordado",
       },
       metrics: {
         number: "04",
         label: "PANEL DE CONTROL",
-        title: "MÉTRICAS OPERATIVAS",
+        title: "Métricas para crecer con criterio",
         description:
-          "Decide con datos, no con intuición. Visualiza ventas, rendimiento del equipo y crecimiento del negocio en un solo panel.",
-        captionTitle: "MÉTRICAS OPERATIVAS",
+          "Visualizá ventas, rendimiento del equipo y evolución del negocio en un solo panel.",
+        captionTitle: "Métricas para crecer con criterio",
       },
     },
   },
 
   businessCrmMemory: {
-    line1: "BASE DE DATOS",
-    line2: "QUE RECUERDA",
-    line3: "A TUS CLIENTES",
+    line1: "Cada cliente",
+    line2: "deja una señal.",
+    line3: "PRICONPRI la guarda.",
     description:
-      "No pierdas de vista a quienes confían en ti. Centraliza historial, preferencias y segmentación para activar un seguimiento preciso en un solo clic.",
+      "Centralizá historial, preferencias y segmentación para hacer seguimiento con más precisión y menos esfuerzo.",
     support: {
       history: "HISTORIAL",
       lastVisit: "ÚLTIMA VISITA",
@@ -1189,7 +1189,7 @@ const es: TranslationKeys = {
     line3: "SIN MICRO-",
     line4: "MANAGEMENT",
     description:
-      "Dale a tu equipo visibilidad para operar con autonomía, mientras tú mantienes control total del flujo de caja y la disponibilidad en tiempo real.",
+      "Tu equipo necesita autonomía. Tu operación necesita control. Acá tenés las dos cosas.",
     labels: {
       bookable: {
         value: "100%",
@@ -1228,7 +1228,7 @@ const es: TranslationKeys = {
     line1: "TU MARCA.",
     line2: "TUS REGLAS.",
     description:
-      "PERSONALIZA CADA DETALLE VISUAL PARA QUE TU EXPERIENCIA DE RESERVA HABLE COMO TU NEGOCIO, NO COMO UNA APP GENÉRICA.",
+      "Tu marca no termina en Instagram. También tiene que sentirse cuando alguien reserva.",
     cardsAria: "Opciones de personalización visual",
     cards: {
       branding: "BRANDING",
@@ -1239,12 +1239,13 @@ const es: TranslationKeys = {
   },
 
   businessDemoPreview: {
-    eyebrow: "VISTA PREVIA INTERACTIVA",
-    title1: "EXPLORA EL",
-    title2: "PANEL ADMIN",
-    description: "Navega por el panel de administración completo con datos de ejemplo. Mira cómo gestionarás reservas, servicios, personal, clientes y más — sin necesidad de cuenta.",
-    cta: "ABRIR DEMO EN VIVO →",
-    noAccount: "SIN REGISTRO NECESARIO",
+    eyebrow: "Mirá el sistema por dentro",
+    title1: "Conocé el centro",
+    title2: "de control de tu negocio",
+    description:
+      "Recorré el panel completo con datos de ejemplo y descubrí cómo gestionar reservas, servicios, equipo y clientes en un solo lugar.",
+    cta: "Abrir demo en vivo",
+    noAccount: "Sin cuenta",
   },
 
   businessGettingStarted: {
@@ -1254,23 +1255,23 @@ const es: TranslationKeys = {
     steps: {
       demo: {
         number: "01",
-        title: "DEMO",
-        body: "Agendamos una llamada para conocer tu negocio y mostrarte el potencial de la plataforma.",
+        title: "Conocemos tu negocio",
+        body: "Agendamos una llamada para entender tu operación y mostrarte cómo PRICONPRI puede adaptarse a tu negocio.",
       },
       onboarding: {
         number: "02",
-        title: "ONBOARDING PERSONALIZADO",
-        body: "Configuramos tus servicios, staff, sitio y horarios junto a nuestros expertos.",
+        title: "Configuración a tu medida",
+        body: "Dejamos lista tu operación para que PRICONPRI se adapte a tu forma de trabajar, no al revés.",
       },
       review: {
         number: "03",
-        title: "REVISIÓN DE DATOS",
-        body: "Validamos que toda la información y personalización de marca sea perfecta.",
+        title: "Ajustamos cada detalle",
+        body: "Revisamos información, configuración y personalización visual para que todo salga impecable.",
       },
       online: {
         number: "04",
         title: "¡YA ESTÁS ONLINE!",
-        body: "Lanzamos tu landing y empiezas a recibir reservas de inmediato.",
+        body: "Lanzamos tu landing y dejás lista una operación pensada para recibir reservas desde el primer día.",
       },
     },
   },
@@ -1281,7 +1282,7 @@ const es: TranslationKeys = {
     cardsAria: "Planes comerciales",
     compareCta: "VER COMPARACIÓN COMPLETA",
     compareHint:
-      "Consulta todas las funcionalidades y límites en una comparación clara de planes.",
+      "Revisá funciones, límites y diferencias en una comparación clara de planes.",
     currency: "Bs",
     billing: {
       ariaLabel: "Tipo de facturación",
@@ -1298,7 +1299,7 @@ const es: TranslationKeys = {
       starter: {
         name: "STARTER",
         description:
-          "Perfecto para negocios que necesitan operar y recibir reservas.",
+          "Para negocios que necesitan ordenar su operación y empezar a recibir reservas sin fricción.",
         prices: {
           monthly: "350",
           yearly: "3500",
@@ -1312,7 +1313,7 @@ const es: TranslationKeys = {
       business: {
         name: "BUSINESS",
         description:
-          "Ideal para negocios que quieren automatizar su operación y tener más control.",
+          "Para negocios que quieren automatizar más, ganar control y operar con mayor consistencia.",
         prices: {
           monthly: "500",
           yearly: "5000",
@@ -1326,7 +1327,7 @@ const es: TranslationKeys = {
       pro: {
         name: "PRO",
         description:
-          "Pensado para negocios que quieren crecer con campañas y comunicación activa con clientes.",
+          "Para negocios que quieren crecer con campañas, retención y una comunicación más activa con sus clientes.",
         prices: {
           monthly: "700",
           yearly: "7000",
@@ -1398,12 +1399,12 @@ const es: TranslationKeys = {
   },
 
   businessFinalCta: {
-    line1: "ES HORA",
-    line2: "DE ELEVAR",
-    line3: "TU GESTIÓN.",
-    primaryCta: "SOLICITAR DEMO",
-    secondaryCta: "CONTACTAR",
-    microcopy: "# IMPLEMENTACIÓN ASISTIDA INCLUIDA",
+    line1: "Cada turno cuenta.",
+    line2: "Hacé que",
+    line3: "cuente más.",
+    primaryCta: "Agendá una demo",
+    secondaryCta: "Hablar con el equipo",
+    microcopy: "Hecha para negocios donde cada cita mueve ingresos, reputación y crecimiento.",
   },
 
   homeNavbar: {
@@ -1495,8 +1496,8 @@ const es: TranslationKeys = {
   },
   homeHero: {
     badge: "Reserva tu próxima cita",
-    titlePrefix: "Encuentra tu",
-    titleHighlight: "próximo look",
+    titlePrefix: "Tu próximo turno",
+    titleHighlight: "tu próxima versión.",
     subtitle: "Descubre y reserva con los mejores barberos, estilistas y profesionales de belleza en tu zona. Disponibilidad en tiempo real y confirmación instantánea.",
     statProfessionals: "1,200+ Profesionales",
     statCities: "50+ Ciudades",

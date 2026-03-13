@@ -12,102 +12,80 @@ type CardSeed = {
 };
 
 const typingWordKeys = [
+  "businessTypes.typingWords.estetica",
+  "businessTypes.typingWords.wellness",
+  "businessTypes.typingWords.salud",
+  "businessTypes.typingWords.fitness",
   "businessTypes.typingWords.spas",
   "businessTypes.typingWords.unas",
-  "businessTypes.typingWords.wellness",
   "businessTypes.typingWords.masajes",
-  "businessTypes.typingWords.estetica",
   "businessTypes.typingWords.tattoo",
   "businessTypes.typingWords.cejas",
   "businessTypes.typingWords.pestanas",
-  "businessTypes.typingWords.makeup",
-  "businessTypes.typingWords.fisioterapia",
+  "businessTypes.typingWords.nutrition",
+  "businessTypes.typingWords.barbering",
 ] as const;
 
 const cardSeeds: CardSeed[] = [
   {
-    key: "businessTypes.cards.barberias",
-    accentClass: "bg-biz-sky-surge",
-    backgroundImage:
-      "linear-gradient(165deg, #1b1e24 2%, #4d5158 52%, #16181d 98%)",
-  },
-  {
-    key: "businessTypes.cards.salones",
-    accentClass: "bg-biz-barbie-pink",
-    backgroundImage:
-      "linear-gradient(150deg, #2b2d31 5%, #72767e 50%, #2a2d31 96%)",
-  },
-  {
-    key: "businessTypes.cards.spas",
+    key: "businessTypes.cards.estetica",
     accentClass: "bg-biz-cherry-blossom",
-    backgroundImage:
-      "linear-gradient(160deg, #54585e 1%, #9ca1a8 50%, #5f646b 100%)",
-  },
-  {
-    key: "businessTypes.cards.unas",
-    accentClass: "bg-biz-yellow",
-    backgroundImage:
-      "linear-gradient(165deg, #252830 0%, #5e636d 52%, #1f2229 100%)",
+    backgroundImage: "url('/assets/priconpri/negocios cards/aesthetics.png')",
   },
   {
     key: "businessTypes.cards.wellness",
     accentClass: "bg-biz-blush-rose",
-    backgroundImage:
-      "linear-gradient(160deg, #2c2f36 2%, #70757f 48%, #2a2d34 98%)",
+    backgroundImage: "url('/assets/priconpri/negocios cards/wellness.png')",
+  },
+  {
+    key: "businessTypes.cards.salud",
+    accentClass: "bg-biz-blush-rose",
+    backgroundImage: "url('/assets/priconpri/negocios cards/health.png')",
+  },
+  {
+    key: "businessTypes.cards.fitness",
+    accentClass: "bg-biz-sky-surge",
+    backgroundImage: "url('/assets/priconpri/negocios cards/fitness.png')",
+  },
+  {
+    key: "businessTypes.cards.spas",
+    accentClass: "bg-biz-cherry-blossom",
+    backgroundImage: "url('/assets/priconpri/negocios cards/recovery.png')",
+  },
+  {
+    key: "businessTypes.cards.unas",
+    accentClass: "bg-biz-yellow",
+    backgroundImage: "url('/assets/priconpri/negocios cards/performance.png')",
   },
   {
     key: "businessTypes.cards.masajes",
     accentClass: "bg-biz-sky-surge",
-    backgroundImage:
-      "linear-gradient(160deg, #33363d 3%, #7b808a 50%, #343740 97%)",
-  },
-  {
-    key: "businessTypes.cards.cejas",
-    accentClass: "bg-biz-barbie-pink",
-    backgroundImage:
-      "linear-gradient(160deg, #2f333a 0%, #7a7f88 53%, #2d3139 100%)",
-  },
-  {
-    key: "businessTypes.cards.pestanas",
-    accentClass: "bg-biz-yellow",
-    backgroundImage:
-      "linear-gradient(155deg, #292d34 0%, #6f7480 48%, #23272f 100%)",
-  },
-  {
-    key: "businessTypes.cards.makeup",
-    accentClass: "bg-biz-cherry-blossom",
-    backgroundImage:
-      "linear-gradient(156deg, #32363e 0%, #7c828d 49%, #2b2f38 100%)",
+    backgroundImage: "url('/assets/priconpri/negocios cards/beauty.png')",
   },
   {
     key: "businessTypes.cards.tattoo",
     accentClass: "bg-biz-sky-surge",
-    backgroundImage:
-      "linear-gradient(160deg, #2a2e34 0%, #6f7480 50%, #242830 100%)",
+    backgroundImage: "url('/assets/priconpri/negocios cards/skincare.png')",
   },
   {
-    key: "businessTypes.cards.skincare",
+    key: "businessTypes.cards.cejas",
     accentClass: "bg-biz-barbie-pink",
-    backgroundImage:
-      "linear-gradient(165deg, #2e3239 0%, #797e88 48%, #272b33 100%)",
+    backgroundImage: "url('/assets/priconpri/negocios cards/movement.png')",
   },
   {
-    key: "businessTypes.cards.depilacion",
+    key: "businessTypes.cards.pestanas",
     accentClass: "bg-biz-yellow",
-    backgroundImage:
-      "linear-gradient(165deg, #2b2f36 2%, #717682 51%, #252932 100%)",
+    backgroundImage: "url('/assets/priconpri/negocios cards/care.png')",
   },
   {
-    key: "businessTypes.cards.estetica",
+    key: "businessTypes.cards.nutrition",
     accentClass: "bg-biz-cherry-blossom",
-    backgroundImage:
-      "linear-gradient(160deg, #2f3339 0%, #787d87 50%, #2c3038 100%)",
+    backgroundImage: "url('/assets/priconpri/negocios cards/nutrition.png')",
   },
   {
-    key: "businessTypes.cards.fisio",
+    key: "businessTypes.cards.barbering",
     accentClass: "bg-biz-sky-surge",
-    backgroundImage:
-      "linear-gradient(165deg, #282c33 2%, #6f7580 51%, #252931 100%)",
+    backgroundImage: "url('/assets/priconpri/negocios cards/barbering.png')",
   },
 ];
 
@@ -292,19 +270,16 @@ export function BusinessTypesSection() {
               <article
                 key={`${card.key}-${index}`}
                 data-business-card
-                className="group relative h-[228px] w-[72vw] max-w-[260px] min-w-[170px] snap-start overflow-hidden border border-slate-200 transition-transform duration-500 ease-out hover:-translate-y-2 hover:shadow-[0_18px_38px_rgba(15,23,42,0.22)] sm:w-[42vw] sm:min-w-[186px] md:w-[30vw] lg:h-[272px] lg:w-[19.6vw] lg:min-w-[228px] xl:h-[284px] xl:w-[17.1vw] xl:min-w-[238px] 2xl:w-[15.1vw] 2xl:min-w-[246px]"
+                className="group relative aspect-square w-[72vw] max-w-[260px] min-w-[170px] snap-start overflow-hidden border border-slate-200 transition-transform duration-500 ease-out hover:-translate-y-2 hover:shadow-[0_18px_38px_rgba(15,23,42,0.22)] sm:w-[42vw] sm:min-w-[186px] md:w-[30vw] lg:max-w-[228px] lg:min-w-[228px] xl:max-w-[238px] 2xl:w-[15.1vw] 2xl:min-w-[238px]"
               >
                 <div
-                  className="absolute inset-0 grayscale transition-all duration-500 ease-out group-hover:-translate-y-3 group-hover:scale-[1.04] group-hover:grayscale-0"
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-500 ease-out"
                   style={{ backgroundImage: card.backgroundImage }}
                 />
-                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.14)_0%,rgba(255,255,255,0.03)_35%,rgba(0,0,0,0.25)_100%)] mix-blend-soft-light" />
-                <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.07)_0px,rgba(255,255,255,0.07)_1px,transparent_1px,transparent_9px)] opacity-45" />
-                <div className="absolute inset-0 bg-black/48 transition-colors duration-500 group-hover:bg-black/16" />
 
                 <div className="absolute inset-x-3 bottom-3 z-10">
                   <span className={`mb-2 block h-[3px] w-6 ${card.accentClass}`} />
-                  <h3 className="font-bebas text-[clamp(1.45rem,2vw,2.15rem)] leading-none font-semibold tracking-tight text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)]">
+                  <h3 className="font-bebas text-[clamp(1.45rem,2vw,2.15rem)] leading-none font-semibold tracking-tight text-white">
                     {card.label}
                   </h3>
                 </div>

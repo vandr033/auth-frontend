@@ -17,7 +17,7 @@ export function BusinessFinalCtaSection() {
     <section
       id="demo"
       aria-labelledby="business-final-cta-title"
-      className="w-full bg-biz-barbie-pink py-20 sm:py-24 lg:py-28 scroll-mt-20"
+      className="w-full bg-biz-barbie-pink min-h-screen flex items-center justify-center scroll-mt-20"
     >
       <div className="mx-auto w-full max-w-[1240px] px-4 text-center sm:px-6 lg:px-8">
         <motion.h2
@@ -26,7 +26,7 @@ export function BusinessFinalCtaSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1] }}
-          style={{ fontSize: "clamp(5rem, 12vw, 14rem)", lineHeight: 0.85 }}
+          style={{ fontSize: "clamp(3rem, 8vw, 10rem)", lineHeight: 0.75 }}
           className="font-business-display font-black tracking-[-0.028em] text-white uppercase"
         >
           <span className="block">{t("businessFinalCta.line1")}</span>
