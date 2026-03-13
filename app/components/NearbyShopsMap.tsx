@@ -364,7 +364,7 @@ export function NearbyShopsMap() {
               <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
                 {/* Map */}
                 <div className="relative min-h-[400px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 lg:min-h-[480px]">
-                  <div ref={mapContainerRef} className="h-full w-full" />
+                  <div ref={mapContainerRef} className="absolute inset-0" />
                 </div>
 
                 {/* Side list */}
@@ -411,7 +411,7 @@ export function NearbyShopsMap() {
           {!loading && locationDenied && (
             <div className="mt-8">
               <div className="relative min-h-[400px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-                <div ref={mapContainerRef} className="h-full w-full" />
+                <div ref={mapContainerRef} className="absolute inset-0" />
               </div>
             </div>
           )}

@@ -1266,6 +1266,15 @@ const en = {
     },
   },
 
+  businessDemoPreview: {
+    eyebrow: "INTERACTIVE PREVIEW",
+    title1: "EXPLORE THE",
+    title2: "ADMIN PANEL",
+    description: "Browse through the full admin dashboard with sample data. See how you'll manage bookings, services, staff, customers, and more — no account needed.",
+    cta: "OPEN LIVE DEMO →",
+    noAccount: "NO REGISTRATION REQUIRED",
+  },
+
   businessGettingStarted: {
     line1: "HOW TO",
     line2: "START?",

@@ -1,5 +1,6 @@
 import { BusinessBrandRulesSection } from "@/app/components/business-brand-rules-section";
 import { BusinessCrmMemorySection } from "@/app/components/business-crm-memory-section";
+import { BusinessDemoPreviewSection } from "@/app/components/business-demo-preview-section";
 import { BusinessFinalCtaSection } from "@/app/components/business-final-cta-section";
 import { BusinessGettingStartedSection } from "@/app/components/business-getting-started-section";
 import { BusinessHero } from "@/app/components/business-hero";
@@ -19,6 +20,7 @@ export default function NegociosPage() {
       <BusinessCrmMemorySection />
       <BusinessStaffAutonomySection />
       <BusinessBrandRulesSection />
+      <BusinessDemoPreviewSection />
       <BusinessGettingStartedSection />
       <BusinessPricingSection />
       <BusinessFinalCtaSection />

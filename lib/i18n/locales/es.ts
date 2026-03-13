@@ -1238,6 +1238,15 @@ const es: TranslationKeys = {
     },
   },
 
+  businessDemoPreview: {
+    eyebrow: "VISTA PREVIA INTERACTIVA",
+    title1: "EXPLORA EL",
+    title2: "PANEL ADMIN",
+    description: "Navega por el panel de administración completo con datos de ejemplo. Mira cómo gestionarás reservas, servicios, personal, clientes y más — sin necesidad de cuenta.",
+    cta: "ABRIR DEMO EN VIVO →",
+    noAccount: "SIN REGISTRO NECESARIO",
+  },
+
   businessGettingStarted: {
     line1: "¿CÓMO",
     line2: "EMPEZAR?",
