@@ -10,6 +10,7 @@ import {
     Pencil,
     Trash2,
     UserPlus,
+    Mail,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,7 @@ export default function ShopUsersPage() {
     const [deletingUser, setDeletingUser] = useState<ShopUser | null>(null);
 
     const [submitting, setSubmitting] = useState(false);
+    const [resendingInviteId, setResendingInviteId] = useState<number | null>(null);
 
     // Fetch shop and users
     const fetchData = useCallback(async () => {
@@ -272,6 +274,32 @@ export default function ShopUsersPage() {
         }
     };
 
+    const handleResendInvite = async (shopUser: ShopUser) => {
+        setResendingInviteId(shopUser.company_user_id);
+
+        try {
+            const response = await fetch(
+                getApiUrl(`/api/super-admin/shops/${shopId}/users/${shopUser.company_user_id}/resend-invite`),
+                {
+                    method: "POST",
+                    credentials: "include",
+                }
+            );
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.message || data.error || t("superAdminShops.resendInviteFailed"));
+            }
+
+            await notify.success(t("superAdminShops.resendInviteSuccess"));
+            await fetchData();
+        } catch (err) {
+            await notify.error(err instanceof Error ? err.message : t("superAdminShops.resendInviteFailed"));
+        } finally {
+            setResendingInviteId(null);
+        }
+    };
+
     // Get user initials
     const getInitials = (user: ShopUser["user"]) => {
         if (user.first_name) return user.first_name.charAt(0).toUpperCase();
@@ -361,13 +389,28 @@ export default function ShopUsersPage() {
                                                         {shopUser.user.last_name ? ` ${shopUser.user.last_name}` : ""}
                                                     </p>
                                                     <p className="text-sm text-slate-500">{shopUser.user.email}</p>
+                                                    <div className="mt-1">
+                                                        <Badge className={roleColors[shopUser.role] || roleColors.CUSTOMER}>
+                                                            {shopUser.role}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge className={roleColors[shopUser.role] || roleColors.CUSTOMER}>
-                                                {shopUser.role}
-                                            </Badge>
+                                            {shopUser.staff_profile?.status === "PENDING" ? (
+                                                <Badge className="bg-amber-100 text-amber-700">
+                                                    {t("adminBookings.pending")}
+                                                </Badge>
+                                            ) : shopUser.staff_profile?.status === "INACTIVE" ? (
+                                                <Badge variant="secondary">{t("adminServices.inactive")}</Badge>
+                                            ) : shopUser.staff_profile?.status === "ACTIVE" ? (
+                                                <Badge className="bg-emerald-100 text-emerald-700">
+                                                    {t("superAdminShops.active")}
+                                                </Badge>
+                                            ) : (
+                                                "--"
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             {shopUser.staff_profile?.display_name || "--"}
@@ -383,6 +426,21 @@ export default function ShopUsersPage() {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-1">
+                                                {shopUser.staff_profile?.status === "PENDING" && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => void handleResendInvite(shopUser)}
+                                                        disabled={resendingInviteId === shopUser.company_user_id}
+                                                        title={t("superAdminShops.resendInvite")}
+                                                    >
+                                                        {resendingInviteId === shopUser.company_user_id ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <Mail className="h-4 w-4" />
+                                                        )}
+                                                    </Button>
+                                                )}
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"

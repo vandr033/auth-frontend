@@ -493,6 +493,9 @@ const es: TranslationKeys = {
     updateStaff: "Actualizar personal",
     addStaff: "Agregar personal",
     removeStaff: "Eliminar personal",
+    resendInvite: "Reenviar invitación",
+    resendInviteSuccess: "Invitación reenviada correctamente",
+    resendInviteFailed: "No se pudo reenviar la invitación",
   },
 
   staffProfile: {
@@ -2074,6 +2077,9 @@ const es: TranslationKeys = {
     removeUser: "Quitar usuario",
     removeUserConfirm: "¿Seguro que deseas quitar a {{email}} de esta tienda? Se revocará su acceso pero no se eliminará su cuenta.",
     removeUserFailed: "No se pudo quitar el usuario",
+    resendInvite: "Reenviar invitación",
+    resendInviteSuccess: "Invitación reenviada correctamente",
+    resendInviteFailed: "No se pudo reenviar la invitación",
     removing: "Quitando...",
     usersForShop: "Usuarios de {{name}}",
     enterShop: "Entrar a la tienda",

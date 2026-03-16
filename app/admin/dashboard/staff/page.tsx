@@ -143,6 +143,7 @@ export default function StaffPage() {
     const [formError, setFormError] = useState<string | null>(null);
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [resendingInviteId, setResendingInviteId] = useState<number | null>(null);
 
 
     // Fetch staff and services
@@ -407,6 +408,29 @@ export default function StaffPage() {
         }
     };
 
+    const handleResendInvite = async (member: Staff) => {
+        if (member.status !== "PENDING") return;
+
+        setResendingInviteId(member.id);
+        try {
+            const response = await fetch(getApiUrl(`/api/admin/staff/${member.id}/resend-invite`), {
+                method: "POST",
+                credentials: "include",
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data?.message || data?.error || t("adminStaff.resendInviteFailed"));
+            }
+
+            await notify.success(t("adminStaff.resendInviteSuccess"));
+        } catch (err) {
+            await notify.error(err instanceof Error ? err.message : t("adminStaff.resendInviteFailed"));
+        } finally {
+            setResendingInviteId(null);
+        }
+    };
+
     // Loading state
     if (authLoading || loading) {
         return (
@@ -557,6 +581,22 @@ export default function StaffPage() {
 
                                     {/* Actions */}
                                     <div className="flex gap-2 pt-2 border-t border-slate-100">
+                                        {member.status === "PENDING" && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => void handleResendInvite(member)}
+                                                disabled={resendingInviteId === member.id}
+                                                className="flex-1"
+                                            >
+                                                {resendingInviteId === member.id ? (
+                                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                                ) : (
+                                                    <Mail className="h-4 w-4 mr-1" />
+                                                )}
+                                                {t("adminStaff.resendInvite")}
+                                            </Button>
+                                        )}
                                         <Button
                                             variant="outline"
                                             size="sm"

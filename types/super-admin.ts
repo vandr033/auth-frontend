@@ -95,6 +95,8 @@ export interface ShopUser {
         display_name: string;
         is_bookable: boolean;
         image_url?: string;
+        status?: "PENDING" | "ACTIVE" | "INACTIVE";
+        invite_token?: string | null;
     };
 }
 

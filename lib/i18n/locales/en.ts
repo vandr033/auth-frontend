@@ -504,6 +504,9 @@ const en = {
     updateStaff: "Update Staff",
     addStaff: "Add Staff",
     removeStaff: "Remove Staff",
+    resendInvite: "Resend invite",
+    resendInviteSuccess: "Invitation resent successfully",
+    resendInviteFailed: "Failed to resend invitation",
   },
 
   staffProfile: {
@@ -2125,6 +2128,9 @@ const en = {
     removeUser: "Remove User",
     removeUserConfirm: "Are you sure you want to remove {{email}} from this shop? This will revoke their access but won't delete their account.",
     removeUserFailed: "Failed to remove user",
+    resendInvite: "Resend invite",
+    resendInviteSuccess: "Invitation resent successfully",
+    resendInviteFailed: "Failed to resend invitation",
     removing: "Removing...",
     usersForShop: "Users for {{name}}",
     enterShop: "Enter Shop",
