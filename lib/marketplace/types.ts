@@ -14,6 +14,7 @@ export interface MarketplaceResultItem {
   companyId: number;
   slug: string;
   name: string;
+  currency?: string | null;
   businessType: string | null;
   businessTypeI18n?: Record<string, string> | null;
   zoneOrArea: string | null;
@@ -70,6 +71,7 @@ export interface MarketplaceMapPin {
     matchedSlotDate?: string;
     matchedSlotTime: string;
     priceFrom: number;
+    currency?: string | null;
     city?: string | null;
   };
 }

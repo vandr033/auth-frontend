@@ -4,6 +4,8 @@ import React, { useMemo, useRef, useEffect } from "react";
 import { format, addDays, isSameDay, parseISO, differenceInMinutes } from "date-fns";
 import { AdminBooking } from "@/types/admin-booking";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { getDateLocale } from "@/lib/date-locale";
 import { type DaySchedule } from "@/app/admin/lib/adminApi";
 import { getBookingDisplayStatus } from "../lib/bookingStatus";
 
@@ -118,6 +120,8 @@ function computeOverlapLayout(bookings: AdminBooking[]): Map<number, OverlapLayo
 }
 
 export function BookingCalendarView({ bookings, currentDate, dayCount, onBookingClick, businessHours = [] }: BookingCalendarViewProps) {
+    const { t, locale } = useI18n();
+    const dateFnsLocale = getDateLocale(locale);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Generate days array based on dayCount
@@ -183,7 +187,7 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
         const duration = differenceInMinutes(end, start) / 60;
 
         const top = `${startHour * ROW_HEIGHT}px`;
-        const height = `${Math.max(duration * ROW_HEIGHT, 30)}px`;
+        const height = `${Math.max(duration * ROW_HEIGHT, 24)}px`;
 
         if (layout && layout.totalColumns > 1) {
             const colWidth = 100 / layout.totalColumns;
@@ -193,6 +197,12 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
         }
 
         return { top, height, left: "4px", right: "4px" };
+    };
+
+    /** True when the booking block is tall enough for multiple lines */
+    const isCompact = (booking: AdminBooking) => {
+        const mins = differenceInMinutes(parseISO(booking.end_at), parseISO(booking.start_at));
+        return mins <= 30;
     };
 
     const getStaffColor = (staffId: number) => {
@@ -230,7 +240,7 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                         style={{ gridTemplateColumns }}
                     >
                         <div className="sticky left-0 z-20 border-r border-surface-border bg-page/90 px-2 py-3 text-center text-[11px] font-semibold text-text-muted backdrop-blur-sm sm:text-xs">
-                            TIME
+                            {t("adminBookings.time")}
                         </div>
                         {days.map((date) => {
                             const dayOfWeek = date.getDay();
@@ -247,7 +257,7 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                     )}
                                 >
                                     <div className="mb-1 text-[10px] font-medium uppercase text-text-muted sm:text-xs">
-                                        {format(date, "EEE")}
+                                        {format(date, "EEE", { locale: dateFnsLocale })}
                                     </div>
                                     <div className={cn(
                                         "mx-auto flex h-7 w-7 items-center justify-center rounded-full text-base font-bold sm:h-8 sm:w-8 sm:text-lg",
@@ -257,12 +267,12 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                     </div>
                                     {dayCount <= 3 && (
                                         <div className="mt-1 text-[10px] text-text-muted sm:text-xs">
-                                            {format(date, "MMM")}
+                                            {format(date, "MMM", { locale: dateFnsLocale })}
                                         </div>
                                     )}
                                     {isDayClosed && (
                                         <div className="mt-1 text-[10px] font-medium text-rose-500 sm:text-xs">
-                                            Closed
+                                            {t("adminBookings.closed")}
                                         </div>
                                     )}
                                 </div>
@@ -287,7 +297,7 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                         key={hour}
                                         className="h-[60px] border-b border-surface-border px-2 py-2 text-right text-xs text-text-muted"
                                     >
-                                        {format(new Date().setHours(hour, 0), "h a")}
+                                        {format(new Date().setHours(hour, 0), "h a", { locale: dateFnsLocale })}
                                     </div>
                                 ))}
                             </div>
@@ -321,7 +331,7 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                         {isDayClosed && (
                                             <div className="pointer-events-none absolute inset-0 z-[1] flex items-start justify-center bg-rose-50/60 pt-4">
                                                 <span className="rounded-full bg-rose-500 px-2 py-1 text-[10px] font-semibold text-white shadow-sm sm:px-3 sm:text-xs">
-                                                    Closed
+                                                    {t("adminBookings.closed")}
                                                 </span>
                                             </div>
                                         )}
@@ -343,18 +353,21 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                         {dayBookings.map((booking) => {
                                             const layout = overlapLayout.get(booking.id);
                                             const displayStatus = getBookingDisplayStatus(booking);
+                                            const compact = isCompact(booking);
                                             return (
                                                 <button
                                                     key={booking.id}
                                                     onClick={() => onBookingClick(booking)}
                                                     className={cn(
-                                                        "absolute overflow-hidden rounded-md border p-1.5 text-left text-xs shadow-sm transition-transform hover:z-10 hover:scale-[1.02]",
+                                                        "absolute overflow-hidden rounded-md border text-left text-xs shadow-sm transition-transform hover:z-10 hover:scale-[1.02]",
+                                                        compact ? "px-1.5 py-0.5" : "p-1.5",
                                                         getStaffColor(booking.staff.id)
                                                     )}
                                                     style={getBookingStyle(booking, layout)}
+                                                    title={`${booking.customer.full_name} — ${booking.services.map(s => s.name).join(", ")}`}
                                                 >
                                                     <div className="flex items-center gap-1">
-                                                        <div className="flex-1 truncate font-semibold">
+                                                        <div className={cn("flex-1 truncate font-semibold", compact && "text-[10px] leading-tight")}>
                                                             {booking.customer.full_name}
                                                         </div>
                                                         <span className={cn(
@@ -362,12 +375,16 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                                             STATUS_BADGES[displayStatus] || STATUS_BADGES.PENDING
                                                         )} title={displayStatus} />
                                                     </div>
-                                                    <div className="truncate opacity-90">
-                                                        {booking.services.map(s => s.name).join(", ")}
-                                                    </div>
-                                                    <div className="mt-0.5 truncate text-[10px] opacity-75">
-                                                        {format(parseISO(booking.start_at), "h:mm a")}
-                                                    </div>
+                                                    {!compact && (
+                                                        <div className="truncate opacity-90">
+                                                            {booking.services.map(s => s.name).join(", ")}
+                                                        </div>
+                                                    )}
+                                                    {!compact && (
+                                                        <div className="mt-0.5 truncate text-[10px] opacity-75">
+                                                            {format(parseISO(booking.start_at), "h:mm a", { locale: dateFnsLocale })}
+                                                        </div>
+                                                    )}
                                                 </button>
                                             );
                                         })}

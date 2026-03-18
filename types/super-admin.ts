@@ -29,6 +29,7 @@ export interface SuperAdminShop {
     latitude?: number;
     longitude?: number;
     timezone: string;
+    currency: string;
     plan: ShopPlan;
     billingCycle: BillingCycle;
     pricePaid?: string | number | null;
@@ -55,6 +56,7 @@ export interface CreateShopPayload {
     state?: string;
     country_code?: string;
     timezone?: string;
+    currency: string;
     latitude?: number;
     longitude?: number;
     company_type_id: number;

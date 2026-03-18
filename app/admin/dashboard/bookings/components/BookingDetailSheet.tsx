@@ -26,7 +26,6 @@ import {
     Clock,
     User,
     Scissors,
-    DollarSign,
     Phone,
     Mail,
     Pencil,
@@ -35,15 +34,18 @@ import {
 } from "lucide-react";
 import { AdminBooking } from "@/types/admin-booking";
 import { getImageUrl } from "@/utils/image-url";
-import { useT } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
+import { getDateLocale } from "@/lib/date-locale";
 import { notify } from "@/lib/notify";
 import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
 import { BookingEditDialog } from "./BookingEditDialog";
 import { getBookingDisplayStatus } from "../lib/bookingStatus";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 interface BookingDetailSheetProps {
     booking: AdminBooking | null;
     isOpen: boolean;
+    currency?: string | null;
     onClose: () => void;
     onStatusUpdate: (id: number, status: AdminBooking["status"]) => Promise<void>;
     onMarkNoShow: (id: number) => Promise<void>;
@@ -67,6 +69,7 @@ const STATUS_STYLES: Record<AdminBooking["status"], string> = {
 export function BookingDetailSheet({
     booking,
     isOpen,
+    currency,
     onClose,
     onStatusUpdate,
     onMarkNoShow,
@@ -75,7 +78,8 @@ export function BookingDetailSheet({
     noShowNotificationUpgradeMessage,
     onRefresh,
 }: BookingDetailSheetProps) {
-    const t = useT();
+    const { t, locale } = useI18n();
+    const dateFnsLocale = getDateLocale(locale);
     const customerPhone = (booking?.customer.phone || "").trim();
     const customerEmail = (booking?.customer.email || "").trim();
     const hasPhone = customerPhone.length > 0;
@@ -380,12 +384,12 @@ export function BookingDetailSheet({
                             #{booking.id}
                         </Badge>
                         <Badge className={STATUS_STYLES[displayStatus]}>
-                            {displayStatus === "NO_SHOW" ? t("adminBookings.noShow") : displayStatus}
+                            {t(`adminBookings.${displayStatus === "NO_SHOW" ? "noShow" : displayStatus.toLowerCase()}`)}
                         </Badge>
                     </div>
                     <SheetTitle>{t("adminBookings.details")}</SheetTitle>
                     <SheetDescription>
-                        {t("adminBookings.createdOn", { date: format(parseISO(booking.start_at), "MMM d, yyyy") })}
+                        {t("adminBookings.createdOn", { date: format(parseISO(booking.start_at), "PPP", { locale: dateFnsLocale }) })}
                     </SheetDescription>
                 </SheetHeader>
 
@@ -396,7 +400,7 @@ export function BookingDetailSheet({
                             <div>
                                 <p className="text-sm font-medium">{t("adminBookings.date")}</p>
                                 <p className="text-sm text-text-muted">
-                                    {format(parseISO(booking.start_at), "EEEE, MMMM d, yyyy")}
+                                    {format(parseISO(booking.start_at), "EEEE, MMMM d, yyyy", { locale: dateFnsLocale })}
                                 </p>
                             </div>
                         </div>
@@ -405,7 +409,7 @@ export function BookingDetailSheet({
                             <div>
                                 <p className="text-sm font-medium">{t("adminBookings.time")}</p>
                                 <p className="text-sm text-text-muted">
-                                    {format(parseISO(booking.start_at), "h:mm a")} - {format(parseISO(booking.end_at), "h:mm a")}
+                                    {format(parseISO(booking.start_at), "h:mm a", { locale: dateFnsLocale })} - {format(parseISO(booking.end_at), "h:mm a", { locale: dateFnsLocale })}
                                 </p>
                             </div>
                         </div>
@@ -460,10 +464,7 @@ export function BookingDetailSheet({
                             ))}
                             <div className="flex items-center justify-between bg-page p-3 font-semibold">
                                 <span className="text-sm">{t("adminBookings.totalPrice")}</span>
-                                <span className="flex items-center">
-                                    <DollarSign className="h-4 w-4" />
-                                    {(booking.total_price / 100).toFixed(2)}
-                                </span>
+                                <span>{formatCurrencyFromCents(booking.total_price, currency)}</span>
                             </div>
                         </div>
                     </div>
@@ -515,6 +516,7 @@ export function BookingDetailSheet({
                 <BookingEditDialog
                     booking={booking}
                     isOpen={editOpen}
+                    currency={currency}
                     onClose={() => setEditOpen(false)}
                     onSaved={() => {
                         onRefresh?.();

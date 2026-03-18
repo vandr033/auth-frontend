@@ -48,16 +48,9 @@ import { notify } from "@/lib/notify";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 const HISTORY_PAGE_SIZE = 10;
-
-const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 2,
-    }).format(cents / 100);
-};
 
 const formatDate = (dateStr: string | null, fallback: string) => {
     if (!dateStr) return fallback;
@@ -101,6 +94,8 @@ function getSourceTranslationKey(source: CustomerHistoryItem["source"]) {
 export default function CustomersPage() {
     const t = useT();
     const { companyUser, user } = useAdminAuth();
+    const currency = companyUser?.company?.currency;
+    const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
     const plan = resolveShopPlan(companyUser?.company?.plan);
     const canImportExport = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "CUSTOMER_IMPORT_EXPORT");
     const canBulkMessaging = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BULK_WHATSAPP_MESSAGING");

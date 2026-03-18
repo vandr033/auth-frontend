@@ -679,3 +679,82 @@ export async function cancelTimeOffRequest(requestId: number): Promise<StaffTime
     });
     return response.data;
 }
+
+// ============ REVIEWS ============
+
+export interface AdminReviewFilters {
+    page?: number;
+    limit?: number;
+    search?: string;
+    rating?: number;
+    staffId?: number;
+    serviceId?: number;
+    hasComment?: boolean;
+    dateFrom?: string;
+    dateTo?: string;
+}
+
+export interface AdminReview {
+    id: number;
+    rating: number;
+    comment: string | null;
+    rating_service_quality: number | null;
+    rating_staff_attention: number | null;
+    rating_punctuality: number | null;
+    rating_cleanliness: number | null;
+    created_at: string;
+    user: { first_name: string | null; last_name: string | null; image: string | null };
+    service: { id: number; name: string } | null;
+    staff: { id: number; display_name: string } | null;
+    booking: { id: number; start_at: string; end_at: string; status: string } | null;
+    company: { id: number; name: string } | null;
+}
+
+export interface AdminReviewsResponse {
+    reviews: AdminReview[];
+    pagination: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+        hasNextPage: boolean;
+    };
+}
+
+export interface ReviewExtendedMetrics {
+    average: number;
+    count: number;
+    distribution: Record<number, number>;
+    subRatings: {
+        serviceQuality: number | null;
+        staffAttention: number | null;
+        punctuality: number | null;
+        cleanliness: number | null;
+    };
+    volume: Array<{ month: string; count: number; avgRating: number }>;
+    topStaff: Array<{ staffId: number; name: string; avgRating: number; reviewCount: number }>;
+    topServices: Array<{ serviceId: number; name: string; avgRating: number; reviewCount: number }>;
+    recentLowRatings: AdminReview[];
+}
+
+export async function getAdminReviews(filters: AdminReviewFilters = {}): Promise<AdminReviewsResponse> {
+    const params = new URLSearchParams();
+    if (filters.page) params.set("page", String(filters.page));
+    if (filters.limit) params.set("limit", String(filters.limit));
+    if (filters.search) params.set("search", filters.search);
+    if (filters.rating) params.set("rating", String(filters.rating));
+    if (filters.staffId) params.set("staff_id", String(filters.staffId));
+    if (filters.serviceId) params.set("service_id", String(filters.serviceId));
+    if (filters.hasComment !== undefined) params.set("has_comment", String(filters.hasComment));
+    if (filters.dateFrom) params.set("date_from", filters.dateFrom);
+    if (filters.dateTo) params.set("date_to", filters.dateTo);
+
+    const query = params.toString();
+    const response = await apiFetch<{ data: AdminReviewsResponse }>(`/api/admin/reviews${query ? `?${query}` : ""}`);
+    return response.data;
+}
+
+export async function getReviewExtendedMetrics(): Promise<ReviewExtendedMetrics> {
+    const response = await apiFetch<{ data: ReviewExtendedMetrics }>("/api/admin/reviews/metrics");
+    return response.data;
+}

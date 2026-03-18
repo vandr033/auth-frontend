@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useT } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
+import { getDateLocale } from "@/lib/date-locale";
 import { format, addDays, addMonths, endOfMonth, startOfMonth, subDays, subMonths } from "date-fns";
 import {
     Calendar as CalendarIcon,
@@ -63,8 +64,10 @@ const STATUS_OPTIONS: { value: BookingStatus | "ALL"; label: string }[] = [
 
 export default function BookingsPage() {
     const { isAuthenticated, role, companyUser, user } = useAdminAuth();
-    const t = useT();
+    const { t, locale } = useI18n();
+    const dateFnsLocale = getDateLocale(locale);
     const isStaffRole = role === "STAFF";
+    const currency = companyUser?.company?.currency;
     const plan = resolveShopPlan(companyUser?.company?.plan);
     const canSendReminders = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BOOKING_REMINDERS");
     const canSendTransactionalNotifications =
@@ -358,14 +361,14 @@ export default function BookingsPage() {
     // Date range label
     const dateRangeLabel = useMemo(() => {
         if (viewMode === "month") {
-            return format(currentDate, "MMMM yyyy");
+            return format(currentDate, "MMMM yyyy", { locale: dateFnsLocale });
         }
         if (dayCount === 1) {
-            return format(currentDate, "EEEE, MMM d, yyyy");
+            return format(currentDate, "EEEE, PPP", { locale: dateFnsLocale });
         }
         const endDate = addDays(currentDate, dayCount - 1);
-        return `${format(currentDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
-    }, [currentDate, dayCount, viewMode]);
+        return `${format(currentDate, "MMM d", { locale: dateFnsLocale })} - ${format(endDate, "PPP", { locale: dateFnsLocale })}`;
+    }, [currentDate, dayCount, viewMode, dateFnsLocale]);
 
     if (!isAuthenticated) return null;
 
@@ -468,7 +471,7 @@ export default function BookingsPage() {
                                     <CalendarIcon className="mr-2 h-4 w-4" /> {t('adminBookings.calendar')}
                                 </TabsTrigger>
                                 <TabsTrigger value="month" className="px-3">
-                                    Mes
+                                    {t('adminBookings.month')}
                                 </TabsTrigger>
                                 <TabsTrigger value="list" className="px-3">
                                     <ListIcon className="mr-2 h-4 w-4" /> {t('adminBookings.list')}
@@ -597,6 +600,7 @@ export default function BookingsPage() {
                 ) : (
                     <BookingListView
                         bookings={bookings}
+                        currency={currency}
                         onBookingClick={handleBookingClick}
                     />
                 )}
@@ -609,6 +613,7 @@ export default function BookingsPage() {
                     onClose={() => setIsNewBookingOpen(false)}
                     staffList={staffList}
                     serviceList={serviceList}
+                    currency={currency}
                     onCreate={handleCreateBooking}
                 />
             )}
@@ -616,6 +621,7 @@ export default function BookingsPage() {
             <BookingDetailSheet
                 booking={selectedBooking}
                 isOpen={isDetailOpen}
+                currency={currency}
                 onClose={() => setIsDetailOpen(false)}
                 onStatusUpdate={handleStatusUpdate}
                 onMarkNoShow={handleMarkNoShow}

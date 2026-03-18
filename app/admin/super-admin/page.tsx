@@ -25,6 +25,7 @@ import {
     Search,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
@@ -84,7 +85,7 @@ interface SuperAdminMetrics {
     };
 }
 
-const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const formatCurrency = (cents: number) => formatCurrencyFromCents(cents);
 const formatPercent = (ratio: number) => `${(ratio * 100).toFixed(1)}%`;
 type DashboardRangePreset = "today" | "7d" | "30d";
 

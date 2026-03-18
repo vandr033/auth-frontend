@@ -264,6 +264,52 @@ export const businessPricingCompareCategories: BusinessPricingCompareCategory[] 
     ],
   },
   {
+    id: "reviews",
+    titleKey: "businessPricing.comparison.categories.reviews",
+    features: [
+      {
+        key: "businessPricing.comparison.rows.publicReviews",
+        values: {
+          starter: { type: "boolean", value: true },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
+        },
+      },
+      {
+        key: "businessPricing.comparison.rows.reviewManagement",
+        values: {
+          starter: { type: "boolean", value: false },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
+        },
+      },
+      {
+        key: "businessPricing.comparison.rows.reviewAnalytics",
+        values: {
+          starter: { type: "boolean", value: false },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
+        },
+      },
+      {
+        key: "businessPricing.comparison.rows.reviewRequestEmail",
+        values: {
+          starter: { type: "boolean", value: false },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
+        },
+      },
+      {
+        key: "businessPricing.comparison.rows.reviewRequestWhatsapp",
+        values: {
+          starter: { type: "boolean", value: false },
+          business: { type: "boolean", value: false },
+          pro: { type: "boolean", value: true },
+        },
+      },
+    ],
+  },
+  {
     id: "growth",
     titleKey: "businessPricing.comparison.categories.growth",
     features: [

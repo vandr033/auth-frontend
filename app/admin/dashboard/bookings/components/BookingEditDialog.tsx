@@ -31,10 +31,12 @@ import { Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useT } from "@/lib/i18n";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 interface BookingEditDialogProps {
     booking: AdminBooking;
     isOpen: boolean;
+    currency?: string | null;
     onClose: () => void;
     onSaved: () => void;
 }
@@ -46,7 +48,7 @@ type BookingUpdatesPayload = {
     notes?: string | null;
 };
 
-export function BookingEditDialog({ booking, isOpen, onClose, onSaved }: BookingEditDialogProps) {
+export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved }: BookingEditDialogProps) {
     const t = useT();
     const { role } = useAdminAuth();
     const isStaffRole = role === "STAFF";
@@ -265,7 +267,7 @@ export function BookingEditDialog({ booking, isOpen, onClose, onSaved }: Booking
                                                             </span>
                                                         </div>
                                                         <span className="text-sm text-slate-600">
-                                                            ${(service.price_cents / 100).toFixed(2)}
+                                                            {formatCurrencyFromCents(service.price_cents, currency)}
                                                         </span>
                                                     </label>
                                                 ))}
@@ -293,7 +295,7 @@ export function BookingEditDialog({ booking, isOpen, onClose, onSaved }: Booking
                                     {t('adminBookings.servicesSummary', { count: selectedServiceIds.length, duration: totalDuration })}
                                 </div>
                                 <div className="text-lg font-bold text-slate-900">
-                                    ${(totalPrice / 100).toFixed(2)}
+                                    {formatCurrencyFromCents(totalPrice, currency)}
                                 </div>
                             </div>
                         )}

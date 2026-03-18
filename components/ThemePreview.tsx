@@ -115,7 +115,7 @@ export function ThemePreview({ config, heroVariant = "hero-cinematic", fontPairi
                             <CardFooter className="pt-2">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-brand">
                                     <span className="rounded-full bg-brand-soft-bg px-2.5 py-0.5 text-brand-soft-text">
-                                        $45
+                                        Bs. 45
                                     </span>
                                     <span className="text-text-muted font-normal text-xs">• 60 min</span>
                                 </div>

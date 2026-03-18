@@ -35,6 +35,7 @@ import {
     LocationPicker,
     type LocationAutofillUpdate,
 } from "@/components/admin/location/LocationPicker";
+import { formatCurrencyAmount } from "@/lib/currency";
 
 // Combined interface
 interface CompanySettings {
@@ -49,6 +50,7 @@ interface CompanySettings {
     state: string;
     country_code: string;
     timezone: string;
+    currency: string;
     google_maps_url: string;
     latitude: string;
     longitude: string;
@@ -86,6 +88,7 @@ const initialSettings: CompanySettings = {
     state: "",
     country_code: "BO",
     timezone: "America/La_Paz",
+    currency: "Bs.",
     google_maps_url: "",
     latitude: "",
     longitude: "",
@@ -112,21 +115,27 @@ function formatDateTime(value: string | null | undefined): string {
     return parsed.toLocaleString();
 }
 
-function formatPrice(value: string | null): string {
+function formatPrice(value: string | null, currency?: string | null): string {
     if (!value) return "—";
     const parsed = Number.parseFloat(value);
     if (!Number.isFinite(parsed)) return value;
-    return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(parsed);
+    return formatCurrencyAmount(parsed, currency);
 }
 
 function formatChangePair(previousValue: string, nextValue: string): string {
     return `${previousValue} → ${nextValue}`;
 }
+
+const PLAN_LABEL_KEY: Record<string, string> = {
+    STARTER: "adminSettings.planStarter",
+    BUSINESS: "adminSettings.planBusiness",
+    PRO: "adminSettings.planPro",
+};
+
+const BILLING_LABEL_KEY: Record<string, string> = {
+    MONTHLY: "adminSettings.billingMonthly",
+    YEARLY: "adminSettings.billingYearly",
+};
 
 export default function SettingsPage() {
     const { companyId, companyUser, user, isAuthenticated, loading: authLoading } = useAdminAuth();
@@ -179,6 +188,7 @@ export default function SettingsPage() {
                 state: company.state || prev.state,
                 country_code: company.country_code || prev.country_code,
                 timezone: company.timezone || prev.timezone,
+                currency: company.currency || prev.currency,
                 google_maps_url: company.google_maps_url || prev.google_maps_url,
                 latitude: company.latitude?.toString() || prev.latitude,
                 longitude: company.longitude?.toString() || prev.longitude,
@@ -283,6 +293,12 @@ export default function SettingsPage() {
     const handleSave = async () => {
         if (!companyId) return;
 
+        const normalizedCurrency = settings.currency.trim();
+        if (!normalizedCurrency || normalizedCurrency.length > 3) {
+            await notify.warning(t("adminSettings.currencyInvalid"));
+            return;
+        }
+
         setSaving(true);
         try {
             let qrUrl = settings.qr_image_url;
@@ -318,6 +334,7 @@ export default function SettingsPage() {
                 state: settings.state,
                 country_code: settings.country_code,
                 timezone: settings.timezone,
+                currency: normalizedCurrency,
                 google_maps_url: settings.google_maps_url,
                 latitude: settings.latitude ? parseFloat(settings.latitude) : null,
                 longitude: settings.longitude ? parseFloat(settings.longitude) : null,
@@ -385,7 +402,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6 pb-12 overflow-x-hidden">
+        <div className="max-w-4xl mx-auto space-y-6 pb-12">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -498,6 +515,20 @@ export default function SettingsPage() {
                                     onChange={(e) => handleChange('email', e.target.value)}
                                     placeholder={t('adminSettings.emailPlaceholder')}
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="currency">{t('adminSettings.currency')}</Label>
+                                <Input
+                                    id="currency"
+                                    value={settings.currency}
+                                    onChange={(e) =>
+                                        handleChange('currency', e.target.value.slice(0, 3))
+                                    }
+                                    placeholder={t('adminSettings.currencyPlaceholder')}
+                                    maxLength={3}
+                                    className="uppercase"
+                                />
+                                <p className="text-xs text-slate-500">{t('adminSettings.currencyCodeHelp')}</p>
                             </div>
                             <div className="grid grid-cols-4 gap-2">
                                 <div className="space-y-2 col-span-1">
@@ -936,11 +967,11 @@ export default function SettingsPage() {
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="rounded-lg border p-4">
                                         <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.currentPlan')}</p>
-                                        <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.plan}</p>
+                                        <p className="text-sm font-semibold text-slate-900">{t(PLAN_LABEL_KEY[subscriptionSummary.plan] ?? 'adminSettings.planStarter')}</p>
                                     </div>
                                     <div className="rounded-lg border p-4">
                                         <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.billingCycle')}</p>
-                                        <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.billingCycle}</p>
+                                        <p className="text-sm font-semibold text-slate-900">{t(BILLING_LABEL_KEY[subscriptionSummary.billingCycle] ?? 'adminSettings.billingMonthly')}</p>
                                     </div>
                                     <div className="rounded-lg border p-4">
                                         <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.availableUntil')}</p>
@@ -954,7 +985,9 @@ export default function SettingsPage() {
                                     </div>
                                     <div className="rounded-lg border p-4">
                                         <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.pricePaid')}</p>
-                                        <p className="text-sm font-semibold text-slate-900">{formatPrice(subscriptionSummary.pricePaid)}</p>
+                                        <p className="text-sm font-semibold text-slate-900">
+                                            {formatPrice(subscriptionSummary.pricePaid, settings.currency)}
+                                        </p>
                                     </div>
                                     <div className="rounded-lg border p-4">
                                         <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.visibleInMarketplace')}</p>
@@ -1001,9 +1034,14 @@ export default function SettingsPage() {
                                                     <TableRow key={entry.id}>
                                                         <TableCell>{formatDateTime(entry.changedAt)}</TableCell>
                                                         <TableCell>{entry.changedBy?.displayName || entry.changedBy?.email || t('adminSettings.systemActor')}</TableCell>
-                                                        <TableCell>{formatChangePair(entry.previousPlan ?? '—', entry.newPlan)}</TableCell>
-                                                        <TableCell>{formatChangePair(entry.previousBillingCycle ?? '—', entry.newBillingCycle)}</TableCell>
-                                                        <TableCell>{formatChangePair(formatPrice(entry.previousPricePaid), formatPrice(entry.newPricePaid))}</TableCell>
+                                                        <TableCell>{formatChangePair(entry.previousPlan ? t(PLAN_LABEL_KEY[entry.previousPlan] ?? 'adminSettings.planStarter') : '—', t(PLAN_LABEL_KEY[entry.newPlan] ?? 'adminSettings.planStarter'))}</TableCell>
+                                                        <TableCell>{formatChangePair(entry.previousBillingCycle ? t(BILLING_LABEL_KEY[entry.previousBillingCycle] ?? 'adminSettings.billingMonthly') : '—', t(BILLING_LABEL_KEY[entry.newBillingCycle] ?? 'adminSettings.billingMonthly'))}</TableCell>
+                                                        <TableCell>
+                                                            {formatChangePair(
+                                                                formatPrice(entry.previousPricePaid, settings.currency),
+                                                                formatPrice(entry.newPricePaid, settings.currency),
+                                                            )}
+                                                        </TableCell>
                                                         <TableCell>
                                                             {formatChangePair(
                                                                 formatDateTime(entry.previousAvailableUntil),

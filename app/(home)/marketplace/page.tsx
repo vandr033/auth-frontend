@@ -90,6 +90,21 @@ function normalizeTimeValue(value?: string | null): string {
   return "";
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function hasValidCoordinates(lat: unknown, lng: unknown): boolean {
+  return (
+    isFiniteNumber(lat) &&
+    isFiniteNumber(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
 function parseFilterState(searchParams: URLSearchParams): {
   filters: MarketplaceFilterState;
   bounds: MarketplaceBounds | null;
@@ -284,6 +299,7 @@ function MarketplacePageContent() {
                     reviewCount: 0,
                     matchedSlotTime: "",
                     priceFrom: 0,
+                    currency: null,
                   }),
                   businessType: resolveBusinessType(
                     pin.popup?.businessType ?? matched?.businessType ?? null,
@@ -296,12 +312,13 @@ function MarketplacePageContent() {
                   matchedSlotDate: pin.popup?.matchedSlotDate ?? matched?.matchedSlotDate,
                   matchedSlotTime: pin.popup?.matchedSlotTime ?? matched?.matchedSlotTime ?? "",
                   priceFrom: pin.popup?.priceFrom ?? matched?.priceFrom ?? 0,
+                  currency: pin.popup?.currency ?? matched?.currency ?? null,
                   city: pin.popup?.city ?? matched?.city ?? null,
                 },
               };
             })
           : allItems
-              .filter((item) => item.latitude != null && item.longitude != null)
+              .filter((item) => hasValidCoordinates(item.latitude, item.longitude))
               .map((item) => ({
                 companyId: item.companyId,
                 lat: Number(item.latitude),
@@ -322,13 +339,16 @@ function MarketplacePageContent() {
                   matchedSlotDate: item.matchedSlotDate,
                   matchedSlotTime: item.matchedSlotTime,
                   priceFrom: item.priceFrom,
+                  currency: item.currency ?? null,
                   city: item.city,
                 },
               }));
 
+        const safePins = mergedPins.filter((pin) => hasValidCoordinates(pin?.lat, pin?.lng));
+
         setResults(nextResults);
         setSimilarBookings(nextSimilar);
-        setMapPins(mergedPins);
+        setMapPins(safePins);
         setMeta(response.data?.meta || null);
         setMapFitKey((prev) => prev + 1);
 

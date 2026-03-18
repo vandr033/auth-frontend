@@ -19,6 +19,7 @@ import {
     X,
     ChevronRight,
     FileText,
+    Star,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -80,6 +81,13 @@ const navItems: NavItem[] = [
         href: "/admin/dashboard/customers",
         icon: <UserCheck className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
+    },
+    {
+        label: "adminNav.reviews",
+        href: "/admin/dashboard/reviews",
+        icon: <Star className="h-5 w-5 shrink-0" />,
+        roles: ["OWNER", "ADMIN", "STAFF"],
+        feature: "REVIEW_MANAGEMENT",
     },
     {
         label: "adminNav.availability",
@@ -390,7 +398,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                                 </div>
                                 <div className="flex min-w-0 flex-col">
                                     <span className="truncate text-sm font-semibold">
-                                        {companyName || "Shop Admin"}
+                                        {companyName || t("adminNav.shopAdmin")}
                                     </span>
                                     <span className="text-xs text-slate-400 capitalize">
                                         {role?.toLowerCase()}

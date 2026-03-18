@@ -29,6 +29,7 @@ export type CompanyUser = {
         id: number;
         slug: string;
         name: string;
+        currency?: string;
         default_language?: string;
         availableUntil?: string;
         plan?: "STARTER" | "BUSINESS" | "PRO";

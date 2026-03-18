@@ -42,12 +42,17 @@ export async function loadMapboxGl(): Promise<unknown> {
     document.head.appendChild(script);
   });
 
-  if (!document.getElementById(MAPBOX_STYLE_ID)) {
-    const link = document.createElement("link");
-    link.id = MAPBOX_STYLE_ID;
-    link.rel = "stylesheet";
-    link.href = "https://api.mapbox.com/mapbox-gl-js/v3.9.1/mapbox-gl.css";
-    document.head.appendChild(link);
+  const existingLink = document.getElementById(MAPBOX_STYLE_ID) as HTMLLinkElement | null;
+  if (!existingLink) {
+    await new Promise<void>((resolve) => {
+      const link = document.createElement("link");
+      link.id = MAPBOX_STYLE_ID;
+      link.rel = "stylesheet";
+      link.href = "https://api.mapbox.com/mapbox-gl-js/v3.9.1/mapbox-gl.css";
+      link.onload = () => resolve();
+      link.onerror = () => resolve(); // continue even if CSS fails
+      document.head.appendChild(link);
+    });
   }
 
   const loadedGlobal = getMapboxGlobal();

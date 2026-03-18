@@ -1,3 +1,5 @@
+import { formatCurrencyFromCents } from "@/lib/currency";
+
 // Types for the booking wizard
 
 export type BookingStep = 1 | 2 | 3 | 4;
@@ -78,8 +80,8 @@ export function calculateBookingTotals(services: SelectedService[]) {
 }
 
 // Format price in cents to display string
-export function formatPrice(cents: number): string {
-    return `$${(cents / 100).toFixed(2)}`;
+export function formatPrice(cents: number, currency?: string | null): string {
+    return formatCurrencyFromCents(cents, currency);
 }
 
 // Format duration in minutes to display string

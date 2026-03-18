@@ -180,11 +180,13 @@ function ServiceStep({
     services,
     categories,
     selectedServices,
+    currency,
     onToggleService,
 }: {
     services: SelectedService[];
     categories: { id: number; name: string }[];
     selectedServices: SelectedService[];
+    currency?: string | null;
     onToggleService: (service: SelectedService) => void;
 }) {
     const t = useT();
@@ -227,7 +229,7 @@ function ServiceStep({
                                         <div className="flex items-baseline justify-between gap-2">
                                             <h4 className="font-semibold text-text-main truncate">{service.name}</h4>
                                             <span className="text-sm font-bold text-brand flex-shrink-0">
-                                                {formatPrice(service.price_cents)}
+                                                {formatPrice(service.price_cents, currency)}
                                             </span>
                                         </div>
                                         {service.description && (
@@ -753,6 +755,7 @@ function DateTimeStep({
 function ConfirmStep({
     booking,
     settings,
+    currency,
     qrProofFile,
     onChangePayment,
     onChangeNotes,
@@ -763,6 +766,7 @@ function ConfirmStep({
 }: {
     booking: BookingState;
     settings: ShopSettings | null;
+    currency?: string | null;
     qrProofFile: File | null;
     onChangePayment: (method: "CASH" | "QR" | "NONE") => void;
     onChangeNotes: (notes: string) => void;
@@ -791,7 +795,7 @@ function ConfirmStep({
                         {booking.services.map((service) => (
                             <div key={service.id} className="flex justify-between">
                                 <span className="text-text-main">{service.name}</span>
-                                <span className="text-text-muted">{formatPrice(service.price_cents)}</span>
+                                <span className="text-text-muted">{formatPrice(service.price_cents, currency)}</span>
                             </div>
                         ))}
                     </div>
@@ -830,7 +834,7 @@ function ConfirmStep({
                 {/* Total */}
                 <div className="flex justify-between text-lg font-bold">
                     <span className="text-text-main">{t('shopBooking.total')}</span>
-                    <span className="text-brand">{formatPrice(totalPrice)}</span>
+                    <span className="text-brand">{formatPrice(totalPrice, currency)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-text-muted">
                     <span>{t('shopBooking.duration')}</span>
@@ -1657,6 +1661,7 @@ export default function BookingPage() {
                             services={selectableServices}
                             categories={categories}
                             selectedServices={booking.services}
+                            currency={company.currency}
                             onToggleService={toggleService}
                         />
                     ) : (
@@ -1680,6 +1685,7 @@ export default function BookingPage() {
                             services={filteredServices}
                             categories={categories}
                             selectedServices={booking.services}
+                            currency={company.currency}
                             onToggleService={toggleService}
                         />
                     )}
@@ -1702,6 +1708,7 @@ export default function BookingPage() {
                     <ConfirmStep
                         booking={booking}
                         settings={settings}
+                        currency={company.currency}
                         qrProofFile={qrProofFile}
                         onChangePayment={(method) => setBooking((prev) => ({ ...prev, paymentMethod: method }))}
                         onChangeNotes={(notes) => setBooking((prev) => ({ ...prev, notes }))}

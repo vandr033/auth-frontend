@@ -17,6 +17,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/theme/ThemeContext";
 import { AuthProvider } from "@/lib/useAuth";
 import { I18nProvider } from "@/lib/i18n";
+import { DevServiceWorkerCleanup } from "@/components/DevServiceWorkerCleanup";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -108,6 +109,9 @@ export const metadata: Metadata = {
   title: "PriConPri",
   description:
     "Find and book the best barbers, stylists, and beauty professionals near you with PriConPri.",
+  other: {
+    "google": "notranslate",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -137,11 +141,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="es"
+      translate="no"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} ${playfairDisplay.variable} ${inter.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${bebasNeue.variable} ${roboto.variable} ${cormorantGaramond.variable} ${lato.variable} ${nunito.variable} ${nunitoSans.variable}`}
+      className={`notranslate ${geistSans.variable} ${geistMono.variable} ${outfit.variable} ${playfairDisplay.variable} ${inter.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${bebasNeue.variable} ${roboto.variable} ${cormorantGaramond.variable} ${lato.variable} ${nunito.variable} ${nunitoSans.variable}`}
     >
       <body className="app-shell antialiased">
+        <DevServiceWorkerCleanup />
         <ThemeProvider>
           <I18nProvider>
             <AuthProvider>

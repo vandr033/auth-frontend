@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { StaffMember, ServiceItem, CreateBookingData, ServiceCategory } from "@/app/admin/lib/adminApi";
 import { useT } from "@/lib/i18n";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 // Re-export for backwards compatibility
 export type StaffOption = StaffMember;
@@ -34,15 +35,18 @@ interface NewBookingModalProps {
     onClose: () => void;
     staffList: StaffMember[];
     serviceList: ServiceItem[];
+    currency?: string | null;
     onCreate: (data: CreateBookingData) => Promise<void>;
 }
 
-// Helper to format price from cents
-const formatPrice = (cents: number) => {
-    return (cents / 100).toFixed(2);
-};
-
-export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCreate }: NewBookingModalProps) {
+export function NewBookingModal({
+    isOpen,
+    onClose,
+    staffList,
+    serviceList,
+    currency,
+    onCreate,
+}: NewBookingModalProps) {
     const t = useT();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -207,7 +211,7 @@ export function NewBookingModal({ isOpen, onClose, staffList, serviceList, onCre
                                                         >
                                                             <span>{service.name}</span>
                                                             <span className="text-muted-foreground ml-2">
-                                                                ({service.duration_minutes}min - ${formatPrice(service.price_cents)})
+                                                                ({service.duration_minutes}min - {formatCurrencyFromCents(service.price_cents, currency)})
                                                             </span>
                                                         </label>
                                                     </div>

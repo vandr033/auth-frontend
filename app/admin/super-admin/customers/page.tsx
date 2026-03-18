@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -57,7 +58,7 @@ interface ShopOption {
 }
 
 const PAGE_SIZE = 20;
-const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const formatCurrency = (cents: number) => formatCurrencyFromCents(cents);
 
 const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";

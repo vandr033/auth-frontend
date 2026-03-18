@@ -7,17 +7,17 @@ import { cn } from "@/lib/utils";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
 import type { ShopCategory, ShopService } from "@/types/shop";
 import { useT } from "@/lib/i18n";
-
-const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 interface ServicesListProps {
     categories: ShopCategory[];
     services: ShopService[];
     slug: string;
+    currency?: string | null;
     maxItems?: number;
 }
 
-export function ServicesList({ categories, services, slug, maxItems }: ServicesListProps) {
+export function ServicesList({ categories, services, slug, currency, maxItems }: ServicesListProps) {
     const t = useT();
     const displayServices = maxItems ? services.slice(0, maxItems) : services;
     const [expandedCategories, setExpandedCategories] = useState<Set<number>>(
@@ -76,7 +76,9 @@ export function ServicesList({ categories, services, slug, maxItems }: ServicesL
                                     >
                                         <span className="font-semibold text-text-main font-body">{service.name}</span>
                                         <div className="flex items-center gap-4 text-sm">
-                                            <span className="font-bold text-brand">{formatPrice(service.price_cents)}</span>
+                                            <span className="font-bold text-brand">
+                                                {formatCurrencyFromCents(service.price_cents, currency)}
+                                            </span>
                                             <span className="flex items-center gap-1 text-text-muted">
                                                 <Clock className="h-3.5 w-3.5 shrink-0" />
                                                 {t('shopServices.duration', { minutes: service.duration_minutes })}

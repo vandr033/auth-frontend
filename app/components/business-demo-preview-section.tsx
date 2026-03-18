@@ -126,7 +126,7 @@ export function BusinessDemoPreviewSection() {
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                     {[
                       { label: "Reservas", value: "1,248", color: "bg-blue-500" },
-                      { label: "Ingresos", value: "$3,485", color: "bg-emerald-500" },
+                      { label: "Ingresos", value: "Bs. 3,485", color: "bg-emerald-500" },
                       { label: "Hoy", value: "6", color: "bg-purple-500" },
                       { label: "7 días", value: "34", color: "bg-amber-500" },
                     ].map((stat) => (

@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/utils/image-url";
 import type { MarketplaceResultItem } from "@/lib/marketplace/types";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 interface MarketplaceResultCardProps {
   result: MarketplaceResultItem;
@@ -56,7 +57,7 @@ export function MarketplaceResultCard({
 }: MarketplaceResultCardProps) {
   const t = useT();
   const imageSrc = getImageUrl(result.thumbnailImage || "") || FALLBACK_IMAGE;
-  const amount = (Math.max(0, result.priceFrom) / 100).toFixed(2);
+  const amount = formatCurrencyFromCents(Math.max(0, result.priceFrom), result.currency);
   const fromPrice = t("marketplaceRedesign.results.fromPrice", { amount });
 
   return (

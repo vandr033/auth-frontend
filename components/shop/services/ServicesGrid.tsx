@@ -5,17 +5,17 @@ import { Clock } from "lucide-react";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
 import type { ShopCategory, ShopService } from "@/types/shop";
 import { useT } from "@/lib/i18n";
-
-const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 interface ServicesGridProps {
     categories: ShopCategory[];
     services: ShopService[];
     slug: string;
+    currency?: string | null;
     maxItems?: number;
 }
 
-export function ServicesGrid({ categories, services, slug, maxItems }: ServicesGridProps) {
+export function ServicesGrid({ categories, services, slug, currency, maxItems }: ServicesGridProps) {
     const t = useT();
     const displayServices = maxItems ? services.slice(0, maxItems) : services;
 
@@ -47,7 +47,9 @@ export function ServicesGrid({ categories, services, slug, maxItems }: ServicesG
                                     {service.name}
                                 </h4>
                                 <div className="mt-2 flex items-center gap-3 text-sm">
-                                    <span className="font-bold text-brand">{formatPrice(service.price_cents)}</span>
+                                    <span className="font-bold text-brand">
+                                        {formatCurrencyFromCents(service.price_cents, currency)}
+                                    </span>
                                     <span className="flex items-center gap-1 text-text-muted">
                                         <Clock className="h-3.5 w-3.5 shrink-0" />
                                         {t('shopServices.duration', { minutes: service.duration_minutes })}

@@ -7,6 +7,11 @@ export type PlanFeatureKey =
     | "BOOKING_REMINDERS"
     | "CUSTOMER_IMPORT_EXPORT"
     | "OPERATIONAL_DASHBOARD"
+    | "REVIEW_MANAGEMENT"
+    | "REVIEW_ANALYTICS"
+    | "REVIEW_REQUEST_REMINDERS"
+    | "REVIEW_REQUEST_EMAIL"
+    | "REVIEW_REQUEST_WHATSAPP"
     | "BULK_WHATSAPP_MESSAGING"
     | "BULK_EMAIL_CAMPAIGNS"
     | "OUTREACH_REACTIVATION_TOOLS";
@@ -26,6 +31,11 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             BOOKING_REMINDERS: false,
             CUSTOMER_IMPORT_EXPORT: false,
             OPERATIONAL_DASHBOARD: false,
+            REVIEW_MANAGEMENT: false,
+            REVIEW_ANALYTICS: false,
+            REVIEW_REQUEST_REMINDERS: false,
+            REVIEW_REQUEST_EMAIL: false,
+            REVIEW_REQUEST_WHATSAPP: false,
             BULK_WHATSAPP_MESSAGING: false,
             BULK_EMAIL_CAMPAIGNS: false,
             OUTREACH_REACTIVATION_TOOLS: false,
@@ -40,6 +50,11 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             BOOKING_REMINDERS: true,
             CUSTOMER_IMPORT_EXPORT: true,
             OPERATIONAL_DASHBOARD: true,
+            REVIEW_MANAGEMENT: true,
+            REVIEW_ANALYTICS: true,
+            REVIEW_REQUEST_REMINDERS: true,
+            REVIEW_REQUEST_EMAIL: true,
+            REVIEW_REQUEST_WHATSAPP: false,
             BULK_WHATSAPP_MESSAGING: false,
             BULK_EMAIL_CAMPAIGNS: false,
             OUTREACH_REACTIVATION_TOOLS: false,
@@ -54,6 +69,11 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             BOOKING_REMINDERS: true,
             CUSTOMER_IMPORT_EXPORT: true,
             OPERATIONAL_DASHBOARD: true,
+            REVIEW_MANAGEMENT: true,
+            REVIEW_ANALYTICS: true,
+            REVIEW_REQUEST_REMINDERS: true,
+            REVIEW_REQUEST_EMAIL: true,
+            REVIEW_REQUEST_WHATSAPP: true,
             BULK_WHATSAPP_MESSAGING: true,
             BULK_EMAIL_CAMPAIGNS: true,
             OUTREACH_REACTIVATION_TOOLS: true,
@@ -68,6 +88,11 @@ export const FEATURE_REQUIRED_PLAN: Record<PlanFeatureKey, ShopPlan> = {
     BOOKING_REMINDERS: "BUSINESS",
     CUSTOMER_IMPORT_EXPORT: "BUSINESS",
     OPERATIONAL_DASHBOARD: "BUSINESS",
+    REVIEW_MANAGEMENT: "BUSINESS",
+    REVIEW_ANALYTICS: "BUSINESS",
+    REVIEW_REQUEST_REMINDERS: "BUSINESS",
+    REVIEW_REQUEST_EMAIL: "BUSINESS",
+    REVIEW_REQUEST_WHATSAPP: "PRO",
     BULK_WHATSAPP_MESSAGING: "PRO",
     BULK_EMAIL_CAMPAIGNS: "PRO",
     OUTREACH_REACTIVATION_TOOLS: "PRO",
@@ -108,6 +133,11 @@ export const FEATURE_DESCRIPTION_KEY: Record<PlanFeatureKey, string> = {
     BOOKING_REMINDERS: "planEnforcement.desc.bookingReminders",
     CUSTOMER_IMPORT_EXPORT: "planEnforcement.desc.customerImportExport",
     OPERATIONAL_DASHBOARD: "planEnforcement.desc.operationalDashboard",
+    REVIEW_MANAGEMENT: "planEnforcement.desc.reviewManagement",
+    REVIEW_ANALYTICS: "planEnforcement.desc.reviewAnalytics",
+    REVIEW_REQUEST_REMINDERS: "planEnforcement.desc.reviewRequestReminders",
+    REVIEW_REQUEST_EMAIL: "planEnforcement.desc.reviewRequestEmail",
+    REVIEW_REQUEST_WHATSAPP: "planEnforcement.desc.reviewRequestWhatsapp",
     BULK_WHATSAPP_MESSAGING: "planEnforcement.desc.bulkWhatsapp",
     BULK_EMAIL_CAMPAIGNS: "planEnforcement.desc.bulkEmail",
     OUTREACH_REACTIVATION_TOOLS: "planEnforcement.desc.outreachReactivation",
@@ -123,6 +153,11 @@ export const FEATURE_LABEL_KEY: Record<PlanFeatureKey, string> = {
     BOOKING_REMINDERS: "planEnforcement.label.bookingReminders",
     CUSTOMER_IMPORT_EXPORT: "planEnforcement.label.customerImportExport",
     OPERATIONAL_DASHBOARD: "planEnforcement.label.operationalDashboard",
+    REVIEW_MANAGEMENT: "planEnforcement.label.reviewManagement",
+    REVIEW_ANALYTICS: "planEnforcement.label.reviewAnalytics",
+    REVIEW_REQUEST_REMINDERS: "planEnforcement.label.reviewRequestReminders",
+    REVIEW_REQUEST_EMAIL: "planEnforcement.label.reviewRequestEmail",
+    REVIEW_REQUEST_WHATSAPP: "planEnforcement.label.reviewRequestWhatsapp",
     BULK_WHATSAPP_MESSAGING: "planEnforcement.label.bulkWhatsapp",
     BULK_EMAIL_CAMPAIGNS: "planEnforcement.label.bulkEmail",
     OUTREACH_REACTIVATION_TOOLS: "planEnforcement.label.outreachReactivation",

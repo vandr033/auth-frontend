@@ -12,6 +12,7 @@ import { TeamWrapper } from "@/components/shop/team/TeamWrapper";
 import { ReviewsBanner } from "@/components/shop/ReviewsBanner";
 import { LocationHours } from "@/components/shop/LocationHours";
 import { ShopFooter } from "@/components/shop/ShopFooter";
+import { PublicReviewList } from "@/components/shop/PublicReviewList";
 import { ShopUnavailableState } from "../components/ShopUnavailableState";
 
 export default function ShopPage() {
@@ -128,6 +129,11 @@ export default function ShopPage() {
             {/* 6. Reviews Banner */}
             {reviewStats && reviewStats.count > 0 && (
                 <ReviewsBanner reviewStats={reviewStats} />
+            )}
+
+            {/* 6b. Public Review List */}
+            {reviewStats && reviewStats.count > 0 && (
+                <PublicReviewList />
             )}
 
             {/* 7. Location & Hours */}

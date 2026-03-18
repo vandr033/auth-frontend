@@ -14,6 +14,8 @@ import {
 } from "date-fns";
 import { AdminBooking } from "@/types/admin-booking";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
+import { getDateLocale } from "@/lib/date-locale";
 import { getBookingDisplayStatus } from "../lib/bookingStatus";
 
 interface BookingMonthViewProps {
@@ -22,7 +24,8 @@ interface BookingMonthViewProps {
     onBookingClick: (booking: AdminBooking) => void;
 }
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_LABELS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_LABELS_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 const STATUS_DOT: Record<AdminBooking["status"], string> = {
     PENDING: "bg-amber-500",
@@ -37,6 +40,9 @@ function dateKey(date: Date): string {
 }
 
 export function BookingMonthView({ bookings, currentDate, onBookingClick }: BookingMonthViewProps) {
+    const { t, locale } = useI18n();
+    const dateFnsLocale = getDateLocale(locale);
+    const weekdayLabels = locale === "es" ? WEEKDAY_LABELS_ES : WEEKDAY_LABELS_EN;
     const today = React.useMemo(() => new Date(), []);
     const monthStart = startOfMonth(currentDate);
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -87,7 +93,7 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
     return (
         <div className="rounded-xl border border-surface-border bg-surface p-3 sm:p-4">
             <div className="mb-3 grid grid-cols-7 text-center text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                {WEEKDAY_LABELS.map((label) => (
+                {weekdayLabels.map((label) => (
                     <div key={label} className="py-2">
                         {label}
                     </div>
@@ -142,10 +148,10 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
 
             <div className="mt-4 rounded-lg border border-surface-border bg-page p-3">
                 <div className="mb-2 text-sm font-semibold text-text-main">
-                    {format(selectedDay, "EEEE, MMM d")}
+                    {format(selectedDay, "EEEE, MMM d", { locale: dateFnsLocale })}
                 </div>
                 {selectedDayBookings.length === 0 ? (
-                    <p className="text-sm text-text-muted">No bookings for this day.</p>
+                    <p className="text-sm text-text-muted">{t("adminBookings.noBookingsForDay")}</p>
                 ) : (
                     <div className="space-y-2">
                         {selectedDayBookings.map((booking) => {
@@ -170,7 +176,7 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
                                         />
                                     </div>
                                     <p className="text-xs text-text-muted">
-                                        {format(parseISO(booking.start_at), "h:mm a")} · {booking.staff.name}
+                                        {format(parseISO(booking.start_at), "h:mm a", { locale: dateFnsLocale })} · {booking.staff.name}
                                     </p>
                                 </button>
                             );

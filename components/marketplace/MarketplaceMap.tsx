@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { getMapboxToken, loadMapboxGl } from "@/lib/mapbox/loadMapboxGl";
 import type { MarketplaceBounds, MarketplaceMapPin } from "@/lib/marketplace/types";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 interface MarketplaceMapProps {
   pins: MarketplaceMapPin[];
@@ -47,6 +48,7 @@ type Feature = {
     reviewCount?: number;
     matchedSlotTime?: string;
     priceFrom?: number;
+    currency?: string;
     city?: string;
   };
 };
@@ -125,6 +127,38 @@ const POINT_LAYER_ID = "marketplace-results-points";
 const FALLBACK_CENTER: [number, number] = [-63.1821, -17.7833];
 const FALLBACK_ZOOM = 11;
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isValidLatLng(lat: unknown, lng: unknown): boolean {
+  return (
+    isFiniteNumber(lat) &&
+    isFiniteNumber(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
+function isValidBounds(bounds: MarketplaceBounds | null): bounds is MarketplaceBounds {
+  if (!bounds) return false;
+  return (
+    isFiniteNumber(bounds.minLng) &&
+    isFiniteNumber(bounds.minLat) &&
+    isFiniteNumber(bounds.maxLng) &&
+    isFiniteNumber(bounds.maxLat) &&
+    bounds.minLng < bounds.maxLng &&
+    bounds.minLat < bounds.maxLat
+  );
+}
+
+function isValidMapPin(pin: MarketplaceMapPin | null | undefined): pin is MarketplaceMapPin {
+  if (!pin) return false;
+  return isValidLatLng(pin.lat, pin.lng) && isFiniteNumber(pin.companyId);
+}
+
 function toFeature(pin: MarketplaceMapPin, selectedCompanyId: number | null, hoveredCompanyId: number | null): Feature {
   return {
     type: "Feature",
@@ -148,6 +182,7 @@ function toFeature(pin: MarketplaceMapPin, selectedCompanyId: number | null, hov
       reviewCount: pin.popup?.reviewCount,
       matchedSlotTime: pin.popup?.matchedSlotTime,
       priceFrom: pin.popup?.priceFrom,
+      currency: pin.popup?.currency || undefined,
       city: pin.popup?.city || undefined,
     },
   };
@@ -212,12 +247,14 @@ export function MarketplaceMap({
   const [mapLoading, setMapLoading] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
 
+  const safePins = useMemo(() => pins.filter(isValidMapPin), [pins]);
+
   const geoJson = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: pins.map((pin) => toFeature(pin, selectedCompanyId, hoveredCompanyId)),
+      features: safePins.map((pin) => toFeature(pin, selectedCompanyId, hoveredCompanyId)),
     }),
-    [pins, selectedCompanyId, hoveredCompanyId],
+    [safePins, selectedCompanyId, hoveredCompanyId],
   );
 
   useEffect(() => {
@@ -404,6 +441,7 @@ export function MarketplaceMap({
             const matchedSlotDate = String(feature.properties?.matchedSlotDate || "");
             const matchedSlotTime = String(feature.properties?.matchedSlotTime || "");
             const priceFrom = Number(feature.properties?.priceFrom ?? 0);
+            const currency = String(feature.properties?.currency || "");
             const rating = Number(feature.properties?.rating ?? 0);
             const reviewCount = Number(feature.properties?.reviewCount ?? 0);
             const city = String(feature.properties?.city || "");
@@ -444,7 +482,7 @@ export function MarketplaceMap({
                     priceFrom
                       ? `<p style="margin:4px 0 0;font-size:11px;font-weight:700;line-height:1.15;color:#111;text-transform:uppercase">${escapeHtml(
                           t("marketplaceRedesign.map.popup.fromPrice"),
-                        )}: $${(priceFrom / 100).toFixed(2)}</p>`
+                        )}: ${escapeHtml(formatCurrencyFromCents(priceFrom, currency))}</p>`
                       : ""
                   }
                   ${
@@ -540,10 +578,10 @@ export function MarketplaceMap({
     const mapboxgl = mapboxModuleRef.current;
     if (!map || !mapboxgl) return;
 
-    if (pins.length === 0) {
+    if (safePins.length === 0) {
       suppressMoveEndRef.current = true;
 
-      if (appliedBounds) {
+      if (isValidBounds(appliedBounds)) {
         map.fitBounds(
           [
             [appliedBounds.minLng, appliedBounds.minLat],
@@ -567,7 +605,7 @@ export function MarketplaceMap({
 
     suppressMoveEndRef.current = true;
 
-    if (appliedBounds) {
+    if (isValidBounds(appliedBounds)) {
       map.fitBounds(
         [
           [appliedBounds.minLng, appliedBounds.minLat],
@@ -580,12 +618,12 @@ export function MarketplaceMap({
         },
       );
     } else {
-      const fitBounds = pins.reduce(
+      const fitBounds = safePins.reduce(
         (acc, pin) => {
           acc.extend([pin.lng, pin.lat]);
           return acc;
         },
-        new mapboxgl.LngLatBounds([pins[0].lng, pins[0].lat], [pins[0].lng, pins[0].lat]),
+        new mapboxgl.LngLatBounds([safePins[0].lng, safePins[0].lat], [safePins[0].lng, safePins[0].lat]),
       );
 
       map.fitBounds(fitBounds, {
@@ -598,13 +636,13 @@ export function MarketplaceMap({
     window.setTimeout(() => {
       suppressMoveEndRef.current = false;
     }, 380);
-  }, [appliedBounds, fitKey, pins]);
+  }, [appliedBounds, fitKey, safePins]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !selectedCompanyId) return;
 
-    const selectedPin = pins.find((pin) => pin.companyId === selectedCompanyId);
+    const selectedPin = safePins.find((pin) => pin.companyId === selectedCompanyId);
     if (!selectedPin) return;
 
     const currentBounds = toBoundsLike(map.getBounds());
@@ -622,7 +660,7 @@ export function MarketplaceMap({
         suppressMoveEndRef.current = false;
       }, 320);
     }
-  }, [pins, selectedCompanyId]);
+  }, [safePins, selectedCompanyId]);
 
   if (!mapToken) {
     return (

@@ -45,6 +45,7 @@ interface FormData {
     state: string;
     country_code: string;
     timezone: string;
+    currency: string;
     latitude: string;
     longitude: string;
     company_type_id: string;
@@ -98,6 +99,7 @@ const initialFormData: FormData = {
     state: "",
     country_code: "BO",
     timezone: "America/La_Paz",
+    currency: "Bs.",
     latitude: "",
     longitude: "",
     company_type_id: "",
@@ -312,6 +314,16 @@ export default function NewShopPage() {
             return;
         }
 
+        const normalizedCurrency = formData.currency.trim();
+        if (!normalizedCurrency) {
+            await notify.warning(t("superAdminShops.currencyRequired"));
+            return;
+        }
+        if (normalizedCurrency.length > 3) {
+            await notify.warning(t("superAdminShops.currencyInvalid"));
+            return;
+        }
+
         const availableUntilIso = toIsoDateTimeOrNull(formData.availableUntil);
         if (!availableUntilIso) {
             await notify.warning("Available until must be a valid date and time.");
@@ -390,6 +402,7 @@ export default function NewShopPage() {
                 state: formData.state.trim() || undefined,
                 country_code: formData.country_code || undefined,
                 timezone: formData.timezone || "America/La_Paz",
+                currency: normalizedCurrency,
                 latitude,
                 longitude,
                 company_type_id: parseInt(formData.company_type_id),
@@ -538,6 +551,23 @@ export default function NewShopPage() {
                                             <SelectItem value="YEARLY">YEARLY</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="currency">{t("superAdminShops.currencyRequiredLabel")}</Label>
+                                    <Input
+                                        id="currency"
+                                        value={formData.currency}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                currency: e.target.value.slice(0, 3),
+                                            })
+                                        }
+                                        placeholder="Bs."
+                                        maxLength={3}
+                                    />
+                                    <p className="text-xs text-slate-500">{t("superAdminShops.currencyCodeHint")}</p>
                                 </div>
 
                                 <div className="space-y-2">

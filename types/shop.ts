@@ -30,6 +30,7 @@ export interface ShopCompany {
     latitude?: number;
     longitude?: number;
     timezone: string;
+    currency?: string;
     logo_url?: string;
     home_hero_image_url?: string;
     hero_about_url?: string;

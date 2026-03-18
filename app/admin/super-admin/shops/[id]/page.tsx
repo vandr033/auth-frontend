@@ -40,6 +40,7 @@ import {
     LocationPicker,
     type LocationAutofillUpdate,
 } from "@/components/admin/location/LocationPicker";
+import { formatCurrencyAmount } from "@/lib/currency";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -58,6 +59,7 @@ interface FormData {
     state: string;
     country_code: string;
     timezone: string;
+    currency: string;
     latitude: string;
     longitude: string;
     company_type_id: string;
@@ -103,16 +105,11 @@ function formatDateTime(value: string | null | undefined): string {
     return parsed.toLocaleString();
 }
 
-function formatPrice(value: string | null): string {
+function formatPrice(value: string | null, currency?: string | null): string {
     if (!value) return "—";
     const parsed = Number.parseFloat(value);
     if (!Number.isFinite(parsed)) return value;
-    return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(parsed);
+    return formatCurrencyAmount(parsed, currency);
 }
 
 function formatChangePair(previousValue: string, nextValue: string): string {
@@ -177,6 +174,7 @@ export default function EditShopPage() {
                 state: shopInfo.state || "",
                 country_code: shopInfo.country_code || "BO",
                 timezone: shopInfo.timezone || "America/La_Paz",
+                currency: shopInfo.currency || "Bs.",
                 latitude: shopInfo.latitude?.toString() || "",
                 longitude: shopInfo.longitude?.toString() || "",
                 company_type_id: shopInfo.company_type_id?.toString() || "",
@@ -286,6 +284,16 @@ export default function EditShopPage() {
             return;
         }
 
+        const normalizedCurrency = formData.currency.trim();
+        if (!normalizedCurrency) {
+            await notify.warning(t("superAdminShops.currencyRequired"));
+            return;
+        }
+        if (normalizedCurrency.length > 3) {
+            await notify.warning(t("superAdminShops.currencyInvalid"));
+            return;
+        }
+
         setSubmitting(true);
 
         try {
@@ -303,6 +311,7 @@ export default function EditShopPage() {
                 state: formData.state.trim() || null,
                 country_code: formData.country_code || null,
                 timezone: formData.timezone,
+                currency: normalizedCurrency,
                 latitude,
                 longitude,
                 company_type_id: parseInt(formData.company_type_id),
@@ -496,6 +505,23 @@ export default function EditShopPage() {
                                             <SelectItem value="YEARLY">YEARLY</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="currency">{t("superAdminShops.currencyRequiredLabel")}</Label>
+                                    <Input
+                                        id="currency"
+                                        value={formData.currency}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                currency: e.target.value.slice(0, 3),
+                                            })
+                                        }
+                                        placeholder="Bs."
+                                        maxLength={3}
+                                    />
+                                    <p className="text-xs text-slate-500">{t("superAdminShops.currencyCodeHint")}</p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -791,7 +817,10 @@ export default function EditShopPage() {
                                                     {formatChangePair(entry.previousBillingCycle ?? "—", entry.newBillingCycle)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {formatChangePair(formatPrice(entry.previousPricePaid), formatPrice(entry.newPricePaid))}
+                                                    {formatChangePair(
+                                                        formatPrice(entry.previousPricePaid, formData.currency),
+                                                        formatPrice(entry.newPricePaid, formData.currency),
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     {formatChangePair(formatDateTime(entry.previousAvailableUntil), formatDateTime(entry.newAvailableUntil))}

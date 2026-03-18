@@ -85,6 +85,7 @@ import {
 import { cn } from "@/lib/utils";
 import { I18nProvider, useT } from "@/lib/i18n";
 import { format, addDays } from "date-fns";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 /* ================================================================== */
 /*  MOCK DATA                                                          */
@@ -291,8 +292,9 @@ const MOCK_TIME_OFF = [
 /*  HELPERS                                                            */
 /* ================================================================== */
 
+const DEMO_CURRENCY = "Bs.";
 const formatCurrency = (cents: number) =>
-    new Intl.NumberFormat("es-BO", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(cents / 100);
+    formatCurrencyFromCents(cents, DEMO_CURRENCY, { locale: "es-BO" });
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
@@ -911,7 +913,7 @@ function DemoServicesTab() {
                         <div><Label>Nombre</Label><Input value={formName} onChange={(e) => setFormName(e.target.value)} /></div>
                         <div><Label>Descripción</Label><Input value={formDesc} onChange={(e) => setFormDesc(e.target.value)} /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><Label>Precio ($)</Label><Input type="number" step="0.01" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} /></div>
+                            <div><Label>{`Precio (${DEMO_CURRENCY})`}</Label><Input type="number" step="0.01" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} /></div>
                             <div><Label>Duración (min)</Label><Input type="number" value={formDuration} onChange={(e) => setFormDuration(parseInt(e.target.value) || 30)} /></div>
                         </div>
                         <div><Label>Categoría</Label><Select value={formCategory} onValueChange={setFormCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{MOCK_CATEGORIES.map((c) => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}</SelectContent></Select></div>
@@ -1374,10 +1376,10 @@ function DemoSettings() {
                         <CardHeader><CardTitle>Historial de Suscripción</CardTitle></CardHeader>
                         <CardContent>
                             <Table><TableHeader><TableRow><TableHead className="text-xs">Fecha</TableHead><TableHead className="text-xs">Plan</TableHead><TableHead className="text-xs">Cambio</TableHead><TableHead className="text-right text-xs">Monto</TableHead></TableRow></TableHeader><TableBody>
-                                <TableRow><TableCell className="text-xs">1 mar 2026</TableCell><TableCell className="text-xs">BUSINESS</TableCell><TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">Renovación</Badge></TableCell><TableCell className="text-right text-xs font-medium">$45.00</TableCell></TableRow>
-                                <TableRow><TableCell className="text-xs">1 feb 2026</TableCell><TableCell className="text-xs">BUSINESS</TableCell><TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">Renovación</Badge></TableCell><TableCell className="text-right text-xs font-medium">$45.00</TableCell></TableRow>
-                                <TableRow><TableCell className="text-xs">15 ene 2026</TableCell><TableCell className="text-xs">STARTER → BUSINESS</TableCell><TableCell className="text-xs"><Badge className="bg-emerald-100 text-[10px] text-emerald-800">Upgrade</Badge></TableCell><TableCell className="text-right text-xs font-medium">$45.00</TableCell></TableRow>
-                                <TableRow><TableCell className="text-xs">15 dic 2025</TableCell><TableCell className="text-xs">STARTER</TableCell><TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">Inicio</Badge></TableCell><TableCell className="text-right text-xs font-medium">$25.00</TableCell></TableRow>
+                                <TableRow><TableCell className="text-xs">1 mar 2026</TableCell><TableCell className="text-xs">BUSINESS</TableCell><TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">Renovación</Badge></TableCell><TableCell className="text-right text-xs font-medium">{formatCurrency(4500)}</TableCell></TableRow>
+                                <TableRow><TableCell className="text-xs">1 feb 2026</TableCell><TableCell className="text-xs">BUSINESS</TableCell><TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">Renovación</Badge></TableCell><TableCell className="text-right text-xs font-medium">{formatCurrency(4500)}</TableCell></TableRow>
+                                <TableRow><TableCell className="text-xs">15 ene 2026</TableCell><TableCell className="text-xs">STARTER → BUSINESS</TableCell><TableCell className="text-xs"><Badge className="bg-emerald-100 text-[10px] text-emerald-800">Upgrade</Badge></TableCell><TableCell className="text-right text-xs font-medium">{formatCurrency(4500)}</TableCell></TableRow>
+                                <TableRow><TableCell className="text-xs">15 dic 2025</TableCell><TableCell className="text-xs">STARTER</TableCell><TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">Inicio</Badge></TableCell><TableCell className="text-right text-xs font-medium">{formatCurrency(2500)}</TableCell></TableRow>
                             </TableBody></Table>
                         </CardContent>
                     </Card>

@@ -21,14 +21,7 @@ import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notify";
 import { canUsePlanFeature, getRequiredPlanForFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
-
-const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 2,
-    }).format(cents / 100);
-};
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
@@ -61,6 +54,8 @@ function getMonthLabel(monthKey: string) {
 export default function DashboardHomePage() {
     const { companyId, companyName, role, companySlug, companyUser, user } = useAdminAuth();
     const t = useT();
+    const currency = companyUser?.company?.currency;
+    const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);

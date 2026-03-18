@@ -45,6 +45,7 @@ import { getLocalizedText } from "@/lib/i18n/localized";
 import { cn } from "@/lib/utils";
 import { CategoriesSection } from "./components/CategoriesSection";
 import { notify } from "@/lib/notify";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 // Types
 interface GlobalServiceType {
@@ -95,8 +96,8 @@ const initialFormData: ServiceFormData = {
 };
 
 // Helper functions
-function formatPrice(cents: number): string {
-    return `$${(cents / 100).toFixed(2)}`;
+function formatPrice(cents: number, currency?: string | null): string {
+    return formatCurrencyFromCents(cents, currency);
 }
 
 function formatDuration(minutes: number): string {
@@ -114,9 +115,10 @@ function getApiUrl(path: string): string {
 }
 
 export default function ServicesPage() {
-    const { companyId, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const { companyId, companyUser, isAuthenticated, loading: authLoading } = useAdminAuth();
     const t = useT();
     const { locale } = useI18n();
+    const currency = companyUser?.company?.currency;
 
     // State
     const [services, setServices] = useState<Service[]>([]);
@@ -442,7 +444,7 @@ export default function ServicesPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            {formatPrice(service.price_cents)}
+                                            {formatPrice(service.price_cents, currency)}
                                         </TableCell>
                                         <TableCell className="text-slate-600">
                                             {formatDuration(service.duration_minutes)}
@@ -528,7 +530,7 @@ export default function ServicesPage() {
                                         <div className="flex items-center gap-4 text-sm">
                                             <span className="flex items-center gap-1 text-orange-600 font-medium">
                                                 <DollarSign className="h-3 w-3" />
-                                                {formatPrice(service.price_cents)}
+                                                {formatPrice(service.price_cents, currency)}
                                             </span>
                                             <span className="flex items-center gap-1 text-slate-500">
                                                 <Clock className="h-3 w-3" />

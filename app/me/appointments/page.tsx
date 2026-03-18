@@ -15,6 +15,7 @@ import {
   ChevronRight,
   XCircle,
   Edit2,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/app/lib/shop-context";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 type AppointmentService = {
   id: number;
@@ -38,6 +40,7 @@ type Appointment = {
     name: string;
     slug: string;
     logo_url: string | null;
+    currency?: string | null;
   };
   staff: {
     id: number;
@@ -57,6 +60,8 @@ type Appointment = {
   canModify: boolean;
   cancelLimitMinutes: number;
   rescheduleLimitMinutes: number;
+  hasReview?: boolean;
+  canReview?: boolean;
 };
 
 type AppointmentsData = {
@@ -64,7 +69,8 @@ type AppointmentsData = {
   past: Appointment[];
 };
 
-const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const formatPrice = (cents: number, currency?: string | null) =>
+  formatCurrencyFromCents(cents, currency);
 
 const statusColors: Record<string, string> = {
   CONFIRMED: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -170,7 +176,7 @@ function AppointmentCard({
           {/* Right: Price + Actions */}
           <div className="flex flex-col items-end gap-2 shrink-0">
             <span className="text-lg font-bold text-text-main">
-              {formatPrice(appointment.total_price_cents)}
+              {formatPrice(appointment.total_price_cents, appointment.company.currency)}
             </span>
 
             {!appointment.isPast && (
@@ -208,6 +214,29 @@ function AppointmentCard({
                     )}
                     {t("meAppointments.cancel")}
                   </Button>
+                ) : null}
+              </div>
+            )}
+
+            {/* Review button for completed past bookings */}
+            {appointment.isPast && appointment.status === "COMPLETED" && (
+              <div>
+                {appointment.hasReview ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    <Star className="h-3 w-3 fill-current" />
+                    {t("meAppointments.reviewed")}
+                  </span>
+                ) : appointment.canReview ? (
+                  <Link href={`/me/reviews/new?bookingId=${appointment.id}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs text-brand border-brand/30 hover:bg-brand/5"
+                    >
+                      <Star className="h-3 w-3 mr-1" />
+                      {t("meAppointments.writeReview")}
+                    </Button>
+                  </Link>
                 ) : null}
               </div>
             )}

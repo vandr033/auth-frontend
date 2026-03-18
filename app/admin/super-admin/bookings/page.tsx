@@ -11,7 +11,6 @@ import {
     Clock,
     User,
     Scissors,
-    DollarSign,
     Phone,
     Mail,
     X,
@@ -45,6 +44,7 @@ import {
 import { useT } from "@/lib/i18n";
 import { getImageUrl } from "@/utils/image-url";
 import { notify } from "@/lib/notify";
+import { formatCurrencyFromCents } from "@/lib/currency";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -66,6 +66,7 @@ interface BookingRecord {
     paymentStatus: string;
     paymentMethod: string;
     totalPriceCents: number;
+    currency?: string | null;
     staffName: string;
     staffId: number;
     services: { id: number; name: string; duration: number }[];
@@ -94,7 +95,8 @@ function toShopOptions(value: unknown): ShopOption[] {
 }
 
 const PAGE_SIZE = 20;
-const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const formatCurrency = (cents: number, currency?: string | null) =>
+    formatCurrencyFromCents(cents, currency);
 
 const STATUS_STYLES: Record<string, string> = {
     CONFIRMED: "bg-emerald-100 text-emerald-800",
@@ -326,7 +328,7 @@ export default function SuperAdminBookingsPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right font-medium text-sm">
-                                                {formatCurrency(b.totalPriceCents)}
+                                                {formatCurrency(b.totalPriceCents, b.currency)}
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -451,10 +453,7 @@ export default function SuperAdminBookingsPage() {
                                         ))}
                                         <div className="p-3 bg-slate-50 flex items-center justify-between font-semibold">
                                             <span className="text-sm">{t("adminBookings.totalPrice")}</span>
-                                            <span className="flex items-center">
-                                                <DollarSign className="h-4 w-4" />
-                                                {(selectedBooking.totalPriceCents / 100).toFixed(2)}
-                                            </span>
+                                            <span>{formatCurrency(selectedBooking.totalPriceCents, selectedBooking.currency)}</span>
                                         </div>
                                     </div>
                                 </div>

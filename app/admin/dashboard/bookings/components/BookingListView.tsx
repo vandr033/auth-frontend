@@ -14,8 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal } from "lucide-react";
 import { AdminBooking } from "@/types/admin-booking";
-import { useT } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
+import { getDateLocale } from "@/lib/date-locale";
 import { getBookingDisplayStatus } from "../lib/bookingStatus";
+import { formatCurrencyFromCents } from "@/lib/currency";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,11 +29,13 @@ import {
 
 interface BookingListViewProps {
     bookings: AdminBooking[];
+    currency?: string | null;
     onBookingClick: (booking: AdminBooking) => void;
 }
 
-export function BookingListView({ bookings, onBookingClick }: BookingListViewProps) {
-    const t = useT();
+export function BookingListView({ bookings, currency, onBookingClick }: BookingListViewProps) {
+    const { t, locale } = useI18n();
+    const dateFnsLocale = getDateLocale(locale);
     if (bookings.length === 0) {
         return (
             <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-surface-border bg-surface text-center">
@@ -51,7 +55,7 @@ export function BookingListView({ bookings, onBookingClick }: BookingListViewPro
 
         return (
             <Badge variant="outline" className={`border-0 ${styles[status]}`}>
-                {status}
+                {t(`adminBookings.${status === "NO_SHOW" ? "noShow" : status.toLowerCase()}`)}
             </Badge>
         );
     };
@@ -79,9 +83,9 @@ export function BookingListView({ bookings, onBookingClick }: BookingListViewPro
                         >
                             <TableCell className="font-medium">
                                 <div className="flex flex-col">
-                                    <span>{format(parseISO(booking.start_at), "MMM d, yyyy")}</span>
+                                    <span>{format(parseISO(booking.start_at), "PPP", { locale: dateFnsLocale })}</span>
                                     <span className="text-xs text-text-muted">
-                                        {format(parseISO(booking.start_at), "h:mm a")} - {format(parseISO(booking.end_at), "h:mm a")}
+                                        {format(parseISO(booking.start_at), "h:mm a", { locale: dateFnsLocale })} - {format(parseISO(booking.end_at), "h:mm a", { locale: dateFnsLocale })}
                                     </span>
                                 </div>
                             </TableCell>
@@ -101,7 +105,7 @@ export function BookingListView({ bookings, onBookingClick }: BookingListViewPro
                             <TableCell>{booking.staff.name}</TableCell>
                             <TableCell>{getStatusBadge(getBookingDisplayStatus(booking))}</TableCell>
                             <TableCell className="text-right font-medium">
-                                ${(booking.total_price / 100).toFixed(2)}
+                                {formatCurrencyFromCents(booking.total_price, currency)}
                             </TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenu>
