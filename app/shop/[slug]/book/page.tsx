@@ -370,6 +370,8 @@ function DateTimeStep({
     timezone,
     preferredSlotTime,
     marketplacePrefillEnabled,
+    maxAdvanceDays,
+    minAdvanceHours,
 }: {
     companyId: number;
     selectedServices: SelectedService[];
@@ -381,6 +383,8 @@ function DateTimeStep({
     timezone?: string;
     preferredSlotTime?: string | null;
     marketplacePrefillEnabled?: boolean;
+    maxAdvanceDays?: number | null;
+    minAdvanceHours?: number | null;
 }) {
     const t = useT();
     const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -405,8 +409,9 @@ function DateTimeStep({
             setLoadingDates(true);
             setDatesError(null);
             try {
+                const fetchDays = maxAdvanceDays ?? 14;
                 const response = await api.get<{ data: { dates: AvailableDate[]; timezone: string } }>(
-                    `/booking/available-dates?company_id=${companyId}&days=14`
+                    `/booking/available-dates?company_id=${companyId}&days=${fetchDays}`
                 );
                 const dates = response.data?.dates || [];
                 setAvailableDates(dates);
@@ -488,7 +493,22 @@ function DateTimeStep({
                     `/booking/slots?company_id=${companyId}&date=${selectedDate}&service_ids=${serviceIds}${staffId ? `&staff_id=${staffId}` : ""}`
                 );
 
-                setSlots(response.data || []);
+                let fetchedSlots = response.data || [];
+
+                // Filter out slots that violate min_advance_booking_hours
+                if (minAdvanceHours && selectedDate) {
+                    const now = new Date();
+                    const minMs = minAdvanceHours * 60 * 60 * 1000;
+                    fetchedSlots = fetchedSlots.map((slot) => {
+                        const slotDate = new Date(`${selectedDate}T${slot.time}:00`);
+                        if (slotDate.getTime() - now.getTime() < minMs) {
+                            return { ...slot, available: false };
+                        }
+                        return slot;
+                    });
+                }
+
+                setSlots(fetchedSlots);
             } catch (err) {
                 setSlotsError(err instanceof Error ? err.message : "Unable to load available times. Please try again.");
             } finally {
@@ -497,7 +517,7 @@ function DateTimeStep({
         };
 
         void fetchSlots();
-    }, [selectedDate, selectedServices, selectedStaff, companyId, api]);
+    }, [selectedDate, selectedServices, selectedStaff, companyId, api, minAdvanceHours]);
 
     const availableHours = useMemo(() => {
         const unique = new Set<number>();
@@ -1702,6 +1722,8 @@ export default function BookingPage() {
                         timezone={company.timezone}
                         preferredSlotTime={preselectedSlotTime}
                         marketplacePrefillEnabled={isMarketplaceSource}
+                        maxAdvanceDays={settings?.max_advance_booking_days}
+                        minAdvanceHours={settings?.min_advance_booking_hours}
                     />
                 </div>
                 {booking.step === 4 && (

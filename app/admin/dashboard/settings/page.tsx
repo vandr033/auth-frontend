@@ -764,7 +764,7 @@ export default function SettingsPage() {
                                     placeholder="120"
                                 />
                                 <p className="text-xs text-slate-500">
-                                    How long before appointment customers can cancel (0 = always)
+                                    Minutes before appointment customers can cancel (0 = always)
                                 </p>
                             </div>
                             <div className="space-y-2">
@@ -778,7 +778,7 @@ export default function SettingsPage() {
                                     placeholder="120"
                                 />
                                 <p className="text-xs text-slate-500">
-                                    How long before appointment customers can reschedule
+                                    Minutes before appointment customers can reschedule
                                 </p>
                             </div>
                             <div className="sm:col-span-2">

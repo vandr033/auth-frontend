@@ -98,6 +98,8 @@ export interface ShopSettings {
     allow_cash_payment: boolean;
     social_links: SocialLinks;
     default_language?: string;
+    max_advance_booking_days?: number | null;
+    min_advance_booking_hours?: number | null;
 }
 
 export interface ShopReviewStats {
