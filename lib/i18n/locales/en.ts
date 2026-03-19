@@ -32,6 +32,7 @@ const en = {
     signInOrCreate: "Sign in / Create an account",
     myProfile: "My Profile",
     myAppointments: "My Appointments",
+    myReviews: "My Reviews",
     myBookings: "My Bookings",
     signOut: "Sign out",
     guest: "Guest",
@@ -780,6 +781,11 @@ const en = {
     rescheduleLimit: "Reschedule Limit (hours before)",
     autoApproveTimeOff: "Auto-approve staff time off",
     autoApproveTimeOffDesc: "If enabled, staff time-off requests are approved automatically. If disabled, owner/admin review is required.",
+    maxAdvanceDays: "Max advance booking (days)",
+    maxAdvanceDaysDesc: "How many days in advance customers can book. Leave empty for no limit.",
+    minAdvanceHours: "Min advance booking (hours)",
+    minAdvanceHoursDesc: "Minimum hours in advance a booking must be made. Leave empty for no limit.",
+    noLimit: "No limit",
     allowCash: "Accept Cash Payments",
     allowQR: "Accept QR Payments",
     qrImage: "QR Code Image",
@@ -1068,6 +1074,7 @@ const en = {
     user: "User",
     myProfile: "My Profile",
     myAppointments: "My Appointments",
+    myReviews: "My Reviews",
     signOut: "Sign out",
   },
 
@@ -1602,6 +1609,10 @@ const en = {
     noReviewsTitle: "No reviews yet",
     noReviewsDescription: "After completing appointments, you can leave reviews here.",
     anonymous: "Customer",
+    deleteReview: "Delete review",
+    confirmDelete: "Are you sure you want to delete this review?",
+    deleted: "Review deleted",
+    deleteError: "Failed to delete review",
   },
 
   // ─── Admin Reviews ───
@@ -1647,6 +1658,12 @@ const en = {
     staffAttention: "Staff attention",
     punctuality: "Punctuality",
     cleanliness: "Cleanliness",
+    export: "Export CSV",
+    exportError: "Failed to export reviews",
+    confirmDelete: "Are you sure you want to delete this review? This action cannot be undone.",
+    deleted: "Review deleted",
+    deleteError: "Failed to delete review",
+    deleteReview: "Delete",
   },
 
   // ─── Home Hero ───

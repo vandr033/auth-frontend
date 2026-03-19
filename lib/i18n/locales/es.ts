@@ -32,6 +32,7 @@ const es: TranslationKeys = {
     signInOrCreate: "Iniciar sesi\u00f3n / Crear cuenta",
     myProfile: "Mi Perfil",
     myAppointments: "Mis Citas",
+    myReviews: "Mis Reseñas",
     myBookings: "Mis Reservas",
     signOut: "Cerrar Sesi\u00f3n",
     guest: "Invitado",
@@ -763,7 +764,12 @@ const es: TranslationKeys = {
     cancellationLimit: "L\u00edmite de cancelaci\u00f3n (horas antes)",
     rescheduleLimit: "L\u00edmite de reprogramaci\u00f3n (horas antes)",
     autoApproveTimeOff: "Aprobar autom\u00e1ticamente permisos del personal",
-    autoApproveTimeOffDesc: "Si est\u00e1 habilitado, las solicitudes de permiso se aprueban autom\u00e1ticamente. Si no, owner/admin debe revisarlas.",
+    autoApproveTimeOffDesc: "Si está habilitado, las solicitudes de permiso se aprueban automáticamente. Si no, owner/admin debe revisarlas.",
+    maxAdvanceDays: "Máximo de días para reservar",
+    maxAdvanceDaysDesc: "Cuántos días de anticipación pueden reservar los clientes. Dejar vacío para sin límite.",
+    minAdvanceHours: "Mínimo de horas de anticipación",
+    minAdvanceHoursDesc: "Mínimo de horas de anticipación para hacer una reserva. Dejar vacío para sin límite.",
+    noLimit: "Sin límite",
     allowCash: "Aceptar Pagos en Efectivo",
     allowQR: "Aceptar Pagos con QR",
     qrImage: "Imagen del C\u00f3digo QR",
@@ -1040,6 +1046,7 @@ const es: TranslationKeys = {
     user: "Usuario",
     myProfile: "Mi perfil",
     myAppointments: "Mis citas",
+    myReviews: "Mis Reseñas",
     signOut: "Cerrar sesión",
   },
 
@@ -1566,6 +1573,10 @@ const es: TranslationKeys = {
     noReviewsTitle: "Sin reseñas aún",
     noReviewsDescription: "Después de completar citas, podrás dejar reseñas aquí.",
     anonymous: "Cliente",
+    deleteReview: "Eliminar reseña",
+    confirmDelete: "¿Estás seguro de que quieres eliminar esta reseña?",
+    deleted: "Reseña eliminada",
+    deleteError: "No se pudo eliminar la reseña",
   },
 
   // ─── Admin Reviews ───
@@ -1611,6 +1622,12 @@ const es: TranslationKeys = {
     staffAttention: "Atención del staff",
     punctuality: "Puntualidad",
     cleanliness: "Limpieza",
+    export: "Exportar CSV",
+    exportError: "No se pudieron exportar las reseñas",
+    confirmDelete: "¿Estás seguro de que quieres eliminar esta reseña? Esta acción no se puede deshacer.",
+    deleted: "Reseña eliminada",
+    deleteError: "No se pudo eliminar la reseña",
+    deleteReview: "Eliminar",
   },
 
   homeHero: {

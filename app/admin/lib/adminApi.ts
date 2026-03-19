@@ -758,3 +758,12 @@ export async function getReviewExtendedMetrics(): Promise<ReviewExtendedMetrics>
     const response = await apiFetch<{ data: ReviewExtendedMetrics }>("/api/admin/reviews/metrics");
     return response.data;
 }
+
+export async function deleteAdminReview(reviewId: number): Promise<void> {
+    await apiFetch(`/api/admin/reviews/${reviewId}`, { method: "DELETE" });
+}
+
+export async function exportAdminReviews(): Promise<AdminReview[]> {
+    const response = await apiFetch<{ data: AdminReview[] }>("/api/admin/reviews/export");
+    return response.data;
+}

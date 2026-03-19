@@ -3,12 +3,15 @@
 import { Rating, RatingButton } from "@/components/ui/shadcn-io/rating";
 import { Card, CardContent } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import type { PublicReview, CustomerReview } from "@/types/review";
 import Link from "next/link";
 
 interface ReviewCardProps {
   review: PublicReview | CustomerReview;
   showCompany?: boolean;
+  onDelete?: (reviewId: number) => void;
 }
 
 const ReadOnlyStars = ({ value, size = 16 }: { value: number; size?: number }) => (
@@ -21,7 +24,7 @@ const ReadOnlyStars = ({ value, size = 16 }: { value: number; size?: number }) =
   </Rating>
 );
 
-export function ReviewCard({ review, showCompany = false }: ReviewCardProps) {
+export function ReviewCard({ review, showCompany = false, onDelete }: ReviewCardProps) {
   const t = useT();
   const authorName = [review.user.first_name, review.user.last_name].filter(Boolean).join(" ") || t("reviewPage.anonymous");
   const dateStr = new Date(review.created_at).toLocaleDateString(undefined, {
@@ -92,6 +95,20 @@ export function ReviewCard({ review, showCompany = false }: ReviewCardProps) {
                 <ReadOnlyStars value={value!} size={12} />
               </div>
             ))}
+          </div>
+        )}
+
+        {onDelete && (
+          <div className="mt-3 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-text-muted hover:text-rose-600"
+              onClick={() => onDelete(review.id)}
+            >
+              <Trash2 className="mr-1 h-3 w-3" />
+              {t("reviewPage.deleteReview")}
+            </Button>
           </div>
         )}
       </CardContent>

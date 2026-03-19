@@ -37,6 +37,7 @@ function AuthMenu({
   loginLabel,
   profileLabel,
   appointmentsLabel,
+  reviewsLabel,
   signOutLabel,
   onSignOut,
 }: {
@@ -49,6 +50,7 @@ function AuthMenu({
   loginLabel: string;
   profileLabel: string;
   appointmentsLabel: string;
+  reviewsLabel: string;
   signOutLabel: string;
   onSignOut: () => void;
 }) {
@@ -93,6 +95,9 @@ function AuthMenu({
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/me/appointments">{appointmentsLabel}</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/me/reviews">{reviewsLabel}</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -188,6 +193,7 @@ export function HomeNavbar() {
               loginLabel={t("marketplaceRedesign.nav.login")}
               profileLabel={t("mainNavbar.myProfile")}
               appointmentsLabel={t("mainNavbar.myAppointments")}
+              reviewsLabel={t("mainNavbar.myReviews")}
               signOutLabel={t("mainNavbar.signOut")}
               onSignOut={() => {
                 void handleSignOut();
@@ -251,6 +257,7 @@ export function HomeNavbar() {
             loginLabel={t("homeRedesign.nav.login")}
             profileLabel={t("mainNavbar.myProfile")}
             appointmentsLabel={t("mainNavbar.myAppointments")}
+            reviewsLabel={t("mainNavbar.myReviews")}
             signOutLabel={t("mainNavbar.signOut")}
             onSignOut={() => {
               void handleSignOut();

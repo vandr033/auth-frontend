@@ -182,6 +182,12 @@ export function Navbar() {
                     >
                       {t("mainNavbar.myAppointments")}
                     </Link>
+                    <Link
+                      href="/me/reviews"
+                      className="block px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      {t("mainNavbar.myReviews")}
+                    </Link>
                     <Separator />
                     <button
                       type="button"
@@ -286,6 +292,13 @@ export function Navbar() {
                     className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
                     {t("mainNavbar.myAppointments")}
+                  </Link>
+                  <Link
+                    href="/me/reviews"
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    {t("mainNavbar.myReviews")}
                   </Link>
                   <button
                     onClick={() => {

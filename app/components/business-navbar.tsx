@@ -127,6 +127,9 @@ export function BusinessNavbar() {
                 <DropdownMenuItem asChild>
                   <Link href="/me/appointments">{t("mainNavbar.myAppointments")}</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/me/reviews">{t("mainNavbar.myReviews")}</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() => {
@@ -214,6 +217,13 @@ export function BusinessNavbar() {
                       className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                     >
                       {t("mainNavbar.myAppointments")}
+                    </Link>
+                    <Link
+                      href="/me/reviews"
+                      onClick={() => setMobileOpen(false)}
+                      className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
+                    >
+                      {t("mainNavbar.myReviews")}
                     </Link>
                     <button
                       type="button"

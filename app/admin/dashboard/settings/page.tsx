@@ -62,6 +62,8 @@ interface CompanySettings {
     cancel_limit_minutes: number;
     reschedule_limit_minutes: number;
     auto_approve_staff_time_off: boolean;
+    max_advance_booking_days: number | null;
+    min_advance_booking_hours: number | null;
     allow_qr_payment: boolean;
     qr_image_url: string | null;
     allow_cash_payment: boolean;
@@ -99,6 +101,8 @@ const initialSettings: CompanySettings = {
     cancel_limit_minutes: 120,
     reschedule_limit_minutes: 120,
     auto_approve_staff_time_off: false,
+    max_advance_booking_days: null,
+    min_advance_booking_hours: null,
     allow_qr_payment: true,
     qr_image_url: null,
     allow_cash_payment: true,
@@ -199,6 +203,8 @@ export default function SettingsPage() {
                 cancel_limit_minutes: config.cancel_limit_minutes ?? prev.cancel_limit_minutes,
                 reschedule_limit_minutes: config.reschedule_limit_minutes ?? prev.reschedule_limit_minutes,
                 auto_approve_staff_time_off: config.auto_approve_staff_time_off ?? prev.auto_approve_staff_time_off,
+                max_advance_booking_days: config.max_advance_booking_days ?? prev.max_advance_booking_days,
+                min_advance_booking_hours: config.min_advance_booking_hours ?? prev.min_advance_booking_hours,
                 allow_qr_payment: config.allow_qr_payment ?? prev.allow_qr_payment,
                 qr_image_url: config.qr_image_url ?? prev.qr_image_url,
                 allow_cash_payment: config.allow_cash_payment ?? prev.allow_cash_payment,
@@ -348,6 +354,8 @@ export default function SettingsPage() {
                 cancel_limit_minutes: Number(settings.cancel_limit_minutes),
                 reschedule_limit_minutes: Number(settings.reschedule_limit_minutes),
                 auto_approve_staff_time_off: settings.auto_approve_staff_time_off,
+                max_advance_booking_days: settings.max_advance_booking_days,
+                min_advance_booking_hours: settings.min_advance_booking_hours,
                 allow_qr_payment: settings.allow_qr_payment,
                 qr_image_url: qrUrl,
                 allow_cash_payment: settings.allow_cash_payment,
@@ -785,6 +793,32 @@ export default function SettingsPage() {
                                         checked={settings.auto_approve_staff_time_off}
                                         onCheckedChange={(checked) => handleChange('auto_approve_staff_time_off', checked)}
                                     />
+                                </div>
+
+                                {/* Advance booking limits */}
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label>{t('adminSettings.maxAdvanceDays')}</Label>
+                                        <p className="text-xs text-slate-500">{t('adminSettings.maxAdvanceDaysDesc')}</p>
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            placeholder={t('adminSettings.noLimit')}
+                                            value={settings.max_advance_booking_days ?? ""}
+                                            onChange={(e) => handleChange('max_advance_booking_days', e.target.value ? Number(e.target.value) : null)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t('adminSettings.minAdvanceHours')}</Label>
+                                        <p className="text-xs text-slate-500">{t('adminSettings.minAdvanceHoursDesc')}</p>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            placeholder={t('adminSettings.noLimit')}
+                                            value={settings.min_advance_booking_hours ?? ""}
+                                            onChange={(e) => handleChange('min_advance_booking_hours', e.target.value ? Number(e.target.value) : null)}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>

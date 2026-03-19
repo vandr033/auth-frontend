@@ -23,6 +23,8 @@ import {
     getReviewExtendedMetrics,
     getStaff,
     getServices,
+    deleteAdminReview,
+    exportAdminReviews,
     type AdminReview,
     type AdminReviewsResponse,
     type AdminReviewFilters,
@@ -41,6 +43,8 @@ import {
     ChevronUp,
     X,
     Trophy,
+    Trash2,
+    Download,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -186,6 +190,44 @@ export default function AdminReviewsPage() {
         setDateTo("");
     };
 
+    const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
+
+    const handleDelete = async (reviewId: number) => {
+        if (!confirm(t("adminReviews.confirmDelete"))) return;
+        try {
+            await deleteAdminReview(reviewId);
+            void notify.success(t("adminReviews.deleted"));
+            void fetchReviews(page);
+        } catch {
+            void notify.error(t("adminReviews.deleteError"));
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const data = await exportAdminReviews();
+            const headers = ["Customer", "Rating", "Comment", "Service", "Staff", "Date"];
+            const rows = data.map((r) => [
+                formatReviewerName(r.user),
+                String(r.rating),
+                (r.comment ?? "").replace(/"/g, '""'),
+                r.service?.name ?? "",
+                r.staff?.display_name ?? "",
+                formatDate(r.created_at),
+            ]);
+            const csv = [headers, ...rows].map((row) => row.map((c) => `"${c}"`).join(",")).join("\n");
+            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `reviews-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            void notify.error(t("adminReviews.exportError"));
+        }
+    };
+
     const reviews = reviewsData?.reviews ?? [];
     const pagination = reviewsData?.pagination;
     const thisMonthCount = useMemo(() => {
@@ -223,9 +265,17 @@ export default function AdminReviewsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h2 className="text-2xl font-bold text-slate-900">{t("adminReviews.title")}</h2>
-                <p className="text-sm text-slate-500">{t("adminReviews.subtitle")}</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-900">{t("adminReviews.title")}</h2>
+                    <p className="text-sm text-slate-500">{t("adminReviews.subtitle")}</p>
+                </div>
+                {isOwnerOrAdmin && (
+                    <Button variant="outline" size="sm" onClick={() => void handleExport()}>
+                        <Download className="mr-1.5 h-4 w-4" />
+                        {t("adminReviews.export")}
+                    </Button>
+                )}
             </div>
 
             {/* Summary Cards */}
@@ -431,6 +481,7 @@ export default function AdminReviewsPage() {
                                             <th className="px-4 py-3">{t("adminReviews.service")}</th>
                                             <th className="px-4 py-3">{t("adminReviews.staff")}</th>
                                             <th className="px-4 py-3">{t("adminReviews.date")}</th>
+                                            {isOwnerOrAdmin && <th className="px-4 py-3 w-16"></th>}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -454,6 +505,18 @@ export default function AdminReviewsPage() {
                                                 <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                                                     {formatDate(r.created_at)}
                                                 </td>
+                                                {isOwnerOrAdmin && (
+                                                    <td className="px-4 py-3">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600"
+                                                            onClick={() => void handleDelete(r.id)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
@@ -487,6 +550,19 @@ export default function AdminReviewsPage() {
                                     </div>
                                     {r.comment && (
                                         <p className="mt-2 text-sm text-slate-600 line-clamp-3">{r.comment}</p>
+                                    )}
+                                    {isOwnerOrAdmin && (
+                                        <div className="mt-2 flex justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 text-xs text-slate-400 hover:text-rose-600"
+                                                onClick={() => void handleDelete(r.id)}
+                                            >
+                                                <Trash2 className="mr-1 h-3 w-3" />
+                                                {t("adminReviews.deleteReview")}
+                                            </Button>
+                                        </div>
                                     )}
                                 </CardContent>
                             </Card>

@@ -51,6 +51,17 @@ function ReviewsPageContent() {
     }
   }, [authLoading, isAuthenticated, router, fetchData, shopSlug]);
 
+  const handleDeleteReview = async (reviewId: number) => {
+    if (!confirm(t("reviewPage.confirmDelete"))) return;
+    try {
+      await api.del(`/review/${reviewId}`);
+      void notify.success(t("reviewPage.deleted"));
+      void fetchData();
+    } catch {
+      void notify.error(t("reviewPage.deleteError"));
+    }
+  };
+
   if (authLoading || (loading && reviews.length === 0)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -122,7 +133,7 @@ function ReviewsPageContent() {
         ) : (
           <div className="space-y-3">
             {reviews.map((review) => (
-              <ReviewCard key={review.id} review={review} showCompany />
+              <ReviewCard key={review.id} review={review} showCompany onDelete={handleDeleteReview} />
             ))}
           </div>
         )}
