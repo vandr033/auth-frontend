@@ -59,6 +59,8 @@ export interface MarketplaceMapPin {
   slug: string;
   matchType: MarketplaceMatchType;
   isPrimaryMatch: boolean;
+  businessType?: string | null;
+  logo?: string | null;
   popup?: {
     name: string;
     businessType: string | null;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { getMapboxToken, loadMapboxGl } from "@/lib/mapbox/loadMapboxGl";
+import { createMarkerElement } from "@/lib/mapbox/markerIcons";
 import type { MarketplaceBounds, MarketplaceMapPin } from "@/lib/marketplace/types";
 import { formatCurrencyFromCents } from "@/lib/currency";
 
@@ -50,6 +51,8 @@ type Feature = {
     priceFrom?: number;
     currency?: string;
     city?: string;
+    businessType?: string;
+    logo?: string;
   };
 };
 
@@ -111,9 +114,17 @@ interface MapboxPopupLike {
   remove: () => void;
 }
 
+interface MapboxMarkerLike {
+  setLngLat: (coords: [number, number]) => MapboxMarkerLike;
+  addTo: (map: MapboxMapLike) => MapboxMarkerLike;
+  remove: () => void;
+  getElement: () => HTMLElement;
+}
+
 interface MapboxGlLike {
   accessToken: string;
   Map: new (options: Record<string, unknown>) => MapboxMapLike;
+  Marker: new (options?: Record<string, unknown>) => MapboxMarkerLike;
   Popup: new (options?: Record<string, unknown>) => MapboxPopupLike;
   LngLatBounds: new (southWest: [number, number], northEast: [number, number]) => MapboxLngLatBoundsLike;
 }
@@ -184,6 +195,8 @@ function toFeature(pin: MarketplaceMapPin, selectedCompanyId: number | null, hov
       priceFrom: pin.popup?.priceFrom,
       currency: pin.popup?.currency || undefined,
       city: pin.popup?.city || undefined,
+      businessType: pin.businessType || pin.popup?.businessType || undefined,
+      logo: pin.logo || undefined,
     },
   };
 }
@@ -243,6 +256,7 @@ export function MarketplaceMap({
     features: [],
   });
   const suppressMoveEndRef = useRef(false);
+  const htmlMarkersRef = useRef<Map<number, MapboxMarkerLike>>(new Map());
 
   const [mapLoading, setMapLoading] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
@@ -366,41 +380,61 @@ export function MarketplaceMap({
             },
           });
 
+          // Invisible hit-area layer for click/hover detection on individual points
           map.addLayer({
             id: POINT_LAYER_ID,
             type: "circle",
             source: SOURCE_ID,
             filter: ["!", ["has", "point_count"]],
             paint: {
-              "circle-color": [
-                "case",
-                ["boolean", ["get", "selected"], false],
-                "#050505",
-                ["boolean", ["get", "hovered"], false],
-                "#e73886",
-                ["==", ["get", "matchType"], "exact"],
-                "#050505",
-                "#e73886",
-              ],
-              "circle-stroke-width": [
-                "case",
-                ["boolean", ["get", "selected"], false],
-                4,
-                ["boolean", ["get", "hovered"], false],
-                2.5,
-                1.5,
-              ],
-              "circle-stroke-color": "#ffffff",
-              "circle-radius": [
-                "case",
-                ["boolean", ["get", "selected"], false],
-                11,
-                ["boolean", ["get", "hovered"], false],
-                9,
-                8,
-              ],
+              "circle-color": "transparent",
+              "circle-stroke-width": 0,
+              "circle-radius": 20,
+              "circle-opacity": 0,
             },
           });
+
+          // Sync HTML markers for unclustered points
+          const syncHtmlMarkers = () => {
+            const rendered = map.queryRenderedFeatures(undefined as unknown as unknown, { layers: [POINT_LAYER_ID] });
+            const visibleIds = new Set<number>();
+
+            for (const f of rendered) {
+              const companyId = Number(f.properties?.companyId);
+              if (!Number.isFinite(companyId)) continue;
+              visibleIds.add(companyId);
+
+              if (!htmlMarkersRef.current.has(companyId)) {
+                const isSelected = f.properties?.selected === true || f.properties?.selected === "true";
+                const el = createMarkerElement({
+                  category: String(f.properties?.businessType || ""),
+                  logo: String(f.properties?.logo || "") || null,
+                  size: 34,
+                  selected: isSelected,
+                });
+
+                // Let clicks pass through to the invisible circle layer below
+                el.style.pointerEvents = "none";
+
+                const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+                  .setLngLat(f.geometry.coordinates)
+                  .addTo(map);
+                htmlMarkersRef.current.set(companyId, marker);
+              }
+            }
+
+            // Remove markers no longer visible
+            for (const [id, marker] of htmlMarkersRef.current) {
+              if (!visibleIds.has(id)) {
+                marker.remove();
+                htmlMarkersRef.current.delete(id);
+              }
+            }
+          };
+
+          map.on("moveend", syncHtmlMarkers);
+          // Initial sync after tiles render
+          window.setTimeout(syncHtmlMarkers, 200);
 
           map.on("click", CLUSTER_LAYER_ID, (event: MapboxLayerEvent) => {
             const features = map.queryRenderedFeatures(event.point, { layers: [CLUSTER_LAYER_ID] });
@@ -556,6 +590,10 @@ export function MarketplaceMap({
       disposed = true;
       popupRef.current?.remove?.();
       popupRef.current = null;
+      for (const [, marker] of htmlMarkersRef.current) {
+        marker.remove();
+      }
+      htmlMarkersRef.current.clear();
       mapRef.current?.remove?.();
       mapRef.current = null;
       mapboxModuleRef.current = null;
@@ -571,6 +609,12 @@ export function MarketplaceMap({
     if (source?.setData) {
       source.setData(geoJson);
     }
+
+    // Clear HTML markers so they rebuild with updated state on next render
+    for (const [, marker] of htmlMarkersRef.current) {
+      marker.remove();
+    }
+    htmlMarkersRef.current.clear();
   }, [geoJson]);
 
   useEffect(() => {

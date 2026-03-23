@@ -99,7 +99,7 @@ export interface ShopSettings {
     social_links: SocialLinks;
     default_language?: string;
     max_advance_booking_days?: number | null;
-    min_advance_booking_hours?: number | null;
+    min_advance_booking_minutes?: number | null;
 }
 
 export interface ShopReviewStats {

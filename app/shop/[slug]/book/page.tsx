@@ -371,7 +371,7 @@ function DateTimeStep({
     preferredSlotTime,
     marketplacePrefillEnabled,
     maxAdvanceDays,
-    minAdvanceHours,
+    minAdvanceMinutes,
 }: {
     companyId: number;
     selectedServices: SelectedService[];
@@ -384,7 +384,7 @@ function DateTimeStep({
     preferredSlotTime?: string | null;
     marketplacePrefillEnabled?: boolean;
     maxAdvanceDays?: number | null;
-    minAdvanceHours?: number | null;
+    minAdvanceMinutes?: number | null;
 }) {
     const t = useT();
     const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -496,9 +496,9 @@ function DateTimeStep({
                 let fetchedSlots = response.data || [];
 
                 // Filter out slots that violate min_advance_booking_hours
-                if (minAdvanceHours && selectedDate) {
+                if (minAdvanceMinutes && selectedDate) {
                     const now = new Date();
-                    const minMs = minAdvanceHours * 60 * 60 * 1000;
+                    const minMs = minAdvanceMinutes * 60 * 1000;
                     fetchedSlots = fetchedSlots.map((slot) => {
                         const slotDate = new Date(`${selectedDate}T${slot.time}:00`);
                         if (slotDate.getTime() - now.getTime() < minMs) {
@@ -517,7 +517,7 @@ function DateTimeStep({
         };
 
         void fetchSlots();
-    }, [selectedDate, selectedServices, selectedStaff, companyId, api, minAdvanceHours]);
+    }, [selectedDate, selectedServices, selectedStaff, companyId, api, minAdvanceMinutes]);
 
     const availableHours = useMemo(() => {
         const unique = new Set<number>();
@@ -1723,7 +1723,7 @@ export default function BookingPage() {
                         preferredSlotTime={preselectedSlotTime}
                         marketplacePrefillEnabled={isMarketplaceSource}
                         maxAdvanceDays={settings?.max_advance_booking_days}
-                        minAdvanceHours={settings?.min_advance_booking_hours}
+                        minAdvanceMinutes={settings?.min_advance_booking_minutes}
                     />
                 </div>
                 {booking.step === 4 && (

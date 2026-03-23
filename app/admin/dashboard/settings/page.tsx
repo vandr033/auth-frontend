@@ -63,7 +63,7 @@ interface CompanySettings {
     reschedule_limit_minutes: number;
     auto_approve_staff_time_off: boolean;
     max_advance_booking_days: number | null;
-    min_advance_booking_hours: number | null;
+    min_advance_booking_minutes: number | null;
     allow_qr_payment: boolean;
     qr_image_url: string | null;
     allow_cash_payment: boolean;
@@ -102,7 +102,7 @@ const initialSettings: CompanySettings = {
     reschedule_limit_minutes: 120,
     auto_approve_staff_time_off: false,
     max_advance_booking_days: null,
-    min_advance_booking_hours: null,
+    min_advance_booking_minutes: null,
     allow_qr_payment: true,
     qr_image_url: null,
     allow_cash_payment: true,
@@ -204,7 +204,7 @@ export default function SettingsPage() {
                 reschedule_limit_minutes: config.reschedule_limit_minutes ?? prev.reschedule_limit_minutes,
                 auto_approve_staff_time_off: config.auto_approve_staff_time_off ?? prev.auto_approve_staff_time_off,
                 max_advance_booking_days: config.max_advance_booking_days ?? prev.max_advance_booking_days,
-                min_advance_booking_hours: config.min_advance_booking_hours ?? prev.min_advance_booking_hours,
+                min_advance_booking_minutes: config.min_advance_booking_minutes ?? prev.min_advance_booking_minutes,
                 allow_qr_payment: config.allow_qr_payment ?? prev.allow_qr_payment,
                 qr_image_url: config.qr_image_url ?? prev.qr_image_url,
                 allow_cash_payment: config.allow_cash_payment ?? prev.allow_cash_payment,
@@ -355,7 +355,7 @@ export default function SettingsPage() {
                 reschedule_limit_minutes: Number(settings.reschedule_limit_minutes),
                 auto_approve_staff_time_off: settings.auto_approve_staff_time_off,
                 max_advance_booking_days: settings.max_advance_booking_days,
-                min_advance_booking_hours: settings.min_advance_booking_hours,
+                min_advance_booking_minutes: settings.min_advance_booking_minutes,
                 allow_qr_payment: settings.allow_qr_payment,
                 qr_image_url: qrUrl,
                 allow_cash_payment: settings.allow_cash_payment,
@@ -809,14 +809,14 @@ export default function SettingsPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>{t('adminSettings.minAdvanceHours')}</Label>
-                                        <p className="text-xs text-slate-500">{t('adminSettings.minAdvanceHoursDesc')}</p>
+                                        <Label>{t('adminSettings.minAdvanceMinutes')}</Label>
+                                        <p className="text-xs text-slate-500">{t('adminSettings.minAdvanceMinutesDesc')}</p>
                                         <Input
                                             type="number"
                                             min={0}
                                             placeholder={t('adminSettings.noLimit')}
-                                            value={settings.min_advance_booking_hours ?? ""}
-                                            onChange={(e) => handleChange('min_advance_booking_hours', e.target.value ? Number(e.target.value) : null)}
+                                            value={settings.min_advance_booking_minutes ?? ""}
+                                            onChange={(e) => handleChange('min_advance_booking_minutes', e.target.value ? Number(e.target.value) : null)}
                                         />
                                     </div>
                                 </div>

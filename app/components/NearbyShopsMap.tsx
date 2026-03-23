@@ -7,6 +7,7 @@ import { Loader2, MapPin, Navigation } from "lucide-react";
 import { useApi } from "@/app/hooks/useApi";
 import { useT } from "@/lib/i18n";
 import { getMapboxToken, loadMapboxGl } from "@/lib/mapbox/loadMapboxGl";
+import { createMarkerElement } from "@/lib/mapbox/markerIcons";
 
 interface NearbyShop {
   name: string;
@@ -19,6 +20,7 @@ interface NearbyShop {
   category: string | null;
   serviceName: string | null;
   servicePriceCents: number | null;
+  logo?: string | null;
 }
 
 interface MapboxMapLike {
@@ -112,6 +114,7 @@ export function NearbyShopsMap() {
   const mapRef = useRef<MapboxMapLike | null>(null);
   const userMarkerRef = useRef<MapboxMarkerLike | null>(null);
   const popupRef = useRef<MapboxPopupLike | null>(null);
+  const shopMarkersRef = useRef<MapboxMarkerLike[]>([]);
 
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationDenied, setLocationDenied] = useState(false);
@@ -272,75 +275,6 @@ export function NearbyShopsMap() {
           mapLoaded = true;
           setMapReady(true);
           setMapLoadFailed(false);
-
-          // Shop pins source
-          map.addSource("nearby-shops", {
-            type: "geojson",
-            data: { type: "FeatureCollection", features: [] },
-          });
-
-          map.addLayer({
-            id: "nearby-shops-points",
-            type: "circle",
-            source: "nearby-shops",
-            paint: {
-              "circle-color": "#050505",
-              "circle-stroke-width": 2,
-              "circle-stroke-color": "#ffffff",
-              "circle-radius": 7,
-            },
-          });
-
-          // Click handler – show popup like marketplace
-          map.on("click", "nearby-shops-points", ((...args: unknown[]) => {
-            const event = args[0] as { features?: Array<{ properties?: Record<string, unknown>; geometry: { coordinates: [number, number] } }> } | undefined;
-            const feature = event?.features?.[0];
-            if (!feature) return;
-
-            const name = String(feature.properties?.name || "");
-            const slug = String(feature.properties?.slug || "");
-            const category = String(feature.properties?.category || "");
-            const city = String(feature.properties?.city || "");
-            const rating = Number(feature.properties?.rating ?? 0);
-            const reviewCount = Number(feature.properties?.reviewCount ?? 0);
-            const serviceName = String(feature.properties?.serviceName || "");
-            const servicePriceCents = Number(feature.properties?.servicePriceCents ?? 0);
-
-            const safeName = escapeHtml(name);
-            const safeCategory = category ? escapeHtml(category) : "";
-            const safeCity = city ? escapeHtml(city) : "";
-            const safeServiceName = serviceName ? escapeHtml(serviceName) : "";
-            const viewHref = slug ? `/shop/${encodeURIComponent(slug)}` : "#";
-
-            const priceDisplay = servicePriceCents > 0
-              ? `${(servicePriceCents / 100).toFixed(2)} Bs`
-              : "";
-
-            popupRef.current?.remove?.();
-            popupRef.current = new mapboxgl.Popup({ offset: 14, closeButton: false })
-              .setLngLat(feature.geometry.coordinates)
-              .setHTML(
-                `<div style="min-width:216px;max-width:240px;border:1px solid rgba(0,0,0,.24);background:#fff;padding:10px">
-                  <p style="margin:0;font-size:12px;line-height:1;letter-spacing:.12em;text-transform:uppercase;color:#e73886">${safeCategory}</p>
-                  <p style="margin:6px 0 0;font-weight:800;font-size:20px;line-height:.95;text-transform:uppercase;color:#050505">${safeName}</p>
-                  ${safeServiceName ? `<p style="margin:8px 0 0;font-size:12px;font-weight:700;line-height:1.15;color:#111;text-transform:uppercase">${safeServiceName}</p>` : ""}
-                  ${priceDisplay ? `<p style="margin:4px 0 0;font-size:11px;font-weight:700;line-height:1.15;color:#111;text-transform:uppercase">${escapeHtml(priceDisplay)}</p>` : ""}
-                  ${rating ? `<p style="margin:4px 0 0;font-size:11px;font-weight:600;line-height:1.15;color:#333;text-transform:uppercase">★ ${rating.toFixed(1)} (${reviewCount})</p>` : ""}
-                  ${safeCity ? `<p style="margin:4px 0 0;font-size:11px;font-weight:600;line-height:1.15;color:#333;text-transform:uppercase">${safeCity}</p>` : ""}
-                  <div style="margin-top:10px;display:flex;gap:6px">
-                    <a href="${viewHref}" style="display:inline-flex;align-items:center;justify-content:center;height:30px;flex:1;background:#050505;color:#fff;text-decoration:none;font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid #111">${escapeHtml(t("homeRedesign.nearbyMap.viewShop"))}</a>
-                  </div>
-                </div>`,
-              )
-              .addTo(map);
-          }));
-
-          map.on("mouseenter", "nearby-shops-points", () => {
-            map.getCanvas().style.cursor = "pointer";
-          });
-          map.on("mouseleave", "nearby-shops-points", () => {
-            map.getCanvas().style.cursor = "";
-          });
         });
       })
       .catch(() => {
@@ -356,6 +290,8 @@ export function NearbyShopsMap() {
       popupRef.current = null;
       userMarkerRef.current?.remove?.();
       userMarkerRef.current = null;
+      for (const m of shopMarkersRef.current) m.remove?.();
+      shopMarkersRef.current = [];
       mapRef.current?.remove?.();
       mapRef.current = null;
     };
@@ -386,59 +322,86 @@ export function NearbyShopsMap() {
     });
   }, [mapReady, userLocation]);
 
-  // Update map data when shops change
+  // Update map markers when shops change
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const features = shops
-      .filter(hasCoordinates)
-      .map((s) => ({
-        type: "Feature" as const,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [s.lng!, s.lat!] as [number, number],
-        },
-        properties: {
-          name: s.name,
-          slug: s.slug,
-          category: s.category || "",
-          rating: s.totalStars,
-          reviewCount: s.numberOfReviews,
-          city: s.city || "",
-          serviceName: s.serviceName || "",
-          servicePriceCents: s.servicePriceCents ?? 0,
-        },
-      }));
+    const mapboxgl = (window as Window & { mapboxgl?: MapboxGlLike }).mapboxgl;
+    if (!mapboxgl) return;
 
-    const source = map.getSource("nearby-shops");
-    if (source?.setData) {
-      source.setData({ type: "FeatureCollection", features });
+    // Remove old markers
+    for (const m of shopMarkersRef.current) {
+      m.remove?.();
+    }
+    shopMarkersRef.current = [];
+
+    const withCoords = shops.filter(hasCoordinates);
+
+    for (const shop of withCoords) {
+      const el = createMarkerElement({
+        category: shop.category,
+        logo: shop.logo,
+        size: 34,
+      });
+
+      // Click handler — show popup
+      el.style.cursor = "pointer";
+      el.addEventListener("click", () => {
+        const safeName = escapeHtml(shop.name);
+        const safeCategory = shop.category ? escapeHtml(shop.category) : "";
+        const safeCity = shop.city ? escapeHtml(shop.city) : "";
+        const safeServiceName = shop.serviceName ? escapeHtml(shop.serviceName) : "";
+        const viewHref = shop.slug ? `/shop/${encodeURIComponent(shop.slug)}` : "#";
+        const priceDisplay = (shop.servicePriceCents ?? 0) > 0
+          ? `${(shop.servicePriceCents! / 100).toFixed(2)} Bs`
+          : "";
+
+        popupRef.current?.remove?.();
+        popupRef.current = new mapboxgl.Popup({ offset: 18, closeButton: false })
+          .setLngLat([shop.lng, shop.lat])
+          .setHTML(
+            `<div style="min-width:216px;max-width:240px;border:1px solid rgba(0,0,0,.24);background:#fff;padding:10px">
+              <p style="margin:0;font-size:12px;line-height:1;letter-spacing:.12em;text-transform:uppercase;color:#e73886">${safeCategory}</p>
+              <p style="margin:6px 0 0;font-weight:800;font-size:20px;line-height:.95;text-transform:uppercase;color:#050505">${safeName}</p>
+              ${safeServiceName ? `<p style="margin:8px 0 0;font-size:12px;font-weight:700;line-height:1.15;color:#111;text-transform:uppercase">${safeServiceName}</p>` : ""}
+              ${priceDisplay ? `<p style="margin:4px 0 0;font-size:11px;font-weight:700;line-height:1.15;color:#111;text-transform:uppercase">${escapeHtml(priceDisplay)}</p>` : ""}
+              ${shop.totalStars ? `<p style="margin:4px 0 0;font-size:11px;font-weight:600;line-height:1.15;color:#333;text-transform:uppercase">★ ${shop.totalStars.toFixed(1)} (${shop.numberOfReviews})</p>` : ""}
+              ${safeCity ? `<p style="margin:4px 0 0;font-size:11px;font-weight:600;line-height:1.15;color:#333;text-transform:uppercase">${safeCity}</p>` : ""}
+              <div style="margin-top:10px;display:flex;gap:6px">
+                <a href="${viewHref}" style="display:inline-flex;align-items:center;justify-content:center;height:30px;flex:1;background:#050505;color:#fff;text-decoration:none;font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid #111">${escapeHtml(t("homeRedesign.nearbyMap.viewShop"))}</a>
+              </div>
+            </div>`,
+          )
+          .addTo(map);
+      });
+
+      const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+        .setLngLat([shop.lng, shop.lat])
+        .addTo(map);
+      shopMarkersRef.current.push(marker);
     }
 
     // Fit bounds to include user + all shops
-    if (features.length > 0 && userLocation) {
+    if (withCoords.length > 0 && userLocation) {
       try {
-        const mapboxgl = (window as Window & { mapboxgl?: MapboxGlLike }).mapboxgl;
-        if (mapboxgl) {
-          const bounds = new mapboxgl.LngLatBounds(
-            [userLocation.lng, userLocation.lat],
-            [userLocation.lng, userLocation.lat],
-          );
-          for (const f of features) {
-            bounds.extend(f.geometry.coordinates);
-          }
-          map.fitBounds(bounds as unknown as [[number, number], [number, number]], {
-            padding: 60,
-            duration: 400,
-            maxZoom: 14,
-          });
+        const bounds = new mapboxgl.LngLatBounds(
+          [userLocation.lng, userLocation.lat],
+          [userLocation.lng, userLocation.lat],
+        );
+        for (const s of withCoords) {
+          bounds.extend([s.lng, s.lat]);
         }
+        map.fitBounds(bounds as unknown as [[number, number], [number, number]], {
+          padding: 60,
+          duration: 400,
+          maxZoom: 14,
+        });
       } catch {
         /* bounds fit failed */
       }
     }
-  }, [shops, mapReady, userLocation]);
+  }, [shops, mapReady, userLocation, t]);
 
   const shopsWithCoords = shops.filter(hasCoordinates);
 

@@ -663,23 +663,18 @@ export default function ServicesPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="duration">{t('adminServices.duration')} *</Label>
-                                <Select
-                                    value={formData.duration_minutes.toString()}
-                                    onValueChange={(val) =>
-                                        setFormData({ ...formData, duration_minutes: parseInt(val) })
+                                <Input
+                                    id="duration"
+                                    type="number"
+                                    min={1}
+                                    max={480}
+                                    value={formData.duration_minutes}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, duration_minutes: parseInt(e.target.value) || 1 })
                                     }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {[15, 30, 45, 60, 75, 90, 120, 150, 180].map((min) => (
-                                            <SelectItem key={min} value={min.toString()}>
-                                                {formatDuration(min)}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    placeholder={t('adminServices.durationPlaceholder')}
+                                />
+                                <p className="text-xs text-slate-500">{t('adminServices.durationHint')}</p>
                             </div>
                         </div>
 
