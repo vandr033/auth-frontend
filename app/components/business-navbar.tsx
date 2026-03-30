@@ -20,8 +20,11 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
+import {
+  buildSignInRedirectFromCurrentLocation,
+  getCurrentInternalPathWithQuery,
+} from "@/app/lib/shop-context";
 
-const LOGIN_HREF = "/auth/sign-in";
 const DEMO_HREF = "https://cal.com/priconpri/demo";
 
 const getInitials = (name?: string | null, email?: string | null) => {
@@ -35,12 +38,13 @@ export function BusinessNavbar() {
   const router = useRouter();
   const { isAuthenticated, user, signOut, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
 
   const navLinks = [
     { href: "/#for-businesses", label: t("businessNavbar.sectors") },
     { href: "/#how-it-works", label: t("businessNavbar.features") },
     { href: "/negocios#precios", label: t("businessNavbar.pricing") },
-    { href: LOGIN_HREF, label: t("businessNavbar.login") },
+    { href: loginHref, label: t("businessNavbar.login") },
   ];
 
   const displayName = useMemo(() => {
@@ -52,9 +56,11 @@ export function BusinessNavbar() {
 
   const handleSignOut = async () => {
     try {
+      const redirectTarget = getCurrentInternalPathWithQuery("/negocios");
       await signOut();
       setMobileOpen(false);
-      router.push("/");
+      router.replace(redirectTarget);
+      router.refresh();
     } catch (error) {
       console.error("Sign out failed", error);
     }
@@ -143,7 +149,7 @@ export function BusinessNavbar() {
             </DropdownMenu>
           ) : (
             <Link
-              href={LOGIN_HREF}
+              href={loginHref}
               className="px-2 text-[10px] font-semibold tracking-[0.08em] text-black transition-colors hover:text-slate-700"
             >
               {t("businessNavbar.loginUpper")}

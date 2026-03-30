@@ -67,6 +67,8 @@ interface CompanySettings {
     allow_qr_payment: boolean;
     qr_image_url: string | null;
     allow_cash_payment: boolean;
+    require_comprobante_for_qr: boolean;
+    auto_confirm_bookings: boolean;
     send_email_notifications: boolean;
     send_whatsapp_notifications: boolean;
     social_links: SocialLinks;
@@ -106,6 +108,8 @@ const initialSettings: CompanySettings = {
     allow_qr_payment: true,
     qr_image_url: null,
     allow_cash_payment: true,
+    require_comprobante_for_qr: true,
+    auto_confirm_bookings: true,
     send_email_notifications: true,
     send_whatsapp_notifications: false,
     social_links: {},
@@ -147,6 +151,7 @@ export default function SettingsPage() {
     const plan = resolveShopPlan(companyUser?.company?.plan);
     const canUseNotifications = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
     const canUseReminders = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BOOKING_REMINDERS");
+    const canCustomizeBookingFlow = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BOOKING_FLOW_CUSTOMIZATION");
 
     const [settings, setSettings] = useState<CompanySettings>(initialSettings);
     const [subscriptionSummary, setSubscriptionSummary] = useState<ShopSubscriptionSnapshot | null>(null);
@@ -208,6 +213,8 @@ export default function SettingsPage() {
                 allow_qr_payment: config.allow_qr_payment ?? prev.allow_qr_payment,
                 qr_image_url: config.qr_image_url ?? prev.qr_image_url,
                 allow_cash_payment: config.allow_cash_payment ?? prev.allow_cash_payment,
+                require_comprobante_for_qr: config.require_comprobante_for_qr ?? prev.require_comprobante_for_qr,
+                auto_confirm_bookings: config.auto_confirm_bookings ?? prev.auto_confirm_bookings,
                 send_email_notifications: config.send_email_notifications ?? prev.send_email_notifications,
                 send_whatsapp_notifications: config.send_whatsapp_notifications ?? prev.send_whatsapp_notifications,
                 social_links: config.social_links ?? prev.social_links,
@@ -359,6 +366,8 @@ export default function SettingsPage() {
                 allow_qr_payment: settings.allow_qr_payment,
                 qr_image_url: qrUrl,
                 allow_cash_payment: settings.allow_cash_payment,
+                require_comprobante_for_qr: settings.require_comprobante_for_qr,
+                auto_confirm_bookings: settings.auto_confirm_bookings,
                 send_email_notifications: settings.send_email_notifications,
                 send_whatsapp_notifications: settings.send_whatsapp_notifications,
                 social_links: settings.social_links,
@@ -885,6 +894,45 @@ export default function SettingsPage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Require Comprobante for QR */}
+                            {settings.allow_qr_payment && (
+                                <div className={`flex items-center justify-between rounded-lg border p-4 ${!canCustomizeBookingFlow ? "opacity-50" : ""}`}>
+                                    <div className="space-y-0.5">
+                                        <Label className="text-base">{t('adminSettings.requireComprobante')}</Label>
+                                        <p className="text-sm text-slate-500">
+                                            {t('adminSettings.requireComprobanteDesc')}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.require_comprobante_for_qr}
+                                        onCheckedChange={(checked) => handleChange('require_comprobante_for_qr', checked)}
+                                        disabled={!canCustomizeBookingFlow}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Auto Confirm Bookings */}
+                            <div className={`flex items-center justify-between rounded-lg border p-4 ${!canCustomizeBookingFlow ? "opacity-50" : ""}`}>
+                                <div className="space-y-0.5">
+                                    <Label className="text-base">{t('adminSettings.autoConfirmBookings')}</Label>
+                                    <p className="text-sm text-slate-500">
+                                        {t('adminSettings.autoConfirmBookingsDesc')}
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={settings.auto_confirm_bookings}
+                                    onCheckedChange={(checked) => handleChange('auto_confirm_bookings', checked)}
+                                    disabled={!canCustomizeBookingFlow}
+                                />
+                            </div>
+                            {!canCustomizeBookingFlow && (
+                                <PlanUpgradeNotice
+                                    title={t("planEnforcement.featureLockedTitle")}
+                                    message={t("planEnforcement.availableOnBusiness")}
+                                    feature="BOOKING_FLOW_CUSTOMIZATION"
+                                />
+                            )}
                         </CardContent>
                     </Card>
 

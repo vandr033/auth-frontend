@@ -113,6 +113,22 @@ function ProfilePageContent() {
 
   if (!user) return null;
 
+  const displayPhone = (() => {
+    const rawPhone = user.phoneNumber?.trim() || "";
+    if (!rawPhone) return "";
+
+    const rawPrefix = (user.phone_prefix || "").replace(/\D/g, "");
+    if (!rawPrefix) return rawPhone;
+
+    const phoneDigits = rawPhone.replace(/\D/g, "");
+    if (phoneDigits.startsWith(rawPrefix)) {
+      const withoutPrefixDigits = phoneDigits.slice(rawPrefix.length);
+      return withoutPrefixDigits ? `+${rawPrefix} ${withoutPrefixDigits}` : `+${rawPrefix}`;
+    }
+
+    return `+${rawPrefix} ${rawPhone}`;
+  })();
+
   const initials =
     (user.first_name?.[0] || user.name?.[0] || "U") +
     (user.last_name?.[0] || "");
@@ -368,8 +384,7 @@ function ProfilePageContent() {
             {user.phoneNumber ? (
               <div className="flex items-center gap-2">
                 <p className="text-text-main">
-                  {user.phone_prefix ? `+${user.phone_prefix} ` : ""}
-                  {user.phoneNumber}
+                  {displayPhone}
                 </p>
                 {user.phoneNumberVerified && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft-bg px-2 py-0.5 text-xs font-medium text-brand">

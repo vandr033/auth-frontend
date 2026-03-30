@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useT } from "@/lib/i18n";
+import { buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
 
 const platformLinks = [
   { key: "homeRedesign.footer.links.home", href: "#home" },
@@ -22,6 +23,7 @@ const companyLinks = [
 
 export function Footer() {
   const t = useT();
+  const loginHref = buildSignInRedirectFromCurrentLocation("/");
 
   return (
     <footer className="w-full bg-white">
@@ -65,7 +67,7 @@ export function Footer() {
               {companyLinks.map((link) => (
                 <Link
                   key={link.key}
-                  href={link.href}
+                  href={link.key === "homeRedesign.footer.links.login" ? loginHref : link.href}
                   className="mb-2 block text-sm leading-none text-slate-600 transition-colors hover:text-black"
                 >
                   {t(link.key)}

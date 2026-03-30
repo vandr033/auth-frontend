@@ -953,6 +953,9 @@ function ConfirmStep({
                                         <div className="space-y-2">
                                             <label className="block text-sm font-medium text-text-main">
                                                 {t('shopBooking.uploadProofLabel')}
+                                                {settings?.require_comprobante_for_qr === false && (
+                                                    <span className="ml-1 text-xs font-normal text-text-muted">({t('shopBooking.optional')})</span>
+                                                )}
                                             </label>
 
                                             <div className="flex items-center gap-4">
@@ -989,7 +992,9 @@ function ConfirmStep({
                                             </div>
                                             {!qrProofFile && (
                                                 <p className="text-xs text-text-muted">
-                                                    {t('shopBooking.uploadProofHint')}
+                                                    {settings?.require_comprobante_for_qr === false
+                                                        ? t('shopBooking.uploadProofHintOptional')
+                                                        : t('shopBooking.uploadProofHint')}
                                                 </p>
                                             )}
                                         </div>
@@ -1406,10 +1411,13 @@ export default function BookingPage() {
 
         let qrProofUrl: string | undefined = undefined;
         if (booking.paymentMethod === 'QR') {
-            if (!qrProofFile) {
+            const requireComprobante = settings?.require_comprobante_for_qr !== false;
+            if (requireComprobante && !qrProofFile) {
                 throw new Error(t('shopBooking.qrProofRequired'));
             }
-            qrProofUrl = await uploadQrProof(qrProofFile, company.id);
+            if (qrProofFile) {
+                qrProofUrl = await uploadQrProof(qrProofFile, company.id);
+            }
         }
 
         return {

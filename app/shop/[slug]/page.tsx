@@ -14,6 +14,18 @@ import { LocationHours } from "@/components/shop/LocationHours";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { PublicReviewList } from "@/components/shop/PublicReviewList";
 import { ShopUnavailableState } from "../components/ShopUnavailableState";
+import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { useAuth } from "@/lib/useAuth";
+import {
+    listPublicClasses,
+    listPublicClassSessions,
+    listPublicEvents,
+    type PublicGroupClass,
+    type PublicGroupClassSession,
+    type PublicGroupEvent,
+} from "@/app/shop/lib/groupReservationsApi";
+import { GroupClassCard, GroupEventCard } from "@/app/shop/components/group/GroupPublicCards";
+import { isEventSoldOut } from "@/app/shop/lib/groupReservationsFormat";
 
 export default function ShopPage() {
     const {
@@ -26,6 +38,86 @@ export default function ShopPage() {
         isShopActive,
     } = useShop();
     const t = useT();
+    const { user } = useAuth();
+    const plan = resolveShopPlan(company?.plan);
+    const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
+    const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
+    const [events, setEvents] = React.useState<PublicGroupEvent[]>([]);
+    const [classes, setClasses] = React.useState<PublicGroupClass[]>([]);
+    const [classSessionsById, setClassSessionsById] = React.useState<Record<number, PublicGroupClassSession[]>>({});
+    const [groupsLoading, setGroupsLoading] = React.useState(false);
+    const visibleEvents = React.useMemo(
+        () => (user?.id ? events : events.filter((event) => !isEventSoldOut(event))),
+        [events, user?.id],
+    );
+
+    React.useEffect(() => {
+        if (!company?.id || !isShopActive || (!canSeeEvents && !canSeeClasses)) {
+            setEvents([]);
+            setClasses([]);
+            setClassSessionsById({});
+            return;
+        }
+
+        let cancelled = false;
+
+        const run = async () => {
+            setGroupsLoading(true);
+            try {
+                if (canSeeEvents) {
+                    const eventsData = await listPublicEvents(company.id, true);
+                    if (!cancelled) setEvents(eventsData);
+                } else if (!cancelled) {
+                    setEvents([]);
+                }
+
+                if (canSeeClasses) {
+                    const classesData = await listPublicClasses(company.id);
+                    const sessions = await Promise.all(
+                        classesData.map(async (item) => ({
+                            classId: item.id,
+                            sessions: await listPublicClassSessions(company.id, item.id),
+                        })),
+                    );
+                    if (!cancelled) {
+                        const byId: Record<number, PublicGroupClassSession[]> = {};
+                        sessions.forEach(({ classId, sessions }) => {
+                            byId[classId] = sessions;
+                        });
+                        const now = Date.now();
+                        const visibleClasses = classesData
+                            .filter((item) =>
+                                (byId[item.id] ?? []).some((session) => {
+                                    if (session.cancelled_at) return false;
+                                    return new Date(session.start_at).getTime() >= now;
+                                }),
+                            )
+                            .slice(0, 4);
+
+                        setClasses(visibleClasses);
+                        setClassSessionsById(byId);
+                    }
+                } else if (!cancelled) {
+                    setClasses([]);
+                    setClassSessionsById({});
+                }
+            } catch {
+                if (!cancelled) {
+                    setEvents([]);
+                    setClasses([]);
+                    setClassSessionsById({});
+                }
+            } finally {
+                if (!cancelled) setGroupsLoading(false);
+            }
+        };
+
+        void run();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [canSeeClasses, canSeeEvents, company?.id, isShopActive]);
 
     // Loading state
     if (loading) {
@@ -110,6 +202,87 @@ export default function ShopPage() {
                     <ServicesWrapper maxItems={6} />
                 </div>
             </section>
+
+            {canSeeEvents ? (
+                <section className="py-16 md:py-24">
+                    <div className="mx-auto max-w-6xl px-4 md:px-8">
+                        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                    {t("shopGroup.events.eyebrow")}
+                                </p>
+                                <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                                    {t("shopGroup.events.title")}
+                                </h2>
+                            </div>
+                            <Link href={`/shop/${slug}/events`}>
+                                <Button variant="ghost" className="text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
+                                    {t("shopGroup.actions.viewAllEvents")} →
+                                </Button>
+                            </Link>
+                        </div>
+
+                        {groupsLoading ? (
+                            <p className="text-sm text-text-muted">{t("shopGroup.loadingEvents")}</p>
+                        ) : visibleEvents.length === 0 ? (
+                            <p className="text-sm text-text-muted">{t("shopGroup.emptyEvents")}</p>
+                        ) : (
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {visibleEvents.slice(0, 4).map((event) => (
+                                    <GroupEventCard
+                                        key={event.id}
+                                        event={event}
+                                        slug={slug}
+                                        currency={company.currency}
+                                        t={t}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            ) : null}
+
+            {canSeeClasses ? (
+                <section className="bg-section py-16 md:py-24">
+                    <div className="mx-auto max-w-6xl px-4 md:px-8">
+                        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                    {t("shopGroup.classes.eyebrow")}
+                                </p>
+                                <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                                    {t("shopGroup.classes.title")}
+                                </h2>
+                            </div>
+                            <Link href={`/shop/${slug}/classes`}>
+                                <Button variant="ghost" className="text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
+                                    {t("shopGroup.actions.viewAllClasses")} →
+                                </Button>
+                            </Link>
+                        </div>
+
+                        {groupsLoading ? (
+                            <p className="text-sm text-text-muted">{t("shopGroup.loadingClasses")}</p>
+                        ) : classes.length === 0 ? (
+                            <p className="text-sm text-text-muted">{t("shopGroup.emptyClasses")}</p>
+                        ) : (
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {classes.map((groupClass) => (
+                                    <GroupClassCard
+                                        key={groupClass.id}
+                                        groupClass={groupClass}
+                                        sessions={classSessionsById[groupClass.id] || []}
+                                        slug={slug}
+                                        currency={company.currency}
+                                        t={t}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            ) : null}
 
             {/* 5. Team */}
             <section className="bg-section py-16 md:py-24">

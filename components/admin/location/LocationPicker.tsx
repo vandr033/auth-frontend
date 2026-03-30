@@ -247,6 +247,8 @@ export function LocationPicker({ value, text, onLocationAutofill, mapboxToken }:
     },
     [applyFeature, onLocationAutofill, resolvedToken, text.noResultsText, text.reverseGeocodeErrorText],
   );
+  const applyCoordinatesWithReverseGeocodeRef = useRef(applyCoordinatesWithReverseGeocode);
+  applyCoordinatesWithReverseGeocodeRef.current = applyCoordinatesWithReverseGeocode;
 
   const handleMarkerDragEnd = useCallback(async () => {
     const marker = markerRef.current;
@@ -297,7 +299,7 @@ export function LocationPicker({ value, text, onLocationAutofill, mapboxToken }:
           if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
 
           upsertMarker([longitude, latitude], false);
-          void applyCoordinatesWithReverseGeocode(longitude, latitude, "pin_drag");
+          void applyCoordinatesWithReverseGeocodeRef.current(longitude, latitude, "pin_drag");
         });
 
         map.on("load", () => {
@@ -328,7 +330,7 @@ export function LocationPicker({ value, text, onLocationAutofill, mapboxToken }:
       mapRef.current?.remove?.();
       mapRef.current = null;
     };
-  }, [applyCoordinatesWithReverseGeocode, resolvedToken, text.mapUnavailableText, text.missingTokenText, upsertMarker]);
+  }, [resolvedToken, text.mapUnavailableText, text.missingTokenText, upsertMarker]);
 
   useEffect(() => {
     const map = mapRef.current;

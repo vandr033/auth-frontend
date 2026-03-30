@@ -17,9 +17,11 @@ import { getImageUrl } from "@/utils/image-url";
 import { SocialIcons } from "@/components/shop/SocialIcons";
 import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import {
     appendShopParam,
     buildSignInRedirectFromCurrentLocation,
+    getCurrentInternalPathWithQuery,
 } from "@/app/lib/shop-context";
 
 const getInitials = (name?: string | null, email?: string | null) => {
@@ -43,10 +45,16 @@ export function ShopNavbar() {
     const basePath = `/shop/${slug}`;
     const profileHref = appendShopParam("/me/profile", slug);
     const appointmentsHref = appendShopParam("/me/appointments", slug);
+    const groupReservationsHref = appendShopParam("/me/group-reservations", slug);
+    const plan = resolveShopPlan(company?.plan);
+    const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
+    const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
 
     const navLinks = [
         { href: basePath, label: t('shopNav.home') },
         { href: `${basePath}/services`, label: t('shopNav.services') },
+        ...(canSeeEvents ? [{ href: `${basePath}/events`, label: t('shopNav.events') }] : []),
+        ...(canSeeClasses ? [{ href: `${basePath}/classes`, label: t('shopNav.classes') }] : []),
         { href: `${basePath}/about`, label: t('shopNav.about') },
     ];
 
@@ -81,9 +89,11 @@ export function ShopNavbar() {
 
     const handleSignOut = async () => {
         try {
+            const redirectTarget = getCurrentInternalPathWithQuery(basePath);
             await signOut();
             setUserMenuOpen(false);
-            router.push("/");
+            router.replace(redirectTarget);
+            router.refresh();
         } catch (error) {
             console.error("Sign out failed", error);
         }
@@ -152,6 +162,12 @@ export function ShopNavbar() {
                             className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
                         >
                             {t('shopNav.myAppointments')}
+                        </Link>
+                        <Link
+                            href={groupReservationsHref}
+                            className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
+                        >
+                            {t('shopNav.myGroupReservations')}
                         </Link>
                         <Separator className="border-surface-border" />
                         <button
@@ -329,6 +345,12 @@ export function ShopNavbar() {
                                             <Button variant="outline" className="w-full justify-start gap-2">
                                                 <span className="h-2 w-2 rounded-full bg-brand" />
                                                 {t('shopNav.myAppointments')}
+                                            </Button>
+                                        </Link>
+                                        <Link href={groupReservationsHref} onClick={() => setOpen(false)}>
+                                            <Button variant="outline" className="w-full justify-start gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-brand" />
+                                                {t('shopNav.myGroupReservations')}
                                             </Button>
                                         </Link>
                                         <Button

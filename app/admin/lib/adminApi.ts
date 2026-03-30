@@ -37,6 +37,56 @@ async function apiFetch<T>(
     return data;
 }
 
+export type AdminUploadImageType =
+    | "logo"
+    | "hero_home"
+    | "hero_about"
+    | "about_1"
+    | "about_2"
+    | "about_3"
+    | "staff"
+    | "group_event_cover"
+    | "group_event_thumbnail"
+    | "group_class_cover"
+    | "group_class_thumbnail";
+
+export async function uploadAdminImage(params: {
+    file: File;
+    companyId: number;
+    type: AdminUploadImageType;
+    entityId?: number;
+}): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", params.file);
+    formData.append("company_id", String(params.companyId));
+    formData.append("type", params.type);
+    if (params.entityId !== undefined) {
+        formData.append("entity_id", String(params.entityId));
+    }
+
+    const response = await fetch(resolveUrl("/api/admin/uploads/image"), {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+        const message =
+            (typeof payload?.message === "string" && payload.message) ||
+            (typeof payload?.error === "string" && payload.error) ||
+            `Upload failed: ${response.status}`;
+        throw new Error(message);
+    }
+
+    const url = payload?.data?.url ?? payload?.url;
+    if (typeof url !== "string" || url.length === 0) {
+        throw new Error("Upload succeeded but no URL was returned");
+    }
+
+    return url;
+}
+
 // ============ DASHBOARD ============
 
 export interface DashboardMetrics {
@@ -765,5 +815,758 @@ export async function deleteAdminReview(reviewId: number): Promise<void> {
 
 export async function exportAdminReviews(): Promise<AdminReview[]> {
     const response = await apiFetch<{ data: AdminReview[] }>("/api/admin/reviews/export");
+    return response.data;
+}
+
+// ============ GROUP RESERVATIONS ============
+
+export type GroupItemStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
+export type GroupBookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED";
+export type GroupPaymentMethod = "NONE" | "CASH" | "QR";
+export type GroupPaymentStatus = "UNPAID" | "PENDING_CONFIRMATION" | "PAID" | "REJECTED";
+export type GroupPricingMode = "PER_SESSION" | "WEEKLY_PASS" | "MONTHLY_PASS";
+export type GroupRecurrenceType = "WEEKLY" | "MONTHLY" | "CUSTOM";
+export type GroupStaffRole = "INSTRUCTOR" | "ASSISTANT";
+export type GroupTicketStatus = "ACTIVE" | "USED" | "CANCELLED" | "EXPIRED";
+export type GroupCheckInMethod = "QR_SCAN" | "MANUAL";
+
+export interface GroupStaffAssignment {
+    id: number;
+    company_id: number;
+    group_event_id: number | null;
+    group_class_id: number | null;
+    staff_profile_id: number | null;
+    display_name: string | null;
+    display_phone: string | null;
+    role: GroupStaffRole;
+    created_at: string;
+    updated_at: string;
+    staff_profile?: {
+        id: number;
+        display_name: string;
+        image_url: string | null;
+    } | null;
+}
+
+export interface GroupEvent {
+    id: number;
+    company_id: number;
+    title: string;
+    slug: string;
+    description: string | null;
+    cover_image_url: string | null;
+    thumbnail_url: string | null;
+    status: GroupItemStatus;
+    is_free: boolean;
+    price_cents: number;
+    max_capacity: number;
+    start_at: string;
+    end_at: string;
+    location_text: string | null;
+    created_by_user_id: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    staff_assignments?: GroupStaffAssignment[];
+    _count?: {
+        bookings?: number;
+        interests?: number;
+    };
+    booked_spots_confirmed?: number;
+    booked_spots_pending?: number;
+}
+
+export interface GroupClassSession {
+    id: number;
+    company_id: number;
+    group_class_id: number;
+    start_at: string;
+    end_at: string;
+    status: GroupItemStatus;
+    max_capacity_override: number | null;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
+    created_at: string;
+    updated_at: string;
+    max_capacity?: number;
+    booked_count?: number;
+    attendance_count?: number;
+    _count?: {
+        attendances?: number;
+    };
+    group_class?: {
+        id: number;
+        title: string;
+        pricing_mode: GroupPricingMode;
+        price_cents: number;
+        max_capacity_per_session: number;
+    };
+}
+
+export interface GroupClass {
+    id: number;
+    company_id: number;
+    title: string;
+    slug: string;
+    description: string | null;
+    cover_image_url: string | null;
+    thumbnail_url: string | null;
+    status: GroupItemStatus;
+    pricing_mode: GroupPricingMode;
+    price_cents: number;
+    max_capacity_per_session: number;
+    session_duration_minutes: number;
+    recurrence_type: GroupRecurrenceType;
+    recurrence_config: Record<string, unknown>;
+    recurrence_start_date: string;
+    recurrence_end_date: string | null;
+    start_time: string;
+    location_text: string | null;
+    created_by_user_id: string | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    staff_assignments?: GroupStaffAssignment[];
+    sessions?: GroupClassSession[];
+    _count?: {
+        sessions?: number;
+        enrollments?: number;
+    };
+}
+
+export interface GroupEventBooking {
+    id: number;
+    company_id: number;
+    group_event_id: number;
+    customer_profile_id: number | null;
+    user_id: string;
+    status: GroupBookingStatus;
+    booked_spots: number;
+    payment_method: GroupPaymentMethod;
+    payment_status: GroupPaymentStatus;
+    qr_proof_image_url: string | null;
+    total_price_cents: number;
+    extra_attendees_json?: Array<{
+        full_name: string;
+        email?: string | null;
+        phone?: string | null;
+    }> | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+    cancelled_at: string | null;
+    user?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+        phoneNumber: string | null;
+    };
+}
+
+export interface GroupEventInterest {
+    id: number;
+    company_id: number;
+    group_event_id: number;
+    user_id: string;
+    customer_profile_id: number | null;
+    created_at: string;
+    user?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+        phoneNumber: string | null;
+        phone_prefix?: string | null;
+    };
+}
+
+export interface GroupClassEnrollment {
+    id: number;
+    company_id: number;
+    group_class_id: number;
+    customer_profile_id: number | null;
+    user_id: string;
+    pricing_mode: GroupPricingMode;
+    price_cents_snapshot: number;
+    status: GroupBookingStatus;
+    payment_method: GroupPaymentMethod;
+    payment_status: GroupPaymentStatus;
+    qr_proof_image_url: string | null;
+    valid_from: string;
+    valid_until: string;
+    created_at: string;
+    updated_at: string;
+    cancelled_at: string | null;
+    user?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+        phoneNumber: string | null;
+    };
+}
+
+export interface GroupAttendanceRow {
+    id: number;
+    company_id: number;
+    group_class_session_id: number | null;
+    group_event_id: number | null;
+    customer_profile_id: number | null;
+    user_id: string;
+    enrollment_id: number | null;
+    event_booking_id: number | null;
+    checked_in_at: string | null;
+    checked_in_method: GroupCheckInMethod | null;
+    created_at: string;
+    user?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+        phoneNumber: string | null;
+    };
+    event_booking?: {
+        id: number;
+        status: GroupBookingStatus;
+        payment_status: GroupPaymentStatus;
+    };
+    enrollment?: {
+        id: number;
+        status: GroupBookingStatus;
+        valid_from: string;
+        valid_until: string;
+    };
+}
+
+export interface GroupTicket {
+    id: number;
+    company_id: number;
+    group_event_booking_id: number | null;
+    group_class_enrollment_id: number | null;
+    group_class_session_id: number | null;
+    ticket_code: string;
+    seat_number?: number | null;
+    holder_name?: string | null;
+    holder_email?: string | null;
+    holder_phone?: string | null;
+    status: GroupTicketStatus;
+    valid_from: string;
+    valid_until: string;
+    issued_at: string;
+    used_at: string | null;
+    cancelled_at: string | null;
+    delivery_count?: number;
+    resend_count?: number;
+    last_sent_at?: string | null;
+    qr_token?: string;
+    created_at: string;
+    updated_at: string;
+    event_booking?: {
+        id: number;
+        user?: {
+            id: string;
+            name: string | null;
+            email: string | null;
+            phoneNumber: string | null;
+        };
+        group_event?: {
+            id: number;
+            title: string;
+        };
+    } | null;
+    class_enrollment?: {
+        id: number;
+        user?: {
+            id: string;
+            name: string | null;
+            email: string | null;
+            phoneNumber: string | null;
+        };
+        group_class?: {
+            id: number;
+            title: string;
+        };
+    } | null;
+}
+
+export type GroupTicketScanStatus = "VALID" | "ALREADY_USED" | "INVALID";
+
+export interface GroupTicketScanResult {
+    scan_status: GroupTicketScanStatus;
+    reason?: string;
+    ticket_code?: string;
+    ticket_type?: "EVENT" | "CLASS";
+    class_session_id?: number;
+    attendance?: GroupAttendanceRow;
+    ticket?: GroupTicket;
+}
+
+export interface GroupAttendanceSummary {
+    total_rows: number;
+    event_checked_in: number;
+    class_checked_in: number;
+}
+
+export interface GroupEventMetricsSummary {
+    total_events: number;
+    seats_sold: number;
+    occupancy_rate: number;
+    attendance_rate: number;
+    no_show_count: number;
+    free_confirmed_spots: number;
+    paid_confirmed_spots: number;
+    revenue_cents: number;
+    total_interest_count?: number;
+    waitlist_size?: number;
+}
+
+export interface GroupEventMetricsRow {
+    event_id: number;
+    title: string;
+    status: GroupItemStatus;
+    is_free: boolean;
+    start_at: string;
+    end_at: string;
+    max_capacity: number;
+    confirmed_spots: number;
+    pending_spots: number;
+    waitlist_size: number;
+    interest_count: number;
+    checked_in_count: number;
+    occupancy_rate: number;
+    attendance_rate: number;
+    no_show_count: number;
+    revenue_cents: number;
+}
+
+export interface GroupClassSessionMetricsRow {
+    session_id: number;
+    start_at: string;
+    end_at: string;
+    capacity: number;
+    potential_attendances: number;
+    checked_in_count: number;
+    no_show_count: number;
+    occupancy_rate: number;
+    pass_utilization_rate: number;
+}
+
+export interface GroupClassMetricsRow {
+    class_id: number;
+    title: string;
+    status: GroupItemStatus;
+    pricing_mode: GroupPricingMode;
+    total_sessions: number;
+    total_enrollments: number;
+    confirmed_enrollments: number;
+    pending_enrollments: number;
+    active_pass_holders: number;
+    revenue_cents: number;
+    checked_in_count: number;
+    no_show_count: number;
+    occupancy_rate: number;
+    attendance_rate: number;
+    pass_utilization_rate: number;
+    session_breakdown: GroupClassSessionMetricsRow[];
+}
+
+export interface GroupClassMetricsSummary {
+    total_classes: number;
+    total_sessions: number;
+    total_enrollments: number;
+    active_pass_holders: number;
+    revenue_cents: number;
+    checked_in_count: number;
+    no_show_count: number;
+    occupancy_rate: number;
+    attendance_rate: number;
+    pass_utilization_rate: number;
+}
+
+export interface GroupMetricsResponse {
+    scope: "BUSINESS" | "PRO";
+    filters: {
+        date_from: string | null;
+        date_to: string | null;
+        event_id: number | null;
+        class_id: number | null;
+        item_status: GroupItemStatus | null;
+        booking_status: GroupBookingStatus | null;
+        free_paid: "FREE" | "PAID" | null;
+    };
+    events: {
+        summary: GroupEventMetricsSummary;
+        breakdown: GroupEventMetricsRow[];
+    };
+    classes: null | {
+        summary: GroupClassMetricsSummary;
+        breakdown: GroupClassMetricsRow[];
+    };
+    advanced?: {
+        waitlist_size: number;
+    };
+}
+
+export interface GroupBookingFlowSettings {
+    auto_confirm_bookings: boolean;
+    allow_qr_payment: boolean;
+    allow_cash_payment: boolean;
+    require_comprobante_for_qr: boolean;
+}
+
+export interface AdminCompanyLocation {
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    latitude: number | null;
+    longitude: number | null;
+}
+
+export interface GroupStaffAssignmentInput {
+    staff_profile_id?: number | null;
+    display_name?: string | null;
+    display_phone?: string | null;
+    role?: GroupStaffRole;
+}
+
+export interface CreateGroupEventPayload {
+    title: string;
+    slug?: string;
+    description?: string | null;
+    cover_image_url?: string | null;
+    thumbnail_url?: string | null;
+    status?: GroupItemStatus;
+    is_free: boolean;
+    price_cents: number;
+    max_capacity: number;
+    start_at: string;
+    end_at: string;
+    location_text?: string | null;
+    staff_assignments?: GroupStaffAssignmentInput[];
+}
+
+export type UpdateGroupEventPayload = Partial<CreateGroupEventPayload>;
+
+export interface CreateGroupClassPayload {
+    title: string;
+    slug?: string;
+    description?: string | null;
+    cover_image_url?: string | null;
+    thumbnail_url?: string | null;
+    status?: GroupItemStatus;
+    pricing_mode: GroupPricingMode;
+    price_cents: number;
+    max_capacity_per_session: number;
+    session_duration_minutes: number;
+    recurrence_type: GroupRecurrenceType;
+    recurrence_config: Record<string, unknown>;
+    recurrence_start_date: string;
+    recurrence_end_date?: string | null;
+    start_time: string;
+    location_text?: string | null;
+    staff_assignments?: GroupStaffAssignmentInput[];
+}
+
+export type UpdateGroupClassPayload = Partial<CreateGroupClassPayload>;
+
+function buildGroupQuery(params: Record<string, string | number | boolean | undefined | null>): string {
+    const search = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === "") return;
+        search.set(key, String(value));
+    });
+
+    const query = search.toString();
+    return query ? `?${query}` : "";
+}
+
+export async function getGroupBookingFlowSettings(): Promise<GroupBookingFlowSettings> {
+    const response = await apiFetch<{ data: GroupBookingFlowSettings }>("/api/admin/settings");
+    return response.data;
+}
+
+export async function getAdminCompanyLocation(companyId: number): Promise<AdminCompanyLocation | null> {
+    if (!Number.isInteger(companyId) || companyId <= 0) return null;
+
+    const response = await apiFetch<{ data?: Record<string, unknown> }>(`/api/company/id/${companyId}`);
+    const source = (response?.data ?? response) as Record<string, unknown>;
+
+    const latitudeValue = source.latitude;
+    const longitudeValue = source.longitude;
+
+    const latitude = typeof latitudeValue === "number"
+        ? latitudeValue
+        : typeof latitudeValue === "string" && latitudeValue.trim().length > 0
+            ? Number.parseFloat(latitudeValue)
+            : null;
+
+    const longitude = typeof longitudeValue === "number"
+        ? longitudeValue
+        : typeof longitudeValue === "string" && longitudeValue.trim().length > 0
+            ? Number.parseFloat(longitudeValue)
+            : null;
+
+    return {
+        address: typeof source.address === "string" ? source.address : null,
+        city: typeof source.city === "string" ? source.city : null,
+        state: typeof source.state === "string" ? source.state : null,
+        latitude: Number.isFinite(latitude ?? NaN) ? latitude : null,
+        longitude: Number.isFinite(longitude ?? NaN) ? longitude : null,
+    };
+}
+
+export async function listGroupEvents(params?: {
+    status?: GroupItemStatus;
+    upcoming?: boolean;
+}): Promise<GroupEvent[]> {
+    const query = buildGroupQuery({
+        status: params?.status,
+        upcoming: params?.upcoming,
+    });
+    const response = await apiFetch<{ data: GroupEvent[] }>(`/api/admin/group/events${query}`);
+    return response.data;
+}
+
+export async function getGroupEventById(eventId: number): Promise<GroupEvent> {
+    const response = await apiFetch<{ data: GroupEvent }>(`/api/admin/group/events/${eventId}`);
+    return response.data;
+}
+
+export async function createGroupEvent(payload: CreateGroupEventPayload): Promise<GroupEvent> {
+    const response = await apiFetch<{ data: GroupEvent }>("/api/admin/group/events", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function updateGroupEvent(eventId: number, payload: UpdateGroupEventPayload): Promise<GroupEvent> {
+    const response = await apiFetch<{ data: GroupEvent }>(`/api/admin/group/events/${eventId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function setGroupEventStatus(eventId: number, status: GroupItemStatus): Promise<void> {
+    await apiFetch(`/api/admin/group/events/${eventId}/status`, {
+        method: "POST",
+        body: JSON.stringify({ status }),
+    });
+}
+
+export async function deleteGroupEvent(eventId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/events/${eventId}`, { method: "DELETE" });
+}
+
+export async function listGroupEventBookings(eventId: number): Promise<GroupEventBooking[]> {
+    const response = await apiFetch<{ data: GroupEventBooking[] }>(`/api/admin/group/events/${eventId}/bookings`);
+    return response.data;
+}
+
+export async function listGroupEventInterests(eventId: number): Promise<GroupEventInterest[]> {
+    const response = await apiFetch<{ data: GroupEventInterest[] }>(`/api/admin/group/events/${eventId}/interests`);
+    return response.data;
+}
+
+export async function listGroupEventAttendance(eventId: number): Promise<GroupAttendanceRow[]> {
+    const response = await apiFetch<{ data: GroupAttendanceRow[] }>(`/api/admin/group/events/${eventId}/attendance`);
+    return response.data;
+}
+
+export async function confirmGroupEventBooking(bookingId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/events/bookings/${bookingId}/confirm`, { method: "POST" });
+}
+
+export async function unconfirmGroupEventBooking(bookingId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/events/bookings/${bookingId}/unconfirm`, { method: "POST" });
+}
+
+export async function cancelGroupEventBooking(bookingId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/events/bookings/${bookingId}/cancel`, { method: "POST" });
+}
+
+export async function listGroupClasses(params?: {
+    status?: GroupItemStatus;
+}): Promise<GroupClass[]> {
+    const query = buildGroupQuery({
+        status: params?.status,
+    });
+    const response = await apiFetch<{ data: GroupClass[] }>(`/api/admin/group/classes${query}`);
+    return response.data;
+}
+
+export async function getGroupClassById(classId: number): Promise<GroupClass> {
+    const response = await apiFetch<{ data: GroupClass }>(`/api/admin/group/classes/${classId}`);
+    return response.data;
+}
+
+export async function createGroupClass(payload: CreateGroupClassPayload): Promise<GroupClass> {
+    const response = await apiFetch<{ data: GroupClass }>("/api/admin/group/classes", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function updateGroupClass(classId: number, payload: UpdateGroupClassPayload): Promise<GroupClass> {
+    const response = await apiFetch<{ data: GroupClass }>(`/api/admin/group/classes/${classId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function setGroupClassStatus(classId: number, status: GroupItemStatus): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/${classId}/status`, {
+        method: "POST",
+        body: JSON.stringify({ status }),
+    });
+}
+
+export async function deleteGroupClass(classId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/${classId}`, { method: "DELETE" });
+}
+
+export async function generateGroupClassSessions(classId: number): Promise<number> {
+    const response = await apiFetch<{ data: { created: number } }>(`/api/admin/group/classes/${classId}/sessions/generate`, {
+        method: "POST",
+    });
+    return response.data.created;
+}
+
+export async function listGroupClassSessions(classId: number, params?: {
+    upcoming?: boolean;
+    include_cancelled?: boolean;
+}): Promise<GroupClassSession[]> {
+    const query = buildGroupQuery({
+        upcoming: params?.upcoming,
+        include_cancelled: params?.include_cancelled,
+    });
+    const response = await apiFetch<{ data: GroupClassSession[] }>(`/api/admin/group/classes/${classId}/sessions${query}`);
+    return response.data;
+}
+
+export async function getGroupClassSession(sessionId: number): Promise<GroupClassSession> {
+    const response = await apiFetch<{ data: GroupClassSession }>(`/api/admin/group/classes/sessions/${sessionId}`);
+    return response.data;
+}
+
+export async function cancelGroupClassSession(sessionId: number, reason?: string): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/sessions/${sessionId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+    });
+}
+
+export async function listGroupClassEnrollments(classId: number): Promise<GroupClassEnrollment[]> {
+    const response = await apiFetch<{ data: GroupClassEnrollment[] }>(`/api/admin/group/classes/${classId}/enrollments`);
+    return response.data;
+}
+
+export async function listGroupClassSessionAttendance(sessionId: number): Promise<GroupAttendanceRow[]> {
+    const response = await apiFetch<{ data: GroupAttendanceRow[] }>(`/api/admin/group/classes/sessions/${sessionId}/attendance`);
+    return response.data;
+}
+
+export async function confirmGroupClassEnrollment(enrollmentId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/confirm`, { method: "POST" });
+}
+
+export async function unconfirmGroupClassEnrollment(enrollmentId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/unconfirm`, { method: "POST" });
+}
+
+export async function cancelGroupClassEnrollment(enrollmentId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/cancel`, { method: "POST" });
+}
+
+export async function getGroupAttendanceSummary(): Promise<GroupAttendanceSummary> {
+    const response = await apiFetch<{ data: GroupAttendanceSummary }>("/api/admin/group/attendance/summary");
+    return response.data;
+}
+
+export async function checkInGroupEventAttendee(eventId: number, userId: string, method: GroupCheckInMethod = "MANUAL"): Promise<GroupAttendanceRow> {
+    const response = await apiFetch<{ data: GroupAttendanceRow }>(`/api/admin/group/attendance/events/${eventId}/check-in`, {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId, method }),
+    });
+    return response.data;
+}
+
+export async function checkInGroupClassSessionAttendee(
+    sessionId: number,
+    userId: string,
+    method: GroupCheckInMethod = "MANUAL",
+): Promise<GroupAttendanceRow> {
+    const response = await apiFetch<{ data: GroupAttendanceRow }>(`/api/admin/group/attendance/sessions/${sessionId}/check-in`, {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId, method }),
+    });
+    return response.data;
+}
+
+export async function checkInGroupByTicketCode(payload: {
+    ticket_code?: string;
+    qr_token?: string;
+    method?: GroupCheckInMethod;
+    class_session_id?: number;
+    event_id?: number;
+}): Promise<GroupTicketScanResult> {
+    const response = await apiFetch<{ data: GroupTicketScanResult }>("/api/admin/group/attendance/tickets/check-in", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function listGroupTickets(params?: {
+    status?: GroupTicketStatus;
+    event_booking_id?: number;
+    class_enrollment_id?: number;
+}): Promise<GroupTicket[]> {
+    const query = buildGroupQuery({
+        status: params?.status,
+        event_booking_id: params?.event_booking_id,
+        class_enrollment_id: params?.class_enrollment_id,
+    });
+    const response = await apiFetch<{ data: GroupTicket[] }>(`/api/admin/group/tickets${query}`);
+    return response.data;
+}
+
+export async function getGroupTicketByCode(ticketCode: string): Promise<GroupTicket> {
+    const response = await apiFetch<{ data: GroupTicket }>(`/api/admin/group/tickets/${encodeURIComponent(ticketCode)}`);
+    return response.data;
+}
+
+export async function resendGroupTicket(ticketCode: string): Promise<void> {
+    await apiFetch(`/api/admin/group/tickets/${encodeURIComponent(ticketCode)}/resend`, {
+        method: "POST",
+    });
+}
+
+export async function cancelGroupTicket(ticketCode: string): Promise<void> {
+    await apiFetch(`/api/admin/group/tickets/${encodeURIComponent(ticketCode)}/cancel`, {
+        method: "POST",
+    });
+}
+
+export async function getGroupMetrics(params?: {
+    date_from?: string;
+    date_to?: string;
+    event_id?: number;
+    class_id?: number;
+    item_status?: GroupItemStatus;
+    booking_status?: GroupBookingStatus;
+    free_paid?: "FREE" | "PAID";
+}): Promise<GroupMetricsResponse> {
+    const query = buildGroupQuery({
+        date_from: params?.date_from,
+        date_to: params?.date_to,
+        event_id: params?.event_id,
+        class_id: params?.class_id,
+        item_status: params?.item_status,
+        booking_status: params?.booking_status,
+        free_paid: params?.free_paid,
+    });
+    const response = await apiFetch<{ data: GroupMetricsResponse }>(`/api/admin/group/metrics${query}`);
     return response.data;
 }

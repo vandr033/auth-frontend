@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { FaInstagram, FaWhatsapp } from "react-icons/fa";
@@ -7,12 +9,15 @@ import {
   negociosCompanyLinks,
   negociosPlatformLinks,
 } from "@/components/negocios/negocios-links";
+import { buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
 
 const instagramUrl = process.env.NEXT_PUBLIC_INSTAGRAM_URL || "#";
 const tiktokUrl = process.env.NEXT_PUBLIC_TIKTOK_URL || "#";
 const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_URL || "#";
 
 export function NegociosFooter() {
+  const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
+
   return (
     <footer className="w-full bg-white">
       <div className="mx-auto w-full max-w-7xl px-6 py-14 sm:px-8 lg:px-10">
@@ -88,7 +93,7 @@ export function NegociosFooter() {
                   {link.label}
                 </a>
               ))}
-              <Link href="/auth/sign-in" className="mb-2 block text-sm text-gray-600 transition hover:text-black">
+              <Link href={loginHref} className="mb-2 block text-sm text-gray-600 transition hover:text-black">
                 Login
               </Link>
             </nav>

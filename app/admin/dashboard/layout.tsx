@@ -20,6 +20,7 @@ import {
     ChevronRight,
     FileText,
     Star,
+    Ticket,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -63,6 +64,12 @@ const navItems: NavItem[] = [
         href: "/admin/dashboard/bookings",
         icon: <Calendar className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
+    },
+    {
+        label: "adminNav.groupReservations",
+        href: "/admin/dashboard/group-reservations",
+        icon: <Ticket className="h-5 w-5 shrink-0" />,
+        roles: ["OWNER", "ADMIN"],
     },
     {
         label: "adminNav.services",
@@ -288,6 +295,7 @@ function ExpiredAdminState({
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const currentPath = pathname ?? "";
     const router = useRouter();
     const {
         user,
@@ -349,7 +357,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             // user never sees a "feature locked" dead-end after switching.
             const nextMembership = companyUsers.find((m) => m.company_id === nextCompanyId);
             const nextPlan = resolveShopPlan(nextMembership?.company?.plan);
-            const currentNavItem = navItems.find((item) => item.href === pathname);
+            const currentNavItem = navItems.find((item) => item.href === currentPath || currentPath.startsWith(`${item.href}/`));
 
             const isCurrentPageLocked =
                 currentNavItem?.feature &&
@@ -441,7 +449,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                     {/* Navigation */}
                     <nav className="flex-1 overflow-y-auto p-4 space-y-1">
                         {filteredNavItems.map((item) => {
-                            const isActive = pathname === item.href;
+                                    const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
                             return (
                                 <Link
                                     key={item.href}
@@ -527,7 +535,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                     </button>
                     <div className="flex-1">
                         <h1 className="text-lg font-semibold text-slate-900">
-                            {t(filteredNavItems.find((item) => item.href === pathname)?.label || 'adminNav.dashboard')}
+                            {t(
+                                [...filteredNavItems]
+                                    .sort((a, b) => b.href.length - a.href.length)
+                                    .find((item) => currentPath === item.href || currentPath.startsWith(`${item.href}/`))
+                                    ?.label || "adminNav.dashboard",
+                            )}
                         </h1>
                     </div>
                     {hasMultipleShops && companyId ? (

@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { useT } from "@/lib/i18n";
+import { buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
 
 const benefitKeys = [
   "homeRedesign.businessCta.benefits.b1",
@@ -17,6 +18,7 @@ const benefitKeys = [
 export function ForBusinesses() {
   const t = useT();
   const prefersReducedMotion = useReducedMotion();
+  const loginHref = buildSignInRedirectFromCurrentLocation("/");
 
   return (
     <section id="negocios" className="w-full bg-black py-16 sm:py-20 lg:py-24">
@@ -48,7 +50,7 @@ export function ForBusinesses() {
               {t("homeRedesign.businessCta.primary")}
             </Link>
             <Link
-              href="/auth/sign-in"
+              href={loginHref}
               className="inline-flex h-10 items-center justify-center border border-white/50 px-5 font-bebas text-[14px] leading-none font-semibold tracking-[0.05em] text-white uppercase transition-colors hover:border-white hover:bg-white/10"
             >
               {t("homeRedesign.businessCta.secondary")}

@@ -12,9 +12,13 @@ export type PlanFeatureKey =
     | "REVIEW_REQUEST_REMINDERS"
     | "REVIEW_REQUEST_EMAIL"
     | "REVIEW_REQUEST_WHATSAPP"
+    | "BOOKING_FLOW_CUSTOMIZATION"
     | "BULK_WHATSAPP_MESSAGING"
     | "BULK_EMAIL_CAMPAIGNS"
-    | "OUTREACH_REACTIVATION_TOOLS";
+    | "OUTREACH_REACTIVATION_TOOLS"
+    | "GROUP_EVENTS"
+    | "GROUP_CLASSES"
+    | "GROUP_ADVANCED";
 
 export type PlanCapabilities = {
     maxStaffMembers: number | null;
@@ -33,12 +37,16 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             OPERATIONAL_DASHBOARD: false,
             REVIEW_MANAGEMENT: false,
             REVIEW_ANALYTICS: false,
+            BOOKING_FLOW_CUSTOMIZATION: false,
             REVIEW_REQUEST_REMINDERS: false,
             REVIEW_REQUEST_EMAIL: false,
             REVIEW_REQUEST_WHATSAPP: false,
             BULK_WHATSAPP_MESSAGING: false,
             BULK_EMAIL_CAMPAIGNS: false,
             OUTREACH_REACTIVATION_TOOLS: false,
+            GROUP_EVENTS: false,
+            GROUP_CLASSES: false,
+            GROUP_ADVANCED: false,
         },
     },
     BUSINESS: {
@@ -52,12 +60,16 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             OPERATIONAL_DASHBOARD: true,
             REVIEW_MANAGEMENT: true,
             REVIEW_ANALYTICS: true,
+            BOOKING_FLOW_CUSTOMIZATION: true,
             REVIEW_REQUEST_REMINDERS: false,
             REVIEW_REQUEST_EMAIL: false,
             REVIEW_REQUEST_WHATSAPP: false,
             BULK_WHATSAPP_MESSAGING: false,
             BULK_EMAIL_CAMPAIGNS: false,
             OUTREACH_REACTIVATION_TOOLS: false,
+            GROUP_EVENTS: true,
+            GROUP_CLASSES: false,
+            GROUP_ADVANCED: false,
         },
     },
     PRO: {
@@ -71,12 +83,16 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             OPERATIONAL_DASHBOARD: true,
             REVIEW_MANAGEMENT: true,
             REVIEW_ANALYTICS: true,
+            BOOKING_FLOW_CUSTOMIZATION: true,
             REVIEW_REQUEST_REMINDERS: true,
             REVIEW_REQUEST_EMAIL: true,
             REVIEW_REQUEST_WHATSAPP: true,
             BULK_WHATSAPP_MESSAGING: true,
             BULK_EMAIL_CAMPAIGNS: true,
             OUTREACH_REACTIVATION_TOOLS: true,
+            GROUP_EVENTS: true,
+            GROUP_CLASSES: true,
+            GROUP_ADVANCED: true,
         },
     },
 };
@@ -90,12 +106,16 @@ export const FEATURE_REQUIRED_PLAN: Record<PlanFeatureKey, ShopPlan> = {
     OPERATIONAL_DASHBOARD: "BUSINESS",
     REVIEW_MANAGEMENT: "BUSINESS",
     REVIEW_ANALYTICS: "BUSINESS",
+    BOOKING_FLOW_CUSTOMIZATION: "BUSINESS",
     REVIEW_REQUEST_REMINDERS: "PRO",
     REVIEW_REQUEST_EMAIL: "PRO",
     REVIEW_REQUEST_WHATSAPP: "PRO",
     BULK_WHATSAPP_MESSAGING: "PRO",
     BULK_EMAIL_CAMPAIGNS: "PRO",
     OUTREACH_REACTIVATION_TOOLS: "PRO",
+    GROUP_EVENTS: "BUSINESS",
+    GROUP_CLASSES: "PRO",
+    GROUP_ADVANCED: "PRO",
 };
 
 export function resolveShopPlan(plan?: string | null): ShopPlan {
@@ -135,12 +155,16 @@ export const FEATURE_DESCRIPTION_KEY: Record<PlanFeatureKey, string> = {
     OPERATIONAL_DASHBOARD: "planEnforcement.desc.operationalDashboard",
     REVIEW_MANAGEMENT: "planEnforcement.desc.reviewManagement",
     REVIEW_ANALYTICS: "planEnforcement.desc.reviewAnalytics",
+    BOOKING_FLOW_CUSTOMIZATION: "planEnforcement.desc.bookingFlowCustomization",
     REVIEW_REQUEST_REMINDERS: "planEnforcement.desc.reviewRequestReminders",
     REVIEW_REQUEST_EMAIL: "planEnforcement.desc.reviewRequestEmail",
     REVIEW_REQUEST_WHATSAPP: "planEnforcement.desc.reviewRequestWhatsapp",
     BULK_WHATSAPP_MESSAGING: "planEnforcement.desc.bulkWhatsapp",
     BULK_EMAIL_CAMPAIGNS: "planEnforcement.desc.bulkEmail",
     OUTREACH_REACTIVATION_TOOLS: "planEnforcement.desc.outreachReactivation",
+    GROUP_EVENTS: "planEnforcement.desc.groupEvents",
+    GROUP_CLASSES: "planEnforcement.desc.groupClasses",
+    GROUP_ADVANCED: "planEnforcement.desc.groupAdvanced",
 };
 
 /**
@@ -155,10 +179,14 @@ export const FEATURE_LABEL_KEY: Record<PlanFeatureKey, string> = {
     OPERATIONAL_DASHBOARD: "planEnforcement.label.operationalDashboard",
     REVIEW_MANAGEMENT: "planEnforcement.label.reviewManagement",
     REVIEW_ANALYTICS: "planEnforcement.label.reviewAnalytics",
+    BOOKING_FLOW_CUSTOMIZATION: "planEnforcement.label.bookingFlowCustomization",
     REVIEW_REQUEST_REMINDERS: "planEnforcement.label.reviewRequestReminders",
     REVIEW_REQUEST_EMAIL: "planEnforcement.label.reviewRequestEmail",
     REVIEW_REQUEST_WHATSAPP: "planEnforcement.label.reviewRequestWhatsapp",
     BULK_WHATSAPP_MESSAGING: "planEnforcement.label.bulkWhatsapp",
     BULK_EMAIL_CAMPAIGNS: "planEnforcement.label.bulkEmail",
     OUTREACH_REACTIVATION_TOOLS: "planEnforcement.label.outreachReactivation",
+    GROUP_EVENTS: "planEnforcement.label.groupEvents",
+    GROUP_CLASSES: "planEnforcement.label.groupClasses",
+    GROUP_ADVANCED: "planEnforcement.label.groupAdvanced",
 };

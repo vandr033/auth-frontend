@@ -11,6 +11,10 @@ import { Separator } from "@/components/ui/separator";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
+import {
+  buildSignInRedirectFromCurrentLocation,
+  getCurrentInternalPathWithQuery,
+} from "@/app/lib/shop-context";
 
 const getInitials = (name?: string | null, email?: string | null) => {
   if (name && name.length > 0) return name.charAt(0).toUpperCase();
@@ -82,9 +86,11 @@ export function Navbar() {
 
   const handleSignOut = async () => {
     try {
+      const redirectTarget = getCurrentInternalPathWithQuery("/");
       await signOut();
       setUserMenuOpen(false);
-      router.push("/");
+      router.replace(redirectTarget);
+      router.refresh();
     } catch (error) {
       console.error("Sign out failed", error);
     }
@@ -141,7 +147,7 @@ export function Navbar() {
               <div className="h-9 w-9 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700" />
             ) : !isAuthenticated ? (
               <Button
-                onClick={() => router.push("/auth/sign-in")}
+                onClick={() => router.push(buildSignInRedirectFromCurrentLocation("/"))}
                 className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-hover hover:shadow-md"
               >
                 {t("mainNavbar.signIn")}
@@ -271,7 +277,7 @@ export function Navbar() {
                 <Button
                   onClick={() => {
                     setMobileOpen(false);
-                    router.push("/auth/sign-in");
+                    router.push(buildSignInRedirectFromCurrentLocation("/"));
                   }}
                   className="w-full bg-brand text-white hover:bg-brand-hover"
                 >

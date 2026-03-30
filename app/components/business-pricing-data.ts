@@ -157,6 +157,14 @@ export const businessPricingCompareCategories: BusinessPricingCompareCategory[] 
           pro: { type: "boolean", value: true },
         },
       },
+      {
+        key: "businessPricing.comparison.rows.bookingFlowCustomization",
+        values: {
+          starter: { type: "boolean", value: false },
+          business: { type: "boolean", value: true },
+          pro: { type: "boolean", value: true },
+        },
+      },
     ],
   },
   {

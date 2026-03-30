@@ -17,8 +17,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
+import {
+  buildSignInRedirectFromCurrentLocation,
+  getCurrentInternalPathWithQuery,
+} from "@/app/lib/shop-context";
 
-const LOGIN_HREF = "/auth/sign-in";
 const DEMO_HREF = "https://cal.com/priconpri/demo";
 
 const getInitials = (name?: string | null, email?: string | null) => {
@@ -34,6 +37,7 @@ function AuthMenu({
   userImage,
   userName,
   userEmail,
+  loginHref,
   loginLabel,
   profileLabel,
   appointmentsLabel,
@@ -47,6 +51,7 @@ function AuthMenu({
   userImage?: string | null;
   userName?: string | null;
   userEmail?: string | null;
+  loginHref: string;
   loginLabel: string;
   profileLabel: string;
   appointmentsLabel: string;
@@ -61,7 +66,7 @@ function AuthMenu({
   if (!isAuthenticated) {
     return (
       <Link
-        href={LOGIN_HREF}
+        href={loginHref}
         className="text-[11px] leading-none font-semibold tracking-[0.08em] text-black uppercase transition-colors hover:text-slate-700"
       >
         {loginLabel}
@@ -119,6 +124,7 @@ export function HomeNavbar() {
   const pathname = usePathname();
   const isMarketplace = pathname === "/marketplace";
   const { isAuthenticated, user, signOut, loading } = useAuth();
+  const loginHref = buildSignInRedirectFromCurrentLocation(pathname || "/");
 
   const displayName = useMemo(() => {
     const firstName = typeof user?.first_name === "string" ? user.first_name : "";
@@ -129,8 +135,10 @@ export function HomeNavbar() {
 
   const handleSignOut = async () => {
     try {
+      const redirectTarget = getCurrentInternalPathWithQuery(pathname || "/");
       await signOut();
-      router.push("/");
+      router.replace(redirectTarget);
+      router.refresh();
     } catch (error) {
       console.error("Sign out failed", error);
     }
@@ -190,6 +198,7 @@ export function HomeNavbar() {
               userImage={user?.image}
               userName={user?.name}
               userEmail={user?.email}
+              loginHref={loginHref}
               loginLabel={t("marketplaceRedesign.nav.login")}
               profileLabel={t("mainNavbar.myProfile")}
               appointmentsLabel={t("mainNavbar.myAppointments")}
@@ -254,6 +263,7 @@ export function HomeNavbar() {
             userImage={user?.image}
             userName={user?.name}
             userEmail={user?.email}
+            loginHref={loginHref}
             loginLabel={t("homeRedesign.nav.login")}
             profileLabel={t("mainNavbar.myProfile")}
             appointmentsLabel={t("mainNavbar.myAppointments")}

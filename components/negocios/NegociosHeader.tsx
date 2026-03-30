@@ -21,8 +21,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { negociosHeaderLinks } from "@/components/negocios/negocios-links";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
+import {
+  buildSignInRedirectFromCurrentLocation,
+  getCurrentInternalPathWithQuery,
+} from "@/app/lib/shop-context";
 
-const LOGIN_HREF = "/auth/sign-in";
 const DEMO_HREF = "https://cal.com/priconpri/demo";
 
 const getInitials = (name?: string | null, email?: string | null) => {
@@ -36,6 +39,7 @@ export function NegociosHeader() {
   const router = useRouter();
   const { isAuthenticated, user, signOut, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
 
   const links = useMemo(
     () =>
@@ -71,9 +75,11 @@ export function NegociosHeader() {
 
   const handleSignOut = async () => {
     try {
+      const redirectTarget = getCurrentInternalPathWithQuery("/negocios");
       await signOut();
       setMobileOpen(false);
-      router.push("/");
+      router.replace(redirectTarget);
+      router.refresh();
     } catch (error) {
       console.error("Sign out failed", error);
     }
@@ -156,7 +162,7 @@ export function NegociosHeader() {
             </DropdownMenu>
           ) : (
             <Link
-              href={LOGIN_HREF}
+              href={loginHref}
               className="px-2 text-[10px] font-semibold tracking-[0.08em] text-black transition-colors hover:text-slate-700"
             >
               LOGIN
@@ -243,7 +249,7 @@ export function NegociosHeader() {
                   </>
                 ) : (
                   <Link
-                    href={LOGIN_HREF}
+                    href={loginHref}
                     onClick={() => setMobileOpen(false)}
                     className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                   >

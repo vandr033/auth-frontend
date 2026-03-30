@@ -18,6 +18,7 @@ export interface ShopCompany {
     id: number;
     slug: string;
     name: string;
+    plan?: 'STARTER' | 'BUSINESS' | 'PRO' | string;
     availableUntil: string;
     address?: string;
     phone_prefix: string;
@@ -96,6 +97,8 @@ export interface ShopSettings {
     allow_qr_payment: boolean;
     qr_image_url?: string | null;
     allow_cash_payment: boolean;
+    require_comprobante_for_qr?: boolean;
+    auto_confirm_bookings?: boolean;
     social_links: SocialLinks;
     default_language?: string;
     max_advance_booking_days?: number | null;

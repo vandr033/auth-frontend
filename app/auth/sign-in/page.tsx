@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { useT } from "@/lib/i18n";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -16,11 +16,10 @@ type Step = "method" | "otp";
 export default function SignInPage() {
   const t = useT();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const redirect = React.useMemo(() => {
-    if (typeof window === "undefined") return "/";
-    const redirectTarget = new URLSearchParams(window.location.search).get("redirect");
-    return sanitizeInternalRedirectTarget(redirectTarget, "/");
-  }, []);
+    return sanitizeInternalRedirectTarget(searchParams.get("redirect"), "/");
+  }, [searchParams]);
   const {
     sendLoginEmailOtp,
     verifyLoginEmailOtp,
@@ -156,7 +155,7 @@ export default function SignInPage() {
 
           <p className="text-sm text-slate-400">
             {t("auth.signIn.noAccount")}{" "}
-            <Link href="/auth/register" className="font-medium text-brand hover:underline">
+            <Link href={redirect !== "/" ? `/auth/register?redirect=${encodeURIComponent(redirect)}` : "/auth/register"} className="font-medium text-brand hover:underline">
               {t("auth.signIn.createOne")}
             </Link>
           </p>

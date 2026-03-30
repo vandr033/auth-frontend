@@ -2,12 +2,13 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { useT } from "@/lib/i18n";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, UserPlus, Sparkles } from "lucide-react";
 import { useOtpResendTimer } from "@/lib/auth/otpResend";
+import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
 
 type Method = null | "email" | "phone";
 type FlowStep = "method" | "contact" | "otp" | "profile" | "done";
@@ -15,6 +16,10 @@ type FlowStep = "method" | "contact" | "otp" | "profile" | "done";
 export default function RegisterPage() {
   const t = useT();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = React.useMemo(() => {
+    return sanitizeInternalRedirectTarget(searchParams.get("redirect"), "/");
+  }, [searchParams]);
   const {
     startCustomerEmailRegistration,
     verifyCustomerEmailCode,
@@ -106,7 +111,7 @@ export default function RegisterPage() {
     try {
       await completeCustomerEmailRegistration(preRegToken, email, firstName, lastName);
       setStep("done");
-      setTimeout(() => router.push("/"), 1500);
+      setTimeout(() => router.push(redirect), 1500);
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("auth.register.registrationFailed"));
     } finally {
@@ -162,7 +167,7 @@ export default function RegisterPage() {
       const prefix = dialCode.replace("+", "");
       await completeCustomerPhoneProfile(firstName, lastName, prefix);
       setStep("done");
-      setTimeout(() => router.push("/"), 1500);
+      setTimeout(() => router.push(redirect), 1500);
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("auth.register.registrationFailed"));
     } finally {
@@ -219,7 +224,7 @@ export default function RegisterPage() {
 
           <p className="text-sm text-slate-400">
             {t("auth.register.alreadyHaveAccount")}{" "}
-            <Link href="/auth/sign-in" className="font-medium text-brand hover:underline">
+            <Link href={redirect !== "/" ? `/auth/sign-in?redirect=${encodeURIComponent(redirect)}` : "/auth/sign-in"} className="font-medium text-brand hover:underline">
               {t("auth.register.signIn")}
             </Link>
           </p>
