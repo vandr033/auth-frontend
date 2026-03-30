@@ -13,7 +13,7 @@ import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
 type Method = null | "email" | "phone";
 type FlowStep = "method" | "contact" | "otp" | "profile" | "done";
 
-export default function RegisterPage() {
+function RegisterPageInner() {
   const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -420,5 +420,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <React.Suspense>
+      <RegisterPageInner />
+    </React.Suspense>
   );
 }

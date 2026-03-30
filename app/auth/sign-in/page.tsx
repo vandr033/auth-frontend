@@ -13,7 +13,7 @@ import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
 type Method = null | "email" | "phone";
 type Step = "method" | "otp";
 
-export default function SignInPage() {
+function SignInPageInner() {
   const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -282,5 +282,13 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <React.Suspense>
+      <SignInPageInner />
+    </React.Suspense>
   );
 }
