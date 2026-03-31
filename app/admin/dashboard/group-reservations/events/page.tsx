@@ -570,8 +570,8 @@ export default function GroupEventsAdminPage() {
                                 onChange={(event) => handleSelectCoverImage(event.target.files?.[0] ?? null)}
                             />
                             {coverImagePreview ? (
-                                <div className="overflow-hidden rounded-md border border-slate-200">
-                                    <img src={coverImagePreview} alt="Cover preview" className="h-36 w-full object-cover" />
+                                <div className="h-44 overflow-hidden rounded-md border border-slate-200 md:h-64">
+                                    <img src={coverImagePreview} alt="Cover preview" className="h-full w-full object-cover" />
                                 </div>
                             ) : null}
                         </div>

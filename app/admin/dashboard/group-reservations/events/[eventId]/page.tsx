@@ -586,11 +586,11 @@ export default function GroupEventDetailPage() {
                                 onChange={(event) => handleSelectCoverImage(event.target.files?.[0] ?? null)}
                             />
                             {(coverImagePreview || form.cover_image_url) ? (
-                                <div className="overflow-hidden rounded-md border border-slate-200">
+                                <div className="h-44 overflow-hidden rounded-md border border-slate-200 md:h-64">
                                     <img
                                         src={coverImagePreview || getImageUrl(form.cover_image_url) || undefined}
                                         alt="Cover preview"
-                                        className="h-36 w-full object-cover"
+                                        className="h-full w-full object-cover"
                                     />
                                 </div>
                             ) : null}
