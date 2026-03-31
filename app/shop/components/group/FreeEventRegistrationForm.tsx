@@ -53,6 +53,7 @@ export function FreeEventRegistrationForm({
   const [phoneNumber, setPhoneNumber] = React.useState(prefill?.phoneNumber ?? "");
   const [tosAccepted, setTosAccepted] = React.useState(false);
   const [createAccount, setCreateAccount] = React.useState(false);
+  const [otpChannelPreference, setOtpChannelPreference] = React.useState<"email" | "phone">("phone");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [submitting, setSubmitting] = React.useState(false);
   const [modal, setModal] = React.useState<ModalState>("none");
@@ -116,6 +117,7 @@ export function FreeEventRegistrationForm({
         phoneNumber: phoneNumber.trim(),
         tosAccepted,
         createAccount,
+        otpChannelPreference: createAccount ? otpChannelPreference : undefined,
       });
 
       onRegistered?.(result.registrationStatus ?? (result.eventOutcome === "INTERESTED" ? "INTERESTED" : "CONFIRMED"));
@@ -248,6 +250,32 @@ export function FreeEventRegistrationForm({
           />
           <span className="text-sm text-text-muted">{t("freeEventReg.createAccount")}</span>
         </label>
+
+        {createAccount ? (
+          <div className="space-y-2 rounded-md border border-surface-border bg-section px-3 py-2">
+            <p className="text-xs font-medium text-text-muted">{t("freeEventReg.account.otpPreferenceTitle")}</p>
+            <label className="flex items-center gap-2 text-sm text-text-main">
+              <input
+                type="radio"
+                name="otp_channel_preference"
+                className="h-3.5 w-3.5"
+                checked={otpChannelPreference === "phone"}
+                onChange={() => setOtpChannelPreference("phone")}
+              />
+              <span>{t("freeEventReg.account.otpPreferenceWhatsapp")}</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-text-main">
+              <input
+                type="radio"
+                name="otp_channel_preference"
+                className="h-3.5 w-3.5"
+                checked={otpChannelPreference === "email"}
+                onChange={() => setOtpChannelPreference("email")}
+              />
+              <span>{t("freeEventReg.account.otpPreferenceEmail")}</span>
+            </label>
+          </div>
+        ) : null}
 
         {/* Form error */}
         {errors._form && (

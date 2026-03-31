@@ -63,6 +63,7 @@ type EventFormState = {
     title: string;
     slug: string;
     description: string;
+    no_availability_message: string;
     cover_image_url: string;
     thumbnail_url: string;
     is_free: boolean;
@@ -118,6 +119,7 @@ function createDefaultForm(defaultLocationText = ""): EventFormState {
         title: "",
         slug: "",
         description: "",
+        no_availability_message: "",
         cover_image_url: "",
         thumbnail_url: "",
         is_free: true,
@@ -243,6 +245,7 @@ export default function GroupEventsAdminPage() {
                 title: form.title.trim(),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
+                no_availability_message: form.is_free ? (form.no_availability_message.trim() || null) : null,
                 cover_image_url: form.cover_image_url.trim() || null,
                 thumbnail_url: form.thumbnail_url.trim() || null,
                 is_free: form.is_free,
@@ -643,6 +646,17 @@ export default function GroupEventsAdminPage() {
                                     min={1}
                                     value={form.price_cents}
                                     onChange={(e) => setForm((prev) => ({ ...prev, price_cents: e.target.value }))}
+                                />
+                            </div>
+                        ) : null}
+                        {form.is_free ? (
+                            <div className="space-y-2 md:col-span-2">
+                                <Label>{t("adminGroup.fields.noAvailabilityMessage")}</Label>
+                                <textarea
+                                    className="min-h-[100px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                                    value={form.no_availability_message}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, no_availability_message: e.target.value }))}
+                                    placeholder={t("adminGroup.fields.noAvailabilityMessagePlaceholder")}
                                 />
                             </div>
                         ) : null}

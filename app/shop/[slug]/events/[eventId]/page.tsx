@@ -996,16 +996,21 @@ export default function ShopEventDetailPage() {
                 </DialogTitle>
                 <DialogDescription className="text-sm text-text-muted">
                   {freeSubmitResult.modalType === "POSITIVE"
-                    ? t("freeEventReg.positiveModal.body")
+                    ? t("freeEventReg.positiveModal.body", { maxCapacity: event.max_capacity })
                     : t("freeEventReg.negativeModal.body")}
                 </DialogDescription>
               </DialogHeader>
 
-              <p className="text-sm text-text-muted">
-                {freeSubmitResult.modalType === "POSITIVE"
-                  ? t("freeEventReg.positiveModal.extra")
-                  : t("freeEventReg.negativeModal.extra")}
-              </p>
+              {freeSubmitResult.modalType === "POSITIVE" ? (
+                <div className="space-y-1">
+                  <p className="text-sm text-text-muted">{t("freeEventReg.positiveModal.policyLine1")}</p>
+                  <p className="text-sm text-text-muted">{t("freeEventReg.positiveModal.policyLine2")}</p>
+                </div>
+              ) : null}
+
+              {freeSubmitResult.modalType === "NEGATIVE" && event.no_availability_message?.trim() ? (
+                <p className="text-sm text-text-muted">{event.no_availability_message.trim()}</p>
+              ) : null}
 
               {freeSubmitResult.reservationCode ? (
                 <div className="space-y-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3">

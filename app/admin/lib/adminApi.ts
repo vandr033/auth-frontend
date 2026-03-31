@@ -854,6 +854,7 @@ export interface GroupEvent {
     title: string;
     slug: string;
     description: string | null;
+    no_availability_message: string | null;
     cover_image_url: string | null;
     thumbnail_url: string | null;
     status: GroupItemStatus;
@@ -1231,6 +1232,7 @@ export interface CreateGroupEventPayload {
     title: string;
     slug?: string;
     description?: string | null;
+    no_availability_message?: string | null;
     cover_image_url?: string | null;
     thumbnail_url?: string | null;
     status?: GroupItemStatus;

@@ -30,6 +30,7 @@ export interface PublicGroupEvent {
   title: string;
   slug: string;
   description: string | null;
+  no_availability_message: string | null;
   cover_image_url: string | null;
   thumbnail_url: string | null;
   status: GroupItemStatus;
@@ -381,6 +382,7 @@ export interface FreeEventRegistrationInput {
   phoneNumber: string;
   tosAccepted: boolean;
   createAccount?: boolean;
+  otpChannelPreference?: "email" | "phone";
 }
 
 export interface FreeRegistrationStateData {
