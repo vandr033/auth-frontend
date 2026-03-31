@@ -208,10 +208,18 @@ function GroupReservationsPageContent() {
                     </p>
                     <p className="flex items-center gap-2">
                       <Ticket className="h-4 w-4" />
-                      {booking.status === "CONFIRMED"
+                      {booking.source === "FREE_REGISTRATION"
+                        ? t("meGroupReservations.ticket.freeRegistrationInfo")
+                        : booking.status === "CONFIRMED"
                         ? t("meGroupReservations.ticket.confirmedInfo")
                         : t("meGroupReservations.ticket.pendingInfo")}
                     </p>
+                    {booking.source === "FREE_REGISTRATION" && booking.reservation_code ? (
+                      <p>
+                        {t("freeEventReg.confirmation.codeLabel")}:{" "}
+                        <span className="font-mono font-semibold text-text-main">{booking.reservation_code}</span>
+                      </p>
+                    ) : null}
                   </div>
 
                   {detailHref ? (

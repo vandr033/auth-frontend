@@ -208,7 +208,7 @@ const en = {
       viewClass: "View class",
       viewAllEvents: "View all events",
       viewAllClasses: "View all classes",
-      signInToContinue: "Sign in to continue",
+      signInToContinue: "SIGN UP FOR FREE",
       confirmRegistration: "Confirm registration",
       completeBooking: "Complete booking",
       notifyInterest: "Notify me if more spots open",
@@ -329,6 +329,113 @@ const en = {
       selectSessionPlaceholder: "Select a session",
       selectSessionRequired: "Please select a session first.",
       selectedSessionSoldOut: "Selected session is sold out.",
+    },
+  },
+
+  freeEventReg: {
+    heading: "Free event registration",
+    openModalCta: "I want to sign up",
+    firstName: "First name",
+    lastName: "Last name",
+    gender: "Gender",
+    selectGender: "Select gender",
+    age: "Age",
+    email: "Email",
+    phonePrefix: "Prefix",
+    phoneNumber: "Phone number",
+    tosAccept: "I accept the terms and conditions",
+    createAccount: "Create an account with PriConPri",
+    confirm: "Confirm",
+    submitError: "Could not complete registration. Please try again.",
+    alreadyConfirmed: "You already have a confirmed registration for this event.",
+    alreadyPending: "You already have a pending registration for this event.",
+    alreadyInterested: "You have already registered your interest in this event.",
+    viewMyReservations: "View my reservations",
+    genderOptions: {
+      male: "Male",
+      female: "Female",
+      other: "Other",
+      preferNotToSay: "Prefer not to say",
+    },
+    tos: {
+      title: "Terms and conditions",
+      body: "By continuing, you accept that your information may be used to manage your event registration and for communication and marketing campaigns by the organizing companies, in accordance with applicable regulations.",
+      action: "Understood",
+    },
+    positiveModal: {
+      title: "Congratulations!",
+      body: "You have been successfully registered for the event.",
+      extra: "We will send your confirmation and details by email and WhatsApp.",
+    },
+    negativeModal: {
+      title: "We’re sorry",
+      body: "Unfortunately, the event is full.",
+      extra: "We have recorded your interest and may contact you if a spot becomes available.",
+    },
+    confirmation: {
+      codeLabel: "Reservation code",
+      checkInHint: "Please present it at check-in",
+    },
+    modal: {
+      codeTitle: "Your reservation code",
+      codeBody: "Save this code and present it when entering the event.",
+    },
+    account: {
+      sectionTitle: "PriConPri account",
+      channelEmail: "Email",
+      channelPhone: "Phone",
+      otpLabel: "Verification code",
+      otpPlaceholder: "123456",
+      otpRequired: "Enter the verification code",
+      resendCode: "Resend code",
+      resendIn: "You can resend in {{seconds}}s",
+      resendSuccess: "We sent you a new code",
+      sendOtpError: "Unable to send code",
+      verifyError: "Unable to verify code",
+      verifySuccess: "Code verified. Your session is active.",
+      created: {
+        title: "Your account was created",
+        body: "We created your PriConPri account. Enter the verification code to activate it or sign in.",
+        cta: "Verify",
+      },
+      foundByEmail: {
+        title: "An account already exists with this email",
+        body: "We sent you a code so you can sign in. You can complete your phone number later if it is not yet registered.",
+        cta: "Sign in with code",
+      },
+      foundByPhone: {
+        title: "An account already exists with this phone",
+        body: "We sent you a code so you can sign in. You can complete your email later if it is not yet registered.",
+        cta: "Sign in with code",
+      },
+      exists: {
+        title: "You already have an account",
+        body: "We sent you a code so you can sign in.",
+        cta: "Sign in with code",
+      },
+      conflict: {
+        title: "Account conflict",
+        body: "The email and phone number entered are already associated with different accounts. Your event registration was processed, but to create or use an account you must sign in manually with credentials that belong to the same account.",
+        cta: "Sign in",
+      },
+    },
+    successModal: {
+      title: "Congratulations!",
+      body: "You have been successfully registered for the event. We will send your confirmation and details by email and WhatsApp.",
+      cta: "Got it",
+    },
+    soldOutModal: {
+      title: "We're sorry",
+      body: "Unfortunately, the event is full. We have recorded your interest and may contact you if a spot becomes available or new capacity is opened.",
+      cta: "Got it",
+    },
+    validation: {
+      required: "This field is required",
+      invalidEmail: "Enter a valid email address",
+      invalidPhone: "Enter a valid phone number",
+      tosRequired: "You must accept the terms and conditions",
+      duplicateRegistration: "You already have a registration for this event",
+      duplicateInterest: "You have already registered your interest in this event",
     },
   },
 
@@ -2075,6 +2182,7 @@ const en = {
     ticket: {
       confirmedInfo: "Ticket enabled. Present your confirmation at check-in.",
       pendingInfo: "Ticket will be available after confirmation.",
+      freeRegistrationInfo: "Registration confirmed. Ticket delivery is not yet available for this type of registration.",
     },
     actions: {
       browseEvents: "Browse events",
@@ -2970,16 +3078,12 @@ const en = {
 } as const;
 
 export default en;
-export type TranslationKeys = {
-  [K in keyof typeof en]: (typeof en)[K] extends string
+type DeepTranslation<T> = {
+  [K in keyof T]: T[K] extends string
     ? string
-    : TranslationKeys extends (typeof en)[K]
-      ? TranslationKeys
-      : {
-          [P in keyof (typeof en)[K]]: (typeof en)[K][P] extends string
-            ? string
-            : (typeof en)[K][P] extends Record<string, string>
-              ? Record<string, string>
-              : string;
-        };
+    : T[K] extends Record<string, unknown>
+      ? DeepTranslation<T[K]>
+      : string;
 };
+
+export type TranslationKeys = DeepTranslation<typeof en>;

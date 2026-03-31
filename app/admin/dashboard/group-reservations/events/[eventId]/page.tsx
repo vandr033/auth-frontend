@@ -809,23 +809,32 @@ export default function GroupEventDetailPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {pendingBookings.map((booking) => (
-                                    <TableRow key={booking.id}>
-                                        <TableCell>{booking.user?.name || booking.user?.email || booking.user_id}</TableCell>
-                                        <TableCell>{booking.booked_spots}</TableCell>
-                                        <TableCell>
-                                            <GroupPaymentStatusBadge status={booking.payment_status} />
-                                        </TableCell>
-                                        <TableCell className="flex flex-wrap gap-2">
-                                            <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
-                                                {t("common.confirm")}
-                                            </Button>
-                                            <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "cancel")}>
-                                                {t("common.cancel")}
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {pendingBookings.map((booking) => {
+                                    const canManageBooking = booking.source !== "FREE_REGISTRATION";
+                                    return (
+                                        <TableRow key={booking.id}>
+                                            <TableCell>{booking.user?.name || booking.user?.email || booking.user_id}</TableCell>
+                                            <TableCell>{booking.booked_spots}</TableCell>
+                                            <TableCell>
+                                                <GroupPaymentStatusBadge status={booking.payment_status} />
+                                            </TableCell>
+                                            <TableCell className="flex flex-wrap gap-2">
+                                                {canManageBooking ? (
+                                                    <>
+                                                        <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
+                                                            {t("common.confirm")}
+                                                        </Button>
+                                                        <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "cancel")}>
+                                                            {t("common.cancel")}
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-slate-500">—</span>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     )}
@@ -853,6 +862,7 @@ export default function GroupEventDetailPage() {
                                 <TableBody>
                                 {bookings.map((booking) => {
                                     const bookingTickets = ticketsByBookingId.get(booking.id) ?? [];
+                                    const canManageBooking = booking.source !== "FREE_REGISTRATION";
                                     return (
                                         <TableRow key={booking.id}>
                                             <TableCell>
@@ -895,20 +905,23 @@ export default function GroupEventDetailPage() {
                                                 )}
                                             </TableCell>
                                             <TableCell className="flex flex-wrap gap-2">
-                                                {booking.status === "PENDING" ? (
+                                                {canManageBooking && booking.status === "PENDING" ? (
                                                     <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
                                                         {t("common.confirm")}
                                                     </Button>
                                                 ) : null}
-                                                {booking.status === "CONFIRMED" ? (
+                                                {canManageBooking && booking.status === "CONFIRMED" ? (
                                                     <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "unconfirm")}>
                                                         {t("adminGroup.actions.unconfirm")}
                                                     </Button>
                                                 ) : null}
-                                                {booking.status !== "CANCELLED" ? (
+                                                {canManageBooking && booking.status !== "CANCELLED" ? (
                                                     <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "cancel")}>
                                                         {t("common.cancel")}
                                                     </Button>
+                                                ) : null}
+                                                {!canManageBooking ? (
+                                                    <span className="text-xs text-slate-500">—</span>
                                                 ) : null}
                                             </TableCell>
                                         </TableRow>

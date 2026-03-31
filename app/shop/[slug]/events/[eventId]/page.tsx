@@ -7,11 +7,13 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { ArrowLeft, Loader2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { useAuth } from "@/lib/useAuth";
+import { useOtpResendTimer } from "@/lib/auth/otpResend";
 import { useShop } from "../../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
@@ -23,13 +25,17 @@ import {
   deleteGroupQrProof,
   getMyPublicGroupBookings,
   getPublicEventById,
+  getFreeRegistrationState,
   joinPublicEventWaitlist,
   leavePublicEventWaitlist,
   type GroupPaymentMethod,
   type PublicGroupEvent,
   type PublicGroupEventBooking,
+  type FreeRegistrationStateData,
+  type FreeRegistrationResult,
   uploadGroupQrProof,
 } from "@/app/shop/lib/groupReservationsApi";
+import { FreeEventRegistrationForm } from "@/app/shop/components/group/FreeEventRegistrationForm";
 import {
   formatGroupDateRange,
   formatGroupMoney,
@@ -56,7 +62,14 @@ export default function ShopEventDetailPage() {
   const searchParams = useSearchParams();
   const params = useParams<{ eventId: string }>();
   const eventId = Number.parseInt(params?.eventId || "", 10);
-  const { user, loading: authLoading } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    sendLoginEmailOtp,
+    verifyLoginEmailOtp,
+    sendPhoneOtp,
+    verifyPhoneOtp,
+  } = useAuth();
   const { company, settings, slug, isShopActive, loading, error } = useShop();
   const plan = resolveShopPlan(company?.plan);
   const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
@@ -72,6 +85,21 @@ export default function ShopEventDetailPage() {
   const [qrProofFile, setQrProofFile] = React.useState<File | null>(null);
   const [busyAction, setBusyAction] = React.useState<"book" | "waitlist" | "interest" | "leave_waitlist" | null>(null);
   const [notice, setNotice] = React.useState<{ tone: NoticeTone; text: string } | null>(null);
+  const [freeRegState, setFreeRegState] = React.useState<FreeRegistrationStateData | null>(null);
+  const [isFreeRegModalOpen, setIsFreeRegModalOpen] = React.useState(false);
+  const [isFreeOutcomeModalOpen, setIsFreeOutcomeModalOpen] = React.useState(false);
+  const [freeSubmitResult, setFreeSubmitResult] = React.useState<FreeRegistrationResult | null>(null);
+  const [freeSubmitContact, setFreeSubmitContact] = React.useState<{
+    email: string;
+    phonePrefix: string;
+    phoneNumber: string;
+  } | null>(null);
+  const [otpCode, setOtpCode] = React.useState("");
+  const [otpChannel, setOtpChannel] = React.useState<"email" | "phone" | null>(null);
+  const [otpBusy, setOtpBusy] = React.useState(false);
+  const [otpError, setOtpError] = React.useState<string | null>(null);
+  const [otpSuccess, setOtpSuccess] = React.useState<string | null>(null);
+  const { secondsRemaining, canResend, startCooldown, resetCooldown } = useOtpResendTimer();
   const autoInterestHandledRef = React.useRef(false);
 
   const loadData = React.useCallback(async () => {
@@ -86,6 +114,15 @@ export default function ShopEventDetailPage() {
     try {
       const eventData = await getPublicEventById(company.id, eventId);
       setEvent(eventData);
+
+      if (eventData.is_free && company?.id) {
+        try {
+          const regState = await getFreeRegistrationState(company.id, eventId);
+          setFreeRegState(regState);
+        } catch {
+          // non-fatal
+        }
+      }
 
       if (user?.id) {
         const mine = await getMyPublicGroupBookings();
@@ -161,17 +198,133 @@ export default function ShopEventDetailPage() {
   }, [myBookings]);
 
   const interestIntent = React.useMemo(
-    () => searchParams.get("interest_intent") === "1",
+    () => searchParams?.get("interest_intent") === "1",
     [searchParams],
   );
 
   const clearInterestIntentFromUrl = React.useCallback(() => {
     if (!interestIntent) return;
-    const next = new URLSearchParams(searchParams.toString());
+    const next = new URLSearchParams(searchParams?.toString() ?? "");
     next.delete("interest_intent");
     const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    router.replace(query ? `${pathname}?${query}` : (pathname ?? "/"), { scroll: false });
   }, [interestIntent, pathname, router, searchParams]);
+
+  const buildOtpPhoneTarget = React.useCallback((contact: { phonePrefix: string; phoneNumber: string } | null) => {
+    if (!contact) return "";
+    const prefixDigits = contact.phonePrefix.replace(/\D/g, "");
+    const localDigits = contact.phoneNumber.replace(/\D/g, "");
+    if (!localDigits) return "";
+    if (prefixDigits && localDigits.startsWith(prefixDigits)) return `+${localDigits}`;
+    if (prefixDigits) return `+${prefixDigits}${localDigits}`;
+    return `+${localDigits}`;
+  }, []);
+
+  const otpSection = freeSubmitResult?.otpSection;
+  const otpAvailableChannels = React.useMemo(() => {
+    if (!otpSection?.show) return [] as Array<"email" | "phone">;
+    if (otpSection.availableChannels && otpSection.availableChannels.length > 0) return otpSection.availableChannels;
+    return otpSection.primaryChannel ? [otpSection.primaryChannel] : [];
+  }, [otpSection]);
+
+  React.useEffect(() => {
+    if (!isFreeOutcomeModalOpen || !freeSubmitResult) return;
+    setOtpCode("");
+    setOtpError(null);
+    setOtpSuccess(null);
+    setOtpChannel(otpAvailableChannels[0] ?? freeSubmitResult.otpSection?.primaryChannel ?? null);
+    resetCooldown();
+    if (freeSubmitResult.otpSection?.show) {
+      startCooldown();
+    }
+  }, [freeSubmitResult, isFreeOutcomeModalOpen, otpAvailableChannels, resetCooldown, startCooldown]);
+
+  const handleOtpResend = React.useCallback(async () => {
+    if (!freeSubmitResult?.otpSection?.show || !freeSubmitContact || !otpChannel) return;
+    if (!canResend || otpBusy) return;
+
+    setOtpBusy(true);
+    setOtpError(null);
+    setOtpSuccess(null);
+
+    try {
+      if (otpChannel === "email") {
+        await sendLoginEmailOtp(freeSubmitContact.email);
+      } else {
+        const phoneTarget = buildOtpPhoneTarget(freeSubmitContact);
+        if (!phoneTarget) {
+          throw new Error(t("freeEventReg.account.sendOtpError"));
+        }
+        await sendPhoneOtp(phoneTarget);
+      }
+      startCooldown();
+      setOtpSuccess(t("freeEventReg.account.resendSuccess"));
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : t("freeEventReg.account.sendOtpError"));
+    } finally {
+      setOtpBusy(false);
+    }
+  }, [
+    buildOtpPhoneTarget,
+    canResend,
+    freeSubmitContact,
+    freeSubmitResult?.otpSection?.show,
+    otpBusy,
+    otpChannel,
+    sendLoginEmailOtp,
+    sendPhoneOtp,
+    startCooldown,
+    t,
+  ]);
+
+  const handleOtpVerify = React.useCallback(async () => {
+    if (!freeSubmitResult?.otpSection?.show || !freeSubmitContact || !otpChannel) return;
+    if (!otpCode.trim()) {
+      setOtpError(t("freeEventReg.account.otpRequired"));
+      return;
+    }
+
+    setOtpBusy(true);
+    setOtpError(null);
+    setOtpSuccess(null);
+    try {
+      if (otpChannel === "email") {
+        await verifyLoginEmailOtp(freeSubmitContact.email, otpCode.trim());
+      } else {
+        const phoneTarget = buildOtpPhoneTarget(freeSubmitContact);
+        if (!phoneTarget) {
+          throw new Error(t("freeEventReg.account.verifyError"));
+        }
+        await verifyPhoneOtp(phoneTarget, otpCode.trim());
+      }
+      setOtpSuccess(t("freeEventReg.account.verifySuccess"));
+      await loadData();
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : t("freeEventReg.account.verifyError"));
+    } finally {
+      setOtpBusy(false);
+    }
+  }, [
+    buildOtpPhoneTarget,
+    freeSubmitContact,
+    freeSubmitResult?.otpSection?.show,
+    loadData,
+    otpChannel,
+    otpCode,
+    t,
+    verifyLoginEmailOtp,
+    verifyPhoneOtp,
+  ]);
+
+  const handleFreeRegSubmitted = React.useCallback((
+    result: FreeRegistrationResult,
+    contact: { email: string; phonePrefix: string; phoneNumber: string },
+  ) => {
+    setIsFreeRegModalOpen(false);
+    setFreeSubmitResult(result);
+    setFreeSubmitContact(contact);
+    setIsFreeOutcomeModalOpen(true);
+  }, []);
 
   const requireSignIn = React.useCallback(() => {
     if (user?.id) return true;
@@ -455,6 +608,58 @@ export default function ShopEventDetailPage() {
     || [company.city, company.state].map((value) => value?.trim() || "").filter((value) => value.length > 0).join(", ");
   const showPaymentForm = !event.is_free && !soldOut && !activeBooking;
   const autoConfirmBookings = settings?.auto_confirm_bookings ?? true;
+  const accountOutcome = freeSubmitResult?.accountOutcome ?? "NOT_REQUESTED";
+  const accountCopy = (() => {
+    switch (accountOutcome) {
+      case "ACCOUNT_CREATED_PENDING_VERIFICATION":
+        return {
+          title: t("freeEventReg.account.created.title"),
+          body: t("freeEventReg.account.created.body"),
+          cta: t("freeEventReg.account.created.cta"),
+          showOtp: true,
+          manualSignIn: false,
+        };
+      case "ACCOUNT_FOUND_BY_EMAIL":
+        return {
+          title: t("freeEventReg.account.foundByEmail.title"),
+          body: t("freeEventReg.account.foundByEmail.body"),
+          cta: t("freeEventReg.account.foundByEmail.cta"),
+          showOtp: true,
+          manualSignIn: false,
+        };
+      case "ACCOUNT_FOUND_BY_PHONE":
+        return {
+          title: t("freeEventReg.account.foundByPhone.title"),
+          body: t("freeEventReg.account.foundByPhone.body"),
+          cta: t("freeEventReg.account.foundByPhone.cta"),
+          showOtp: true,
+          manualSignIn: false,
+        };
+      case "ACCOUNT_ALREADY_EXISTS":
+        return {
+          title: t("freeEventReg.account.exists.title"),
+          body: t("freeEventReg.account.exists.body"),
+          cta: t("freeEventReg.account.exists.cta"),
+          showOtp: true,
+          manualSignIn: false,
+        };
+      case "ACCOUNT_CONFLICT_PHONE_EMAIL":
+        return {
+          title: t("freeEventReg.account.conflict.title"),
+          body: t("freeEventReg.account.conflict.body"),
+          cta: t("freeEventReg.account.conflict.cta"),
+          showOtp: false,
+          manualSignIn: true,
+        };
+      default:
+        return null;
+    }
+  })();
+  const showAccountSection = Boolean(accountCopy);
+  const showOtpSection = Boolean(accountCopy?.showOtp && freeSubmitResult?.otpSection?.show);
+  const otpTargetLabel = freeSubmitResult?.otpSection?.maskedDestination || (
+    otpChannel === "email" ? freeSubmitContact?.email : buildOtpPhoneTarget(freeSubmitContact)
+  ) || "";
 
   return (
     <main className="min-h-screen bg-page text-text-main">
@@ -484,7 +689,7 @@ export default function ShopEventDetailPage() {
 
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{event.is_free ? t("shopGroup.labels.free") : t("shopGroup.labels.paid")}</Badge>
-            {user?.id && soldOut ? <Badge variant="destructive">{t("shopGroup.labels.soldOut")}</Badge> : null}
+            {!event.is_free && user?.id && soldOut ? <Badge variant="destructive">{t("shopGroup.labels.soldOut")}</Badge> : null}
           </div>
 
           {event.description ? (
@@ -535,16 +740,18 @@ export default function ShopEventDetailPage() {
 
         <aside className="space-y-4">
           <article className="space-y-4 rounded-xl border border-surface-border bg-surface p-4 shadow-card">
-            <h2 className="text-xl font-semibold text-text-main">
-              {event.is_free
-                ? t("shopGroup.events.registerFree")
-                : t("shopGroup.events.registerPaid", { price: formatGroupMoney(event.price_cents, company.currency) })}
-            </h2>
-            <p className="text-sm text-text-muted">
-              {autoConfirmBookings
-                ? t("shopGroup.events.autoConfirmOn")
-                : t("shopGroup.events.autoConfirmOff")}
-            </p>
+            {!event.is_free ? (
+              <>
+                <h2 className="text-xl font-semibold text-text-main">
+                  {t("shopGroup.events.registerPaid", { price: formatGroupMoney(event.price_cents, company.currency) })}
+                </h2>
+                <p className="text-sm text-text-muted">
+                  {autoConfirmBookings
+                    ? t("shopGroup.events.autoConfirmOn")
+                    : t("shopGroup.events.autoConfirmOff")}
+                </p>
+              </>
+            ) : null}
 
             {notice ? (
               <p
@@ -560,166 +767,375 @@ export default function ShopEventDetailPage() {
               </p>
             ) : null}
 
-            {!user?.id ? (
-              <Button
-                className="w-full bg-brand text-white hover:bg-brand-hover"
-                onClick={handleSignInToContinue}
-              >
-                {t("shopGroup.actions.signInToContinue")}
-              </Button>
-            ) : activeBooking ? (
-              <div className="space-y-3">
-                <Badge variant="outline">{t(`shopGroup.status.${activeBooking.status}`)}</Badge>
-                <p className="text-sm text-text-muted">
-                  {activeBooking.status === "CONFIRMED"
-                    ? t("shopGroup.events.alreadyConfirmed")
-                    : activeBooking.status === "PENDING"
-                      ? t("shopGroup.events.alreadyPending")
-                      : t("shopGroup.events.alreadyWaitlisted")}
-                </p>
-                {activeBooking.status === "WAITLISTED" ? (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => void handleLeaveWaitlist()}
-                    disabled={busyAction === "leave_waitlist"}
-                  >
-                    {busyAction === "leave_waitlist" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {t("shopGroup.actions.leaveWaitlist")}
-                  </Button>
-                ) : (
-                  <Button asChild variant="outline" className="w-full">
-                    <Link href={appendShopParam("/me/group-reservations", slug)}>
-                      {t("shopGroup.actions.viewMyGroupReservations")}
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            ) : soldOut ? (
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-rose-700">{t("shopGroup.labels.soldOut")}</p>
-                {event.is_free ? (
+            {event.is_free ? (
+              freeRegState?.status ? (
+                <FreeEventRegistrationForm
+                  eventId={event.id}
+                  companyId={company.id}
+                  slug={slug}
+                  prefill={freeRegState?.prefill ?? null}
+                  existingStatus={freeRegState.status}
+                  onRegistered={(status) => {
+                    setFreeRegState((prev) =>
+                      prev
+                        ? { ...prev, hasRegistration: true, status }
+                        : { hasRegistration: true, status, prefill: null },
+                    );
+                  }}
+                  onSubmitResult={handleFreeRegSubmitted}
+                />
+              ) : (
+                <>
                   <Button
                     className="w-full bg-brand text-white hover:bg-brand-hover"
-                    onClick={() => void handleInterest()}
-                    disabled={busyAction === "interest"}
+                    onClick={() => setIsFreeRegModalOpen(true)}
                   >
-                    {busyAction === "interest" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {t("shopGroup.actions.notifyInterest")}
+                    {t("freeEventReg.openModalCta")}
                   </Button>
-                ) : canUseAdvanced ? (
-                  <Button
-                    className="w-full bg-brand text-white hover:bg-brand-hover"
-                    onClick={() => void handleJoinWaitlist()}
-                    disabled={busyAction === "waitlist"}
-                  >
-                    {busyAction === "waitlist" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {t("shopGroup.actions.joinWaitlist")}
-                  </Button>
-                ) : (
-                  <p className="text-sm text-text-muted">{t("shopGroup.events.waitlistUnavailable")}</p>
-                )}
-              </div>
+
+                  <Dialog open={isFreeRegModalOpen} onOpenChange={setIsFreeRegModalOpen}>
+                    <DialogContent
+                      forceMount
+                      onInteractOutside={(event) => event.preventDefault()}
+                      className="max-h-[90vh] overflow-y-auto sm:max-w-md"
+                    >
+                      <DialogHeader className="text-left sm:text-left">
+                        <DialogTitle className="text-xl font-semibold text-text-main">
+                          {t("shopGroup.events.registerFree")}
+                        </DialogTitle>
+                        <DialogDescription className="text-sm text-text-muted">
+                          {autoConfirmBookings
+                            ? t("shopGroup.events.autoConfirmOn")
+                            : t("shopGroup.events.autoConfirmOff")}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <FreeEventRegistrationForm
+                        eventId={event.id}
+                        companyId={company.id}
+                        slug={slug}
+                        prefill={freeRegState?.prefill ?? null}
+                        existingStatus={null}
+                        onRegistered={(status) => {
+                          setFreeRegState((prev) =>
+                            prev
+                              ? { ...prev, hasRegistration: true, status }
+                              : { hasRegistration: true, status, prefill: null },
+                          );
+                        }}
+                        onSubmitResult={handleFreeRegSubmitted}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )
             ) : (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-text-muted">{t("shopGroup.fields.spots")}</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={Math.max(1, event.max_capacity)}
-                    value={bookedSpots}
-                    onChange={(e) => {
-                      const val = Number.parseInt(e.target.value, 10);
-                      const max = Math.max(1, event.max_capacity);
-                      setBookedSpots(Number.isInteger(val) && val > max ? String(max) : e.target.value);
-                    }}
-                  />
-                </div>
-
-                {extraAttendees.length > 0 ? (
-                  <div className="space-y-3 rounded-md border border-surface-border bg-section p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                      {t("shopGroup.forms.extraAttendeesTitle")}
+              <>
+                {!user?.id ? (
+                  <Button
+                    className="w-full bg-brand text-white hover:bg-brand-hover"
+                    onClick={handleSignInToContinue}
+                  >
+                    {t("shopGroup.actions.signInToContinue")}
+                  </Button>
+                ) : activeBooking ? (
+                  <div className="space-y-3">
+                    <Badge variant="outline">{t(`shopGroup.status.${activeBooking.status}`)}</Badge>
+                    <p className="text-sm text-text-muted">
+                      {activeBooking.status === "CONFIRMED"
+                        ? t("shopGroup.events.alreadyConfirmed")
+                        : activeBooking.status === "PENDING"
+                          ? t("shopGroup.events.alreadyPending")
+                          : t("shopGroup.events.alreadyWaitlisted")}
                     </p>
-                    <div className="space-y-3">
-                      {extraAttendees.map((attendee, index) => (
-                        <div key={`extra-attendee-${index}`} className="rounded-md border border-surface-border bg-surface p-3">
-                          <p className="mb-2 text-xs font-medium text-text-muted">{t("shopGroup.forms.extraTicketLabel", { number: index + 2 })}</p>
-                          <div className="grid gap-2">
-                            <Input
-                              placeholder={t("shopGroup.forms.fullNamePlaceholder")}
-                              value={attendee.full_name}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setExtraAttendees((prev) => prev.map((row, rowIndex) => (
-                                  rowIndex === index ? { ...row, full_name: value } : row
-                                )));
-                              }}
-                            />
-                            <Input
-                              type="email"
-                              placeholder={t("shopGroup.forms.emailOptionalPlaceholder")}
-                              value={attendee.email}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setExtraAttendees((prev) => prev.map((row, rowIndex) => (
-                                  rowIndex === index ? { ...row, email: value } : row
-                                )));
-                              }}
-                            />
-                            <Input
-                              placeholder={t("shopGroup.forms.phoneOptionalPlaceholder")}
-                              value={attendee.phone}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setExtraAttendees((prev) => prev.map((row, rowIndex) => (
-                                  rowIndex === index ? { ...row, phone: value } : row
-                                )));
-                              }}
-                            />
-                            <p className="text-[11px] text-text-muted">{t("shopGroup.forms.contactHint")}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {activeBooking.status === "WAITLISTED" ? (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => void handleLeaveWaitlist()}
+                        disabled={busyAction === "leave_waitlist"}
+                      >
+                        {busyAction === "leave_waitlist" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {t("shopGroup.actions.leaveWaitlist")}
+                      </Button>
+                    ) : (
+                      <Button asChild variant="outline" className="w-full">
+                        <Link href={appendShopParam("/me/group-reservations", slug)}>
+                          {t("shopGroup.actions.viewMyGroupReservations")}
+                        </Link>
+                      </Button>
+                    )}
                   </div>
-                ) : null}
+                ) : soldOut ? (
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-rose-700">{t("shopGroup.labels.soldOut")}</p>
+                    {canUseAdvanced ? (
+                      <Button
+                        className="w-full bg-brand text-white hover:bg-brand-hover"
+                        onClick={() => void handleJoinWaitlist()}
+                        disabled={busyAction === "waitlist"}
+                      >
+                        {busyAction === "waitlist" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {t("shopGroup.actions.joinWaitlist")}
+                      </Button>
+                    ) : (
+                      <p className="text-sm text-text-muted">{t("shopGroup.events.waitlistUnavailable")}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-text-muted">{t("shopGroup.fields.spots")}</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={Math.max(1, event.max_capacity)}
+                        value={bookedSpots}
+                        onChange={(e) => {
+                          const val = Number.parseInt(e.target.value, 10);
+                          const max = Math.max(1, event.max_capacity);
+                          setBookedSpots(Number.isInteger(val) && val > max ? String(max) : e.target.value);
+                        }}
+                      />
+                    </div>
 
-                {showPaymentForm ? (
-                  <GroupPaymentMethodForm
-                    settings={settings}
-                    paymentMethod={paymentMethod}
-                    onPaymentMethodChange={setPaymentMethod}
-                    qrProofFile={qrProofFile}
-                    onQrProofChange={setQrProofFile}
-                    t={t}
-                  />
-                ) : null}
+                    {extraAttendees.length > 0 ? (
+                      <div className="space-y-3 rounded-md border border-surface-border bg-section p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                          {t("shopGroup.forms.extraAttendeesTitle")}
+                        </p>
+                        <div className="space-y-3">
+                          {extraAttendees.map((attendee, index) => (
+                            <div key={`extra-attendee-${index}`} className="rounded-md border border-surface-border bg-surface p-3">
+                              <p className="mb-2 text-xs font-medium text-text-muted">{t("shopGroup.forms.extraTicketLabel", { number: index + 2 })}</p>
+                              <div className="grid gap-2">
+                                <Input
+                                  placeholder={t("shopGroup.forms.fullNamePlaceholder")}
+                                  value={attendee.full_name}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setExtraAttendees((prev) => prev.map((row, rowIndex) => (
+                                      rowIndex === index ? { ...row, full_name: value } : row
+                                    )));
+                                  }}
+                                />
+                                <Input
+                                  type="email"
+                                  placeholder={t("shopGroup.forms.emailOptionalPlaceholder")}
+                                  value={attendee.email}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setExtraAttendees((prev) => prev.map((row, rowIndex) => (
+                                      rowIndex === index ? { ...row, email: value } : row
+                                    )));
+                                  }}
+                                />
+                                <Input
+                                  placeholder={t("shopGroup.forms.phoneOptionalPlaceholder")}
+                                  value={attendee.phone}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setExtraAttendees((prev) => prev.map((row, rowIndex) => (
+                                      rowIndex === index ? { ...row, phone: value } : row
+                                    )));
+                                  }}
+                                />
+                                <p className="text-[11px] text-text-muted">{t("shopGroup.forms.contactHint")}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
 
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-text-muted">{t("shopGroup.fields.notes")}</label>
-                  <textarea
-                    className="min-h-[90px] w-full rounded-md border border-surface-border bg-white px-3 py-2 text-sm text-text-main"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder={t("shopGroup.forms.notesPlaceholder")}
-                  />
-                </div>
+                    {showPaymentForm ? (
+                      <GroupPaymentMethodForm
+                        settings={settings}
+                        paymentMethod={paymentMethod}
+                        onPaymentMethodChange={setPaymentMethod}
+                        qrProofFile={qrProofFile}
+                        onQrProofChange={setQrProofFile}
+                        t={t}
+                      />
+                    ) : null}
 
-                <Button
-                  className="w-full bg-brand text-white hover:bg-brand-hover"
-                  onClick={() => void handleBook()}
-                  disabled={busyAction === "book"}
-                >
-                  {busyAction === "book" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {event.is_free ? t("shopGroup.actions.confirmRegistration") : t("shopGroup.actions.completeBooking")}
-                </Button>
-              </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-text-muted">{t("shopGroup.fields.notes")}</label>
+                      <textarea
+                        className="min-h-[90px] w-full rounded-md border border-surface-border bg-white px-3 py-2 text-sm text-text-main"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder={t("shopGroup.forms.notesPlaceholder")}
+                      />
+                    </div>
+
+                    <Button
+                      className="w-full bg-brand text-white hover:bg-brand-hover"
+                      onClick={() => void handleBook()}
+                      disabled={busyAction === "book"}
+                    >
+                      {busyAction === "book" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      {t("shopGroup.actions.completeBooking")}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </article>
         </aside>
       </section>
+
+      <Dialog open={isFreeOutcomeModalOpen} onOpenChange={setIsFreeOutcomeModalOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          {freeSubmitResult ? (
+            <>
+              <DialogHeader className="text-left sm:text-left">
+                <DialogTitle className="text-xl font-semibold text-text-main">
+                  {freeSubmitResult.modalType === "POSITIVE"
+                    ? t("freeEventReg.positiveModal.title")
+                    : t("freeEventReg.negativeModal.title")}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-text-muted">
+                  {freeSubmitResult.modalType === "POSITIVE"
+                    ? t("freeEventReg.positiveModal.body")
+                    : t("freeEventReg.negativeModal.body")}
+                </DialogDescription>
+              </DialogHeader>
+
+              <p className="text-sm text-text-muted">
+                {freeSubmitResult.modalType === "POSITIVE"
+                  ? t("freeEventReg.positiveModal.extra")
+                  : t("freeEventReg.negativeModal.extra")}
+              </p>
+
+              {freeSubmitResult.reservationCode ? (
+                <div className="space-y-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    {t("freeEventReg.confirmation.codeLabel")}
+                  </p>
+                  <p className="font-mono text-2xl font-bold tracking-[0.15em] text-emerald-800">
+                    {freeSubmitResult.reservationCode}
+                  </p>
+                  <p className="text-sm text-emerald-700">{t("freeEventReg.confirmation.checkInHint")}</p>
+                  <p className="text-xs text-emerald-700">{t("freeEventReg.modal.codeBody")}</p>
+                </div>
+              ) : null}
+
+              {showAccountSection && accountCopy ? (
+                <div className="space-y-3 rounded-md border border-surface-border bg-section p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    {t("freeEventReg.account.sectionTitle")}
+                  </p>
+                  <h3 className="text-base font-semibold text-text-main">{accountCopy.title}</h3>
+                  <p className="text-sm text-text-muted">{accountCopy.body}</p>
+
+                  {showOtpSection ? (
+                    <div className="space-y-3">
+                      {otpAvailableChannels.length > 1 ? (
+                        <div className="flex gap-2">
+                          {otpAvailableChannels.includes("email") ? (
+                            <Button
+                              type="button"
+                              variant={otpChannel === "email" ? "default" : "outline"}
+                              className="flex-1"
+                              onClick={() => setOtpChannel("email")}
+                              disabled={otpBusy}
+                            >
+                              {t("freeEventReg.account.channelEmail")}
+                            </Button>
+                          ) : null}
+                          {otpAvailableChannels.includes("phone") ? (
+                            <Button
+                              type="button"
+                              variant={otpChannel === "phone" ? "default" : "outline"}
+                              className="flex-1"
+                              onClick={() => setOtpChannel("phone")}
+                              disabled={otpBusy}
+                            >
+                              {t("freeEventReg.account.channelPhone")}
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-text-muted">
+                          {t("freeEventReg.account.otpLabel")}
+                          {otpTargetLabel ? ` · ${otpTargetLabel}` : ""}
+                        </label>
+                        <Input
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value)}
+                          placeholder={t("freeEventReg.account.otpPlaceholder")}
+                          inputMode="numeric"
+                          maxLength={8}
+                        />
+                      </div>
+
+                      {otpError ? (
+                        <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
+                          {otpError}
+                        </p>
+                      ) : null}
+                      {otpSuccess ? (
+                        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                          {otpSuccess}
+                        </p>
+                      ) : null}
+
+                      <Button
+                        className="w-full bg-brand text-white hover:bg-brand-hover"
+                        onClick={() => void handleOtpVerify()}
+                        disabled={otpBusy}
+                      >
+                        {otpBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {accountCopy.cta}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => void handleOtpResend()}
+                        disabled={otpBusy || !canResend}
+                      >
+                        {canResend
+                          ? t("freeEventReg.account.resendCode")
+                          : t("freeEventReg.account.resendIn", { seconds: secondsRemaining })}
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {accountCopy.manualSignIn ? (
+                    <Button
+                      className="w-full bg-brand text-white hover:bg-brand-hover"
+                      onClick={() => {
+                        setIsFreeOutcomeModalOpen(false);
+                        router.push(buildSignInRedirectFromCurrentLocation(`/shop/${slug}/events/${event.id}`));
+                      }}
+                    >
+                      {accountCopy.cta}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <Button
+                  className="w-full bg-brand text-white hover:bg-brand-hover"
+                  onClick={() => setIsFreeOutcomeModalOpen(false)}
+                >
+                  {t("freeEventReg.successModal.cta")}
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={appendShopParam("/me/group-reservations", slug)}>
+                    {t("freeEventReg.viewMyReservations")}
+                  </Link>
+                </Button>
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <ShopFooter />
     </main>

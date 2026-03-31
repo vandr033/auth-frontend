@@ -94,6 +94,8 @@ export interface PublicGroupClass {
 
 export interface PublicGroupEventBooking {
   id: number;
+  source?: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
+  reservation_code?: string | null;
   company_id: number;
   group_event_id: number;
   user_id: string;
@@ -364,4 +366,84 @@ export async function deleteGroupQrProof(url: string): Promise<void> {
   } catch {
     // best-effort cleanup
   }
+}
+
+// ── Free Event Registration ──
+
+export interface FreeEventRegistrationInput {
+  company_id: number;
+  firstName: string;
+  lastName: string;
+  gender: string;
+  age: number;
+  email: string;
+  phonePrefix: string;
+  phoneNumber: string;
+  tosAccepted: boolean;
+  createAccount?: boolean;
+}
+
+export interface FreeRegistrationStateData {
+  hasRegistration: boolean;
+  status: 'CONFIRMED' | 'PENDING' | 'INTERESTED' | null;
+  prefill: {
+    firstName: string;
+    lastName: string;
+    gender: string;
+    age: number | null;
+    email: string;
+    phonePrefix: string;
+    phoneNumber: string;
+  } | null;
+}
+
+export interface FreeRegistrationResult {
+  success: true;
+  eventOutcome: "REGISTERED" | "INTERESTED" | "ALREADY_REGISTERED";
+  registrationStatus?: "CONFIRMED" | "PENDING" | "INTERESTED";
+  modalType: "POSITIVE" | "NEGATIVE";
+  accountOutcome:
+    | "NOT_REQUESTED"
+    | "ACCOUNT_CREATED_PENDING_VERIFICATION"
+    | "ACCOUNT_FOUND_BY_EMAIL"
+    | "ACCOUNT_FOUND_BY_PHONE"
+    | "ACCOUNT_ALREADY_EXISTS"
+    | "ACCOUNT_CONFLICT_PHONE_EMAIL";
+  createdUserId?: string | null;
+  otpSection?: {
+    show: boolean;
+    mode: "SIGN_UP_VERIFY" | "SIGN_IN_OTP" | null;
+    primaryChannel: "email" | "phone" | null;
+    availableChannels?: Array<"email" | "phone">;
+    maskedDestination?: string | null;
+  };
+  nextActions?: {
+    canCompleteMissingPhoneLater?: boolean;
+    canCompleteMissingEmailLater?: boolean;
+    canManualSignIn?: boolean;
+  };
+  reservationCode?: string | null;
+  messageKey: string;
+  registrationId: number;
+  soldOut: boolean;
+  createAccountRequested: boolean;
+}
+
+export async function getFreeRegistrationState(
+  companyId: number,
+  eventId: number,
+): Promise<FreeRegistrationStateData> {
+  return groupFetch<FreeRegistrationStateData>(
+    `/group/events/${eventId}/free-registration-state?company_id=${companyId}`,
+  );
+}
+
+export async function submitFreeEventRegistration(
+  eventId: number,
+  input: FreeEventRegistrationInput,
+): Promise<FreeRegistrationResult> {
+  return groupFetch<FreeRegistrationResult>(`/group/events/${eventId}/free-register`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }

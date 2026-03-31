@@ -936,6 +936,7 @@ export interface GroupClass {
 
 export interface GroupEventBooking {
     id: number;
+    source?: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
     company_id: number;
     group_event_id: number;
     customer_profile_id: number | null;

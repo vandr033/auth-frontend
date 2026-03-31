@@ -18,7 +18,7 @@ function RegisterPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = React.useMemo(() => {
-    return sanitizeInternalRedirectTarget(searchParams.get("redirect"), "/");
+    return sanitizeInternalRedirectTarget(searchParams?.get("redirect") ?? null, "/");
   }, [searchParams]);
   const {
     startCustomerEmailRegistration,
