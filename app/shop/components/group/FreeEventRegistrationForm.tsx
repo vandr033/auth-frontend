@@ -60,6 +60,15 @@ export function FreeEventRegistrationForm({
   const [submitting, setSubmitting] = React.useState(false);
   const [modal, setModal] = React.useState<ModalState>("none");
 
+  React.useEffect(() => {
+    if (modal !== "tos") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [modal]);
+
   // If user already registered, show state instead of form
   if (existingStatus === "CONFIRMED" || existingStatus === "PENDING") {
     return (
@@ -298,9 +307,9 @@ export function FreeEventRegistrationForm({
 
       {/* TOS modal */}
       {modal === "tos" && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-4 py-6 sm:py-10">
-          <div className="flex min-h-full items-center justify-center">
-            <div className="flex max-h-[85vh] w-full max-w-sm flex-col rounded-xl bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 px-4 py-6 sm:py-10">
+          <div className="mx-auto flex h-full w-full max-w-sm items-center justify-center">
+            <div className="flex max-h-full w-full flex-col rounded-xl bg-white shadow-xl">
               <div className="flex items-start justify-between px-6 pb-4 pt-6">
                 <h2 className="text-base font-semibold text-text-main">{t("freeEventReg.tos.title")}</h2>
                 <button onClick={() => setModal("none")} className="text-text-muted hover:text-text-main">
