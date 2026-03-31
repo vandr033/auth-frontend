@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarDays, Clock, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/utils/image-url";
 import type { PublicGroupClass, PublicGroupClassSession, PublicGroupEvent } from "@/app/shop/lib/groupReservationsApi";
@@ -27,6 +28,7 @@ type EventCardProps = {
 };
 
 export function GroupEventCard({ event, slug, currency, t }: EventCardProps) {
+  const { locale } = useI18n();
   const image = getGroupItemImage(event);
   const soldOut = isEventSoldOut(event);
   const staff = getVisibleStaffAssignments(event.staff_assignments);
@@ -68,7 +70,7 @@ export function GroupEventCard({ event, slug, currency, t }: EventCardProps) {
         <div className="space-y-1 text-sm text-text-muted">
           <p className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4" />
-            {formatGroupDateTime(event.start_at)}
+            {formatGroupDateTime(event.start_at, locale)}
           </p>
           {event.location_text ? (
             <p className="flex items-center gap-2">
@@ -101,6 +103,7 @@ type ClassCardProps = {
 };
 
 export function GroupClassCard({ groupClass, sessions, slug, currency, t }: ClassCardProps) {
+  const { locale } = useI18n();
   const image = getGroupItemImage(groupClass);
   const staff = getVisibleStaffAssignments(groupClass.staff_assignments);
   const nextSession = getClassNextSession(sessions);
@@ -146,7 +149,7 @@ export function GroupClassCard({ groupClass, sessions, slug, currency, t }: Clas
           {nextSession ? (
             <p className="flex items-center gap-2">
               <CalendarDays className="h-4 w-4" />
-              {t("shopGroup.classes.nextSession", { value: formatGroupDateTime(nextSession.start_at) })}
+              {t("shopGroup.classes.nextSession", { value: formatGroupDateTime(nextSession.start_at, locale) })}
             </p>
           ) : (
             <p className="flex items-center gap-2">

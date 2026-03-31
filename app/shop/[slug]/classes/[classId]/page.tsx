@@ -8,7 +8,7 @@ import { ArrowLeft, CalendarDays, Clock, Loader2, MapPin, Users } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
-import { useT } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { useAuth } from "@/lib/useAuth";
 import { useShop } from "../../../contexts/ShopContext";
@@ -56,7 +56,7 @@ function getSessionMaxCapacity(session: PublicGroupClassSession, fallback: numbe
 }
 
 export default function ShopClassDetailPage() {
-  const t = useT();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const params = useParams<{ classId: string }>();
   const classId = Number.parseInt(params?.classId || "", 10);
@@ -348,8 +348,8 @@ export default function ShopClassDetailPage() {
             <p className="flex items-center gap-2">
               <CalendarDays className="h-4 w-4" />
               {t("shopGroup.classes.activeRange", {
-                start: formatGroupDate(groupClass.recurrence_start_date),
-                end: formatGroupDate(groupClass.recurrence_end_date),
+                start: formatGroupDate(groupClass.recurrence_start_date, locale),
+                end: formatGroupDate(groupClass.recurrence_end_date, locale),
               })}
             </p>
             {locationQuery ? (
@@ -405,7 +405,7 @@ export default function ShopClassDetailPage() {
                   return (
                     <li key={session.id} className="rounded-md border border-surface-border bg-white px-3 py-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-text-main">{formatGroupDateTime(session.start_at)}</span>
+                        <span className="text-text-main">{formatGroupDateTime(session.start_at, locale)}</span>
                         <span className="text-xs">
                           {t("shopGroup.events.capacity", { booked, total: maxCapacity })}
                         </span>
@@ -467,7 +467,7 @@ export default function ShopClassDetailPage() {
                     : t("shopGroup.classes.alreadyPending")}
                 </p>
                 <p className="text-xs text-text-muted">
-                  {t("shopGroup.fields.validity")}: {formatGroupDate(activeEnrollment.valid_from)} - {formatGroupDate(activeEnrollment.valid_until)}
+                  {t("shopGroup.fields.validity")}: {formatGroupDate(activeEnrollment.valid_from, locale)} - {formatGroupDate(activeEnrollment.valid_until, locale)}
                 </p>
                 <Button asChild variant="outline" className="w-full">
                   <Link href={appendShopParam("/me/group-reservations", slug)}>
@@ -498,7 +498,7 @@ export default function ShopClassDetailPage() {
 
                         return (
                           <option key={session.id} value={session.id} disabled={soldOut}>
-                            {formatGroupDateTime(session.start_at)} · {soldOut ? t("shopGroup.labels.soldOut") : t("shopGroup.events.capacity", { booked, total: maxCapacity })}
+                            {formatGroupDateTime(session.start_at, locale)} · {soldOut ? t("shopGroup.labels.soldOut") : t("shopGroup.events.capacity", { booked, total: maxCapacity })}
                           </option>
                         );
                       })}

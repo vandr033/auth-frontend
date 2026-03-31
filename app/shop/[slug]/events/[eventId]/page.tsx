@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
-import { useT } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { useAuth } from "@/lib/useAuth";
 import { useOtpResendTimer } from "@/lib/auth/otpResend";
@@ -56,7 +56,7 @@ type ExtraAttendeeForm = {
 };
 
 export default function ShopEventDetailPage() {
-  const t = useT();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -701,7 +701,7 @@ export default function ShopEventDetailPage() {
           ) : null}
 
           <div className="grid gap-2 text-sm text-text-muted">
-            <p>{formatGroupDateRange(event.start_at, event.end_at)}</p>
+            <p>{formatGroupDateRange(event.start_at, event.end_at, locale)}</p>
             {locationQuery ? (
               <p className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />

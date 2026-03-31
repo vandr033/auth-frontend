@@ -298,21 +298,27 @@ export function FreeEventRegistrationForm({
 
       {/* TOS modal */}
       {modal === "tos" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-start justify-between">
-              <h2 className="text-base font-semibold text-text-main">{t("freeEventReg.tos.title")}</h2>
-              <button onClick={() => setModal("none")} className="text-text-muted hover:text-text-main">
-                <X className="h-5 w-5" />
-              </button>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-4 py-6 sm:py-10">
+          <div className="flex min-h-full items-center justify-center">
+            <div className="flex max-h-[85vh] w-full max-w-sm flex-col rounded-xl bg-white shadow-xl">
+              <div className="flex items-start justify-between px-6 pb-4 pt-6">
+                <h2 className="text-base font-semibold text-text-main">{t("freeEventReg.tos.title")}</h2>
+                <button onClick={() => setModal("none")} className="text-text-muted hover:text-text-main">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                <p className="whitespace-pre-wrap text-sm text-text-muted">{customTos || t("freeEventReg.tos.body")}</p>
+              </div>
+              <div className="px-6 pb-6 pt-4">
+                <Button
+                  className="w-full bg-brand text-white hover:bg-brand-hover"
+                  onClick={() => { setTosAccepted(true); setModal("none"); }}
+                >
+                  {t("freeEventReg.tos.action")}
+                </Button>
+              </div>
             </div>
-            <p className="text-sm text-text-muted">{customTos || t("freeEventReg.tos.body")}</p>
-            <Button
-              className="mt-4 w-full bg-brand text-white hover:bg-brand-hover"
-              onClick={() => { setTosAccepted(true); setModal("none"); }}
-            >
-              {t("freeEventReg.tos.action")}
-            </Button>
           </div>
         </div>
       )}

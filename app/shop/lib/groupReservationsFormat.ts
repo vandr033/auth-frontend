@@ -10,21 +10,21 @@ export function formatGroupMoney(cents: number, currency?: string | null): strin
   return formatCurrencyFromCents(cents, currency);
 }
 
-export function formatGroupDateTime(dateIso: string): string {
-  return new Date(dateIso).toLocaleString(undefined, {
+export function formatGroupDateTime(dateIso: string, locale?: string): string {
+  return new Date(dateIso).toLocaleString(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 }
 
-export function formatGroupDate(dateIso: string | null | undefined): string {
+export function formatGroupDate(dateIso: string | null | undefined, locale?: string): string {
   if (!dateIso) return "—";
-  return new Date(dateIso).toLocaleDateString(undefined, {
+  return new Date(dateIso).toLocaleDateString(locale, {
     dateStyle: "medium",
   });
 }
 
-export function formatGroupDateRange(startIso: string, endIso: string): string {
+export function formatGroupDateRange(startIso: string, endIso: string, locale?: string): string {
   const start = new Date(startIso);
   const end = new Date(endIso);
 
@@ -34,16 +34,16 @@ export function formatGroupDateRange(startIso: string, endIso: string): string {
     start.getDate() === end.getDate();
 
   if (sameDay) {
-    return `${start.toLocaleDateString(undefined, { dateStyle: "medium" })} · ${start.toLocaleTimeString(undefined, {
+    return `${start.toLocaleDateString(locale, { dateStyle: "medium" })} · ${start.toLocaleTimeString(locale, {
       hour: "2-digit",
       minute: "2-digit",
-    })} - ${end.toLocaleTimeString(undefined, {
+    })} - ${end.toLocaleTimeString(locale, {
       hour: "2-digit",
       minute: "2-digit",
     })}`;
   }
 
-  return `${formatGroupDateTime(startIso)} - ${formatGroupDateTime(endIso)}`;
+  return `${formatGroupDateTime(startIso, locale)} - ${formatGroupDateTime(endIso, locale)}`;
 }
 
 export function getGroupItemImage(item: { cover_image_url?: string | null; thumbnail_url?: string | null }): string | null {

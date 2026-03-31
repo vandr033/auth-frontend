@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarDays, ChevronRight, Loader2, Ticket, Users } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
-import { useT } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notify";
@@ -32,7 +32,7 @@ const statusClasses: Record<GroupBookingStatus, string> = {
 };
 
 function GroupReservationsPageContent() {
-  const t = useT();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const shopSlug = getShopSlugFromParams(searchParams);
@@ -194,7 +194,7 @@ function GroupReservationsPageContent() {
                     {event?.start_at ? (
                       <p className="flex items-center gap-2">
                         <CalendarDays className="h-4 w-4" />
-                        {formatGroupDateTime(event.start_at)}
+                        {formatGroupDateTime(event.start_at, locale)}
                       </p>
                     ) : null}
                     <p>
@@ -274,7 +274,7 @@ function GroupReservationsPageContent() {
                       {t("meGroupReservations.fields.total")}: {formatGroupMoney(enrollment.price_cents_snapshot)}
                     </p>
                     <p>
-                      {t("meGroupReservations.fields.validity")}: {formatGroupDate(enrollment.valid_from)} - {formatGroupDate(enrollment.valid_until)}
+                      {t("meGroupReservations.fields.validity")}: {formatGroupDate(enrollment.valid_from, locale)} - {formatGroupDate(enrollment.valid_until, locale)}
                     </p>
                     <p>
                       {t("meGroupReservations.fields.paymentStatus")}: {t(`shopGroup.paymentStatus.${enrollment.payment_status}`)}
