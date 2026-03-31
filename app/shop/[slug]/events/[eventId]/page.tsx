@@ -679,7 +679,7 @@ export default function ShopEventDetailPage() {
 
       <section className="mx-auto grid max-w-6xl gap-6 px-4 py-8 md:grid-cols-[1.2fr_0.8fr] md:px-8">
         <article className="space-y-4 rounded-xl border border-surface-border bg-surface p-4 shadow-card">
-          <div className="relative h-64 w-full overflow-hidden rounded-lg bg-section">
+          <div className="relative h-44 w-full overflow-hidden rounded-lg bg-section md:h-64">
             {image ? (
               <img src={getImageUrl(image) || undefined} alt={event.title} className="h-full w-full object-cover" />
             ) : (
