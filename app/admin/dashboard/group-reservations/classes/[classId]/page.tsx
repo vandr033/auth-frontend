@@ -375,8 +375,10 @@ export default function GroupClassDetailPage() {
                 title: form.title.trim(),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
-                cover_image_url: form.cover_image_url.trim() || null,
-                thumbnail_url: form.thumbnail_url.trim() || null,
+                // Skip image fields that will be updated by uploadAdminImage to avoid a
+                // temporary null write that could cause the public page to show the wrong image.
+                ...(coverImageFile ? {} : { cover_image_url: form.cover_image_url.trim() || null }),
+                ...(thumbnailImageFile ? {} : { thumbnail_url: form.thumbnail_url.trim() || null }),
                 pricing_mode: form.pricing_mode,
                 price_cents: price,
                 max_capacity_per_session: maxCapacity,

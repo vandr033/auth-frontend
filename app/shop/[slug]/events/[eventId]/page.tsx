@@ -773,6 +773,7 @@ export default function ShopEventDetailPage() {
                   eventId={event.id}
                   companyId={company.id}
                   slug={slug}
+                  customTos={settings?.custom_tos}
                   prefill={freeRegState?.prefill ?? null}
                   existingStatus={freeRegState.status}
                   onRegistered={(status) => {
@@ -813,6 +814,7 @@ export default function ShopEventDetailPage() {
                         eventId={event.id}
                         companyId={company.id}
                         slug={slug}
+                        customTos={settings?.custom_tos}
                         prefill={freeRegState?.prefill ?? null}
                         existingStatus={null}
                         onRegistered={(status) => {

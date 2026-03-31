@@ -73,6 +73,7 @@ interface CompanySettings {
     send_whatsapp_notifications: boolean;
     social_links: SocialLinks;
     default_language: string;
+    custom_tos: string;
 }
 
 function getApiUrl(path: string): string {
@@ -114,6 +115,7 @@ const initialSettings: CompanySettings = {
     send_whatsapp_notifications: false,
     social_links: {},
     default_language: "es",
+    custom_tos: "",
 };
 
 function formatDateTime(value: string | null | undefined): string {
@@ -219,6 +221,7 @@ export default function SettingsPage() {
                 send_whatsapp_notifications: config.send_whatsapp_notifications ?? prev.send_whatsapp_notifications,
                 social_links: config.social_links ?? prev.social_links,
                 default_language: config.default_language ?? prev.default_language,
+                custom_tos: config.custom_tos ?? prev.custom_tos,
             }));
 
             if (historyPayload.company) {
@@ -372,6 +375,7 @@ export default function SettingsPage() {
                 send_whatsapp_notifications: settings.send_whatsapp_notifications,
                 social_links: settings.social_links,
                 default_language: settings.default_language,
+                custom_tos: settings.custom_tos || "",
             };
 
             const [companyRes, settingsRes] = await Promise.all([
@@ -481,6 +485,13 @@ export default function SettingsPage() {
                     >
                         <Languages className="h-4 w-4 mr-2" />
                         {t('adminSettings.language')}
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="tos"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                    >
+                        <Globe className="h-4 w-4 mr-2" />
+                        {t('adminSettings.tosTab')}
                     </TabsTrigger>
                     <TabsTrigger
                         value="subscription"
@@ -1034,6 +1045,30 @@ export default function SettingsPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* --- TOS TAB --- */}
+                <TabsContent value="tos" className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <Globe className="h-5 w-5 text-slate-500" />
+                                <CardTitle>{t('adminSettings.tosTitle')}</CardTitle>
+                            </div>
+                            <CardDescription>{t('adminSettings.tosDesc')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <textarea
+                                id="custom_tos"
+                                rows={12}
+                                value={settings.custom_tos}
+                                onChange={(e) => handleChange('custom_tos', e.target.value)}
+                                placeholder={t('adminSettings.tosPlaceholder')}
+                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200 resize-y"
+                            />
+                            <p className="text-xs text-slate-500">{t('adminSettings.tosHelp')}</p>
                         </CardContent>
                     </Card>
                 </TabsContent>

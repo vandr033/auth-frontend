@@ -1438,6 +1438,11 @@ const es: TranslationKeys = {
     billingMonthly: "Mensual",
     billingYearly: "Anual",
     historyLoadFailed: "No se pudo cargar el historial del plan",
+    tosTab: "Términos de Servicio",
+    tosTitle: "Términos de Servicio Personalizados",
+    tosDesc: "Escribe tus propios términos que los clientes deben aceptar antes de registrarse en eventos gratuitos. Si se deja vacío, se mostrarán los términos genéricos predeterminados.",
+    tosPlaceholder: "Ingresa aquí tus términos de servicio personalizados...",
+    tosHelp: "Este texto reemplazará los términos predeterminados en el formulario de registro.",
   },
   auth: {
     forgotPassword: {

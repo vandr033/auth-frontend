@@ -306,8 +306,10 @@ export default function GroupEventDetailPage() {
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
                 no_availability_message: form.is_free ? (form.no_availability_message.trim() || null) : null,
-                cover_image_url: form.cover_image_url.trim() || null,
-                thumbnail_url: form.thumbnail_url.trim() || null,
+                // Skip image fields that will be updated by uploadAdminImage to avoid a
+                // temporary null write that could cause the public page to show the wrong image.
+                ...(coverImageFile ? {} : { cover_image_url: form.cover_image_url.trim() || null }),
+                ...(thumbnailImageFile ? {} : { thumbnail_url: form.thumbnail_url.trim() || null }),
                 is_free: form.is_free,
                 price_cents: form.is_free ? 0 : priceCents,
                 max_capacity: maxCapacity,

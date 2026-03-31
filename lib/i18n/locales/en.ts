@@ -1454,6 +1454,11 @@ const en = {
     billingMonthly: "Monthly",
     billingYearly: "Yearly",
     historyLoadFailed: "Failed to load plan history",
+    tosTab: "Terms of Service",
+    tosTitle: "Custom Terms of Service",
+    tosDesc: "Write your own terms that customers must accept before registering for free events. If left empty, the default generic terms will be shown.",
+    tosPlaceholder: "Enter your custom terms of service here...",
+    tosHelp: "This text will replace the default terms in the registration form.",
   },
 
   // ─── Auth ───

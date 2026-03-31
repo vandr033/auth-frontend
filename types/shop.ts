@@ -103,6 +103,7 @@ export interface ShopSettings {
     default_language?: string;
     max_advance_booking_days?: number | null;
     min_advance_booking_minutes?: number | null;
+    custom_tos?: string | null;
 }
 
 export interface ShopReviewStats {

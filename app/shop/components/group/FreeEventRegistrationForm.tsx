@@ -14,6 +14,7 @@ interface Props {
   eventId: number;
   companyId: number;
   slug: string;
+  customTos?: string | null;
   prefill: {
     firstName: string;
     lastName: string;
@@ -37,6 +38,7 @@ export function FreeEventRegistrationForm({
   eventId,
   companyId,
   slug,
+  customTos,
   prefill,
   existingStatus,
   onRegistered,
@@ -304,7 +306,7 @@ export function FreeEventRegistrationForm({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-sm text-text-muted">{t("freeEventReg.tos.body")}</p>
+            <p className="text-sm text-text-muted">{customTos || t("freeEventReg.tos.body")}</p>
             <Button
               className="mt-4 w-full bg-brand text-white hover:bg-brand-hover"
               onClick={() => { setTosAccepted(true); setModal("none"); }}
