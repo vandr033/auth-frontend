@@ -77,6 +77,8 @@ type EventFormState = {
     manual_staff: ManualStaff[];
 };
 
+const GROUP_MEDIA_RECOMMENDED_SIZE = "1920px x 1080px";
+
 const EMPTY_MANUAL_STAFF: ManualStaff = {
     display_name: "",
     display_phone: "",
@@ -564,6 +566,7 @@ export default function GroupEventsAdminPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.coverImageUrl")}</Label>
+                            <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
                             <Input
                                 type="file"
                                 accept="image/png,image/jpeg,image/webp"
@@ -577,14 +580,15 @@ export default function GroupEventsAdminPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.thumbnailUrl")}</Label>
+                            <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
                             <Input
                                 type="file"
                                 accept="image/png,image/jpeg,image/webp"
                                 onChange={(event) => handleSelectThumbnailImage(event.target.files?.[0] ?? null)}
                             />
                             {thumbnailImagePreview ? (
-                                <div className="overflow-hidden rounded-md border border-slate-200">
-                                    <img src={thumbnailImagePreview} alt="Thumbnail preview" className="h-24 w-full object-cover" />
+                                <div className="h-44 overflow-hidden rounded-md border border-slate-200 md:h-64">
+                                    <img src={thumbnailImagePreview} alt="Thumbnail preview" className="h-full w-full object-cover" />
                                 </div>
                             ) : null}
                         </div>

@@ -41,6 +41,17 @@ const aspectRatioLabels: Record<string, string> = {
     'free': 'Any ratio',
 };
 
+const recommendedSizesByType: Record<ImageUploadType, string> = {
+    logo: "1080px x 1080px",
+    hero_home: "1920px x 1080px",
+    hero_about: "1920px x 1080px",
+    about_1: "1600px x 1200px",
+    about_2: "1600px x 1200px",
+    about_3: "1600px x 1200px",
+    qr: "1080px x 1080px",
+    staff: "1080px x 1080px",
+};
+
 export function ImageUpload({
     companyId,
     type,
@@ -61,6 +72,7 @@ export function ImageUpload({
     const [error, setError] = useState<string | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const recommendedSize = recommendedSizesByType[type];
 
     const displayUrl = previewUrl || getImageUrl(currentUrl);
 
@@ -277,6 +289,9 @@ export function ImageUpload({
                                 </p>
                                 <p className="text-xs text-slate-500 mt-1">
                                     {t('imageUpload.fileTypes', { maxSize: maxSizeMB })}
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    {t('imageUpload.recommendedSize', { size: recommendedSize })}
                                 </p>
                                 {aspectRatio !== 'free' && (
                                     <p className="text-xs text-slate-400 mt-1">

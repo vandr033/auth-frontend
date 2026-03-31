@@ -85,6 +85,8 @@ type ClassFormState = {
     manual_staff: ManualStaff[];
 };
 
+const GROUP_MEDIA_RECOMMENDED_SIZE = "1920px x 1080px";
+
 const WEEKDAYS = [
     { value: 0, label: "Sun" },
     { value: 1, label: "Mon" },
@@ -622,34 +624,36 @@ export default function GroupClassDetailPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.coverImageUrl")}</Label>
+                            <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
                             <Input
                                 type="file"
                                 accept="image/png,image/jpeg,image/webp"
                                 onChange={(event) => handleSelectCoverImage(event.target.files?.[0] ?? null)}
                             />
                             {(coverImagePreview || form.cover_image_url) ? (
-                                <div className="overflow-hidden rounded-md border border-slate-200">
+                                <div className="h-44 overflow-hidden rounded-md border border-slate-200 md:h-64">
                                     <img
                                         src={coverImagePreview || getImageUrl(form.cover_image_url) || undefined}
                                         alt="Cover preview"
-                                        className="h-36 w-full object-cover"
+                                        className="h-full w-full object-cover"
                                     />
                                 </div>
                             ) : null}
                         </div>
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.thumbnailUrl")}</Label>
+                            <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
                             <Input
                                 type="file"
                                 accept="image/png,image/jpeg,image/webp"
                                 onChange={(event) => handleSelectThumbnailImage(event.target.files?.[0] ?? null)}
                             />
                             {(thumbnailImagePreview || form.thumbnail_url) ? (
-                                <div className="overflow-hidden rounded-md border border-slate-200">
+                                <div className="h-44 overflow-hidden rounded-md border border-slate-200 md:h-64">
                                     <img
                                         src={thumbnailImagePreview || getImageUrl(form.thumbnail_url) || undefined}
                                         alt="Thumbnail preview"
-                                        className="h-24 w-full object-cover"
+                                        className="h-full w-full object-cover"
                                     />
                                 </div>
                             ) : null}
