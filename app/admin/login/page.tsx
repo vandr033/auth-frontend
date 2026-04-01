@@ -120,7 +120,7 @@ export default function AdminLoginPage() {
                                         {showPassword ? t("adminLogin.hidePassword") : t("adminLogin.showPassword")}
                                     </button>
                                     <Link
-                                        href="/admin/reset-password"
+                                        href="/admin/forgot-password"
                                         className="ml-auto text-sm text-white/70 hover:text-white transition-colors"
                                     >
                                         {t("adminLogin.forgotPassword")}
