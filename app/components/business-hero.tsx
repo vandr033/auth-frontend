@@ -103,7 +103,7 @@ export function BusinessHero() {
 
             <div className="relative h-full w-full">
               <Image
-                src="/assets/priconpri/hero.png"
+                src="/assets/priconpri/hero.webp"
                 alt="Vista previa de PRICONPRI"
                 fill
                 priority

@@ -119,7 +119,7 @@ export default function AdminChangePasswordPage() {
         <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-10">
             <div className="w-full max-w-md">
                 <Image
-                    src="/assets/priconpri/logo-horizontal-pink-outline.png"
+                    src="/assets/priconpri/logo-horizontal-pink-outline.webp"
                     alt="PriConPri"
                     width={600}
                     height={370}

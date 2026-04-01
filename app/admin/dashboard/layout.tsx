@@ -393,7 +393,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                     <div className="flex h-16 items-center justify-between border-b border-slate-800 px-4">
                         <div className="min-w-0">
                             <Image
-                                src="/assets/priconpri/logo-horizontal-pink-outline.png"
+                                src="/assets/priconpri/logo-horizontal-pink-outline.webp"
                                 alt="PriConPri"
                                 width={600}
                                 height={370}

@@ -14,8 +14,10 @@ import {
     Store,
     CalendarDays,
     Users,
+    UserRound,
     UserCheck,
     Building2,
+    MessageSquare,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,6 +86,11 @@ export default function SuperAdminLayout({
             icon: <Users className="h-5 w-5" />,
         },
         {
+            label: t("adminNav.allUsers"),
+            href: "/admin/super-admin/users",
+            icon: <UserRound className="h-5 w-5" />,
+        },
+        {
             label: t("adminNav.staff"),
             href: "/admin/super-admin/staff",
             icon: <UserCheck className="h-5 w-5" />,
@@ -97,6 +104,11 @@ export default function SuperAdminLayout({
             label: t("adminNav.serviceTypes"),
             href: "/admin/super-admin/service-types",
             icon: <Tags className="h-5 w-5" />,
+        },
+        {
+            label: t("adminNav.testNotifications"),
+            href: "/admin/super-admin/test-notifications",
+            icon: <MessageSquare className="h-5 w-5" />,
         },
     ];
 
@@ -174,7 +186,7 @@ export default function SuperAdminLayout({
                             </div>
                             <div className="flex flex-col">
                                 <Image
-                                    src="/assets/priconpri/logo-horizontal-pink-outline.png"
+                                    src="/assets/priconpri/logo-horizontal-pink-outline.webp"
                                     alt="PriConPri"
                                     width={600}
                                     height={370}

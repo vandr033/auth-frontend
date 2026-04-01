@@ -1140,7 +1140,7 @@ function MarketplacePageContent() {
       <footer className="border-t border-black/10 bg-white">
         <div className="mx-auto flex w-full max-w-[1260px] flex-col gap-4 px-4 py-8 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <Image
-            src="/assets/priconpri/logo-horizontal-pink-outline.png"
+            src="/assets/priconpri/logo-horizontal-pink-outline.webp"
             alt="PRICONPRI"
             width={600}
             height={370}

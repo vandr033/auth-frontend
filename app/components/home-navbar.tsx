@@ -162,7 +162,7 @@ export function HomeNavbar() {
               className="shrink-0 inline-flex items-center"
             >
               <Image
-                src="/assets/priconpri/logo-horizontal-black.png"
+                src="/assets/priconpri/logo-horizontal-black.webp"
                 alt="PRICONPRI"
                 width={600}
                 height={370}
@@ -230,7 +230,7 @@ export function HomeNavbar() {
           className="shrink-0 inline-flex items-center"
         >
           <Image
-            src="/assets/priconpri/logo-horizontal-black.png"
+            src="/assets/priconpri/logo-horizontal-black.webp"
             alt="PRICONPRI"
             width={600}
             height={370}

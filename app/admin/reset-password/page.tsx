@@ -147,7 +147,7 @@ export default function AdminResetPasswordPage() {
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
                     <Image
-                        src="/assets/priconpri/logo-horizontal-pink-outline.png"
+                        src="/assets/priconpri/logo-horizontal-pink-outline.webp"
                         alt="PriConPri"
                         width={600}
                         height={370}

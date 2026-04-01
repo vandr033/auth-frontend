@@ -404,7 +404,7 @@ function DemoShell() {
                 <div className="flex h-full flex-col">
                     <div className="flex h-16 items-center justify-between border-b border-slate-800 px-4">
                         <div className="min-w-0">
-                            <Image src="/assets/priconpri/logo-horizontal-pink-outline.png" alt="PriConPri" width={600} height={370} className="h-4 w-auto" priority />
+                            <Image src="/assets/priconpri/logo-horizontal-pink-outline.webp" alt="PriConPri" width={600} height={370} className="h-4 w-auto" priority />
                             <div className="mt-1 flex items-center gap-2">
                                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-[11px] font-bold text-white">B</div>
                                 <div className="flex min-w-0 flex-col">

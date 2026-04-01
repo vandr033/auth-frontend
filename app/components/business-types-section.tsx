@@ -30,62 +30,62 @@ const cardSeeds: CardSeed[] = [
   {
     key: "businessTypes.cards.estetica",
     accentClass: "bg-biz-cherry-blossom",
-    backgroundImage: "url('/assets/priconpri/negocios cards/aesthetics.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/aesthetics.webp')",
   },
   {
     key: "businessTypes.cards.wellness",
     accentClass: "bg-biz-blush-rose",
-    backgroundImage: "url('/assets/priconpri/negocios cards/wellness.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/wellness.webp')",
   },
   {
     key: "businessTypes.cards.salud",
     accentClass: "bg-biz-blush-rose",
-    backgroundImage: "url('/assets/priconpri/negocios cards/health.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/health.webp')",
   },
   {
     key: "businessTypes.cards.fitness",
     accentClass: "bg-biz-sky-surge",
-    backgroundImage: "url('/assets/priconpri/negocios cards/fitness.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/fitness.webp')",
   },
   {
     key: "businessTypes.cards.spas",
     accentClass: "bg-biz-cherry-blossom",
-    backgroundImage: "url('/assets/priconpri/negocios cards/recovery.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/recovery.webp')",
   },
   {
     key: "businessTypes.cards.unas",
     accentClass: "bg-biz-yellow",
-    backgroundImage: "url('/assets/priconpri/negocios cards/performance.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/performance.webp')",
   },
   {
     key: "businessTypes.cards.masajes",
     accentClass: "bg-biz-sky-surge",
-    backgroundImage: "url('/assets/priconpri/negocios cards/beauty.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/beauty.webp')",
   },
   {
     key: "businessTypes.cards.tattoo",
     accentClass: "bg-biz-sky-surge",
-    backgroundImage: "url('/assets/priconpri/negocios cards/skincare.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/skincare.webp')",
   },
   {
     key: "businessTypes.cards.cejas",
     accentClass: "bg-biz-barbie-pink",
-    backgroundImage: "url('/assets/priconpri/negocios cards/movement.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/movement.webp')",
   },
   {
     key: "businessTypes.cards.pestanas",
     accentClass: "bg-biz-yellow",
-    backgroundImage: "url('/assets/priconpri/negocios cards/care.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/care.webp')",
   },
   {
     key: "businessTypes.cards.nutrition",
     accentClass: "bg-biz-cherry-blossom",
-    backgroundImage: "url('/assets/priconpri/negocios cards/nutrition.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/nutrition.webp')",
   },
   {
     key: "businessTypes.cards.barbering",
     accentClass: "bg-biz-sky-surge",
-    backgroundImage: "url('/assets/priconpri/negocios cards/barbering.png')",
+    backgroundImage: "url('/assets/priconpri/negocios cards/barbering.webp')",
   },
 ];
 

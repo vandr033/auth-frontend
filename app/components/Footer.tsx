@@ -31,7 +31,7 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.6fr_1fr_1fr] md:gap-8">
           <div>
             <Image
-              src="/assets/priconpri/wordmark-stacked.png"
+              src="/assets/priconpri/wordmark-stacked.webp"
               alt="PRICONPRI"
               width={600}
               height={370}

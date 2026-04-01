@@ -42,7 +42,7 @@ export function BusinessScrollFeaturesSection() {
         title: t("businessWalkthrough.steps.landing.title"),
         description: t("businessWalkthrough.steps.landing.description"),
         captionTitle: t("businessWalkthrough.steps.landing.captionTitle"),
-        mediaUrl: "/assets/priconpri/featured%20section/1.png",
+        mediaUrl: "/assets/priconpri/featured%20section/1.webp",
         mediaPosition: "center",
       },
       {
@@ -52,7 +52,7 @@ export function BusinessScrollFeaturesSection() {
         title: t("businessWalkthrough.steps.agenda.title"),
         description: t("businessWalkthrough.steps.agenda.description"),
         captionTitle: t("businessWalkthrough.steps.agenda.captionTitle"),
-        mediaUrl: "/assets/priconpri/featured%20section/2.png",
+        mediaUrl: "/assets/priconpri/featured%20section/2.webp",
         mediaPosition: "center",
       },
       {
@@ -62,7 +62,7 @@ export function BusinessScrollFeaturesSection() {
         title: t("businessWalkthrough.steps.database.title"),
         description: t("businessWalkthrough.steps.database.description"),
         captionTitle: t("businessWalkthrough.steps.database.captionTitle"),
-        mediaUrl: "/assets/priconpri/featured%20section/3.png",
+        mediaUrl: "/assets/priconpri/featured%20section/3.webp",
         mediaPosition: "center",
       },
       {
@@ -72,7 +72,7 @@ export function BusinessScrollFeaturesSection() {
         title: t("businessWalkthrough.steps.metrics.title"),
         description: t("businessWalkthrough.steps.metrics.description"),
         captionTitle: t("businessWalkthrough.steps.metrics.captionTitle"),
-        mediaUrl: "/assets/priconpri/featured%20section/4.png",
+        mediaUrl: "/assets/priconpri/featured%20section/4.webp",
         mediaPosition: "center",
       },
     ],
