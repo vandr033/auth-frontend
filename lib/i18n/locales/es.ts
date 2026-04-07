@@ -862,6 +862,7 @@ const es: TranslationKeys = {
       enrollments: "Inscripciones",
       empty: "No hay clases.",
       generateSessions: "Generar sesiones",
+      updateAndGenerateSessions: "Actualizar Sesiones",
       sessionsGenerated: "Se generaron {{count}} sesión(es).",
       generateError: "No se pudieron generar sesiones.",
       sessionsTitle: "Sesiones generadas",

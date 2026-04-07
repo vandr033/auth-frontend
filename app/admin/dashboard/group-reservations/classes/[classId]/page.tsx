@@ -468,6 +468,11 @@ export default function GroupClassDetailPage() {
         }
     };
 
+    const handleSaveAndGenerateSessions = async () => {
+        await handleSave();
+        await handleGenerateSessions();
+    };
+
     const handleCancelSession = async (sessionId: number) => {
         try {
             await cancelGroupClassSession(sessionId);
@@ -883,10 +888,14 @@ export default function GroupClassDetailPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="flex justify-end">
-                        <Button onClick={() => void handleSave()} disabled={saving}>
+                    <div className="flex justify-end gap-2">
+                        <Button onClick={() => void handleSave()} disabled={saving} variant="outline">
                             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             {t("adminGroup.actions.save")}
+                        </Button>
+                        <Button onClick={() => void handleSaveAndGenerateSessions()} disabled={saving}>
+                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {t("adminGroup.classes.updateAndGenerateSessions")}
                         </Button>
                     </div>
                 </CardContent>

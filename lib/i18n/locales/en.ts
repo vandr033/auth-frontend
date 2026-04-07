@@ -871,6 +871,7 @@ const en = {
       enrollments: "Enrollments",
       empty: "No classes found.",
       generateSessions: "Generate sessions",
+      updateAndGenerateSessions: "Update Sessions",
       sessionsGenerated: "Generated {{count}} session(s).",
       generateError: "Could not generate sessions.",
       sessionsTitle: "Generated sessions",
