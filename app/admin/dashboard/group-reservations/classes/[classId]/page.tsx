@@ -4,9 +4,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,6 +34,7 @@ import {
     cancelGroupClassEnrollment,
     cancelGroupClassSession,
     confirmGroupClassEnrollment,
+    confirmGroupClassEnrollmentPayment,
     generateGroupClassSessions,
     getAdminCompanyLocation,
     getGroupClassById,
@@ -200,6 +207,7 @@ export default function GroupClassDetailPage() {
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
     const [thumbnailImagePreview, setThumbnailImagePreview] = useState<string | null>(null);
+    const [qrProofDialog, setQrProofDialog] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         if (!Number.isInteger(classId) || classId <= 0) return;
@@ -476,6 +484,16 @@ export default function GroupClassDetailPage() {
             if (action === "unconfirm") await unconfirmGroupClassEnrollment(enrollmentId);
             if (action === "cancel") await cancelGroupClassEnrollment(enrollmentId);
             await notify.success(t("adminGroup.bookings.actionSuccess"));
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        }
+    };
+
+    const handleConfirmPayment = async (enrollmentId: number) => {
+        try {
+            await confirmGroupClassEnrollmentPayment(enrollmentId);
+            await notify.success(t("adminGroup.bookings.paymentConfirmed"));
             await loadData();
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
@@ -985,6 +1003,17 @@ export default function GroupClassDetailPage() {
                                                         {t("adminGroup.actions.unconfirm")}
                                                     </Button>
                                                 ) : null}
+                                                {enrollment.payment_status === "PENDING_CONFIRMATION" ? (
+                                                    <Button size="sm" variant="outline" onClick={() => void handleConfirmPayment(enrollment.id)}>
+                                                        {t("adminGroup.actions.confirmPayment")}
+                                                    </Button>
+                                                ) : null}
+                                                {enrollment.qr_proof_image_url ? (
+                                                    <Button size="sm" variant="outline" onClick={() => setQrProofDialog(enrollment.qr_proof_image_url!)}>
+                                                        <Eye className="mr-1 h-3 w-3" />
+                                                        {t("adminGroup.actions.viewQrProof")}
+                                                    </Button>
+                                                ) : null}
                                                 {enrollment.status !== "CANCELLED" ? (
                                                     <Button size="sm" variant="outline" onClick={() => void handleEnrollmentAction(enrollment.id, "cancel")}>
                                                         {t("common.cancel")}
@@ -1036,6 +1065,23 @@ export default function GroupClassDetailPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={!!qrProofDialog} onOpenChange={(open) => { if (!open) setQrProofDialog(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>{t("adminGroup.actions.viewQrProof")}</DialogTitle>
+                    </DialogHeader>
+                    {qrProofDialog ? (
+                        <div className="flex flex-col items-center gap-3 py-2">
+                            <img
+                                src={qrProofDialog}
+                                alt="QR proof"
+                                className="max-h-80 w-full rounded-lg border border-slate-200 object-contain"
+                            />
+                        </div>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

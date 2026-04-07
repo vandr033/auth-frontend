@@ -1482,6 +1482,10 @@ export async function cancelGroupClassEnrollment(enrollmentId: number): Promise<
     await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/cancel`, { method: "POST" });
 }
 
+export async function confirmGroupClassEnrollmentPayment(enrollmentId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/confirm-payment`, { method: "POST" });
+}
+
 export async function getGroupAttendanceSummary(): Promise<GroupAttendanceSummary> {
     const response = await apiFetch<{ data: GroupAttendanceSummary }>("/api/admin/group/attendance/summary");
     return response.data;

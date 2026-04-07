@@ -705,6 +705,8 @@ const es: TranslationKeys = {
       cancelSession: "Cancelar sesión",
       resendTicket: "Reenviar ticket",
       cancelTicket: "Cancelar ticket",
+      confirmPayment: "Confirmar pago",
+      viewQrProof: "Ver QR de pago",
     },
     status: {
       draft: "Borrador",
@@ -892,6 +894,7 @@ const es: TranslationKeys = {
       interestListDeferred: "El detalle de interesados será expuesto por backend en una siguiente fase.",
       actionSuccess: "Reserva actualizada correctamente.",
       actionError: "No se pudo actualizar la reserva.",
+      paymentConfirmed: "Pago confirmado correctamente.",
     },
     freeReg: {
       participantsTitle: "Participantes",

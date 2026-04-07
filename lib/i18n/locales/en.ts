@@ -714,6 +714,8 @@ const en = {
       cancelSession: "Cancel session",
       resendTicket: "Resend ticket",
       cancelTicket: "Cancel ticket",
+      confirmPayment: "Confirm payment",
+      viewQrProof: "View payment QR",
     },
     status: {
       draft: "Draft",
@@ -901,6 +903,7 @@ const en = {
       interestListDeferred: "Detailed interest list endpoint is pending backend exposure.",
       actionSuccess: "Booking updated successfully.",
       actionError: "Could not update booking.",
+      paymentConfirmed: "Payment confirmed successfully.",
     },
     freeReg: {
       participantsTitle: "Participants",
