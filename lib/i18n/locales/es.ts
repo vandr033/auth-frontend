@@ -2190,6 +2190,13 @@ const es: TranslationKeys = {
       confirmedInfo: "Ticket habilitado. Presenta tu confirmación al hacer check-in.",
       pendingInfo: "El ticket estará disponible cuando se confirme tu registro.",
       freeRegistrationInfo: "Registro confirmado. El envío de ticket aún no está disponible para este tipo de registro.",
+      viewTicket: "Ver mi ticket",
+      resendTicket: "Reenviar mi ticket",
+      resendSuccess: "Ticket reenviado. Revisa tu email y/o WhatsApp.",
+      resendError: "No se pudo reenviar el ticket.",
+      dialogTitle: "Tu ticket de clase",
+      dialogCodeLabel: "Código de ticket",
+      dialogScanInstruction: "Muestra este código QR al personal al inicio de cada sesión para registrar tu asistencia.",
     },
     actions: {
       browseEvents: "Explorar eventos",

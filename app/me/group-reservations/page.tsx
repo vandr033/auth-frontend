@@ -3,10 +3,16 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, ChevronRight, Loader2, Ticket, Users } from "lucide-react";
+import { CalendarDays, ChevronRight, Loader2, RefreshCw, Ticket, Users } from "lucide-react";
 import { useAuth } from "@/lib/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notify";
 import {
@@ -16,6 +22,7 @@ import {
 import {
   getMyPublicGroupBookings,
   getMyPublicGroupEnrollments,
+  resendMyClassTicket,
   type GroupBookingStatus,
   type PublicGroupClassEnrollment,
   type PublicGroupEventBooking,
@@ -42,6 +49,8 @@ function GroupReservationsPageContent() {
   const [tab, setTab] = useState<TabKey>("events");
   const [bookings, setBookings] = useState<PublicGroupEventBooking[]>([]);
   const [enrollments, setEnrollments] = useState<PublicGroupClassEnrollment[]>([]);
+  const [ticketDialog, setTicketDialog] = useState<PublicGroupClassEnrollment["ticket"] | null>(null);
+  const [resendingId, setResendingId] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoadingData(true);
@@ -70,6 +79,18 @@ function GroupReservationsPageContent() {
       setLoadingData(false);
     }
   }, [shopSlug, t]);
+
+  const handleResendTicket = useCallback(async (enrollmentId: number) => {
+    setResendingId(enrollmentId);
+    try {
+      await resendMyClassTicket(enrollmentId);
+      await notify.success(t("meGroupReservations.ticket.resendSuccess"));
+    } catch (err) {
+      await notify.error(err instanceof Error ? err.message : t("meGroupReservations.ticket.resendError"));
+    } finally {
+      setResendingId(null);
+    }
+  }, [t]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -287,22 +308,69 @@ function GroupReservationsPageContent() {
                     </p>
                   </div>
 
-                  {detailHref ? (
-                    <div className="mt-4">
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {enrollment.status === "CONFIRMED" && enrollment.ticket ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTicketDialog(enrollment.ticket!)}
+                        >
+                          <Ticket className="mr-1 h-4 w-4" />
+                          {t("meGroupReservations.ticket.viewTicket")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={resendingId === enrollment.id}
+                          onClick={() => void handleResendTicket(enrollment.id)}
+                        >
+                          <RefreshCw className={cn("mr-1 h-4 w-4", resendingId === enrollment.id && "animate-spin")} />
+                          {t("meGroupReservations.ticket.resendTicket")}
+                        </Button>
+                      </>
+                    ) : null}
+                    {detailHref ? (
                       <Button asChild variant="outline" size="sm">
                         <Link href={detailHref}>
                           {t("meGroupReservations.actions.openDetail")}
                           <ChevronRight className="ml-1 h-4 w-4" />
                         </Link>
                       </Button>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </article>
               );
             })}
           </div>
         )}
       </div>
+
+      <Dialog open={!!ticketDialog} onOpenChange={(open) => { if (!open) setTicketDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("meGroupReservations.ticket.dialogTitle")}</DialogTitle>
+          </DialogHeader>
+          {ticketDialog && (
+            <div className="flex flex-col items-center gap-4 py-2">
+              <img
+                src={ticketDialog.qr_image_url}
+                alt="QR ticket"
+                className="h-56 w-56 rounded-lg border border-surface-border bg-white p-2"
+              />
+              <div className="text-center">
+                <p className="text-xs text-text-muted">{t("meGroupReservations.ticket.dialogCodeLabel")}</p>
+                <p className="font-mono text-lg font-semibold tracking-widest text-text-main">
+                  {ticketDialog.ticket_code}
+                </p>
+              </div>
+              <p className="text-center text-sm text-text-muted">
+                {t("meGroupReservations.ticket.dialogScanInstruction")}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

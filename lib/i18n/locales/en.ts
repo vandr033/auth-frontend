@@ -2226,6 +2226,13 @@ const en = {
       confirmedInfo: "Ticket enabled. Present your confirmation at check-in.",
       pendingInfo: "Ticket will be available after confirmation.",
       freeRegistrationInfo: "Registration confirmed. Ticket delivery is not yet available for this type of registration.",
+      viewTicket: "View my ticket",
+      resendTicket: "Resend my ticket",
+      resendSuccess: "Ticket resent. Check your email and/or WhatsApp.",
+      resendError: "Could not resend the ticket.",
+      dialogTitle: "Your class ticket",
+      dialogCodeLabel: "Ticket code",
+      dialogScanInstruction: "Show this QR code to staff at the start of each session to confirm your attendance.",
     },
     actions: {
       browseEvents: "Browse events",

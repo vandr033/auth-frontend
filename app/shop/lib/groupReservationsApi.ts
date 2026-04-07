@@ -149,6 +149,15 @@ export interface PublicGroupClassEnrollment {
   created_at: string;
   updated_at: string;
   cancelled_at: string | null;
+  ticket?: {
+    id: number;
+    ticket_code: string;
+    status: string;
+    valid_from: string;
+    valid_until: string;
+    qr_token: string;
+    qr_image_url: string;
+  } | null;
   group_class?: {
     id: number;
     title: string;
@@ -317,6 +326,12 @@ export async function getMyPublicGroupBookings(): Promise<PublicGroupEventBookin
 
 export async function getMyPublicGroupEnrollments(): Promise<PublicGroupClassEnrollment[]> {
   return groupFetch<PublicGroupClassEnrollment[]>("/group/my/enrollments");
+}
+
+export async function resendMyClassTicket(enrollmentId: number): Promise<void> {
+  await groupFetch<unknown>(`/group/my/enrollments/${enrollmentId}/ticket/resend`, {
+    method: "POST",
+  });
 }
 
 export async function uploadGroupQrProof(file: File, companyId: number): Promise<string> {
