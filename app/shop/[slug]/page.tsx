@@ -36,6 +36,8 @@ export default function ShopPage() {
         error,
         slug,
         isShopActive,
+        services,
+        staff,
     } = useShop();
     const t = useT();
     const { user } = useAuth();
@@ -182,28 +184,30 @@ export default function ShopPage() {
             )}
 
             {/* 4. Services Preview */}
-            <section className="py-16 md:py-24">
-                <div className="mx-auto max-w-6xl px-4 md:px-8">
-                    <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
-                                {t('shopHome.whatWeOffer')}
-                            </p>
-                            <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
-                                {t('shopHome.ourServices')}
-                            </h2>
+            {services.length > 0 && (
+                <section className="py-16 md:py-24">
+                    <div className="mx-auto max-w-6xl px-4 md:px-8">
+                        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                    {t('shopHome.whatWeOffer')}
+                                </p>
+                                <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                                    {t('shopHome.ourServices')}
+                                </h2>
+                            </div>
+                            <Link href={`/shop/${slug}/services`}>
+                                <Button variant="ghost" className="text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
+                                    {t('shopHome.viewAllServices')} →
+                                </Button>
+                            </Link>
                         </div>
-                        <Link href={`/shop/${slug}/services`}>
-                            <Button variant="ghost" className="text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
-                                {t('shopHome.viewAllServices')} →
-                            </Button>
-                        </Link>
+                        <ServicesWrapper maxItems={6} />
                     </div>
-                    <ServicesWrapper maxItems={6} />
-                </div>
-            </section>
+                </section>
+            )}
 
-            {canSeeEvents ? (
+            {canSeeEvents && !groupsLoading && visibleEvents.length > 0 && (
                 <section className="py-16 md:py-24">
                     <div className="mx-auto max-w-6xl px-4 md:px-8">
                         <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -221,29 +225,22 @@ export default function ShopPage() {
                                 </Button>
                             </Link>
                         </div>
-
-                        {groupsLoading ? (
-                            <p className="text-sm text-text-muted">{t("shopGroup.loadingEvents")}</p>
-                        ) : visibleEvents.length === 0 ? (
-                            <p className="text-sm text-text-muted">{t("shopGroup.emptyEvents")}</p>
-                        ) : (
-                            <div className="grid gap-4 md:grid-cols-2">
-                                {visibleEvents.slice(0, 4).map((event) => (
-                                    <GroupEventCard
-                                        key={event.id}
-                                        event={event}
-                                        slug={slug}
-                                        currency={company.currency}
-                                        t={t}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {visibleEvents.slice(0, 4).map((event) => (
+                                <GroupEventCard
+                                    key={event.id}
+                                    event={event}
+                                    slug={slug}
+                                    currency={company.currency}
+                                    t={t}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </section>
-            ) : null}
+            )}
 
-            {canSeeClasses ? (
+            {canSeeClasses && !groupsLoading && classes.length > 0 && (
                 <section className="bg-section py-16 md:py-24">
                     <div className="mx-auto max-w-6xl px-4 md:px-8">
                         <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -261,43 +258,38 @@ export default function ShopPage() {
                                 </Button>
                             </Link>
                         </div>
-
-                        {groupsLoading ? (
-                            <p className="text-sm text-text-muted">{t("shopGroup.loadingClasses")}</p>
-                        ) : classes.length === 0 ? (
-                            <p className="text-sm text-text-muted">{t("shopGroup.emptyClasses")}</p>
-                        ) : (
-                            <div className="grid gap-4 md:grid-cols-2">
-                                {classes.map((groupClass) => (
-                                    <GroupClassCard
-                                        key={groupClass.id}
-                                        groupClass={groupClass}
-                                        sessions={classSessionsById[groupClass.id] || []}
-                                        slug={slug}
-                                        currency={company.currency}
-                                        t={t}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {classes.map((groupClass) => (
+                                <GroupClassCard
+                                    key={groupClass.id}
+                                    groupClass={groupClass}
+                                    sessions={classSessionsById[groupClass.id] || []}
+                                    slug={slug}
+                                    currency={company.currency}
+                                    t={t}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </section>
-            ) : null}
+            )}
 
             {/* 5. Team */}
-            <section className="bg-section py-16 md:py-24">
-                <div className="mx-auto max-w-6xl px-4 md:px-8">
-                    <div className="mb-8">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
-                            {t('shopHome.ourExperts')}
-                        </p>
-                        <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
-                            {t('shopHome.ourTeam')}
-                        </h2>
+            {staff.length > 0 && (
+                <section className="bg-section py-16 md:py-24">
+                    <div className="mx-auto max-w-6xl px-4 md:px-8">
+                        <div className="mb-8">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                {t('shopHome.ourExperts')}
+                            </p>
+                            <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                                {t('shopHome.ourTeam')}
+                            </h2>
+                        </div>
+                        <TeamWrapper />
                     </div>
-                    <TeamWrapper />
-                </div>
-            </section>
+                </section>
+            )}
 
             {/* 6. Reviews Banner */}
             {reviewStats && reviewStats.count > 0 && (

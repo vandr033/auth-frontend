@@ -689,7 +689,6 @@ export default function ShopEventDetailPage() {
 
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{event.is_free ? t("shopGroup.labels.free") : t("shopGroup.labels.paid")}</Badge>
-            {!event.is_free && user?.id && soldOut ? <Badge variant="destructive">{t("shopGroup.labels.soldOut")}</Badge> : null}
           </div>
 
           {event.description ? (
@@ -869,7 +868,6 @@ export default function ShopEventDetailPage() {
                   </div>
                 ) : soldOut ? (
                   <div className="space-y-3">
-                    <p className="text-sm font-medium text-rose-700">{t("shopGroup.labels.soldOut")}</p>
                     {canUseAdvanced ? (
                       <Button
                         className="w-full bg-brand text-white hover:bg-brand-hover"

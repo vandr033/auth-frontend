@@ -410,11 +410,6 @@ export default function ShopClassDetailPage() {
                           {t("shopGroup.events.capacity", { booked, total: maxCapacity })}
                         </span>
                       </div>
-                      {soldOut ? (
-                        <span className="mt-1 inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
-                          {t("shopGroup.labels.soldOut")}
-                        </span>
-                      ) : null}
                     </li>
                   );
                 })}
@@ -498,7 +493,7 @@ export default function ShopClassDetailPage() {
 
                         return (
                           <option key={session.id} value={session.id} disabled={soldOut}>
-                            {formatGroupDateTime(session.start_at, locale)} · {soldOut ? t("shopGroup.labels.soldOut") : t("shopGroup.events.capacity", { booked, total: maxCapacity })}
+                            {formatGroupDateTime(session.start_at, locale)} · {t("shopGroup.events.capacity", { booked, total: maxCapacity })}
                           </option>
                         );
                       })}

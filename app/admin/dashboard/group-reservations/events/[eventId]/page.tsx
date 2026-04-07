@@ -4,9 +4,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, MessageCircle, RefreshCcw, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,6 +46,10 @@ import {
     listGroupEventBookings,
     listGroupEventInterests,
     listGroupTickets,
+    listFreeEventRegistrations,
+    listFreeEventInterested,
+    removeFreeEventRegistration,
+    inviteFreeEventInterested,
     setGroupEventStatus,
     unconfirmGroupEventBooking,
     uploadAdminImage,
@@ -51,6 +64,8 @@ import {
     type GroupTicket,
     type GroupStaffRole,
     type StaffMember,
+    type FreeEventRegistration,
+    type FreeEventInterestedUser,
 } from "@/app/admin/lib/adminApi";
 import { GroupBookingStatusBadge, GroupPaymentStatusBadge, GroupStatusBadge, GroupTicketStatusBadge } from "../../components/GroupBadges";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
@@ -172,6 +187,12 @@ export default function GroupEventDetailPage() {
     const [storeLocationText, setStoreLocationText] = useState("");
     const [checkInTicketCode, setCheckInTicketCode] = useState("");
     const [form, setForm] = useState<EventFormState | null>(null);
+    const [freeRegistrations, setFreeRegistrations] = useState<FreeEventRegistration[]>([]);
+    const [freeInterested, setFreeInterested] = useState<FreeEventInterestedUser[]>([]);
+    const [selectedInterested, setSelectedInterested] = useState<Set<number>>(new Set());
+    const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+    const [inviteChannels, setInviteChannels] = useState({ email: true, whatsapp: false });
+    const [inviting, setInviting] = useState(false);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
@@ -217,6 +238,16 @@ export default function GroupEventDetailPage() {
             setStaff(staffData);
             setSettings(settingsData);
             setTickets(ticketsData);
+
+            if (eventData.is_free) {
+                const [freeRegs, freeInt] = await Promise.all([
+                    listFreeEventRegistrations(eventId),
+                    listFreeEventInterested(eventId),
+                ]);
+                setFreeRegistrations(freeRegs);
+                setFreeInterested(freeInt);
+                setSelectedInterested(new Set());
+            }
             setCoverImageFile(null);
             setThumbnailImageFile(null);
             setCoverImagePreview(null);
@@ -445,6 +476,48 @@ export default function GroupEventDetailPage() {
         const reader = new FileReader();
         reader.onload = (event) => setThumbnailImagePreview(typeof event.target?.result === "string" ? event.target.result : null);
         reader.readAsDataURL(file);
+    };
+
+    const handleRemoveFreeRegistration = async (registrationId: number) => {
+        try {
+            await removeFreeEventRegistration(eventId, registrationId);
+            await notify.success(t("adminGroup.freeReg.removed"));
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.freeReg.removeError"));
+        }
+    };
+
+    const toggleInterested = (id: number) => {
+        setSelectedInterested((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const handleInvite = async () => {
+        if (selectedInterested.size === 0) return;
+        if (!inviteChannels.email && !inviteChannels.whatsapp) {
+            await notify.warning(t("adminGroup.freeReg.selectChannel"));
+            return;
+        }
+        setInviting(true);
+        let succeeded = 0;
+        let failed = 0;
+        for (const registrationId of Array.from(selectedInterested)) {
+            try {
+                await inviteFreeEventInterested(eventId, registrationId, inviteChannels);
+                succeeded++;
+            } catch {
+                failed++;
+            }
+        }
+        setInviting(false);
+        setInviteDialogOpen(false);
+        if (succeeded > 0) await notify.success(t("adminGroup.freeReg.inviteSent", { count: succeeded }));
+        if (failed > 0) await notify.warning(t("adminGroup.freeReg.inviteFailed", { count: failed }));
+        await loadData();
     };
 
     if (!canUseEvents) {
@@ -990,43 +1063,143 @@ export default function GroupEventDetailPage() {
             ) : null}
 
             {event.is_free ? (
-                <Card className="border-slate-200">
-                    <CardHeader>
-                        <CardTitle className="text-base">{t("adminGroup.bookings.interestTitle")}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm text-slate-600">
-                        <p>{t("adminGroup.bookings.interestCount", { count: interestCount })}</p>
-                        {interests.length === 0 ? (
-                            <p className="text-xs text-slate-500">{t("adminGroup.bookings.interestEmpty")}</p>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>{t("adminGroup.fields.name")}</TableHead>
-                                        <TableHead>{t("adminGroup.fields.email")}</TableHead>
-                                        <TableHead>{t("adminGroup.fields.phone")}</TableHead>
-                                        <TableHead>{t("adminGroup.fields.createdAt")}</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {interests.map((interest) => {
-                                        const pref = (interest.user?.phone_prefix ?? "").trim();
-                                        const phone = (interest.user?.phoneNumber ?? "").trim();
-                                        const fullPhone = pref && phone ? `+${pref}${phone}` : phone || "—";
-                                        return (
-                                            <TableRow key={interest.id}>
-                                                <TableCell>{interest.user?.name || interest.user?.email || interest.user_id}</TableCell>
-                                                <TableCell>{interest.user?.email || "—"}</TableCell>
-                                                <TableCell>{fullPhone}</TableCell>
-                                                <TableCell>{formatDateTime(interest.created_at)}</TableCell>
+                <>
+                    {/* Free event participants */}
+                    <Card className="border-slate-200">
+                        <CardHeader>
+                            <CardTitle className="text-base">{t("adminGroup.freeReg.participantsTitle")} ({freeRegistrations.length})</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {freeRegistrations.length === 0 ? (
+                                <p className="text-sm text-slate-500">{t("adminGroup.freeReg.participantsEmpty")}</p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.email")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.phone")}</TableHead>
+                                            <TableHead>{t("adminGroup.freeReg.code")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.checkedInAt")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.actions")}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {freeRegistrations.map((reg) => (
+                                            <TableRow key={reg.id}>
+                                                <TableCell className="font-medium">{reg.firstName} {reg.lastName}</TableCell>
+                                                <TableCell>{reg.email}</TableCell>
+                                                <TableCell>{reg.phonePrefix && reg.phoneNumber ? `+${reg.phonePrefix}${reg.phoneNumber}` : "—"}</TableCell>
+                                                <TableCell>
+                                                    <span className="font-mono text-xs">{reg.reservationCode ?? "—"}</span>
+                                                </TableCell>
+                                                <TableCell>{reg.checkedInAt ? formatDateTime(reg.checkedInAt) : "—"}</TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => void handleRemoveFreeRegistration(reg.id)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </TableCell>
                                             </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        )}
-                    </CardContent>
-                </Card>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Interested users */}
+                    <Card className="border-slate-200">
+                        <CardHeader className="flex-row items-center justify-between">
+                            <CardTitle className="text-base">{t("adminGroup.freeReg.interestedTitle")} ({freeInterested.length})</CardTitle>
+                            {freeInterested.length > 0 && (
+                                <Button
+                                    size="sm"
+                                    disabled={selectedInterested.size === 0}
+                                    onClick={() => setInviteDialogOpen(true)}
+                                >
+                                    <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                                    {t("adminGroup.freeReg.inviteSelected")} ({selectedInterested.size})
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent>
+                            {freeInterested.length === 0 ? (
+                                <p className="text-sm text-slate-500">{t("adminGroup.freeReg.interestedEmpty")}</p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-10"></TableHead>
+                                            <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.email")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.phone")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.createdAt")}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {freeInterested.map((person) => (
+                                            <TableRow key={person.id}>
+                                                <TableCell>
+                                                    <Checkbox
+                                                        checked={selectedInterested.has(person.id)}
+                                                        onCheckedChange={() => toggleInterested(person.id)}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="font-medium">{person.firstName} {person.lastName}</TableCell>
+                                                <TableCell>{person.email}</TableCell>
+                                                <TableCell>{person.phonePrefix && person.phoneNumber ? `+${person.phonePrefix}${person.phoneNumber}` : "—"}</TableCell>
+                                                <TableCell>{formatDateTime(person.createdAt)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Invite dialog */}
+                    <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                        <DialogContent className="max-w-sm">
+                            <DialogHeader>
+                                <DialogTitle>{t("adminGroup.freeReg.inviteDialogTitle")}</DialogTitle>
+                                <DialogDescription>
+                                    {t("adminGroup.freeReg.inviteDialogDesc", { count: selectedInterested.size })}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-3 py-2">
+                                <label className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2.5 text-sm">
+                                    <Checkbox
+                                        checked={inviteChannels.email}
+                                        onCheckedChange={(v) => setInviteChannels((prev) => ({ ...prev, email: Boolean(v) }))}
+                                    />
+                                    <Mail className="h-4 w-4 text-slate-500" />
+                                    {t("adminGroup.freeReg.channelEmail")}
+                                </label>
+                                <label className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2.5 text-sm">
+                                    <Checkbox
+                                        checked={inviteChannels.whatsapp}
+                                        onCheckedChange={(v) => setInviteChannels((prev) => ({ ...prev, whatsapp: Boolean(v) }))}
+                                    />
+                                    <MessageCircle className="h-4 w-4 text-slate-500" />
+                                    {t("adminGroup.freeReg.channelWhatsapp")}
+                                </label>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                                    {t("common.cancel")}
+                                </Button>
+                                <Button onClick={() => void handleInvite()} disabled={inviting || (!inviteChannels.email && !inviteChannels.whatsapp)}>
+                                    {inviting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    {t("adminGroup.freeReg.inviteConfirm")}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </>
             ) : null}
 
             <Card className="border-slate-200">

@@ -1573,3 +1573,58 @@ export async function getGroupMetrics(params?: {
     const response = await apiFetch<{ data: GroupMetricsResponse }>(`/api/admin/group/metrics${query}`);
     return response.data;
 }
+
+// ─── Free event registration management ───────────────────────────────────────
+
+export interface FreeEventRegistration {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phonePrefix: string;
+    phoneNumber: string;
+    gender: string;
+    age: number;
+    status: "CONFIRMED" | "PENDING";
+    reservationCode: string | null;
+    checkedInAt: string | null;
+    createdAt: string;
+}
+
+export interface FreeEventInterestedUser {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phonePrefix: string;
+    phoneNumber: string;
+    gender: string;
+    age: number;
+    createdAt: string;
+}
+
+export async function listFreeEventRegistrations(eventId: number): Promise<FreeEventRegistration[]> {
+    const response = await apiFetch<{ data: FreeEventRegistration[] }>(`/api/admin/group/events/${eventId}/free-registrations`);
+    return response.data;
+}
+
+export async function removeFreeEventRegistration(eventId: number, registrationId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/events/${eventId}/free-registrations/${registrationId}`, { method: "DELETE" });
+}
+
+export async function listFreeEventInterested(eventId: number): Promise<FreeEventInterestedUser[]> {
+    const response = await apiFetch<{ data: FreeEventInterestedUser[] }>(`/api/admin/group/events/${eventId}/free-registrations/interested`);
+    return response.data;
+}
+
+export async function inviteFreeEventInterested(
+    eventId: number,
+    registrationId: number,
+    channels: { email: boolean; whatsapp: boolean },
+): Promise<{ id: number; status: string; reservationCode: string }> {
+    const response = await apiFetch<{ data: { id: number; status: string; reservationCode: string } }>(
+        `/api/admin/group/events/${eventId}/free-registrations/${registrationId}/invite`,
+        { method: "POST", body: JSON.stringify(channels) },
+    );
+    return response.data;
+}

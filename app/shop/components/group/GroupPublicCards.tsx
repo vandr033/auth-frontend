@@ -51,11 +51,6 @@ export function GroupEventCard({ event, slug, currency, t }: EventCardProps) {
           <Badge variant="outline" className="bg-white/90 text-xs text-text-main">
             {event.is_free ? t("shopGroup.labels.free") : t("shopGroup.labels.paid")}
           </Badge>
-          {soldOut ? (
-            <Badge variant="destructive" className="text-xs">
-              {t("shopGroup.labels.soldOut")}
-            </Badge>
-          ) : null}
         </div>
       </div>
 
