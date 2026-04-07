@@ -930,6 +930,7 @@ const es: TranslationKeys = {
       missingEventCheckInData: "Selecciona evento e ingresa código de ticket.",
       missingSessionCheckInData: "Selecciona sesión e ingresa user id.",
       selectEvent: "Seleccionar evento",
+      selectClass: "Seleccionar clase",
       selectSession: "Seleccionar sesión",
       sessionAttendance: "Asistencia por sesión",
       scanByTicket: "Escanear / validar por ticket",

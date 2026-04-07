@@ -86,6 +86,7 @@ export default function GroupAttendancePage() {
     const [tickets, setTickets] = useState<GroupTicket[]>([]);
 
     const [selectedEventId, setSelectedEventId] = useState<string>("");
+    const [selectedClassId, setSelectedClassId] = useState<string>("");
     const [selectedSessionId, setSelectedSessionId] = useState<string>("");
     const [eventTicketCode, setEventTicketCode] = useState("");
     const [sessionUserId, setSessionUserId] = useState("");
@@ -129,14 +130,27 @@ export default function GroupAttendancePage() {
     useEffect(() => {
         if (!canUseAdvanced) return;
 
-        if (preselectedSessionId && sessions.some((session) => String(session.id) === preselectedSessionId)) {
-            setSelectedSessionId((current) => (current ? current : preselectedSessionId));
+        if (preselectedSessionId) {
+            const session = sessions.find((s) => String(s.id) === preselectedSessionId);
+            if (session) {
+                setSelectedSessionId((current) => (current ? current : preselectedSessionId));
+                setSelectedClassId((current) => (current ? current : String(session.group_class_id)));
+            }
         }
 
         if (preselectedEventId && events.some((event) => String(event.id) === preselectedEventId)) {
             setSelectedEventId((current) => (current ? current : preselectedEventId));
         }
     }, [canUseAdvanced, events, preselectedEventId, preselectedSessionId, sessions]);
+
+    const filteredSessions = selectedClassId
+        ? sessions.filter((s) => String(s.group_class_id) === selectedClassId)
+        : sessions;
+
+    const selectedSession = sessions.find((s) => String(s.id) === selectedSessionId) ?? null;
+    const selectedSessionClass = selectedSession
+        ? (classes.find((c) => c.id === selectedSession.group_class_id) ?? null)
+        : null;
 
     const handleEventCheckIn = async () => {
         const normalizedCode = normalizeScannedTicketValue(eventTicketCode);
@@ -387,19 +401,44 @@ export default function GroupAttendancePage() {
                                 <CardTitle className="text-base">{t("adminGroup.attendance.manualSessionCheckIn")}</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2">
+                                <Label>{t("adminGroup.fields.class")}</Label>
+                                <Select
+                                    value={selectedClassId}
+                                    onValueChange={(val) => {
+                                        setSelectedClassId(val);
+                                        setSelectedSessionId("");
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t("adminGroup.attendance.selectClass")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {classes.map((cls) => (
+                                            <SelectItem key={cls.id} value={String(cls.id)}>
+                                                {cls.title}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <Label>{t("adminGroup.fields.session")}</Label>
                                 <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
                                     <SelectTrigger>
                                         <SelectValue placeholder={t("adminGroup.attendance.selectSession")} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {sessions.map((session) => (
+                                        {filteredSessions.map((session) => (
                                             <SelectItem key={session.id} value={String(session.id)}>
                                                 {formatDateTime(session.start_at)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {selectedSession && (
+                                    <div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700 space-y-0.5">
+                                        <p><span className="font-medium">{t("adminGroup.fields.class")}:</span> {selectedSessionClass?.title ?? "—"}</p>
+                                        <p><span className="font-medium">{t("adminGroup.fields.session")}:</span> {formatDateTime(selectedSession.start_at)}</p>
+                                    </div>
+                                )}
                                 <Label>{t("adminGroup.fields.userId")}</Label>
                                 <Input value={sessionUserId} onChange={(e) => setSessionUserId(e.target.value)} />
                                 <Button className="w-full" variant="outline" onClick={() => void handleSessionCheckIn()} disabled={submitting}>

@@ -939,6 +939,7 @@ const en = {
       missingEventCheckInData: "Select an event and provide ticket code.",
       missingSessionCheckInData: "Select a session and provide user id.",
       selectEvent: "Select event",
+      selectClass: "Select class",
       selectSession: "Select session",
       sessionAttendance: "Session attendance",
       scanByTicket: "Scan / validate by ticket",
