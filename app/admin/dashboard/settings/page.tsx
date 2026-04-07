@@ -74,6 +74,7 @@ interface CompanySettings {
     social_links: SocialLinks;
     default_language: string;
     custom_tos: string;
+    staff_label: string;
 }
 
 function getApiUrl(path: string): string {
@@ -116,6 +117,7 @@ const initialSettings: CompanySettings = {
     social_links: {},
     default_language: "es",
     custom_tos: "",
+    staff_label: "Staff",
 };
 
 function formatDateTime(value: string | null | undefined): string {
@@ -222,6 +224,7 @@ export default function SettingsPage() {
                 social_links: config.social_links ?? prev.social_links,
                 default_language: config.default_language ?? prev.default_language,
                 custom_tos: config.custom_tos ?? prev.custom_tos,
+                staff_label: config.staff_label ?? prev.staff_label,
             }));
 
             if (historyPayload.company) {
@@ -376,6 +379,7 @@ export default function SettingsPage() {
                 social_links: settings.social_links,
                 default_language: settings.default_language,
                 custom_tos: settings.custom_tos || "",
+                staff_label: settings.staff_label || "Staff",
             };
 
             const [companyRes, settingsRes] = await Promise.all([
@@ -1044,6 +1048,17 @@ export default function SettingsPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                            <div className="space-y-2 max-w-xs">
+                                <Label htmlFor="staff_label">{t('adminSettings.staffLabelTitle')}</Label>
+                                <Input
+                                    id="staff_label"
+                                    value={settings.staff_label}
+                                    onChange={(e) => handleChange('staff_label', e.target.value)}
+                                    placeholder={t('adminSettings.staffLabelPlaceholder')}
+                                    maxLength={50}
+                                />
+                                <p className="text-xs text-slate-500">{t('adminSettings.staffLabelDesc')}</p>
                             </div>
                         </CardContent>
                     </Card>

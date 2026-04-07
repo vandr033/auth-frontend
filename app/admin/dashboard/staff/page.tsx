@@ -66,6 +66,7 @@ interface Staff {
     image_url: string | null;
     is_bookable: boolean;
     is_active: boolean;
+    resource_type?: 'PERSON' | 'ROOM' | 'EQUIPMENT';
     status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
     start_date?: string | null;
     end_date?: string | null;
@@ -86,6 +87,7 @@ interface StaffFormData {
     display_name: string;
     bio: string;
     is_bookable: boolean;
+    resource_type: 'PERSON' | 'ROOM' | 'EQUIPMENT';
     service_ids: number[];
     start_date: string;
     end_date: string;
@@ -99,6 +101,7 @@ const initialFormData: StaffFormData = {
     display_name: "",
     bio: "",
     is_bookable: true,
+    resource_type: "PERSON",
     service_ids: [],
     start_date: "",
     end_date: "",
@@ -216,6 +219,7 @@ export default function StaffPage() {
             display_name: member.display_name,
             bio: member.bio || "",
             is_bookable: member.is_bookable,
+            resource_type: member.resource_type || "PERSON",
             service_ids: member.services || [],
             start_date: member.start_date ? member.start_date.split('T')[0] : "",
             end_date: member.end_date ? member.end_date.split('T')[0] : "",
@@ -264,6 +268,7 @@ export default function StaffPage() {
                 display_name: formData.display_name.trim(),
                 bio: formData.bio.trim(),
                 is_bookable: formData.is_bookable,
+                resource_type: formData.resource_type,
                 company_id: companyId,
                 ...(editingStaff ? {} : {
                     email: formData.email.trim(),
@@ -719,6 +724,25 @@ export default function StaffPage() {
                                 onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                                 placeholder={t('adminStaff.namePlaceholder')}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="resource_type">{t('adminStaff.resourceType')}</Label>
+                            <Select
+                                value={formData.resource_type}
+                                onValueChange={(value: 'PERSON' | 'ROOM' | 'EQUIPMENT') =>
+                                    setFormData({ ...formData, resource_type: value })
+                                }
+                            >
+                                <SelectTrigger id="resource_type">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="PERSON">{t('adminStaff.resourceTypePerson')}</SelectItem>
+                                    <SelectItem value="ROOM">{t('adminStaff.resourceTypeRoom')}</SelectItem>
+                                    <SelectItem value="EQUIPMENT">{t('adminStaff.resourceTypeEquipment')}</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="space-y-2">

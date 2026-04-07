@@ -146,9 +146,9 @@ const es: TranslationKeys = {
     selectServicesSubtitle: "Elige uno o m\u00e1s servicios para tu cita",
     selectStaffTitle: "Seleccionar Personal",
     selectStaffSubtitle: "Elige un miembro del equipo o deja que te asignemos uno",
-    anyAvailableExplanation: "\"Escoger cualquiera\" asigna automáticamente al primer barbero disponible para tu horario.",
+    anyAvailableExplanation: "\"Escoger cualquiera\" asigna automáticamente al primer {{label}} disponible para tu horario.",
     firstAvailable: "Primer disponible",
-    noStaffAvailable: "No hay barberos disponibles para los servicios seleccionados.",
+    noStaffAvailable: "No hay {{label}}s disponibles para los servicios seleccionados.",
     selectDateTimeTitle: "Seleccionar Fecha y Hora",
     selectDateTimeSubtitle: "Elige cu\u00e1ndo te gustar\u00eda tu cita",
     loadingDates: "Cargando fechas disponibles...",
@@ -1114,6 +1114,10 @@ const es: TranslationKeys = {
     resendInvite: "Reenviar invitación",
     resendInviteSuccess: "Invitación reenviada correctamente",
     resendInviteFailed: "No se pudo reenviar la invitación",
+    resourceType: "Tipo",
+    resourceTypePerson: "Persona",
+    resourceTypeRoom: "Sala",
+    resourceTypeEquipment: "Equipo",
   },
 
   staffProfile: {
@@ -1474,6 +1478,9 @@ const es: TranslationKeys = {
     tosDesc: "Escribe tus propios términos que los clientes deben aceptar antes de registrarse en eventos gratuitos. Si se deja vacío, se mostrarán los términos genéricos predeterminados.",
     tosPlaceholder: "Ingresa aquí tus términos de servicio personalizados...",
     tosHelp: "Este texto reemplazará los términos predeterminados en el formulario de registro.",
+    staffLabelTitle: "Etiqueta de Personal",
+    staffLabelDesc: "La palabra usada para referirse a tus recursos reservables (ej. Personal, Barbero, Sala, Terapeuta).",
+    staffLabelPlaceholder: "Personal",
   },
   auth: {
     forgotPassword: {

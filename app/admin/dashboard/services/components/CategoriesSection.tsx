@@ -243,6 +243,7 @@ export function CategoriesSection({
                                                 size="sm"
                                                 className="h-8 w-8 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
                                                 onClick={() => {
+                                                    setError(null);
                                                     setDeletingCategory(category);
                                                     setIsDeleteDialogOpen(true);
                                                 }}
@@ -342,7 +343,10 @@ export function CategoriesSection({
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+                setIsDeleteDialogOpen(open);
+                if (!open) setError(null);
+            }}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{t('adminServices.deleteCategory')}</DialogTitle>
@@ -350,6 +354,11 @@ export function CategoriesSection({
                             {t('adminServices.deleteCategoryConfirm', { name: deletingCategory?.name || "" })}
                         </DialogDescription>
                     </DialogHeader>
+                    {error && (
+                        <div className="px-1 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm px-3">
+                            {error}
+                        </div>
+                    )}
                     <DialogFooter className="gap-2 sm:gap-0">
                         <Button
                             variant="outline"

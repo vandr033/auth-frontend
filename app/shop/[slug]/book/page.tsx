@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Clock, User, Calendar, CreditCard, Loader2, Upload, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clock, User, Calendar, CreditCard, Loader2, Upload, X, DoorOpen, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useShop } from "../../contexts/ShopContext";
@@ -271,10 +271,12 @@ function StaffStep({
     staffList,
     selectedStaff,
     onSelectStaff,
+    staffLabel,
 }: {
     staffList: SelectedStaff[];
     selectedStaff: SelectedStaff | null;
     onSelectStaff: (staff: SelectedStaff) => void;
+    staffLabel: string;
 }) {
     const t = useT();
     const hasStaffAvailable = staffList.length > 0;
@@ -292,7 +294,7 @@ function StaffStep({
                 <p className="text-text-muted">{t('shopBooking.selectStaffSubtitle')}</p>
                 {hasStaffAvailable && (
                     <p className="text-xs text-text-muted mt-1.5">
-                        {t('shopBooking.anyAvailableExplanation')}
+                        {t('shopBooking.anyAvailableExplanation', { label: staffLabel.toLowerCase() })}
                     </p>
                 )}
             </div>
@@ -332,6 +334,10 @@ function StaffStep({
                                             alt={staff.display_name}
                                             className="h-full w-full object-cover"
                                         />
+                                    ) : staff.resource_type === 'ROOM' ? (
+                                        <DoorOpen className="h-7 w-7" />
+                                    ) : staff.resource_type === 'EQUIPMENT' ? (
+                                        <Wrench className="h-7 w-7" />
                                     ) : (
                                         staff.display_name.charAt(0).toUpperCase()
                                     )}
@@ -352,7 +358,7 @@ function StaffStep({
                     })}
                 </div>
             ) : (
-                <p className="text-center text-text-muted py-8">{t('shopBooking.noStaffAvailable')}</p>
+                <p className="text-center text-text-muted py-8">{t('shopBooking.noStaffAvailable', { label: staffLabel.toLowerCase() })}</p>
             )}
         </div>
     );
@@ -1069,6 +1075,7 @@ export default function BookingPage() {
         marketplaceHandoff.requestedTime
     );
     const bookingSource: BookingRequest["booking_source"] = isMarketplaceSource ? "MARKETPLACE" : "SALON_SITE";
+    const staffLabel = settings?.staff_label || 'Staff';
 
     const [selectedDate, setSelectedDate] = useState<string | null>(preselectedDate);
     const [booking, setBooking] = useState<BookingState>({
@@ -1166,6 +1173,7 @@ export default function BookingPage() {
         display_name: s.display_name,
         image_url: s.image_url,
         services: s.services,
+        resource_type: s.resource_type,
     }));
 
     // In service-first mode: filter staff based on selected services
@@ -1697,6 +1705,7 @@ export default function BookingPage() {
                             staffList={selectableStaff}
                             selectedStaff={booking.staff}
                             onSelectStaff={selectStaff}
+                            staffLabel={staffLabel}
                         />
                     )}
                 </div>
@@ -1707,6 +1716,7 @@ export default function BookingPage() {
                             staffList={filteredStaff}
                             selectedStaff={booking.staff}
                             onSelectStaff={selectStaff}
+                            staffLabel={staffLabel}
                         />
                     ) : (
                         <ServiceStep
