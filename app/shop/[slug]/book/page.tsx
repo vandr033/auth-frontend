@@ -1383,7 +1383,18 @@ export default function BookingPage() {
 
     const prevStep = () => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
-        setBooking((prev) => ({ ...prev, step: Math.max(prev.step - 1, 1) as BookingStep }));
+        setBooking((prev) => {
+            if (
+                browseMode === "service-first"
+                && prev.step === 3
+                && prev.services.length > 0
+                && filteredStaff.length === 1
+            ) {
+                return { ...prev, step: 1 as BookingStep };
+            }
+
+            return { ...prev, step: Math.max(prev.step - 1, 1) as BookingStep };
+        });
     };
 
     // Handle browse mode toggle (only allowed at step 1)
