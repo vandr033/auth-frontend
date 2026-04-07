@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDateOnly } from "@/lib/date-only";
+
 export function formatDateTime(value: string | null | undefined): string {
     if (!value) return "—";
     const date = new Date(value);
@@ -11,12 +13,7 @@ export function formatDateTime(value: string | null | undefined): string {
 }
 
 export function formatDate(value: string | null | undefined): string {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "—";
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-    }).format(date);
+    return formatDateOnly(value);
 }
 
 export function formatMoneyFromCents(cents: number, currencyLabel?: string | null): string {

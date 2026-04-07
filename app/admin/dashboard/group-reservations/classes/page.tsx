@@ -51,6 +51,8 @@ import { useGroupReservationsAccess } from "../lib/useGroupReservationsAccess";
 import { GroupStatusBadge } from "../components/GroupBadges";
 import { formatMoneyFromCents } from "../lib/format";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { parseCurrencyInputToCents } from "@/lib/currency";
+import { toLocalDateInputValue } from "@/lib/date-only";
 
 type ManualStaff = {
     display_name: string;
@@ -123,8 +125,7 @@ function getCompanyLocationLabel(companyLocation: AdminCompanyLocation | null): 
 }
 
 function defaultClassForm(defaultLocationText = ""): ClassFormState {
-    const today = new Date();
-    const day = today.toISOString().slice(0, 10);
+    const day = toLocalDateInputValue();
     return {
         title: "",
         slug: "",
@@ -271,7 +272,7 @@ export default function GroupClassesPage() {
 
         const maxCapacity = Number.parseInt(form.max_capacity_per_session, 10);
         const duration = Number.parseInt(form.session_duration_minutes, 10);
-        const price = Number.parseInt(form.price_cents, 10);
+        const priceCents = parseCurrencyInputToCents(form.price_cents);
 
         if (!Number.isFinite(maxCapacity) || maxCapacity < 1) {
             await notify.warning(t("adminGroup.forms.invalidCapacity"));
@@ -281,7 +282,7 @@ export default function GroupClassesPage() {
             await notify.warning(t("adminGroup.forms.invalidDuration"));
             return;
         }
-        if (!Number.isFinite(price) || price < 0) {
+        if (priceCents === null) {
             await notify.warning(t("adminGroup.forms.invalidPrice"));
             return;
         }
@@ -315,7 +316,7 @@ export default function GroupClassesPage() {
                 cover_image_url: form.cover_image_url.trim() || null,
                 thumbnail_url: form.thumbnail_url.trim() || null,
                 pricing_mode: form.pricing_mode,
-                price_cents: price,
+                price_cents: priceCents,
                 max_capacity_per_session: maxCapacity,
                 session_duration_minutes: duration,
                 recurrence_type: form.recurrence_type,
@@ -632,7 +633,7 @@ export default function GroupClassesPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
-                            <Input type="number" min={0} value={form.price_cents} onChange={(e) => setForm((prev) => ({ ...prev, price_cents: e.target.value }))} />
+                            <Input type="number" min={0} step="0.01" value={form.price_cents} onChange={(e) => setForm((prev) => ({ ...prev, price_cents: e.target.value }))} />
                         </div>
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.capacityPerSession")}</Label>

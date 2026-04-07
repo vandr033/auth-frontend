@@ -552,6 +552,11 @@ function DateTimeStep({
         });
     }, [slots, timeViewMode, selectedHour]);
 
+    const availableVisibleSlots = useMemo(
+        () => visibleSlots.filter((slot) => slot.available),
+        [visibleSlots],
+    );
+
     React.useEffect(() => {
         prefillSlotAppliedRef.current = false;
     }, [selectedDate, preferredSlotTime, marketplacePrefillEnabled]);
@@ -590,6 +595,23 @@ function DateTimeStep({
             prefillSlotAppliedRef.current = true;
         }
     }, [loadingSlots, marketplacePrefillEnabled, onSelectSlot, preferredSlotTime, selectedDate, slots]);
+
+    React.useEffect(() => {
+        if (loadingSlots || !selectedDate) return;
+        if (availableVisibleSlots.length !== 1) return;
+
+        const onlySlot = availableVisibleSlots[0];
+        const isAlreadySelected =
+            selectedSlot?.date === selectedDate && selectedSlot?.time === onlySlot.time;
+        if (isAlreadySelected) return;
+
+        onSelectSlot({
+            date: selectedDate,
+            time: onlySlot.time,
+            staff_id: onlySlot.staff_id,
+            staff_name: onlySlot.staff_name,
+        });
+    }, [availableVisibleSlots, loadingSlots, onSelectSlot, selectedDate, selectedSlot]);
 
     const handleSelectSlot = (slot: TimeSlot) => {
         if (!slot.available || !selectedDate) return;
@@ -1199,6 +1221,20 @@ export default function BookingPage() {
         }
     }, [filteredStaff, booking.staff, browseMode]);
 
+    React.useEffect(() => {
+        if (browseMode !== "service-first") return;
+        if (booking.step !== 2) return;
+        if (filteredStaff.length !== 1) return;
+
+        const [onlyStaff] = filteredStaff;
+        setBooking((prev) => ({
+            ...prev,
+            staff: onlyStaff,
+            slot: null,
+            step: 3,
+        }));
+    }, [booking.step, browseMode, filteredStaff]);
+
     // Pre-select from marketplace handoff params.
     useEffect(() => {
         if (preselectionApplied || loading || services.length === 0) return;
@@ -1326,7 +1362,23 @@ export default function BookingPage() {
 
     const nextStep = () => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
-        setBooking((prev) => ({ ...prev, step: Math.min(prev.step + 1, 4) as BookingStep }));
+        setBooking((prev) => {
+            if (
+                browseMode === "service-first"
+                && prev.step === 1
+                && prev.services.length > 0
+                && filteredStaff.length === 1
+            ) {
+                return {
+                    ...prev,
+                    staff: filteredStaff[0],
+                    slot: null,
+                    step: 3,
+                };
+            }
+
+            return { ...prev, step: Math.min(prev.step + 1, 4) as BookingStep };
+        });
     };
 
     const prevStep = () => {
@@ -1607,7 +1659,7 @@ export default function BookingPage() {
     }
 
     return (
-        <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto px-4 py-8 pb-28">
             <div className="mb-8">
                 <Link
                     href={`/shop/${slug}`}
@@ -1750,26 +1802,31 @@ export default function BookingPage() {
                 )}
             </div>
 
-            <div className="mt-8 flex justify-between pt-6 border-t border-surface-border">
-                {booking.step > 1 ? (
-                    <Button variant="outline" onClick={prevStep} disabled={submitting}>
-                        <ChevronLeft className="h-4 w-4 mr-2" />
-                        {t('common.back')}
-                    </Button>
-                ) : (
-                    <div />
-                )}
+            <div
+                className="sticky bottom-0 z-30 mt-8 -mx-4 border-t border-surface-border bg-page/95 px-4 pt-3 backdrop-blur supports-[backdrop-filter]:bg-page/80"
+                style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+            >
+                <div className="mx-auto flex max-w-3xl items-center justify-between">
+                    {booking.step > 1 ? (
+                        <Button variant="outline" onClick={prevStep} disabled={submitting}>
+                            <ChevronLeft className="h-4 w-4 mr-2" />
+                            {t('common.back')}
+                        </Button>
+                    ) : (
+                        <div />
+                    )}
 
-                {booking.step < 4 ? (
-                    <Button
-                        onClick={nextStep}
-                        disabled={!canProceed()}
-                        className="bg-brand text-white hover:bg-brand-hover"
-                    >
-                        {t('common.next')}
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                    </Button>
-                ) : null}
+                    {booking.step < 4 ? (
+                        <Button
+                            onClick={nextStep}
+                            disabled={!canProceed()}
+                            className="bg-brand text-white hover:bg-brand-hover"
+                        >
+                            {t('common.next')}
+                            <ChevronRight className="h-4 w-4 ml-2" />
+                        </Button>
+                    ) : null}
+                </div>
             </div>
         </div>
     );

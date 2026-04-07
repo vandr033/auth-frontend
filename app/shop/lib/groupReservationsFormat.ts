@@ -1,4 +1,5 @@
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { formatDateOnly } from "@/lib/date-only";
 import type {
   GroupRecurrenceType,
   GroupStaffAssignment,
@@ -18,10 +19,7 @@ export function formatGroupDateTime(dateIso: string, locale?: string): string {
 }
 
 export function formatGroupDate(dateIso: string | null | undefined, locale?: string): string {
-  if (!dateIso) return "—";
-  return new Date(dateIso).toLocaleDateString(locale, {
-    dateStyle: "medium",
-  });
+  return formatDateOnly(dateIso, locale);
 }
 
 export function formatGroupDateRange(startIso: string, endIso: string, locale?: string): string {

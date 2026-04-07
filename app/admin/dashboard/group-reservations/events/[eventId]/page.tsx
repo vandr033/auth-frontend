@@ -70,6 +70,7 @@ import {
 import { GroupBookingStatusBadge, GroupPaymentStatusBadge, GroupStatusBadge, GroupTicketStatusBadge } from "../../components/GroupBadges";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { getImageUrl } from "@/utils/image-url";
+import { formatCurrencyInputFromCents, parseCurrencyInputToCents } from "@/lib/currency";
 
 type ManualStaff = {
     display_name: string;
@@ -154,7 +155,7 @@ function fromEvent(event: GroupEvent): EventFormState {
         cover_image_url: event.cover_image_url ?? "",
         thumbnail_url: event.thumbnail_url ?? "",
         is_free: event.is_free,
-        price_cents: String(event.price_cents),
+        price_cents: formatCurrencyInputFromCents(event.price_cents),
         max_capacity: String(event.max_capacity),
         start_at: toLocalInput(event.start_at),
         end_at: toLocalInput(event.end_at),
@@ -320,12 +321,12 @@ export default function GroupEventDetailPage() {
         }
 
         const maxCapacity = Number.parseInt(form.max_capacity, 10);
-        const priceCents = Number.parseInt(form.price_cents, 10);
+        const priceCents = parseCurrencyInputToCents(form.price_cents);
         if (!Number.isFinite(maxCapacity) || maxCapacity < 1) {
             await notify.warning(t("adminGroup.forms.invalidCapacity"));
             return;
         }
-        if (!form.is_free && (!Number.isFinite(priceCents) || priceCents <= 0)) {
+        if (!form.is_free && (priceCents === null || priceCents <= 0)) {
             await notify.warning(t("adminGroup.forms.invalidPrice"));
             return;
         }
@@ -342,7 +343,7 @@ export default function GroupEventDetailPage() {
                 ...(coverImageFile ? {} : { cover_image_url: form.cover_image_url.trim() || null }),
                 ...(thumbnailImageFile ? {} : { thumbnail_url: form.thumbnail_url.trim() || null }),
                 is_free: form.is_free,
-                price_cents: form.is_free ? 0 : priceCents,
+                price_cents: form.is_free ? 0 : (priceCents ?? 0),
                 max_capacity: maxCapacity,
                 start_at: startAt.toISOString(),
                 end_at: endAt.toISOString(),
@@ -733,7 +734,8 @@ export default function GroupEventDetailPage() {
                                 <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
                                 <Input
                                     type="number"
-                                    min={1}
+                                    min={0.01}
+                                    step="0.01"
                                     value={form.price_cents}
                                     onChange={(e) => setForm((prev) => prev ? { ...prev, price_cents: e.target.value } : prev)}
                                 />

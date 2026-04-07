@@ -40,3 +40,20 @@ export function formatCurrencyFromCents(
     return formatCurrencyAmount(numeric, currency, options);
 }
 
+export function formatCurrencyInputFromCents(cents: number): string {
+    const numeric = Number.isFinite(cents) ? cents / 100 : 0;
+    const fixed = numeric.toFixed(2);
+    return fixed.endsWith(".00") ? fixed.slice(0, -3) : fixed;
+}
+
+export function parseCurrencyInputToCents(value: string): number | null {
+    const normalized = value.trim();
+    if (!normalized) return null;
+
+    const numeric = Number(normalized);
+    if (!Number.isFinite(numeric) || numeric < 0) {
+        return null;
+    }
+
+    return Math.round(numeric * 100);
+}

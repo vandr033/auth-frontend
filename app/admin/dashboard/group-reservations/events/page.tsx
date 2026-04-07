@@ -52,6 +52,7 @@ import { useGroupReservationsAccess } from "../lib/useGroupReservationsAccess";
 import { formatDateTime, formatMoneyFromCents } from "../lib/format";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { parseCurrencyInputToCents } from "@/lib/currency";
 
 type ManualStaff = {
     display_name: string;
@@ -227,8 +228,8 @@ export default function GroupEventsAdminPage() {
             return;
         }
 
-        const priceCents = Number.parseInt(form.price_cents, 10);
-        if (!form.is_free && (!Number.isFinite(priceCents) || priceCents <= 0)) {
+        const priceCents = parseCurrencyInputToCents(form.price_cents);
+        if (!form.is_free && (priceCents === null || priceCents <= 0)) {
             await notify.warning(t("adminGroup.forms.invalidPrice"));
             return;
         }
@@ -251,7 +252,7 @@ export default function GroupEventsAdminPage() {
                 cover_image_url: form.cover_image_url.trim() || null,
                 thumbnail_url: form.thumbnail_url.trim() || null,
                 is_free: form.is_free,
-                price_cents: form.is_free ? 0 : priceCents,
+                price_cents: form.is_free ? 0 : (priceCents ?? 0),
                 max_capacity: maxCapacity,
                 start_at: startAt.toISOString(),
                 end_at: endAt.toISOString(),
@@ -647,7 +648,8 @@ export default function GroupEventsAdminPage() {
                                 <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
                                 <Input
                                     type="number"
-                                    min={1}
+                                    min={0.01}
+                                    step="0.01"
                                     value={form.price_cents}
                                     onChange={(e) => setForm((prev) => ({ ...prev, price_cents: e.target.value }))}
                                 />
