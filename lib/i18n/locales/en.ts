@@ -76,6 +76,7 @@ const en = {
     goHome: "Go Home",
     pageNotFound: "Page Not Found",
     bookWith: "Book with {{name}}",
+    bookThe: "Book the {{name}}",
     reviewsSection: "What Our Clients Say",
     customerReviews: "Customer Reviews",
     showMoreReviews: "Show more reviews",
@@ -155,6 +156,8 @@ const en = {
     noStaffAvailable: "There are no {{label}}s available for the selected services.",
     reserveWith: "Reserve with",
     reserveThe: "Reserve the",
+    staffSection: "Team Members",
+    roomsEquipmentSection: "Rooms & Equipment",
     selectDateTimeTitle: "Select Date & Time",
     selectDateTimeSubtitle: "Choose when you would like your appointment",
     loadingDates: "Loading available dates...",
@@ -1091,6 +1094,11 @@ const en = {
     createService: "Create Service",
     deleteCategory: "Delete Category",
     deleteCategoryConfirm: "Are you sure you want to delete \"{{name}}\"? Services in this category will become uncategorized.",
+    requiredResources: "Required Resources",
+    requiredResourcesHint: "These staff, rooms, or equipment are automatically booked when this service is selected. Leave empty for the customer to choose.",
+    selectRequiredResources: "Select required resources...",
+    noResourcesAvailable: "No staff, rooms, or equipment found",
+    fetchStaffError: "Failed to load staff list",
   },
 
   // ─── Admin: Staff ───

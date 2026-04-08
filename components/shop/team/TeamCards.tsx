@@ -68,7 +68,10 @@ function StaffCard({ member, slug }: { member: ShopStaff; slug: string }) {
                     href={`/shop/${slug}/book?staffId=${member.id}`}
                     className="mt-3 inline-block text-sm font-semibold text-brand transition-colors hover:text-brand-hover"
                 >
-                    {t('shopHome.bookWith', { name: member.display_name.split(" ")[0] })} →
+                    {(member.resource_type === 'ROOM' || member.resource_type === 'EQUIPMENT')
+                        ? t('shopHome.bookThe', { name: member.display_name })
+                        : t('shopHome.bookWith', { name: member.display_name.split(" ")[0] })}
+                    {' →'}
                 </Link>
             </div>
         </div>

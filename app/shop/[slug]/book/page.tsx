@@ -285,7 +285,71 @@ function StaffStep({
         display_name: t('shopBooking.anyAvailable'),
     };
 
-    const options = hasStaffAvailable ? [anyAvailableOption, ...staffList] : [];
+    const people = staffList.filter(s => s.resource_type !== 'ROOM' && s.resource_type !== 'EQUIPMENT');
+    const roomsAndEquipment = staffList.filter(s => s.resource_type === 'ROOM' || s.resource_type === 'EQUIPMENT');
+    const peopleOptions = people.length > 0 ? [anyAvailableOption, ...people] : [];
+
+    function StaffGrid({ items }: { items: SelectedStaff[] }) {
+        return (
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                {items.map((staff) => {
+                    const isSelected = selectedStaff?.id === staff.id;
+                    return (
+                        <button
+                            key={staff.id}
+                            type="button"
+                            onClick={() => onSelectStaff(staff)}
+                            className={cn(
+                                "flex flex-col items-center gap-3 rounded-xl border p-5 transition-all min-h-[120px]",
+                                isSelected
+                                    ? "border-brand bg-brand/5 shadow-md"
+                                    : "border-surface-border hover:border-brand/40 hover:bg-surface"
+                            )}
+                        >
+                            <div
+                                className={cn(
+                                    "h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 transition-all overflow-hidden",
+                                    isSelected
+                                        ? "ring-3 ring-brand ring-offset-2"
+                                        : "",
+                                    staff.id === "any"
+                                        ? "bg-brand/10 text-brand"
+                                        : "bg-section text-text-muted"
+                                )}
+                            >
+                                {staff.id === "any" ? (
+                                    <User className="h-7 w-7" />
+                                ) : staff.image_url ? (
+                                    <img
+                                        src={getImageUrl(staff.image_url) || undefined}
+                                        alt={staff.display_name}
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : staff.resource_type === 'ROOM' ? (
+                                    <DoorOpen className="h-7 w-7" />
+                                ) : staff.resource_type === 'EQUIPMENT' ? (
+                                    <Wrench className="h-7 w-7" />
+                                ) : (
+                                    staff.display_name.charAt(0).toUpperCase()
+                                )}
+                            </div>
+                            <div className="text-center">
+                                <h4 className={cn(
+                                    "text-sm font-semibold",
+                                    isSelected ? "text-brand" : "text-text-main"
+                                )}>
+                                    {staff.display_name}
+                                </h4>
+                                {staff.id === "any" && (
+                                    <p className="text-xs text-text-muted mt-0.5">{t('shopBooking.firstAvailable')}</p>
+                                )}
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -300,68 +364,25 @@ function StaffStep({
             </div>
 
             {hasStaffAvailable ? (
-                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-                    {options.map((staff) => {
-                        const isSelected = selectedStaff?.id === staff.id;
-                        return (
-                            <button
-                                key={staff.id}
-                                type="button"
-                                onClick={() => onSelectStaff(staff)}
-                                className={cn(
-                                    "flex flex-col items-center gap-3 rounded-xl border p-5 transition-all min-h-[120px]",
-                                    isSelected
-                                        ? "border-brand bg-brand/5 shadow-md"
-                                        : "border-surface-border hover:border-brand/40 hover:bg-surface"
-                                )}
-                            >
-                                <div
-                                    className={cn(
-                                        "h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 transition-all overflow-hidden",
-                                        isSelected
-                                            ? "ring-3 ring-brand ring-offset-2"
-                                            : "",
-                                        staff.id === "any"
-                                            ? "bg-brand/10 text-brand"
-                                            : "bg-section text-text-muted"
-                                    )}
-                                >
-                                    {staff.id === "any" ? (
-                                        <User className="h-7 w-7" />
-                                    ) : staff.image_url ? (
-                                        <img
-                                            src={getImageUrl(staff.image_url) || undefined}
-                                            alt={staff.display_name}
-                                            className="h-full w-full object-cover"
-                                        />
-                                    ) : staff.resource_type === 'ROOM' ? (
-                                        <DoorOpen className="h-7 w-7" />
-                                    ) : staff.resource_type === 'EQUIPMENT' ? (
-                                        <Wrench className="h-7 w-7" />
-                                    ) : (
-                                        staff.display_name.charAt(0).toUpperCase()
-                                    )}
-                                </div>
-                                <div className="text-center">
-                                    <h4 className={cn(
-                                        "text-sm font-semibold",
-                                        isSelected ? "text-brand" : "text-text-main"
-                                    )}>
-                                        {staff.display_name}
-                                    </h4>
-                                    {staff.id === "any" ? (
-                                        <p className="text-xs text-text-muted mt-0.5">{t('shopBooking.firstAvailable')}</p>
-                                    ) : (
-                                        <p className="text-xs text-text-muted mt-0.5">
-                                            {(staff.resource_type === 'ROOM' || staff.resource_type === 'EQUIPMENT')
-                                                ? t('shopBooking.reserveThe')
-                                                : t('shopBooking.reserveWith')}
-                                        </p>
-                                    )}
-                                </div>
-                            </button>
-                        );
-                    })}
+                <div className="space-y-8">
+                    {peopleOptions.length > 0 && (
+                        <div className="space-y-3">
+                            {roomsAndEquipment.length > 0 && (
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+                                    {t('shopBooking.staffSection')}
+                                </h3>
+                            )}
+                            <StaffGrid items={peopleOptions} />
+                        </div>
+                    )}
+                    {roomsAndEquipment.length > 0 && (
+                        <div className="space-y-3">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+                                {t('shopBooking.roomsEquipmentSection')}
+                            </h3>
+                            <StaffGrid items={roomsAndEquipment} />
+                        </div>
+                    )}
                 </div>
             ) : (
                 <p className="text-center text-text-muted py-8">{t('shopBooking.noStaffAvailable', { label: staffLabel.toLowerCase() })}</p>
@@ -375,6 +396,7 @@ function DateTimeStep({
     companyId,
     selectedServices,
     selectedStaff,
+    selectedSecondaryStaff,
     selectedSlot,
     onSelectSlot,
     selectedDate,
@@ -388,6 +410,7 @@ function DateTimeStep({
     companyId: number;
     selectedServices: SelectedService[];
     selectedStaff: SelectedStaff | null;
+    selectedSecondaryStaff: SelectedStaff | null;
     selectedSlot: SelectedSlot | null;
     onSelectSlot: (slot: SelectedSlot) => void;
     selectedDate: string | null;
@@ -500,9 +523,10 @@ function DateTimeStep({
             try {
                 const serviceIds = selectedServices.map((s) => s.id).join(",");
                 const staffId = selectedStaff?.id === "any" ? "" : selectedStaff?.id;
+                const secondaryStaffId = selectedSecondaryStaff?.id;
 
                 const response = await api.get<{ data: TimeSlot[] }>(
-                    `/booking/slots?company_id=${companyId}&date=${selectedDate}&service_ids=${serviceIds}${staffId ? `&staff_id=${staffId}` : ""}`
+                    `/booking/slots?company_id=${companyId}&date=${selectedDate}&service_ids=${serviceIds}${staffId ? `&staff_id=${staffId}` : ""}${secondaryStaffId ? `&secondary_staff_id=${secondaryStaffId}` : ""}`
                 );
 
                 let fetchedSlots = response.data || [];
@@ -857,12 +881,15 @@ function ConfirmStep({
 
                 <hr className="border-surface-border" />
 
-                {/* Staff */}
+                {/* Staff / Resources */}
                 <div className="flex justify-between">
                     <span className="text-sm font-semibold text-text-muted uppercase tracking-wide">
                         {t('shopBooking.step2')}
                     </span>
-                    <span className="text-text-main">{booking.staff?.display_name || t('shopBooking.anyAvailable')}</span>
+                    <span className="text-text-main">
+                        {booking.staff?.display_name || t('shopBooking.anyAvailable')}
+                        {booking.secondaryStaff && ` + ${booking.secondaryStaff.display_name}`}
+                    </span>
                 </div>
 
                 {/* Date & Time */}
@@ -1110,6 +1137,7 @@ export default function BookingPage() {
         step: 1,
         services: [],
         staff: null,
+        secondaryStaff: null,
         slot: null,
         paymentMethod: "NONE",
         notes: "",
@@ -1193,6 +1221,7 @@ export default function BookingPage() {
         price_cents: s.price_cents,
         duration_minutes: s.duration_minutes,
         category_id: s.category_id,
+        required_resource_ids: s.required_resource_ids ?? [],
     }));
 
     // Convert shop staff to SelectedStaff format
@@ -1224,6 +1253,40 @@ export default function BookingPage() {
         return selectableServices.filter((s) => staffServiceIds.has(s.id));
     }, [selectableServices, booking.staff, browseMode]);
 
+    // Auto-apply required resources from selected services (service-first mode)
+    React.useEffect(() => {
+        if (browseMode !== "service-first" || booking.services.length === 0) return;
+
+        // Collect all required resource IDs across selected services
+        const allRequiredIds = new Set<number>();
+        for (const svc of booking.services) {
+            for (const id of svc.required_resource_ids ?? []) {
+                allRequiredIds.add(id);
+            }
+        }
+
+        if (allRequiredIds.size === 0) {
+            // No required resources — clear any previously auto-applied ones
+            setBooking((prev) => {
+                if (prev.secondaryStaff === null) return prev;
+                return { ...prev, secondaryStaff: null };
+            });
+            return;
+        }
+
+        // Find the StaffProfile entries for those IDs
+        const requiredStaff = selectableStaff.filter((s) => typeof s.id === 'number' && allRequiredIds.has(s.id as number));
+        const requiredPerson = requiredStaff.find((s) => s.resource_type !== 'ROOM' && s.resource_type !== 'EQUIPMENT');
+        const requiredRoom = requiredStaff.find((s) => s.resource_type === 'ROOM' || s.resource_type === 'EQUIPMENT');
+
+        setBooking((prev) => {
+            const nextStaff = requiredPerson ?? requiredRoom ?? prev.staff;
+            const nextSecondary = requiredPerson && requiredRoom ? requiredRoom : null;
+            if (prev.staff?.id === nextStaff?.id && prev.secondaryStaff?.id === nextSecondary?.id) return prev;
+            return { ...prev, staff: nextStaff ?? prev.staff, secondaryStaff: nextSecondary, slot: null };
+        });
+    }, [booking.services, browseMode, selectableStaff]);
+
     // Reset selected staff if they are no longer in the filtered list (service-first only)
     React.useEffect(() => {
         if (browseMode !== "service-first") return;
@@ -1238,8 +1301,15 @@ export default function BookingPage() {
     React.useEffect(() => {
         if (browseMode !== "service-first") return;
         if (booking.step !== 2) return;
-        if (filteredStaff.length !== 1) return;
 
+        // If service has required resources that fully determine the staff, auto-advance
+        const hasRequiredResources = booking.services.some((s) => (s.required_resource_ids?.length ?? 0) > 0);
+        if (hasRequiredResources && booking.staff !== null) {
+            setBooking((prev) => ({ ...prev, slot: null, step: 3 }));
+            return;
+        }
+
+        if (filteredStaff.length !== 1) return;
         const [onlyStaff] = filteredStaff;
         setBooking((prev) => ({
             ...prev,
@@ -1247,7 +1317,7 @@ export default function BookingPage() {
             slot: null,
             step: 3,
         }));
-    }, [booking.step, browseMode, filteredStaff]);
+    }, [booking.step, booking.staff, booking.services, browseMode, filteredStaff]);
 
     // Pre-select from marketplace handoff params.
     useEffect(() => {
@@ -1367,7 +1437,7 @@ export default function BookingPage() {
 
     const selectStaff = (staff: SelectedStaff) => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
-        setBooking((prev) => ({ ...prev, staff }));
+        setBooking((prev) => ({ ...prev, staff, slot: null }));
     };
 
     const selectSlot = (slot: SelectedSlot) => {
@@ -1421,6 +1491,7 @@ export default function BookingPage() {
             ...prev,
             services: [],
             staff: null,
+            secondaryStaff: null,
             slot: null,
             step: 1 as BookingStep,
         }));
@@ -1497,9 +1568,11 @@ export default function BookingPage() {
             }
         }
 
+        const resolvedStaffId = booking.staff && booking.staff.id !== 'any' ? booking.staff.id : booking.slot.staff_id;
         return {
             company_id: company.id,
-            staff_id: booking.staff && booking.staff.id !== 'any' ? booking.staff.id : booking.slot.staff_id,
+            staff_id: resolvedStaffId,
+            secondary_staff_id: booking.secondaryStaff && typeof booking.secondaryStaff.id === 'number' ? booking.secondaryStaff.id : undefined,
             service_ids: booking.services.map((s) => s.id),
             start_at: `${booking.slot.date}T${booking.slot.time}:00`,
             payment_method: booking.paymentMethod,
@@ -1802,6 +1875,7 @@ export default function BookingPage() {
                         companyId={company.id}
                         selectedServices={booking.services}
                         selectedStaff={booking.staff}
+                        selectedSecondaryStaff={booking.secondaryStaff}
                         selectedSlot={booking.slot}
                         onSelectSlot={selectSlot}
                         selectedDate={selectedDate}

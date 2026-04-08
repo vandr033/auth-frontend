@@ -11,6 +11,7 @@ export interface SelectedService {
     price_cents: number;
     duration_minutes: number;
     category_id: number;
+    required_resource_ids?: number[];
 }
 
 export interface SelectedStaff {
@@ -32,6 +33,7 @@ export interface BookingState {
     step: BookingStep;
     services: SelectedService[];
     staff: SelectedStaff | null;
+    secondaryStaff: SelectedStaff | null; // required room/equipment auto-applied from service
     slot: SelectedSlot | null;
     paymentMethod: 'CASH' | 'QR' | 'NONE';
     notes: string;
@@ -47,6 +49,7 @@ export interface TimeSlot {
 export interface BookingRequest {
     company_id: number;
     staff_id: number;
+    secondary_staff_id?: number;
     customer_id: string;
     service_ids: number[];
     start_at: string;

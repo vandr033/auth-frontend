@@ -1,4 +1,4 @@
-import type { ShopCompany, ShopData, ShopHours, ShopStaff } from "@/types/shop";
+import type { ShopCompany, ShopData, ShopHours, ShopService, ShopStaff } from "@/types/shop";
 
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -9,14 +9,24 @@ type StaffServiceRelation = {
     service_id: number;
 };
 
+type RawRequiredResource = {
+    staff_profile_id: number;
+};
+
 type RawShopStaff = Omit<ShopStaff, "services"> & {
     services?: number[];
     staff_services?: StaffServiceRelation[];
 };
 
-export type RawShopData = Omit<ShopData, "staff" | "hours"> & {
+type RawShopService = Omit<ShopService, "required_resource_ids"> & {
+    required_resource_ids?: number[];
+    required_resources?: RawRequiredResource[];
+};
+
+export type RawShopData = Omit<ShopData, "staff" | "hours" | "services"> & {
     company: ShopCompany & { hours?: ShopHours[] };
     staff: RawShopStaff[];
+    services: RawShopService[];
     hours?: ShopHours[];
 };
 
@@ -38,6 +48,13 @@ export function normalizeShopData(rawData: RawShopData): ShopData {
         staff: (rawData.staff || []).map((member) => ({
             ...member,
             services: member.services || member.staff_services?.map((service) => service.service_id) || [],
+        })),
+        services: (rawData.services || []).map((service) => ({
+            ...service,
+            required_resource_ids:
+                service.required_resource_ids ??
+                service.required_resources?.map((r) => r.staff_profile_id) ??
+                [],
         })),
     };
 }

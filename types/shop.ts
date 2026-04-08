@@ -62,6 +62,7 @@ export interface ShopService {
     price_cents: number;
     duration_minutes: number;
     position: number;
+    required_resource_ids?: number[]; // StaffProfile IDs required to be booked with this service
 }
 
 export interface ShopStaff {

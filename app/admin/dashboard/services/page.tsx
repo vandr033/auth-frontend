@@ -75,6 +75,13 @@ interface Service {
     category_id: number;
     category?: Category;
     display_order: number;
+    required_resources?: { staff_profile_id: number }[];
+}
+
+interface StaffOption {
+    id: number;
+    display_name: string;
+    resource_type?: 'PERSON' | 'ROOM' | 'EQUIPMENT';
 }
 
 interface ServiceFormData {
@@ -84,6 +91,7 @@ interface ServiceFormData {
     price: string; // String for input handling
     duration_minutes: number;
     is_active: boolean;
+    required_resource_ids: number[];
 }
 
 const initialFormData: ServiceFormData = {
@@ -93,6 +101,7 @@ const initialFormData: ServiceFormData = {
     price: "",
     duration_minutes: 30,
     is_active: true,
+    required_resource_ids: [],
 };
 
 // Helper functions
@@ -144,6 +153,9 @@ export default function ServicesPage() {
     // Global service types
     const [globalServiceTypes, setGlobalServiceTypes] = useState<GlobalServiceType[]>([]);
 
+    // Staff/room/equipment options for required resources
+    const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
+
     const getServiceTypeName = (type: GlobalServiceType): string =>
         getLocalizedText({
             text: type.name,
@@ -151,14 +163,14 @@ export default function ServicesPage() {
             locale,
         });
 
-    // Fetch services and categories
+    // Fetch services, categories, and staff
     const fetchData = useCallback(async () => {
         if (!companyId) return;
 
         setLoading(true);
 
         try {
-            const [servicesRes, categoriesRes, serviceTypesRes] = await Promise.all([
+            const [servicesRes, categoriesRes, serviceTypesRes, staffRes] = await Promise.all([
                 fetch(getApiUrl(`/api/admin/services?company_id=${companyId}`), {
                     credentials: "include",
                 }),
@@ -168,12 +180,15 @@ export default function ServicesPage() {
                 fetch(getApiUrl(`/api/admin/categories/global-service-types`), {
                     credentials: "include",
                 }),
+                fetch(getApiUrl(`/api/admin/staff?company_id=${companyId}`), {
+                    credentials: "include",
+                }),
             ]);
 
             if (!servicesRes.ok) throw new Error(t('adminServices.fetchServicesError'));
             if (!categoriesRes.ok) throw new Error(t('adminServices.fetchCategoriesError'));
             if (!serviceTypesRes.ok) throw new Error(t('adminServices.fetchServiceTypesError'));
-            
+
             const servicesData = await servicesRes.json();
             const categoriesData = await categoriesRes.json();
             const serviceTypesData = await serviceTypesRes.json();
@@ -181,6 +196,11 @@ export default function ServicesPage() {
             setServices(servicesData.data || servicesData || []);
             setCategories(categoriesData.data || categoriesData || []);
             setGlobalServiceTypes(serviceTypesData.data || serviceTypesData || []);
+
+            if (staffRes.ok) {
+                const staffData = await staffRes.json();
+                setStaffOptions(staffData.data || staffData || []);
+            }
         } catch (err) {
             void notify.error(err instanceof Error ? err.message : t('adminServices.loadDataError'));
         } finally {
@@ -216,6 +236,7 @@ export default function ServicesPage() {
             price: (service.price_cents / 100).toFixed(2),
             duration_minutes: service.duration_minutes,
             is_active: service.is_active,
+            required_resource_ids: service.required_resources?.map((r) => r.staff_profile_id) ?? [],
         });
         setFormError(null);
         setIsModalOpen(true);
@@ -253,6 +274,7 @@ export default function ServicesPage() {
                 duration_minutes: formData.duration_minutes,
                 is_active: formData.is_active,
                 company_id: companyId,
+                required_resource_ids: formData.required_resource_ids,
             };
 
             const url = editingService
@@ -692,6 +714,42 @@ export default function ServicesPage() {
                                     setFormData({ ...formData, is_active: checked })
                                 }
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>{t('adminServices.requiredResources')}</Label>
+                            <p className="text-xs text-slate-500">{t('adminServices.requiredResourcesHint')}</p>
+                            <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                                {staffOptions.length === 0 ? (
+                                    <p className="text-sm text-slate-400">{t('adminServices.noResourcesAvailable')}</p>
+                                ) : (
+                                    staffOptions.map((staff) => (
+                                        <label key={staff.id} className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.required_resource_ids.includes(staff.id)}
+                                                onChange={(e) => {
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        required_resource_ids: e.target.checked
+                                                            ? [...prev.required_resource_ids, staff.id]
+                                                            : prev.required_resource_ids.filter((id) => id !== staff.id),
+                                                    }));
+                                                }}
+                                                className="rounded"
+                                            />
+                                            <span className="text-sm">{staff.display_name}</span>
+                                            <span className="text-xs text-slate-400">
+                                                {staff.resource_type === 'ROOM'
+                                                    ? '(Sala)'
+                                                    : staff.resource_type === 'EQUIPMENT'
+                                                    ? '(Equipo)'
+                                                    : '(Persona)'}
+                                            </span>
+                                        </label>
+                                    ))
+                                )}
+                            </div>
                         </div>
 
                         <DialogFooter className="gap-2 sm:gap-0">
