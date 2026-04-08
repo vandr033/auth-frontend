@@ -349,8 +349,14 @@ function StaffStep({
                                     )}>
                                         {staff.display_name}
                                     </h4>
-                                    {staff.id === "any" && (
+                                    {staff.id === "any" ? (
                                         <p className="text-xs text-text-muted mt-0.5">{t('shopBooking.firstAvailable')}</p>
+                                    ) : (
+                                        <p className="text-xs text-text-muted mt-0.5">
+                                            {(staff.resource_type === 'ROOM' || staff.resource_type === 'EQUIPMENT')
+                                                ? t('shopBooking.reserveThe')
+                                                : t('shopBooking.reserveWith')}
+                                        </p>
                                     )}
                                 </div>
                             </button>
