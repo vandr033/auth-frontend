@@ -18,6 +18,7 @@ export interface SelectedStaff {
     display_name: string;
     image_url?: string;
     services?: number[];
+    resource_type?: 'PERSON' | 'ROOM' | 'EQUIPMENT';
 }
 
 export interface SelectedSlot {

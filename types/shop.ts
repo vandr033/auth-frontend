@@ -70,6 +70,7 @@ export interface ShopStaff {
     bio?: string;
     image_url?: string;
     is_bookable: boolean;
+    resource_type?: 'PERSON' | 'ROOM' | 'EQUIPMENT';
     services?: number[]; // IDs of services this staff member can perform
 }
 
@@ -104,6 +105,7 @@ export interface ShopSettings {
     max_advance_booking_days?: number | null;
     min_advance_booking_minutes?: number | null;
     custom_tos?: string | null;
+    staff_label?: string;
 }
 
 export interface ShopReviewStats {

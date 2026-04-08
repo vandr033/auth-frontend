@@ -150,9 +150,9 @@ const en = {
     selectServicesSubtitle: "Choose one or more services for your appointment",
     selectStaffTitle: "Select Staff",
     selectStaffSubtitle: "Choose a specific staff member or let us assign one",
-    anyAvailableExplanation: "\"Any Available\" automatically assigns the first barber available for your selected time.",
+    anyAvailableExplanation: "\"Any Available\" automatically assigns the first {{label}} available for your selected time.",
     firstAvailable: "First available",
-    noStaffAvailable: "There are no barbers available for the selected services.",
+    noStaffAvailable: "There are no {{label}}s available for the selected services.",
     selectDateTimeTitle: "Select Date & Time",
     selectDateTimeSubtitle: "Choose when you would like your appointment",
     loadingDates: "Loading available dates...",
@@ -1134,6 +1134,10 @@ const en = {
     resendInvite: "Resend invite",
     resendInviteSuccess: "Invitation resent successfully",
     resendInviteFailed: "Failed to resend invitation",
+    resourceType: "Type",
+    resourceTypePerson: "Person",
+    resourceTypeRoom: "Room",
+    resourceTypeEquipment: "Equipment",
   },
 
   staffProfile: {
@@ -1499,6 +1503,9 @@ const en = {
     tosDesc: "Write your own terms that customers must accept before registering for free events. If left empty, the default generic terms will be shown.",
     tosPlaceholder: "Enter your custom terms of service here...",
     tosHelp: "This text will replace the default terms in the registration form.",
+    staffLabelTitle: "Staff Label",
+    staffLabelDesc: "The word used to refer to your bookable resources (e.g. Staff, Barber, Room, Therapist).",
+    staffLabelPlaceholder: "Staff",
   },
 
   // ─── Auth ───
