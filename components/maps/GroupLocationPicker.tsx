@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LocationPicker, type LocationAutofillUpdate } from "@/components/admin/location/LocationPicker";
@@ -33,8 +33,12 @@ export function GroupLocationPicker({
     latitude: toCoordinate(defaultLatitude),
     longitude: toCoordinate(defaultLongitude),
   });
+  const defaultsApplied = useRef(false);
 
   useEffect(() => {
+    if (defaultsApplied.current) return;
+    if (!defaultLatitude && !defaultLongitude) return;
+    defaultsApplied.current = true;
     if (coordinates.latitude || coordinates.longitude) return;
     setCoordinates({
       latitude: toCoordinate(defaultLatitude),

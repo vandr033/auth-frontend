@@ -817,6 +817,10 @@ const en = {
       latestTickets: "Latest tickets",
       none: "No tickets available.",
       proOnly: "Pro only",
+      issue: "Enable ticket",
+      issued: "Ticket enabled and sent.",
+      resend: "Resend ticket",
+      resent: "Ticket resent successfully.",
     },
     staff: {
       linkedStaff: "Linked staff (blocks schedule)",

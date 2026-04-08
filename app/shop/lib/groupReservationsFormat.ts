@@ -91,7 +91,7 @@ function summarizeWeekdays(values: number[]): string {
   return normalized
     .map((value) => {
       const date = new Date(Date.UTC(2024, 0, 7 + value));
-      return date.toLocaleDateString(undefined, { weekday: "short" });
+      return date.toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" });
     })
     .join(", ");
 }

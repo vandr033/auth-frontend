@@ -35,6 +35,8 @@ import {
     cancelGroupClassSession,
     confirmGroupClassEnrollment,
     confirmGroupClassEnrollmentPayment,
+    issueGroupClassEnrollmentTicket,
+    adminResendGroupTicket,
     generateGroupClassSessions,
     getAdminCompanyLocation,
     getGroupClassById,
@@ -500,6 +502,25 @@ export default function GroupClassDetailPage() {
             await confirmGroupClassEnrollmentPayment(enrollmentId);
             await notify.success(t("adminGroup.bookings.paymentConfirmed"));
             await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        }
+    };
+
+    const handleIssueTicket = async (enrollmentId: number) => {
+        try {
+            await issueGroupClassEnrollmentTicket(enrollmentId);
+            await notify.success(t("adminGroup.ticket.issued"));
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        }
+    };
+
+    const handleResendTicket = async (ticketCode: string) => {
+        try {
+            await adminResendGroupTicket(ticketCode);
+            await notify.success(t("adminGroup.ticket.resent"));
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
         }
@@ -1015,6 +1036,16 @@ export default function GroupClassDetailPage() {
                                                 {enrollment.payment_status === "PENDING_CONFIRMATION" ? (
                                                     <Button size="sm" variant="outline" onClick={() => void handleConfirmPayment(enrollment.id)}>
                                                         {t("adminGroup.actions.confirmPayment")}
+                                                    </Button>
+                                                ) : null}
+                                                {canUseAdvanced && enrollment.status === "CONFIRMED" && (!ticket || ticket.status === "CANCELLED") ? (
+                                                    <Button size="sm" variant="outline" onClick={() => void handleIssueTicket(enrollment.id)}>
+                                                        {t("adminGroup.ticket.issue")}
+                                                    </Button>
+                                                ) : null}
+                                                {canUseAdvanced && ticket && ticket.status === "ACTIVE" ? (
+                                                    <Button size="sm" variant="outline" onClick={() => void handleResendTicket(ticket.ticket_code)}>
+                                                        {t("adminGroup.ticket.resend")}
                                                     </Button>
                                                 ) : null}
                                                 {enrollment.qr_proof_image_url ? (

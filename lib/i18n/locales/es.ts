@@ -808,6 +808,10 @@ const es: TranslationKeys = {
       latestTickets: "Últimos tickets",
       none: "No hay tickets disponibles.",
       proOnly: "Solo Pro",
+      issue: "Habilitar ticket",
+      issued: "Ticket habilitado y enviado.",
+      resend: "Reenviar ticket",
+      resent: "Ticket reenviado correctamente.",
     },
     staff: {
       linkedStaff: "Staff vinculado (bloquea agenda)",

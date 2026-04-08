@@ -1486,6 +1486,14 @@ export async function confirmGroupClassEnrollmentPayment(enrollmentId: number): 
     await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/confirm-payment`, { method: "POST" });
 }
 
+export async function issueGroupClassEnrollmentTicket(enrollmentId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/issue-ticket`, { method: "POST" });
+}
+
+export async function adminResendGroupTicket(ticketCode: string): Promise<void> {
+    await apiFetch(`/api/admin/group/tickets/${ticketCode}/resend`, { method: "POST" });
+}
+
 export async function getGroupAttendanceSummary(): Promise<GroupAttendanceSummary> {
     const response = await apiFetch<{ data: GroupAttendanceSummary }>("/api/admin/group/attendance/summary");
     return response.data;
