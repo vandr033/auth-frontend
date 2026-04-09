@@ -3,17 +3,19 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
-import type { ShopCompany, ShopReviewStats, SocialLinks } from "@/types/shop";
+import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
 import { useT } from "@/lib/i18n";
+import { HeroCTAButtons } from "./HeroCTAButtons";
 
 interface HeroMinimalProps {
     company: ShopCompany;
     reviewStats: ShopReviewStats | null;
     socialLinks: SocialLinks;
     slug: string;
+    homeCTAButtons?: HomeCTAButton[] | null;
 }
 
-export function HeroMinimal({ company, reviewStats, slug }: HeroMinimalProps) {
+export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons }: HeroMinimalProps) {
     const t = useT();
     return (
         <section className="bg-page py-20 md:py-32">
@@ -50,13 +52,18 @@ export function HeroMinimal({ company, reviewStats, slug }: HeroMinimalProps) {
                     </div>
                 )}
 
-                <div className="mt-10">
-                    <Link href={`/shop/${slug}/book`}>
-                        <PrimaryButton className="px-10 py-4 text-lg">
-                            {t('common.bookNow')}
-                        </PrimaryButton>
-                    </Link>
-                </div>
+                <HeroCTAButtons
+                    slug={slug}
+                    buttons={homeCTAButtons}
+                    className="mt-10 flex flex-wrap items-center justify-center gap-3"
+                    defaultContent={
+                        <Link href={`/shop/${slug}/book`}>
+                            <PrimaryButton className="px-10 py-4 text-lg">
+                                {t('common.bookNow')}
+                            </PrimaryButton>
+                        </Link>
+                    }
+                />
             </div>
         </section>
     );

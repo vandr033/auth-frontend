@@ -5,6 +5,17 @@ export type ServicesVariant = 'services-grid' | 'services-list';
 export type TeamVariant = 'team-cards' | 'team-spotlight';
 export type FontPairing = 'classic' | 'modern' | 'bold' | 'refined' | 'friendly';
 
+export type CTADestination = 'booking' | 'services' | 'free-events' | 'events' | 'classes';
+
+export interface HomeCTAButton {
+    destination: CTADestination;
+    label: string;
+    color: string;    // hex e.g. "#ffffff"
+    opacity: number;  // 0-100
+    enabled: boolean;
+    order: number;
+}
+
 export interface SocialLinks {
     instagram?: string | null;
     facebook?: string | null;
@@ -93,6 +104,7 @@ export interface ShopTheme {
     hero_variant: HeroVariant;
     services_variant: ServicesVariant;
     team_variant: TeamVariant;
+    home_cta_buttons?: HomeCTAButton[] | null;
 }
 
 export interface ShopSettings {

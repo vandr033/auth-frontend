@@ -13,6 +13,7 @@ export type PlanFeatureKey =
     | "REVIEW_REQUEST_EMAIL"
     | "REVIEW_REQUEST_WHATSAPP"
     | "BOOKING_FLOW_CUSTOMIZATION"
+    | "HOME_CTA_CUSTOMIZATION"
     | "BULK_WHATSAPP_MESSAGING"
     | "BULK_EMAIL_CAMPAIGNS"
     | "OUTREACH_REACTIVATION_TOOLS"
@@ -38,6 +39,7 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             REVIEW_MANAGEMENT: false,
             REVIEW_ANALYTICS: false,
             BOOKING_FLOW_CUSTOMIZATION: false,
+            HOME_CTA_CUSTOMIZATION: false,
             REVIEW_REQUEST_REMINDERS: false,
             REVIEW_REQUEST_EMAIL: false,
             REVIEW_REQUEST_WHATSAPP: false,
@@ -61,6 +63,7 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             REVIEW_MANAGEMENT: true,
             REVIEW_ANALYTICS: true,
             BOOKING_FLOW_CUSTOMIZATION: true,
+            HOME_CTA_CUSTOMIZATION: false,
             REVIEW_REQUEST_REMINDERS: false,
             REVIEW_REQUEST_EMAIL: false,
             REVIEW_REQUEST_WHATSAPP: false,
@@ -84,6 +87,7 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             REVIEW_MANAGEMENT: true,
             REVIEW_ANALYTICS: true,
             BOOKING_FLOW_CUSTOMIZATION: true,
+            HOME_CTA_CUSTOMIZATION: true,
             REVIEW_REQUEST_REMINDERS: true,
             REVIEW_REQUEST_EMAIL: true,
             REVIEW_REQUEST_WHATSAPP: true,
@@ -107,6 +111,7 @@ export const FEATURE_REQUIRED_PLAN: Record<PlanFeatureKey, ShopPlan> = {
     REVIEW_MANAGEMENT: "BUSINESS",
     REVIEW_ANALYTICS: "BUSINESS",
     BOOKING_FLOW_CUSTOMIZATION: "BUSINESS",
+    HOME_CTA_CUSTOMIZATION: "PRO",
     REVIEW_REQUEST_REMINDERS: "PRO",
     REVIEW_REQUEST_EMAIL: "PRO",
     REVIEW_REQUEST_WHATSAPP: "PRO",
@@ -156,6 +161,7 @@ export const FEATURE_DESCRIPTION_KEY: Record<PlanFeatureKey, string> = {
     REVIEW_MANAGEMENT: "planEnforcement.desc.reviewManagement",
     REVIEW_ANALYTICS: "planEnforcement.desc.reviewAnalytics",
     BOOKING_FLOW_CUSTOMIZATION: "planEnforcement.desc.bookingFlowCustomization",
+    HOME_CTA_CUSTOMIZATION: "planEnforcement.desc.homeCTACustomization",
     REVIEW_REQUEST_REMINDERS: "planEnforcement.desc.reviewRequestReminders",
     REVIEW_REQUEST_EMAIL: "planEnforcement.desc.reviewRequestEmail",
     REVIEW_REQUEST_WHATSAPP: "planEnforcement.desc.reviewRequestWhatsapp",
@@ -180,6 +186,7 @@ export const FEATURE_LABEL_KEY: Record<PlanFeatureKey, string> = {
     REVIEW_MANAGEMENT: "planEnforcement.label.reviewManagement",
     REVIEW_ANALYTICS: "planEnforcement.label.reviewAnalytics",
     BOOKING_FLOW_CUSTOMIZATION: "planEnforcement.label.bookingFlowCustomization",
+    HOME_CTA_CUSTOMIZATION: "planEnforcement.label.homeCTACustomization",
     REVIEW_REQUEST_REMINDERS: "planEnforcement.label.reviewRequestReminders",
     REVIEW_REQUEST_EMAIL: "planEnforcement.label.reviewRequestEmail",
     REVIEW_REQUEST_WHATSAPP: "planEnforcement.label.reviewRequestWhatsapp",

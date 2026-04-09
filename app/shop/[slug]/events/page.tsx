@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
+import { useSearchParams } from "next/navigation";
 import { useShop } from "../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
@@ -14,19 +15,30 @@ import { listPublicEvents, type PublicGroupEvent } from "@/app/shop/lib/groupRes
 import { GroupEventCard } from "@/app/shop/components/group/GroupPublicCards";
 import { isEventSoldOut } from "@/app/shop/lib/groupReservationsFormat";
 
+type EventFilter = "all" | "free" | "paid";
+
 export default function ShopEventsPage() {
   const t = useT();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const { company, slug, isShopActive, loading, error } = useShop();
   const plan = resolveShopPlan(company?.plan);
   const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
 
+  // Read initial filter from URL (?free=true)
+  const [activeFilter, setActiveFilter] = React.useState<EventFilter>(
+    searchParams.get("free") === "true" ? "free" : "all",
+  );
+
   const [eventsLoading, setEventsLoading] = React.useState(true);
   const [events, setEvents] = React.useState<PublicGroupEvent[]>([]);
-  const visibleEvents = React.useMemo(
-    () => (user?.id ? events : events.filter((event) => !isEventSoldOut(event))),
-    [events, user?.id],
-  );
+
+  const visibleEvents = React.useMemo(() => {
+    const base = user?.id ? events : events.filter((event) => !isEventSoldOut(event));
+    if (activeFilter === "free") return base.filter((e) => e.is_free);
+    if (activeFilter === "paid") return base.filter((e) => !e.is_free);
+    return base;
+  }, [events, user?.id, activeFilter]);
 
   React.useEffect(() => {
     if (!company?.id || !canSeeEvents) {
@@ -95,6 +107,12 @@ export default function ShopEventsPage() {
     );
   }
 
+  const filters: { key: EventFilter; label: string }[] = [
+    { key: "all", label: t("shopGroup.events.filterAll") },
+    { key: "free", label: t("shopGroup.events.filterFree") },
+    { key: "paid", label: t("shopGroup.events.filterPaid") },
+  ];
+
   return (
     <main className="min-h-screen bg-page text-text-main">
       <section className="border-b border-surface-border bg-surface py-8">
@@ -108,6 +126,23 @@ export default function ShopEventsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">{t("shopGroup.events.eyebrow")}</p>
           <h1 className="font-heading text-3xl font-bold text-text-main md:text-4xl">{t("shopGroup.events.title")}</h1>
           <p className="text-sm text-text-muted">{t("shopGroup.events.subtitle")}</p>
+
+          {/* Filter chips */}
+          <div className="mt-1 flex flex-wrap gap-2">
+            {filters.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setActiveFilter(key)}
+                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                  activeFilter === key
+                    ? "border-brand bg-brand text-white"
+                    : "border-surface-border bg-surface text-text-muted hover:border-brand hover:text-brand"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 

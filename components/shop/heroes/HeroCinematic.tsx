@@ -6,17 +6,19 @@ import { PrimaryButton } from "@/app/components/PrimaryButton";
 import { Button } from "@/components/ui/button";
 import { SocialIcons } from "@/components/shop/SocialIcons";
 import { getImageUrl } from "@/utils/image-url";
-import type { ShopCompany, ShopReviewStats, SocialLinks } from "@/types/shop";
+import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
 import { useT } from "@/lib/i18n";
+import { HeroCTAButtons } from "./HeroCTAButtons";
 
 interface HeroCinematicProps {
     company: ShopCompany;
     reviewStats: ShopReviewStats | null;
     socialLinks: SocialLinks;
     slug: string;
+    homeCTAButtons?: HomeCTAButton[] | null;
 }
 
-export function HeroCinematic({ company, reviewStats, socialLinks, slug }: HeroCinematicProps) {
+export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTAButtons }: HeroCinematicProps) {
     const t = useT();
     return (
         <section className="relative isolate min-h-[80vh] overflow-hidden text-white md:min-h-screen">
@@ -66,18 +68,25 @@ export function HeroCinematic({ company, reviewStats, socialLinks, slug }: HeroC
                     </div>
                 )}
 
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
-                    <Link href={`/shop/${slug}/book`}>
-                        <PrimaryButton className="min-w-[180px] px-8 py-4 text-lg">
-                            {t('common.bookNow')}
-                        </PrimaryButton>
-                    </Link>
-                    <Link href={`/shop/${slug}/services`}>
-                        <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
-                            {t('shopNav.services')}
-                        </Button>
-                    </Link>
-                </div>
+                <HeroCTAButtons
+                    slug={slug}
+                    buttons={homeCTAButtons}
+                    className="mt-4 flex flex-wrap items-center justify-center gap-4"
+                    defaultContent={
+                        <>
+                            <Link href={`/shop/${slug}/book`}>
+                                <PrimaryButton className="min-w-[180px] px-8 py-4 text-lg">
+                                    {t('common.bookNow')}
+                                </PrimaryButton>
+                            </Link>
+                            <Link href={`/shop/${slug}/services`}>
+                                <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
+                                    {t('shopNav.services')}
+                                </Button>
+                            </Link>
+                        </>
+                    }
+                />
             </div>
         </section>
     );

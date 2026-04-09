@@ -4,17 +4,19 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
 import { getImageUrl } from "@/utils/image-url";
-import type { ShopCompany, ShopReviewStats, SocialLinks } from "@/types/shop";
+import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
 import { useT } from "@/lib/i18n";
+import { HeroCTAButtons } from "./HeroCTAButtons";
 
 interface HeroSplitProps {
     company: ShopCompany;
     reviewStats: ShopReviewStats | null;
     socialLinks: SocialLinks;
     slug: string;
+    homeCTAButtons?: HomeCTAButton[] | null;
 }
 
-export function HeroSplit({ company, reviewStats, slug }: HeroSplitProps) {
+export function HeroSplit({ company, reviewStats, slug, homeCTAButtons }: HeroSplitProps) {
     const t = useT();
     return (
         <section className="grid min-h-[60vh] grid-cols-1 md:min-h-[70vh] md:grid-cols-2">
@@ -44,13 +46,18 @@ export function HeroSplit({ company, reviewStats, slug }: HeroSplitProps) {
                     </div>
                 )}
 
-                <div className="mt-8">
-                    <Link href={`/shop/${slug}/book`}>
-                        <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
-                            {t('common.bookNow')}
-                        </PrimaryButton>
-                    </Link>
-                </div>
+                <HeroCTAButtons
+                    slug={slug}
+                    buttons={homeCTAButtons}
+                    className="mt-8 flex flex-wrap gap-3"
+                    defaultContent={
+                        <Link href={`/shop/${slug}/book`}>
+                            <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                                {t('common.bookNow')}
+                            </PrimaryButton>
+                        </Link>
+                    }
+                />
             </div>
 
             {/* Right: Hero image */}

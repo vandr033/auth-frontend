@@ -6,11 +6,11 @@ import { HeroSplit } from "./HeroSplit";
 import { HeroMinimal } from "./HeroMinimal";
 
 export function HeroWrapper() {
-    const { company, reviewStats, socialLinks, heroVariant, slug } = useShop();
+    const { company, reviewStats, socialLinks, heroVariant, slug, homeCTAButtons } = useShop();
 
     if (!company) return null;
 
-    const props = { company, reviewStats, socialLinks, slug };
+    const props = { company, reviewStats, socialLinks, slug, homeCTAButtons };
 
     switch (heroVariant) {
         case "hero-split":

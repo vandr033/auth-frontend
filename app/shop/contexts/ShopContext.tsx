@@ -24,6 +24,7 @@ import type {
     TeamVariant,
     FontPairing,
     SocialLinks,
+    HomeCTAButton,
 } from "@/types/shop";
 import { computeTheme, type ThemeConfig } from "@/utils/themepicker";
 import { DEFAULT_LOCALE, getLocaleCookie, I18nProvider, translate } from "@/lib/i18n";
@@ -51,6 +52,7 @@ type ShopContextValue = {
     teamVariant: TeamVariant;
     fontPairing: FontPairing;
     socialLinks: SocialLinks;
+    homeCTAButtons: HomeCTAButton[] | null;
     loading: boolean;
     error: string | null;
     slug: string;
@@ -212,6 +214,7 @@ export function ShopProvider({
                 teamVariant: data?.theme?.team_variant ?? "team-cards",
                 fontPairing: data?.theme?.font_pairing ?? "classic",
                 socialLinks: data?.settings?.social_links ?? {},
+                homeCTAButtons: data?.theme?.home_cta_buttons ?? null,
                 loading,
                 error,
                 slug,

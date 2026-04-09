@@ -10,6 +10,10 @@ import {
     Columns3,
     Users,
     Type,
+    MousePointerClick,
+    ChevronUp,
+    ChevronDown,
+    AlertTriangle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -21,12 +25,15 @@ import { Switch } from "@/components/ui/switch";
 import { ThemePreview } from "@/components/ThemePreview";
 import { VariantSelector } from "@/components/admin/theme/VariantSelector";
 import { FontPairingSelector } from "@/components/admin/theme/FontPairingSelector";
+import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { type ThemeConfig, type PageBackgroundPreset } from "@/utils/themepicker";
 import { mainSiteThemeConfig } from "@/theme/mainSiteTheme";
 import { notify } from "@/lib/notify";
+import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import type { HomeCTAButton, CTADestination } from "@/types/shop";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -40,7 +47,24 @@ interface ExtendedThemeConfig extends ThemeConfig {
     servicesVariant: string;
     teamVariant: string;
     fontPairing: string;
+    homeCTAButtons: HomeCTAButton[];
 }
+
+const ALL_CTA_DESTINATIONS: CTADestination[] = [
+    "booking",
+    "services",
+    "free-events",
+    "events",
+    "classes",
+];
+
+const DEFAULT_CTA_BUTTONS: HomeCTAButton[] = [
+    { destination: "booking", label: "Reservar Ahora", color: "#ffffff", opacity: 100, enabled: true, order: 0 },
+    { destination: "services", label: "Servicios", color: "#ffffff", opacity: 20, enabled: true, order: 1 },
+    { destination: "free-events", label: "Eventos Gratuitos", color: "#ffffff", opacity: 20, enabled: false, order: 2 },
+    { destination: "events", label: "Eventos", color: "#ffffff", opacity: 20, enabled: false, order: 3 },
+    { destination: "classes", label: "Clases", color: "#ffffff", opacity: 20, enabled: false, order: 4 },
+];
 
 const defaultExtendedConfig: ExtendedThemeConfig = {
     ...mainSiteThemeConfig,
@@ -48,15 +72,50 @@ const defaultExtendedConfig: ExtendedThemeConfig = {
     servicesVariant: "services-grid",
     teamVariant: "team-cards",
     fontPairing: "classic",
+    homeCTAButtons: DEFAULT_CTA_BUTTONS,
 };
 
 export default function ThemePage() {
-    const { isAuthenticated, loading: authLoading } = useAdminAuth();
+    const { isAuthenticated, loading: authLoading, companyUser } = useAdminAuth();
     const t = useT();
+    const plan = resolveShopPlan(companyUser?.company?.plan);
+    const canCTACustomize = canUsePlanFeature(plan, "HOME_CTA_CUSTOMIZATION");
 
     const [config, setConfig] = useState<ExtendedThemeConfig>(defaultExtendedConfig);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    const updateCTAButton = (index: number, field: keyof HomeCTAButton, value: unknown) => {
+        setConfig(prev => {
+            const updated = [...prev.homeCTAButtons];
+            updated[index] = { ...updated[index], [field]: value };
+            return { ...prev, homeCTAButtons: updated };
+        });
+    };
+
+    const moveCTAButton = (index: number, direction: -1 | 1) => {
+        setConfig(prev => {
+            const updated = [...prev.homeCTAButtons];
+            const target = index + direction;
+            if (target < 0 || target >= updated.length) return prev;
+            [updated[index], updated[target]] = [updated[target], updated[index]];
+            return {
+                ...prev,
+                homeCTAButtons: updated.map((btn, i) => ({ ...btn, order: i })),
+            };
+        });
+    };
+
+    const getDestinationLabel = (dest: CTADestination): string => {
+        const map: Record<CTADestination, string> = {
+            booking: t("adminTheme.ctaDestinationBooking"),
+            services: t("adminTheme.ctaDestinationServices"),
+            "free-events": t("adminTheme.ctaDestinationFreeEvents"),
+            events: t("adminTheme.ctaDestinationEvents"),
+            classes: t("adminTheme.ctaDestinationClasses"),
+        };
+        return map[dest];
+    };
 
     // Fetch theme
     useEffect(() => {
@@ -83,6 +142,7 @@ export default function ThemePage() {
                             servicesVariant: json.data.services_variant || "services-grid",
                             teamVariant: json.data.team_variant || "team-cards",
                             fontPairing: json.data.font_pairing || "classic",
+                            homeCTAButtons: json.data.home_cta_buttons ?? DEFAULT_CTA_BUTTONS,
                         };
                         setConfig(prev => ({ ...prev, ...mappedConfig }));
                     }
@@ -114,6 +174,7 @@ export default function ThemePage() {
                 services_variant: config.servicesVariant,
                 team_variant: config.teamVariant,
                 font_pairing: config.fontPairing,
+                ...(canCTACustomize && { home_cta_buttons: config.homeCTAButtons }),
             };
 
             const response = await fetch(getApiUrl("/admin/theme"), {
@@ -409,6 +470,136 @@ export default function ThemePage() {
                                 selected={config.teamVariant}
                                 onChange={(v) => updateConfig("teamVariant", v)}
                             />
+                        </CardContent>
+                    </Card>
+                    {/* CTA Buttons Card */}
+                    <Card className="border-surface-border bg-surface shadow-card">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <MousePointerClick className="h-5 w-5 text-brand" />
+                                {t("adminTheme.ctaButtons")}
+                            </CardTitle>
+                            <CardDescription>{t("adminTheme.ctaButtonsDesc")}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {!canCTACustomize ? (
+                                <PlanUpgradeNotice
+                                    title={t("planEnforcement.featureLockedTitle")}
+                                    message={t("planEnforcement.desc.homeCTACustomization")}
+                                    feature="HOME_CTA_CUSTOMIZATION"
+                                    currentPlan={plan}
+                                    requiredPlan="PRO"
+                                />
+                            ) : (
+                                <div className="space-y-3">
+                                    {config.homeCTAButtons.map((btn, idx) => {
+                                        const needsEventsWarn = (btn.destination === "events" || btn.destination === "free-events") && !canUsePlanFeature(plan, "GROUP_EVENTS");
+                                        const needsClassesWarn = btn.destination === "classes" && !canUsePlanFeature(plan, "GROUP_CLASSES");
+
+                                        return (
+                                            <div
+                                                key={btn.destination}
+                                                className="rounded-lg border border-surface-border bg-page p-4 space-y-3"
+                                            >
+                                                {/* Row 1: enable toggle + destination label + move buttons */}
+                                                <div className="flex items-center gap-3">
+                                                    <Switch
+                                                        checked={btn.enabled}
+                                                        onCheckedChange={(v) => updateCTAButton(idx, "enabled", v)}
+                                                    />
+                                                    <span className="flex-1 text-sm font-semibold text-text-main">
+                                                        {getDestinationLabel(btn.destination)}
+                                                        {idx === 0 && (
+                                                            <span className="ml-2 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-brand">
+                                                                primario
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    <div className="flex gap-1">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            disabled={idx === 0}
+                                                            onClick={() => moveCTAButton(idx, -1)}
+                                                            title={t("adminTheme.ctaMoveUp")}
+                                                        >
+                                                            <ChevronUp className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            className="h-7 w-7"
+                                                            disabled={idx === config.homeCTAButtons.length - 1}
+                                                            onClick={() => moveCTAButton(idx, 1)}
+                                                            title={t("adminTheme.ctaMoveDown")}
+                                                        >
+                                                            <ChevronDown className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Row 2: label + color + opacity */}
+                                                <div className="grid gap-3 sm:grid-cols-3">
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs">{t("adminTheme.ctaLabel")}</Label>
+                                                        <Input
+                                                            value={btn.label}
+                                                            onChange={(e) => updateCTAButton(idx, "label", e.target.value)}
+                                                            className="h-8 text-sm"
+                                                            placeholder="Texto del botón"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs">{t("adminTheme.ctaColor")}</Label>
+                                                        <div className="flex gap-2">
+                                                            <div className="h-8 w-8 shrink-0 overflow-hidden rounded border border-surface-border">
+                                                                <input
+                                                                    type="color"
+                                                                    value={btn.color}
+                                                                    onChange={(e) => updateCTAButton(idx, "color", e.target.value)}
+                                                                    className="h-full w-full cursor-pointer border-0 p-0 scale-150"
+                                                                />
+                                                            </div>
+                                                            <Input
+                                                                value={btn.color}
+                                                                onChange={(e) => updateCTAButton(idx, "color", e.target.value)}
+                                                                className="h-8 font-mono uppercase text-sm"
+                                                                maxLength={7}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs">
+                                                            {t("adminTheme.ctaOpacity")} — {btn.opacity}%
+                                                        </Label>
+                                                        <input
+                                                            type="range"
+                                                            min={0}
+                                                            max={100}
+                                                            value={btn.opacity}
+                                                            onChange={(e) => updateCTAButton(idx, "opacity", Number(e.target.value))}
+                                                            className="w-full accent-brand"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Warnings for plan-gated destinations */}
+                                                {btn.enabled && (needsEventsWarn || needsClassesWarn) && (
+                                                    <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                                        <span>
+                                                            {needsClassesWarn
+                                                                ? t("adminTheme.ctaDestinationClassesWarning")
+                                                                : t("adminTheme.ctaDestinationEventsWarning")}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
