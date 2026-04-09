@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2, Mail, MessageCircle, RefreshCcw, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +35,7 @@ import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useGroupReservationsAccess } from "../../lib/useGroupReservationsAccess";
 import { formatDateTime, formatMoneyFromCents } from "../../lib/format";
 import {
+    approveGroupEventBookingQrPayment,
     cancelGroupEventBooking,
     checkInGroupByTicketCode,
     confirmGroupEventBooking,
@@ -198,6 +199,7 @@ export default function GroupEventDetailPage() {
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
     const [thumbnailImagePreview, setThumbnailImagePreview] = useState<string | null>(null);
+    const [qrProofDialog, setQrProofDialog] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         if (!Number.isInteger(eventId) || eventId <= 0) return;
@@ -416,6 +418,16 @@ export default function GroupEventDetailPage() {
             if (action === "unconfirm") await unconfirmGroupEventBooking(bookingId);
             if (action === "cancel") await cancelGroupEventBooking(bookingId);
             await notify.success(t("adminGroup.bookings.actionSuccess"));
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        }
+    };
+
+    const handleApproveQrPayment = async (bookingId: number) => {
+        try {
+            await approveGroupEventBookingQrPayment(bookingId);
+            await notify.success(t("adminGroup.bookings.paymentConfirmed"));
             await loadData();
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
@@ -906,6 +918,10 @@ export default function GroupEventDetailPage() {
                             <TableBody>
                                 {pendingBookings.map((booking) => {
                                     const canManageBooking = booking.source !== "FREE_REGISTRATION";
+                                    const needsQrApproval =
+                                        canManageBooking
+                                        && booking.payment_method === "QR"
+                                        && booking.payment_status === "PENDING_CONFIRMATION";
                                     return (
                                         <TableRow key={booking.id}>
                                             <TableCell>{booking.user?.name || booking.user?.email || booking.user_id}</TableCell>
@@ -916,9 +932,21 @@ export default function GroupEventDetailPage() {
                                             <TableCell className="flex flex-wrap gap-2">
                                                 {canManageBooking ? (
                                                     <>
-                                                        <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
-                                                            {t("common.confirm")}
-                                                        </Button>
+                                                        {needsQrApproval ? (
+                                                            <Button size="sm" onClick={() => void handleApproveQrPayment(booking.id)}>
+                                                                {t("adminGroup.actions.approveQrPayment")}
+                                                            </Button>
+                                                        ) : (
+                                                            <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
+                                                                {t("common.confirm")}
+                                                            </Button>
+                                                        )}
+                                                        {booking.qr_proof_image_url ? (
+                                                            <Button size="sm" variant="outline" onClick={() => setQrProofDialog(booking.qr_proof_image_url!)}>
+                                                                <Eye className="mr-1 h-3 w-3" />
+                                                                {t("adminGroup.actions.viewQrProof")}
+                                                            </Button>
+                                                        ) : null}
                                                         <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "cancel")}>
                                                             {t("common.cancel")}
                                                         </Button>
@@ -958,6 +986,11 @@ export default function GroupEventDetailPage() {
                                 {bookings.map((booking) => {
                                     const bookingTickets = ticketsByBookingId.get(booking.id) ?? [];
                                     const canManageBooking = booking.source !== "FREE_REGISTRATION";
+                                    const needsQrApproval =
+                                        canManageBooking
+                                        && booking.status === "PENDING"
+                                        && booking.payment_method === "QR"
+                                        && booking.payment_status === "PENDING_CONFIRMATION";
                                     return (
                                         <TableRow key={booking.id}>
                                             <TableCell>
@@ -1001,13 +1034,25 @@ export default function GroupEventDetailPage() {
                                             </TableCell>
                                             <TableCell className="flex flex-wrap gap-2">
                                                 {canManageBooking && booking.status === "PENDING" ? (
-                                                    <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
-                                                        {t("common.confirm")}
-                                                    </Button>
+                                                    needsQrApproval ? (
+                                                        <Button size="sm" onClick={() => void handleApproveQrPayment(booking.id)}>
+                                                            {t("adminGroup.actions.approveQrPayment")}
+                                                        </Button>
+                                                    ) : (
+                                                        <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
+                                                            {t("common.confirm")}
+                                                        </Button>
+                                                    )
                                                 ) : null}
                                                 {canManageBooking && booking.status === "CONFIRMED" ? (
                                                     <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "unconfirm")}>
                                                         {t("adminGroup.actions.unconfirm")}
+                                                    </Button>
+                                                ) : null}
+                                                {booking.qr_proof_image_url ? (
+                                                    <Button size="sm" variant="outline" onClick={() => setQrProofDialog(booking.qr_proof_image_url!)}>
+                                                        <Eye className="mr-1 h-3 w-3" />
+                                                        {t("adminGroup.actions.viewQrProof")}
                                                     </Button>
                                                 ) : null}
                                                 {canManageBooking && booking.status !== "CANCELLED" ? (
@@ -1241,6 +1286,23 @@ export default function GroupEventDetailPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <Dialog open={!!qrProofDialog} onOpenChange={(open) => { if (!open) setQrProofDialog(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>{t("adminGroup.actions.viewQrProof")}</DialogTitle>
+                    </DialogHeader>
+                    {qrProofDialog ? (
+                        <div className="flex flex-col items-center gap-3 py-2">
+                            <img
+                                src={getImageUrl(qrProofDialog) || qrProofDialog}
+                                alt="QR proof"
+                                className="max-h-80 w-full rounded-lg border border-slate-200 object-contain"
+                            />
+                        </div>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -7,6 +7,7 @@ import { CalendarDays, ChevronRight, Loader2, RefreshCw, Ticket, Users } from "l
 import { useAuth } from "@/lib/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { InstallmentPlanCard } from "@/app/shop/components/group/InstallmentPlanCard";
 import {
   Dialog,
   DialogContent,
@@ -20,10 +21,12 @@ import {
   getShopSlugFromParams,
 } from "@/app/lib/shop-context";
 import {
+  getMyGroupPaymentPlans,
   getMyPublicGroupBookings,
   getMyPublicGroupEnrollments,
   resendMyClassTicket,
   type GroupBookingStatus,
+  type GroupEnrollmentInstallmentPlan,
   type PublicGroupClassEnrollment,
   type PublicGroupEventBooking,
 } from "@/app/shop/lib/groupReservationsApi";
@@ -49,15 +52,17 @@ function GroupReservationsPageContent() {
   const [tab, setTab] = useState<TabKey>("events");
   const [bookings, setBookings] = useState<PublicGroupEventBooking[]>([]);
   const [enrollments, setEnrollments] = useState<PublicGroupClassEnrollment[]>([]);
+  const [paymentPlans, setPaymentPlans] = useState<GroupEnrollmentInstallmentPlan[]>([]);
   const [ticketDialog, setTicketDialog] = useState<PublicGroupClassEnrollment["ticket"] | null>(null);
   const [resendingId, setResendingId] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const [bookingsData, enrollmentsData] = await Promise.all([
+      const [bookingsData, enrollmentsData, paymentPlansData] = await Promise.all([
         getMyPublicGroupBookings(),
         getMyPublicGroupEnrollments(),
+        getMyGroupPaymentPlans(),
       ]);
 
       if (shopSlug) {
@@ -67,14 +72,19 @@ function GroupReservationsPageContent() {
         setEnrollments(
           enrollmentsData.filter((enrollment) => enrollment.group_class?.company?.slug === shopSlug),
         );
+        setPaymentPlans(
+          paymentPlansData.filter((plan) => plan.enrollment.company?.slug === shopSlug),
+        );
       } else {
         setBookings(bookingsData);
         setEnrollments(enrollmentsData);
+        setPaymentPlans(paymentPlansData);
       }
     } catch (err) {
       await notify.error(err instanceof Error ? err.message : t("meGroupReservations.loadError"));
       setBookings([]);
       setEnrollments([]);
+      setPaymentPlans([]);
     } finally {
       setLoadingData(false);
     }
@@ -112,6 +122,14 @@ function GroupReservationsPageContent() {
     () => [...enrollments].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [enrollments],
   );
+
+  const paymentPlanByEnrollmentId = useMemo(() => {
+    const map = new Map<number, GroupEnrollmentInstallmentPlan>();
+    paymentPlans.forEach((plan) => {
+      map.set(plan.enrollment.id, plan);
+    });
+    return map;
+  }, [paymentPlans]);
 
   const activeList = tab === "events" ? sortedBookings : sortedEnrollments;
 
@@ -264,6 +282,7 @@ function GroupReservationsPageContent() {
               const company = groupClass?.company;
               const detailHref = groupClass && company ? `/shop/${company.slug}/classes/${groupClass.id}` : null;
               const status = enrollment.status;
+              const paymentPlan = paymentPlanByEnrollmentId.get(enrollment.id);
 
               return (
                 <article
@@ -339,6 +358,17 @@ function GroupReservationsPageContent() {
                       </Button>
                     ) : null}
                   </div>
+                  {paymentPlan ? (
+                    <div className="mt-4">
+                      <InstallmentPlanCard
+                        plan={paymentPlan}
+                        companyId={paymentPlan.enrollment.company_id}
+                        locale={locale}
+                        t={t}
+                        onRefresh={fetchData}
+                      />
+                    </div>
+                  ) : null}
                 </article>
               );
             })}

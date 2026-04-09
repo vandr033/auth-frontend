@@ -502,7 +502,7 @@ export default function GroupClassesPage() {
                                             <div>{item.title}</div>
                                             <div className="text-xs text-slate-500">{item.slug}</div>
                                         </TableCell>
-                                        <TableCell>{item.pricing_mode}</TableCell>
+                                        <TableCell>{t(`adminGroup.pricing.${item.pricing_mode === "PER_SESSION" ? "perSession" : item.pricing_mode === "WEEKLY_PASS" ? "weeklyPass" : item.pricing_mode === "MONTHLY_PASS" ? "monthlyPass" : "fullCourse"}`)}</TableCell>
                                         <TableCell>{formatMoneyFromCents(item.price_cents, currency)}</TableCell>
                                         <TableCell>{item._count?.sessions ?? 0}</TableCell>
                                         <TableCell>{item._count?.enrollments ?? 0}</TableCell>
@@ -624,13 +624,14 @@ export default function GroupClassesPage() {
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="PER_SESSION">{t("adminGroup.pricing.perSession")}</SelectItem>
-                                    <SelectItem value="WEEKLY_PASS">{t("adminGroup.pricing.weeklyPass")}</SelectItem>
-                                    <SelectItem value="MONTHLY_PASS">{t("adminGroup.pricing.monthlyPass")}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                                    <SelectContent>
+                                        <SelectItem value="PER_SESSION">{t("adminGroup.pricing.perSession")}</SelectItem>
+                                        <SelectItem value="WEEKLY_PASS">{t("adminGroup.pricing.weeklyPass")}</SelectItem>
+                                        <SelectItem value="MONTHLY_PASS">{t("adminGroup.pricing.monthlyPass")}</SelectItem>
+                                        <SelectItem value="FULL_COURSE">{t("adminGroup.pricing.fullCourse")}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
                             <Input type="number" min={0} step="0.01" value={form.price_cents} onChange={(e) => setForm((prev) => ({ ...prev, price_cents: e.target.value }))} />

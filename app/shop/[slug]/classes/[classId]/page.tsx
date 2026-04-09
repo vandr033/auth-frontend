@@ -12,6 +12,7 @@ import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { useAuth } from "@/lib/useAuth";
+import { InstallmentPlanCard } from "@/app/shop/components/group/InstallmentPlanCard";
 import { useShop } from "../../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
@@ -20,9 +21,11 @@ import { appendShopParam, buildSignInRedirectFromCurrentLocation } from "@/app/l
 import {
   createPublicClassEnrollment,
   deleteGroupQrProof,
+  getMyGroupPaymentPlans,
   getMyPublicGroupEnrollments,
   getPublicClassById,
   listPublicClassSessions,
+  type GroupEnrollmentInstallmentPlan,
   type GroupPaymentMethod,
   type PublicGroupClass,
   type PublicGroupClassEnrollment,
@@ -71,6 +74,7 @@ export default function ShopClassDetailPage() {
   const [groupClass, setGroupClass] = React.useState<PublicGroupClass | null>(null);
   const [sessions, setSessions] = React.useState<PublicGroupClassSession[]>([]);
   const [myEnrollments, setMyEnrollments] = React.useState<PublicGroupClassEnrollment[]>([]);
+  const [paymentPlans, setPaymentPlans] = React.useState<GroupEnrollmentInstallmentPlan[]>([]);
   const [selectedSessionId, setSelectedSessionId] = React.useState<number | null>(null);
 
   const [paymentMethod, setPaymentMethod] = React.useState<GroupPaymentMethod>("CASH");
@@ -110,10 +114,15 @@ export default function ShopClassDetailPage() {
       }
 
       if (user?.id) {
-        const mine = await getMyPublicGroupEnrollments();
+        const [mine, myPaymentPlans] = await Promise.all([
+          getMyPublicGroupEnrollments(),
+          getMyGroupPaymentPlans(),
+        ]);
         setMyEnrollments(mine.filter((row) => row.group_class_id === classId));
+        setPaymentPlans(myPaymentPlans.filter((plan) => plan.enrollment.group_class_id === classId));
       } else {
         setMyEnrollments([]);
+        setPaymentPlans([]);
       }
     } catch (err) {
       setGroupClass(null);
@@ -158,6 +167,11 @@ export default function ShopClassDetailPage() {
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null;
   }, [myEnrollments]);
+
+  const activePaymentPlan = React.useMemo(() => {
+    if (!activeEnrollment) return null;
+    return paymentPlans.find((plan) => plan.enrollment.id === activeEnrollment.id) ?? null;
+  }, [activeEnrollment, paymentPlans]);
 
   const upcomingSessions = React.useMemo(() => {
     const now = Date.now();
@@ -473,6 +487,15 @@ export default function ShopClassDetailPage() {
                     {t("shopGroup.actions.viewMyGroupReservations")}
                   </Link>
                 </Button>
+                {activePaymentPlan ? (
+                  <InstallmentPlanCard
+                    plan={activePaymentPlan}
+                    companyId={company.id}
+                    locale={locale}
+                    t={t}
+                    onRefresh={loadData}
+                  />
+                ) : null}
               </div>
             ) : noUpcomingSessions ? (
               <p className="text-sm text-text-muted">{t("shopGroup.classes.noUpcomingForEnrollment")}</p>

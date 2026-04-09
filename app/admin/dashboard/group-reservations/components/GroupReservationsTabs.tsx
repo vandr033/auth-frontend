@@ -13,6 +13,7 @@ const TABS: Array<{ key: string; href: string; access: TabAccess }> = [
     { key: "adminGroup.nav.overview", href: "/admin/dashboard/group-reservations", access: "none" },
     { key: "adminGroup.nav.events", href: "/admin/dashboard/group-reservations/events", access: "events" },
     { key: "adminGroup.nav.classes", href: "/admin/dashboard/group-reservations/classes", access: "classes" },
+    { key: "adminGroup.nav.payments", href: "/admin/dashboard/group-reservations/payments", access: "events" },
     { key: "adminGroup.nav.attendance", href: "/admin/dashboard/group-reservations/attendance", access: "advanced" },
     { key: "adminGroup.nav.metrics", href: "/admin/dashboard/group-reservations/metrics", access: "events" },
 ];

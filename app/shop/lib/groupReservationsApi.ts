@@ -4,7 +4,8 @@ export type GroupItemStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type GroupBookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED";
 export type GroupPaymentMethod = "NONE" | "CASH" | "QR";
 export type GroupPaymentStatus = "UNPAID" | "PENDING_CONFIRMATION" | "PAID" | "REJECTED";
-export type GroupPricingMode = "PER_SESSION" | "WEEKLY_PASS" | "MONTHLY_PASS";
+export type GroupInstallmentDerivedStatus = GroupPaymentStatus | "OVERDUE";
+export type GroupPricingMode = "PER_SESSION" | "WEEKLY_PASS" | "MONTHLY_PASS" | "FULL_COURSE";
 export type GroupRecurrenceType = "WEEKLY" | "MONTHLY" | "CUSTOM";
 export type GroupStaffRole = "INSTRUCTOR" | "ASSISTANT";
 
@@ -174,6 +175,81 @@ export interface PublicGroupClassEnrollment {
   };
 }
 
+export interface GroupEnrollmentInstallment {
+  id: number;
+  enrollment_id: number;
+  installment_number: number;
+  due_date: string;
+  amount_cents: number;
+  payment_status: GroupPaymentStatus;
+  payment_method: GroupPaymentMethod;
+  qr_proof_image_url: string | null;
+  paid_at: string | null;
+  marked_paid_by_admin_id: string | null;
+  marked_paid_by_admin?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  derived_status?: GroupInstallmentDerivedStatus;
+  is_overdue?: boolean;
+  last_reminder_at?: string | null;
+  last_reminder_channel?: "WHATSAPP" | "EMAIL" | null;
+  reminder_logs?: InstallmentReminderLogRow[];
+}
+
+export interface InstallmentReminderLogRow {
+  id: number;
+  channel: "WHATSAPP" | "EMAIL";
+  recipient_email: string | null;
+  recipient_phone: string | null;
+  message_subject: string | null;
+  message_body: string | null;
+  sent_at: string;
+  sent_by_admin_id: string | null;
+  sent_by_admin?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+}
+
+export interface CustomerPaymentPlanSummary {
+  total_installments: number;
+  paid_count: number;
+  pending_count: number;
+  overdue_count: number;
+  next_due_date: string | null;
+  current_month_status: GroupInstallmentDerivedStatus | null;
+  total_amount_cents: number;
+  paid_amount_cents: number;
+}
+
+export interface GroupEnrollmentInstallmentPlan {
+  enrollment: PublicGroupClassEnrollment & {
+    company?: {
+      id: number;
+      name: string;
+      slug: string;
+      currency: string;
+    } | null;
+    user?: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      phoneNumber: string | null;
+      phone_prefix?: string | null;
+    } | null;
+    group_class?: NonNullable<PublicGroupClassEnrollment["group_class"]> & {
+      location_text?: string | null;
+    };
+  };
+  installments: GroupEnrollmentInstallment[];
+  summary: CustomerPaymentPlanSummary;
+}
+
 export interface CapturePublicEventInterestResult {
   already_interested: boolean;
 }
@@ -328,10 +404,37 @@ export async function getMyPublicGroupEnrollments(): Promise<PublicGroupClassEnr
   return groupFetch<PublicGroupClassEnrollment[]>("/group/my/enrollments");
 }
 
+export async function getMyGroupPaymentPlans(): Promise<GroupEnrollmentInstallmentPlan[]> {
+  return groupFetch<GroupEnrollmentInstallmentPlan[]>("/group/my/payment-plans");
+}
+
 export async function resendMyClassTicket(enrollmentId: number): Promise<void> {
   await groupFetch<unknown>(`/group/my/enrollments/${enrollmentId}/ticket/resend`, {
     method: "POST",
   });
+}
+
+export async function listMyEnrollmentInstallments(companyId: number, enrollmentId: number): Promise<GroupEnrollmentInstallmentPlan> {
+  const query = buildQuery({ company_id: companyId });
+  return groupFetch<GroupEnrollmentInstallmentPlan>(`/group/my/enrollments/${enrollmentId}/installments${query}`);
+}
+
+export async function submitMyInstallmentQrProof(payload: {
+  company_id: number;
+  enrollment_id: number;
+  installment_id: number;
+  qr_proof_image_url: string;
+}): Promise<GroupEnrollmentInstallment> {
+  return groupFetch<GroupEnrollmentInstallment>(
+    `/group/my/enrollments/${payload.enrollment_id}/installments/${payload.installment_id}/qr-proof`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        company_id: payload.company_id,
+        qr_proof_image_url: payload.qr_proof_image_url,
+      }),
+    },
+  );
 }
 
 export async function uploadGroupQrProof(file: File, companyId: number): Promise<string> {

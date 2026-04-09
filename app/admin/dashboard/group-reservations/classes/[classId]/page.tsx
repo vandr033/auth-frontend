@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Eye, Loader2, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, RefreshCcw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -41,10 +41,14 @@ import {
     getAdminCompanyLocation,
     getGroupClassById,
     getStaff,
+    listGroupEnrollmentInstallments,
     listGroupClassEnrollments,
     listGroupClassSessionAttendance,
     listGroupClassSessions,
     listGroupTickets,
+    markGroupEnrollmentInstallmentPaid,
+    sendGroupInstallmentReminder,
+    confirmGroupEnrollmentInstallmentQr,
     setGroupClassStatus,
     unconfirmGroupClassEnrollment,
     uploadAdminImage,
@@ -54,6 +58,7 @@ import {
     type GroupClass,
     type GroupClassEnrollment,
     type GroupClassSession,
+    type GroupEnrollmentInstallmentPlan,
     type GroupItemStatus,
     type GroupPricingMode,
     type GroupRecurrenceType,
@@ -210,6 +215,9 @@ export default function GroupClassDetailPage() {
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
     const [thumbnailImagePreview, setThumbnailImagePreview] = useState<string | null>(null);
     const [qrProofDialog, setQrProofDialog] = useState<string | null>(null);
+    const [installmentPlanDialog, setInstallmentPlanDialog] = useState<GroupEnrollmentInstallmentPlan | null>(null);
+    const [installmentPlanLoading, setInstallmentPlanLoading] = useState(false);
+    const [installmentActionKey, setInstallmentActionKey] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         if (!Number.isInteger(classId) || classId <= 0) return;
@@ -507,6 +515,64 @@ export default function GroupClassDetailPage() {
         }
     };
 
+    const refreshInstallmentPlanDialog = useCallback(async (enrollmentId: number) => {
+        const plan = await listGroupEnrollmentInstallments(enrollmentId);
+        setInstallmentPlanDialog(plan);
+    }, []);
+
+    const handleOpenInstallmentPlan = async (enrollmentId: number) => {
+        setInstallmentPlanLoading(true);
+        try {
+            await refreshInstallmentPlanDialog(enrollmentId);
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.loadError"));
+        } finally {
+            setInstallmentPlanLoading(false);
+        }
+    };
+
+    const handleInstallmentReminder = async (enrollmentId: number, installmentId: number) => {
+        setInstallmentActionKey(`reminder:${installmentId}`);
+        try {
+            await sendGroupInstallmentReminder(installmentId);
+            await notify.success(t("adminGroup.payments.reminderSent"));
+            await refreshInstallmentPlanDialog(enrollmentId);
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.payments.reminderError"));
+        } finally {
+            setInstallmentActionKey(null);
+        }
+    };
+
+    const handleInstallmentMarkCashPaid = async (enrollmentId: number, installmentId: number) => {
+        setInstallmentActionKey(`cash:${installmentId}`);
+        try {
+            await markGroupEnrollmentInstallmentPaid(enrollmentId, installmentId, "CASH");
+            await notify.success(t("adminGroup.payments.installmentMarkedPaid"));
+            await refreshInstallmentPlanDialog(enrollmentId);
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        } finally {
+            setInstallmentActionKey(null);
+        }
+    };
+
+    const handleInstallmentConfirmQr = async (enrollmentId: number, installmentId: number) => {
+        setInstallmentActionKey(`confirm:${installmentId}`);
+        try {
+            await confirmGroupEnrollmentInstallmentQr(enrollmentId, installmentId);
+            await notify.success(t("adminGroup.payments.installmentConfirmed"));
+            await refreshInstallmentPlanDialog(enrollmentId);
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        } finally {
+            setInstallmentActionKey(null);
+        }
+    };
+
     const handleIssueTicket = async (enrollmentId: number) => {
         try {
             await issueGroupClassEnrollmentTicket(enrollmentId);
@@ -580,7 +646,9 @@ export default function GroupClassDetailPage() {
                 <CardContent className="grid gap-3 md:grid-cols-4">
                     <div>
                         <p className="text-xs text-slate-500">{t("adminGroup.fields.pricingMode")}</p>
-                        <p className="text-sm text-slate-900">{groupClass.pricing_mode}</p>
+                        <p className="text-sm text-slate-900">
+                            {t(`adminGroup.pricing.${groupClass.pricing_mode === "PER_SESSION" ? "perSession" : groupClass.pricing_mode === "WEEKLY_PASS" ? "weeklyPass" : groupClass.pricing_mode === "MONTHLY_PASS" ? "monthlyPass" : "fullCourse"}`)}
+                        </p>
                     </div>
                     <div>
                         <p className="text-xs text-slate-500">{t("adminGroup.fields.price")}</p>
@@ -715,6 +783,7 @@ export default function GroupClassDetailPage() {
                                     <SelectItem value="PER_SESSION">{t("adminGroup.pricing.perSession")}</SelectItem>
                                     <SelectItem value="WEEKLY_PASS">{t("adminGroup.pricing.weeklyPass")}</SelectItem>
                                     <SelectItem value="MONTHLY_PASS">{t("adminGroup.pricing.monthlyPass")}</SelectItem>
+                                    <SelectItem value="FULL_COURSE">{t("adminGroup.pricing.fullCourse")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -1038,6 +1107,14 @@ export default function GroupClassDetailPage() {
                                                         {t("adminGroup.actions.confirmPayment")}
                                                     </Button>
                                                 ) : null}
+                                                {enrollment.pricing_mode === "FULL_COURSE" ? (
+                                                    <Button size="sm" variant="outline" onClick={() => void handleOpenInstallmentPlan(enrollment.id)}>
+                                                        {installmentPlanLoading && installmentPlanDialog?.enrollment.id === enrollment.id ? (
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        ) : null}
+                                                        {t("adminGroup.payments.viewPlan")}
+                                                    </Button>
+                                                ) : null}
                                                 {canUseAdvanced && enrollment.status === "CONFIRMED" && (!ticket || ticket.status === "CANCELLED") ? (
                                                     <Button size="sm" variant="outline" onClick={() => void handleIssueTicket(enrollment.id)}>
                                                         {t("adminGroup.ticket.issue")}
@@ -1105,6 +1182,89 @@ export default function GroupClassDetailPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={!!installmentPlanDialog} onOpenChange={(open) => { if (!open) setInstallmentPlanDialog(null); }}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>{t("adminGroup.payments.viewPlan")}</DialogTitle>
+                    </DialogHeader>
+                    {installmentPlanDialog ? (
+                        <div className="space-y-3">
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                                <p className="font-medium text-slate-900">{installmentPlanDialog.enrollment.user?.name || installmentPlanDialog.enrollment.user?.email || installmentPlanDialog.enrollment.user_id}</p>
+                                <p>{t("adminGroup.payments.planSummary", {
+                                    paid: installmentPlanDialog.summary.paid_count,
+                                    total: installmentPlanDialog.summary.total_installments,
+                                })}</p>
+                            </div>
+                            {installmentPlanDialog.installments.map((installment) => (
+                                <div key={installment.id} className="space-y-3 rounded-xl border border-slate-200 p-4">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <p className="font-medium text-slate-900">
+                                                {t("adminGroup.payments.installmentNumber", { number: installment.installment_number })}
+                                            </p>
+                                            <p className="text-sm text-slate-600">
+                                                {t("adminGroup.payments.installmentMeta", {
+                                                    due: formatDate(installment.due_date),
+                                                    amount: formatMoneyFromCents(installment.amount_cents, currency),
+                                                })}
+                                            </p>
+                                            {installment.last_reminder_at ? (
+                                                <p className="text-xs text-slate-500">
+                                                    {t("adminGroup.payments.lastReminder")}: {formatDateTime(installment.last_reminder_at)} · {installment.last_reminder_channel || ""}
+                                                </p>
+                                            ) : null}
+                                        </div>
+                                        <GroupPaymentStatusBadge status={installment.payment_status} />
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {installment.qr_proof_image_url ? (
+                                            <Button size="sm" variant="outline" onClick={() => setQrProofDialog(installment.qr_proof_image_url!)}>
+                                                <Eye className="mr-1 h-3 w-3" />
+                                                {t("adminGroup.actions.viewQrProof")}
+                                            </Button>
+                                        ) : null}
+                                        {installment.payment_status === "PENDING_CONFIRMATION" ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => void handleInstallmentConfirmQr(installmentPlanDialog.enrollment.id, installment.id)}
+                                                disabled={installmentActionKey === `confirm:${installment.id}`}
+                                            >
+                                                {installmentActionKey === `confirm:${installment.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                {t("adminGroup.payments.confirmQr")}
+                                            </Button>
+                                        ) : null}
+                                        {installment.payment_status !== "PAID" ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => void handleInstallmentMarkCashPaid(installmentPlanDialog.enrollment.id, installment.id)}
+                                                disabled={installmentActionKey === `cash:${installment.id}`}
+                                            >
+                                                {installmentActionKey === `cash:${installment.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                {t("adminGroup.payments.markCashPaid")}
+                                            </Button>
+                                        ) : null}
+                                        {installment.payment_status !== "PAID" ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => void handleInstallmentReminder(installmentPlanDialog.enrollment.id, installment.id)}
+                                                disabled={installmentActionKey === `reminder:${installment.id}`}
+                                            >
+                                                {installmentActionKey === `reminder:${installment.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                                {t("adminGroup.payments.sendReminder")}
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={!!qrProofDialog} onOpenChange={(open) => { if (!open) setQrProofDialog(null); }}>
                 <DialogContent className="max-w-sm">

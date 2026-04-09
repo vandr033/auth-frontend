@@ -15,11 +15,14 @@ import {
 import {
     downloadCustomerImportTemplate,
     downloadCustomersExport,
+    getCustomerGroupPayments,
     getCustomerHistory,
     getCustomers,
     importCustomersFile,
     sendMassCustomerMessage,
+    type AdminGroupPaymentRow,
     type CustomerHistoryItem,
+    type CustomerGroupPaymentsResponse,
     type CustomerRecord,
 } from "../../lib/adminApi";
 import {
@@ -49,6 +52,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -115,6 +119,10 @@ export default function CustomersPage() {
     const [historyHasNextPage, setHistoryHasNextPage] = useState(false);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyError, setHistoryError] = useState<string | null>(null);
+    const [historyTab, setHistoryTab] = useState<"bookings" | "group-payments">("bookings");
+    const [groupPaymentsData, setGroupPaymentsData] = useState<CustomerGroupPaymentsResponse | null>(null);
+    const [groupPaymentsLoading, setGroupPaymentsLoading] = useState(false);
+    const [groupPaymentsError, setGroupPaymentsError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
@@ -273,14 +281,33 @@ export default function CustomersPage() {
         }
     }, [t]);
 
+    const loadCustomerGroupPayments = useCallback(async (customer: CustomerRecord) => {
+        setGroupPaymentsLoading(true);
+        setGroupPaymentsError(null);
+        try {
+            const response = await getCustomerGroupPayments(customer.customerKey, 1, 100);
+            setGroupPaymentsData(response);
+        } catch (err: unknown) {
+            setGroupPaymentsError(err instanceof Error ? err.message : t("adminCustomers.groupPaymentsLoadFailed"));
+        } finally {
+            setGroupPaymentsLoading(false);
+        }
+    }, [t]);
+
     const handleOpenHistory = async (customer: CustomerRecord) => {
         setHistoryCustomer(customer);
+        setHistoryTab("bookings");
         setHistoryItems([]);
         setHistoryPage(1);
         setHistoryTotal(0);
         setHistoryHasNextPage(false);
         setHistoryError(null);
-        await loadCustomerHistory(customer, 1, false);
+        setGroupPaymentsData(null);
+        setGroupPaymentsError(null);
+        await Promise.all([
+            loadCustomerHistory(customer, 1, false),
+            loadCustomerGroupPayments(customer),
+        ]);
     };
 
     const handleLoadMoreHistory = async () => {
@@ -624,69 +651,151 @@ export default function CustomersPage() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="max-h-[60vh] overflow-y-auto pr-1">
-                        {historyLoading && historyItems.length === 0 ? (
-                            <div className="flex items-center justify-center py-10">
-                                <Loader2 className="h-5 w-5 animate-spin text-brand" />
-                            </div>
-                        ) : historyError ? (
-                            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                                {historyError}
-                            </p>
-                        ) : historyItems.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-10 text-slate-500">
-                                <Clock3 className="h-8 w-8 mb-2" />
-                                <p className="text-sm">{t("adminCustomers.noHistory")}</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {historyItems.map((item) => {
-                                    const serviceSummary = item.services
-                                        .map((service) => service.serviceName || service.categoryName)
-                                        .filter((value): value is string => Boolean(value))
-                                        .slice(0, 3)
-                                        .join(", ");
+                    <Tabs value={historyTab} onValueChange={(value) => setHistoryTab(value as "bookings" | "group-payments")}>
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="bookings">{t("adminCustomers.historyTabs.bookings")}</TabsTrigger>
+                            <TabsTrigger value="group-payments">{t("adminCustomers.historyTabs.groupPayments")}</TabsTrigger>
+                        </TabsList>
 
-                                    return (
-                                        <div key={item.id} className="rounded-md border border-slate-200 p-3">
-                                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                                <div>
-                                                    <p className="text-sm font-medium text-slate-900">
-                                                        {formatDateTime(item.startAt, notAvailable)}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500">
-                                                        {t("adminCustomers.staff")}: {item.staffName || notAvailable}
-                                                    </p>
+                        <TabsContent value="bookings" className="mt-4">
+                            <div className="max-h-[60vh] overflow-y-auto pr-1">
+                                {historyLoading && historyItems.length === 0 ? (
+                                    <div className="flex items-center justify-center py-10">
+                                        <Loader2 className="h-5 w-5 animate-spin text-brand" />
+                                    </div>
+                                ) : historyError ? (
+                                    <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                                        {historyError}
+                                    </p>
+                                ) : historyItems.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-10 text-slate-500">
+                                        <Clock3 className="h-8 w-8 mb-2" />
+                                        <p className="text-sm">{t("adminCustomers.noHistory")}</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {historyItems.map((item) => {
+                                            const serviceSummary = item.services
+                                                .map((service) => service.serviceName || service.categoryName)
+                                                .filter((value): value is string => Boolean(value))
+                                                .slice(0, 3)
+                                                .join(", ");
+
+                                            return (
+                                                <div key={item.id} className="rounded-md border border-slate-200 p-3">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-slate-900">
+                                                                {formatDateTime(item.startAt, notAvailable)}
+                                                            </p>
+                                                            <p className="text-xs text-slate-500">
+                                                                {t("adminCustomers.staff")}: {item.staffName || notAvailable}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant="outline">
+                                                                {t(getSourceTranslationKey(item.source))}
+                                                            </Badge>
+                                                            <Badge variant="secondary">
+                                                                {t(getStatusTranslationKey(item.status))}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                                                        <span>
+                                                            {t("adminCustomers.services")}: {serviceSummary || t("adminCustomers.noServiceInfo")}
+                                                        </span>
+                                                        <span className="font-medium text-emerald-600">
+                                                            {formatCurrency(item.totalPriceCents)}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="outline">
-                                                        {t(getSourceTranslationKey(item.source))}
-                                                    </Badge>
-                                                    <Badge variant="secondary">
-                                                        {t(getStatusTranslationKey(item.status))}
-                                                    </Badge>
-                                                </div>
-                                            </div>
-                                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-                                                <span>
-                                                    {t("adminCustomers.services")}: {serviceSummary || t("adminCustomers.noServiceInfo")}
-                                                </span>
-                                                <span className="font-medium text-emerald-600">
-                                                    {formatCurrency(item.totalPriceCents)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
+                        </TabsContent>
+
+                        <TabsContent value="group-payments" className="mt-4">
+                            <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+                                {groupPaymentsLoading && !groupPaymentsData ? (
+                                    <div className="flex items-center justify-center py-10">
+                                        <Loader2 className="h-5 w-5 animate-spin text-brand" />
+                                    </div>
+                                ) : groupPaymentsError ? (
+                                    <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                                        {groupPaymentsError}
+                                    </p>
+                                ) : !groupPaymentsData || (groupPaymentsData.rows.length === 0 && groupPaymentsData.payment_plans.length === 0) ? (
+                                    <div className="flex flex-col items-center justify-center py-10 text-slate-500">
+                                        <Clock3 className="h-8 w-8 mb-2" />
+                                        <p className="text-sm">{t("adminCustomers.noGroupPayments")}</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {groupPaymentsData.payment_plans.length > 0 ? (
+                                            <div className="space-y-3">
+                                                {groupPaymentsData.payment_plans.map((plan) => (
+                                                    <div key={plan.enrollment.id} className="rounded-md border border-slate-200 p-3">
+                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                            <div>
+                                                                <p className="text-sm font-medium text-slate-900">{plan.enrollment.group_class?.title || t("adminCustomers.groupPaymentsFallbackClass")}</p>
+                                                                <p className="text-xs text-slate-500">
+                                                                    {t("adminCustomers.groupPlanSummary", {
+                                                                        paid: plan.summary.paid_count,
+                                                                        total: plan.summary.total_installments,
+                                                                    })}
+                                                                </p>
+                                                            </div>
+                                                            <Badge variant="outline">
+                                                                {formatCurrency(plan.summary.paid_amount_cents)}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        <div className="space-y-3">
+                                            {groupPaymentsData.rows.map((row: AdminGroupPaymentRow) => (
+                                                <div key={row.id} className="rounded-md border border-slate-200 p-3">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-slate-900">{row.item_title}</p>
+                                                            <p className="text-xs text-slate-500">
+                                                                {t(`adminGroup.payments.rowTypes.${row.row_type}`)}
+                                                                {row.installment_number ? ` · ${t("adminGroup.payments.installmentNumber", { number: row.installment_number })}` : ""}
+                                                            </p>
+                                                        </div>
+                                                        <Badge variant="secondary">
+                                                            {t(`adminGroup.paymentStatus.${row.payment_status === "PENDING_CONFIRMATION" ? "pendingConfirmation" : row.payment_status.toLowerCase()}`)}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                                                        <span>
+                                                            {row.due_date
+                                                                ? t("adminCustomers.groupPaymentDue", { date: formatDateTime(row.due_date, notAvailable) })
+                                                                : t("adminCustomers.groupPaymentCreated", { date: formatDateTime(row.created_at, notAvailable) })}
+                                                        </span>
+                                                        <span className="font-medium text-emerald-600">
+                                                            {formatCurrency(row.amount_cents)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </TabsContent>
+                    </Tabs>
 
                     <DialogFooter className="flex items-center justify-between">
                         <Button type="button" variant="outline" onClick={() => setHistoryCustomer(null)}>
                             {t("common.close")}
                         </Button>
-                        {historyHasNextPage && (
+                        {historyTab === "bookings" && historyHasNextPage && (
                             <Button
                                 type="button"
                                 onClick={() => void handleLoadMoreHistory()}

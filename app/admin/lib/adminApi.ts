@@ -184,6 +184,30 @@ export interface CustomerHistoryResponse {
     };
 }
 
+export interface InstallmentReminderLogRow {
+    id: number;
+    channel: "WHATSAPP" | "EMAIL";
+    recipient_email: string | null;
+    recipient_phone: string | null;
+    message_subject: string | null;
+    message_body: string | null;
+    sent_at: string;
+    sent_by_admin_id: string | null;
+    sent_by_admin?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+    } | null;
+}
+
+export interface CustomerGroupPaymentsResponse {
+    rows: AdminGroupPaymentRow[];
+    payment_plans: GroupEnrollmentInstallmentPlan[];
+    summary: GroupPaymentsSummary;
+    pagination: CustomerHistoryResponse["pagination"];
+    currency: string | null;
+}
+
 export async function getCustomerHistory(
     customerKey: string,
     page = 1,
@@ -197,6 +221,23 @@ export async function getCustomerHistory(
 
     const response = await apiFetch<{ data: CustomerHistoryResponse }>(
         `/api/admin/customers/history?${query.toString()}`
+    );
+    return response.data;
+}
+
+export async function getCustomerGroupPayments(
+    customerKey: string,
+    page = 1,
+    limit = 25,
+): Promise<CustomerGroupPaymentsResponse> {
+    const query = new URLSearchParams({
+        customer_key: customerKey,
+        page: String(page),
+        limit: String(limit),
+    });
+
+    const response = await apiFetch<{ data: CustomerGroupPaymentsResponse }>(
+        `/api/admin/customers/group-payments?${query.toString()}`
     );
     return response.data;
 }
@@ -824,7 +865,7 @@ export type GroupItemStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type GroupBookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED";
 export type GroupPaymentMethod = "NONE" | "CASH" | "QR";
 export type GroupPaymentStatus = "UNPAID" | "PENDING_CONFIRMATION" | "PAID" | "REJECTED";
-export type GroupPricingMode = "PER_SESSION" | "WEEKLY_PASS" | "MONTHLY_PASS";
+export type GroupPricingMode = "PER_SESSION" | "WEEKLY_PASS" | "MONTHLY_PASS" | "FULL_COURSE";
 export type GroupRecurrenceType = "WEEKLY" | "MONTHLY" | "CUSTOM";
 export type GroupStaffRole = "INSTRUCTOR" | "ASSISTANT";
 export type GroupTicketStatus = "ACTIVE" | "USED" | "CANCELLED" | "EXPIRED";
@@ -1004,6 +1045,119 @@ export interface GroupClassEnrollment {
         email: string | null;
         phoneNumber: string | null;
     };
+}
+
+export interface GroupEnrollmentInstallment {
+    id: number;
+    enrollment_id: number;
+    installment_number: number;
+    due_date: string;
+    amount_cents: number;
+    payment_status: GroupPaymentStatus;
+    payment_method: GroupPaymentMethod;
+    qr_proof_image_url: string | null;
+    paid_at: string | null;
+    marked_paid_by_admin_id: string | null;
+    marked_paid_by_admin?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+    } | null;
+    created_at: string;
+    updated_at: string;
+    derived_status?: GroupPaymentStatus | "OVERDUE";
+    is_overdue?: boolean;
+    last_reminder_at?: string | null;
+    last_reminder_channel?: "WHATSAPP" | "EMAIL" | null;
+    reminder_logs?: InstallmentReminderLogRow[];
+}
+
+export interface GroupInstallmentPlanSummary {
+    total_installments: number;
+    paid_count: number;
+    pending_count: number;
+    overdue_count: number;
+    next_due_date: string | null;
+    current_month_status: GroupPaymentStatus | "OVERDUE" | null;
+    total_amount_cents: number;
+    paid_amount_cents: number;
+}
+
+export interface GroupEnrollmentInstallmentPlan {
+    enrollment: GroupClassEnrollment & {
+        company?: {
+            id: number;
+            name: string;
+            slug: string;
+            currency: string;
+        } | null;
+        user?: {
+            id: string;
+            name: string | null;
+            email: string | null;
+            phoneNumber: string | null;
+            phone_prefix?: string | null;
+        } | null;
+        group_class?: {
+            id: number;
+            title: string;
+            slug: string;
+            pricing_mode: GroupPricingMode;
+            cover_image_url?: string | null;
+            thumbnail_url?: string | null;
+            recurrence_end_date?: string | null;
+            location_text?: string | null;
+        } | null;
+    };
+    installments: GroupEnrollmentInstallment[];
+    summary: GroupInstallmentPlanSummary;
+}
+
+export interface AdminGroupPaymentRow {
+    id: string;
+    row_type: "EVENT_PAYMENT" | "CLASS_PAYMENT" | "INSTALLMENT";
+    item_id: number;
+    item_title: string;
+    class_id: number | null;
+    event_id: number | null;
+    class_slug: string | null;
+    event_slug: string | null;
+    enrollment_id: number | null;
+    event_booking_id: number | null;
+    installment_id: number | null;
+    installment_number: number | null;
+    customer_key: string;
+    customer_name: string;
+    customer_email: string | null;
+    customer_phone: string | null;
+    customer_phone_prefix: string | null;
+    user_id: string | null;
+    amount_cents: number;
+    due_date: string | null;
+    paid_at: string | null;
+    payment_method: GroupPaymentMethod;
+    payment_status: GroupPaymentStatus;
+    booking_status: GroupBookingStatus | null;
+    qr_proof_image_url: string | null;
+    created_at: string;
+    last_reminder_at: string | null;
+    last_reminder_channel: "WHATSAPP" | "EMAIL" | null;
+    is_overdue: boolean;
+}
+
+export interface GroupPaymentsSummary {
+    total_rows: number;
+    unpaid_total_cents: number;
+    overdue_installments: number;
+    qr_pending_confirmations: number;
+    paid_this_month_cents: number;
+}
+
+export interface GroupPaymentsLedgerResponse {
+    rows: AdminGroupPaymentRow[];
+    summary: GroupPaymentsSummary;
+    pagination: CustomerHistoryResponse["pagination"];
+    currency: string | null;
 }
 
 export interface GroupAttendanceRow {
@@ -1383,6 +1537,10 @@ export async function unconfirmGroupEventBooking(bookingId: number): Promise<voi
     await apiFetch(`/api/admin/group/events/bookings/${bookingId}/unconfirm`, { method: "POST" });
 }
 
+export async function approveGroupEventBookingQrPayment(bookingId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/events/bookings/${bookingId}/approve-qr`, { method: "POST" });
+}
+
 export async function cancelGroupEventBooking(bookingId: number): Promise<void> {
     await apiFetch(`/api/admin/group/events/bookings/${bookingId}/cancel`, { method: "POST" });
 }
@@ -1484,6 +1642,92 @@ export async function cancelGroupClassEnrollment(enrollmentId: number): Promise<
 
 export async function confirmGroupClassEnrollmentPayment(enrollmentId: number): Promise<void> {
     await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/confirm-payment`, { method: "POST" });
+}
+
+export async function listGroupEnrollmentInstallments(enrollmentId: number): Promise<GroupEnrollmentInstallmentPlan> {
+    const response = await apiFetch<{ data: GroupEnrollmentInstallmentPlan }>(`/api/admin/group/classes/enrollments/${enrollmentId}/installments`);
+    return response.data;
+}
+
+export async function markGroupEnrollmentInstallmentPaid(
+    enrollmentId: number,
+    installmentId: number,
+    paymentMethod: Extract<GroupPaymentMethod, "CASH" | "QR">,
+): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/installments/${installmentId}/mark-paid`, {
+        method: "POST",
+        body: JSON.stringify({ payment_method: paymentMethod }),
+    });
+}
+
+export async function confirmGroupEnrollmentInstallmentQr(enrollmentId: number, installmentId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/classes/enrollments/${enrollmentId}/installments/${installmentId}/confirm-qr`, {
+        method: "POST",
+    });
+}
+
+export async function getGroupPayments(params?: {
+    search?: string;
+    customer_key?: string;
+    class_id?: number;
+    payment_status?: GroupPaymentStatus;
+    payment_method?: GroupPaymentMethod;
+    row_type?: "EVENT_PAYMENT" | "CLASS_PAYMENT" | "INSTALLMENT";
+    due_window?: "TODAY" | "7_DAYS" | "30_DAYS" | "OVERDUE";
+    overdue_only?: boolean;
+    page?: number;
+    limit?: number;
+}): Promise<GroupPaymentsLedgerResponse> {
+    const query = buildGroupQuery({
+        search: params?.search,
+        customer_key: params?.customer_key,
+        class_id: params?.class_id,
+        payment_status: params?.payment_status,
+        payment_method: params?.payment_method,
+        row_type: params?.row_type,
+        due_window: params?.due_window,
+        overdue_only: params?.overdue_only,
+        page: params?.page,
+        limit: params?.limit,
+    });
+    const response = await apiFetch<{ data: GroupPaymentsLedgerResponse }>(`/api/admin/group/payments${query}`);
+    return response.data;
+}
+
+export async function sendGroupInstallmentReminder(installmentId: number): Promise<void> {
+    await apiFetch(`/api/admin/group/installments/${installmentId}/reminders/send`, {
+        method: "POST",
+    });
+}
+
+export async function bulkSendGroupInstallmentReminders(payload: {
+    installment_ids?: number[];
+    overdue_only?: boolean;
+    class_id?: number;
+    customer_key?: string;
+}): Promise<{
+    total: number;
+    sent: number;
+    skipped: number;
+    failed: number;
+    results: Array<{ installment_id: number; status: "sent" | "skipped" | "failed"; message: string }>;
+}> {
+    const response = await apiFetch<{ data: {
+        total: number;
+        sent: number;
+        skipped: number;
+        failed: number;
+        results: Array<{ installment_id: number; status: "sent" | "skipped" | "failed"; message: string }>;
+    } }>("/api/admin/group/installments/reminders/bulk-send", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function listGroupInstallmentReminders(installmentId: number): Promise<InstallmentReminderLogRow[]> {
+    const response = await apiFetch<{ data: InstallmentReminderLogRow[] }>(`/api/admin/group/installments/${installmentId}/reminders`);
+    return response.data;
 }
 
 export async function issueGroupClassEnrollmentTicket(enrollmentId: number): Promise<void> {
