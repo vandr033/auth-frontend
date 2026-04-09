@@ -1274,7 +1274,7 @@ export default function GroupClassDetailPage() {
                     {qrProofDialog ? (
                         <div className="flex flex-col items-center gap-3 py-2">
                             <img
-                                src={qrProofDialog}
+                                src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${qrProofDialog}`}
                                 alt="QR proof"
                                 className="max-h-80 w-full rounded-lg border border-slate-200 object-contain"
                             />
