@@ -62,18 +62,16 @@ export function HeroCTAButtons({
                 const href = getCTAHref(btn.destination, slug);
                 const isPrimary = idx === 0;
 
+                const sharedClass =
+                    "inline-flex h-11 min-w-[140px] items-center justify-center rounded-md px-6 text-base font-semibold transition focus-visible:outline-none";
+
                 if (isPrimary) {
                     const bg = hexToRgba(btn.color, btn.opacity);
                     return (
                         <Link key={btn.destination} href={href}>
                             <button
-                                style={
-                                    {
-                                        "--cta-bg": bg,
-                                        backgroundColor: "var(--cta-bg)",
-                                    } as React.CSSProperties
-                                }
-                                className="inline-flex min-w-[160px] items-center justify-center rounded-md px-5 py-3 text-base font-semibold text-white shadow-card transition focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 hover:opacity-90"
+                                style={{ backgroundColor: bg }}
+                                className={`${sharedClass} text-white shadow-card hover:opacity-90`}
                             >
                                 {btn.label}
                             </button>
@@ -84,16 +82,16 @@ export function HeroCTAButtons({
                 const ghostColor = hexToRgba(btn.color, btn.opacity);
                 return (
                     <Link key={btn.destination} href={href}>
-                        <Button
+                        <button
                             style={{
                                 borderColor: ghostColor,
                                 color: ghostColor,
                                 backgroundColor: "transparent",
                             }}
-                            className="border font-semibold backdrop-blur-sm transition hover:opacity-80"
+                            className={`${sharedClass} border backdrop-blur-sm hover:opacity-80`}
                         >
                             {btn.label}
-                        </Button>
+                        </button>
                     </Link>
                 );
             })}
