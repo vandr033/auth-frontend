@@ -718,27 +718,6 @@ export default function EditShopPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="hidden md:flex gap-4 pt-4 border-t">
-                            <Link href="/admin/super-admin/shops" className="flex-1">
-                                <Button type="button" variant="outline" className="w-full">
-                                    {t("common.cancel")}
-                                </Button>
-                            </Link>
-                            <Button
-                                type="submit"
-                                disabled={submitting}
-                                className="flex-1 bg-brand hover:bg-brand-hover"
-                            >
-                                {submitting ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        {t("superAdminShops.saving")}
-                                    </>
-                                ) : (
-                                    t("adminBookings.saveChanges")
-                                )}
-                            </Button>
-                        </div>
                         <StickyFormActions
                             type="submit"
                             loading={submitting}

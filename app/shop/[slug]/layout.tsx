@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: ShopLayoutProps): Promise<Met
 
     return {
         title: `${branding.name} - By PriConPri`,
-        manifest: `/api/manifest/${encodeURIComponent(branding.slug)}.json`,
+        manifest: `/shop-manifest/${encodeURIComponent(branding.slug)}`,
         appleWebApp: {
             capable: true,
             statusBarStyle: "default",

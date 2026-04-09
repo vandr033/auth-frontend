@@ -24,7 +24,12 @@ type RawShopService = Omit<ShopService, "required_resource_ids"> & {
 };
 
 export type RawShopData = Omit<ShopData, "staff" | "hours" | "services"> & {
-    company: ShopCompany & { hours?: ShopHours[] };
+    company: ShopCompany & {
+        hours?: ShopHours[];
+        hero_home_url?: string | null;
+        about_hero_image_url?: string | null;
+        hero_about_url?: string | null;
+    };
     staff: RawShopStaff[];
     services: RawShopService[];
     hours?: ShopHours[];
@@ -42,8 +47,25 @@ export const resolvePublicApiUrl = (url: string) => {
 };
 
 export function normalizeShopData(rawData: RawShopData): ShopData {
+    const normalizedCompany: ShopCompany = {
+        ...rawData.company,
+        home_hero_image_url:
+            rawData.company.home_hero_image_url ??
+            rawData.company.hero_home_url ??
+            undefined,
+        about_hero_image_url:
+            rawData.company.about_hero_image_url ??
+            rawData.company.hero_about_url ??
+            undefined,
+        hero_about_url:
+            rawData.company.hero_about_url ??
+            rawData.company.about_hero_image_url ??
+            undefined,
+    };
+
     return {
         ...rawData,
+        company: normalizedCompany,
         hours: rawData.company?.hours || rawData.hours || [],
         staff: (rawData.staff || []).map((member) => ({
             ...member,

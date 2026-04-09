@@ -16,6 +16,7 @@ import {
   type PublicGroupClassSession,
 } from "@/app/shop/lib/groupReservationsApi";
 import { GroupClassCard } from "@/app/shop/components/group/GroupPublicCards";
+import { getImageUrl } from "@/utils/image-url";
 
 function hasUpcomingSession(sessions: PublicGroupClassSession[]): boolean {
   const now = Date.now();
@@ -126,7 +127,7 @@ export default function ShopClassesPage() {
     );
   }
 
-  const heroImage = company?.home_hero_image_url;
+  const heroImage = getImageUrl(company?.home_hero_image_url);
 
   return (
     <main className="min-h-screen bg-page text-text-main">

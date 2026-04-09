@@ -15,6 +15,31 @@ interface ShareButtonProps {
     label?: string;
 }
 
+function sanitizeShareText(value?: string) {
+    if (!value) return undefined;
+
+    const fallback = value
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&quot;/gi, "\"")
+        .replace(/&#39;/gi, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (typeof document === "undefined") {
+        return fallback || undefined;
+    }
+
+    const container = document.createElement("div");
+    container.innerHTML = value;
+
+    return (container.textContent ?? container.innerText ?? fallback)
+        .replace(/\u00a0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim() || undefined;
+}
+
 export function ShareButton({
     title,
     text,
@@ -28,11 +53,13 @@ export function ShareButton({
     const [copied, setCopied] = React.useState(false);
 
     const shareUrl = url ?? (typeof window !== "undefined" ? window.location.href : "");
+    const shareTitle = sanitizeShareText(title) ?? title;
+    const shareText = sanitizeShareText(text);
 
     const handleShare = async () => {
         if (typeof navigator !== "undefined" && navigator.share) {
             try {
-                await navigator.share({ title, text, url: shareUrl });
+                await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
             } catch {
                 // User cancelled or error — no action needed
             }

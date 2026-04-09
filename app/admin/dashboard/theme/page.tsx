@@ -239,25 +239,6 @@ export default function ThemePage() {
                     <h1 className="text-2xl font-bold tracking-tight text-text-main sm:text-3xl">{t('adminTheme.title')}</h1>
                     <p className="text-text-muted">{t('adminTheme.subtitle')}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="hidden md:inline-flex bg-brand text-white hover:bg-brand-hover min-w-[120px]"
-                    >
-                        {saving ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                {t('adminTheme.saving')}
-                            </>
-                        ) : (
-                            <>
-                                <Save className="mr-2 h-4 w-4" />
-                                {t('common.save')}
-                            </>
-                        )}
-                    </Button>
-                </div>
             </div>
 
             <div className="flex flex-col gap-10">

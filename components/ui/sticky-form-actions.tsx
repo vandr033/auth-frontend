@@ -39,8 +39,37 @@ export function StickyFormActions({
 
   return (
     <>
-      {/* Spacer for mobile so content isn't hidden behind the fixed bar */}
+      {/* Spacer so page content doesn't end beneath the action bar */}
+      <div className="hidden md:block h-24" />
       <div className="h-20 md:hidden" />
+
+      <div className="sticky bottom-4 z-20 hidden md:block">
+        <div className="ml-auto flex w-full max-w-xl gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-white/85">
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="flex-1"
+            >
+              {cancelLabel}
+            </Button>
+          )}
+          <Button
+            type={type}
+            onClick={type === "button" ? onSave : undefined}
+            disabled={loading || disabled}
+            className={cn("flex-1", saveClassName)}
+          >
+            {loading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : saveIcon ? (
+              <span className="mr-2 flex items-center">{saveIcon}</span>
+            ) : null}
+            {loading ? loadingLabel : saveLabel}
+          </Button>
+        </div>
+      </div>
 
       {/* Mobile: fixed bottom bar */}
       <div

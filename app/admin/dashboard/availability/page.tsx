@@ -380,12 +380,6 @@ export default function AvailabilityPage() {
 
             {isOwnerOrAdmin && (
                 <>
-                    <div className="pt-2 hidden md:block">
-                        <Button onClick={saveSchedule} disabled={savingSchedule}>
-                            {savingSchedule ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                            {t("adminAvailability.saveSchedule")}
-                        </Button>
-                    </div>
                     <StickyFormActions
                         onSave={saveSchedule}
                         loading={savingSchedule}
@@ -423,12 +417,6 @@ export default function AvailabilityPage() {
                             onChange={(e) => setReason(e.target.value)}
                             placeholder={t("adminAvailability.reasonPlaceholder")}
                         />
-                    </div>
-                    <div className="hidden md:block">
-                        <Button onClick={submitTimeOff} disabled={submittingRequest}>
-                            {submittingRequest ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                            {t("adminAvailability.submitRequest")}
-                        </Button>
                     </div>
                     <StickyFormActions
                         onSave={submitTimeOff}

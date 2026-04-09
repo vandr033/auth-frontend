@@ -14,6 +14,7 @@ import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { listPublicEvents, type PublicGroupEvent } from "@/app/shop/lib/groupReservationsApi";
 import { GroupEventCard } from "@/app/shop/components/group/GroupPublicCards";
 import { isEventSoldOut } from "@/app/shop/lib/groupReservationsFormat";
+import { getImageUrl } from "@/utils/image-url";
 
 type EventFilter = "all" | "free" | "paid";
 
@@ -113,7 +114,7 @@ export default function ShopEventsPage() {
     { key: "paid", label: t("shopGroup.events.filterPaid") },
   ];
 
-  const heroImage = company.home_hero_image_url;
+  const heroImage = getImageUrl(company.home_hero_image_url);
 
   return (
     <main className="min-h-screen bg-page text-text-main">

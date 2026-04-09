@@ -333,23 +333,6 @@ export default function HoursPage() {
                     <h1 className="text-2xl font-bold text-slate-900">{t('adminHours.title')}</h1>
                     <p className="text-slate-500">{t('adminHours.subtitle')}</p>
                 </div>
-                <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="hidden md:inline-flex bg-orange-500 hover:bg-orange-600 text-white"
-                >
-                    {saving ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            {t('adminHours.saving')}
-                        </>
-                    ) : (
-                        <>
-                            <Check className="h-4 w-4 mr-2" />
-                            {t('common.save')}
-                        </>
-                    )}
-                </Button>
             </div>
 
             {/* Schedule Form */}

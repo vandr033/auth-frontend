@@ -434,23 +434,6 @@ export default function SettingsPage() {
                     <h1 className="text-2xl font-bold text-slate-900">{t('adminSettings.title')}</h1>
                     <p className="text-slate-500">{t('adminSettings.subtitle')}</p>
                 </div>
-                <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="hidden md:inline-flex bg-orange-500 hover:bg-orange-600 text-white"
-                >
-                    {saving ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            {t('adminSettings.saving')}
-                        </>
-                    ) : (
-                        <>
-                            <Save className="h-4 w-4 mr-2" />
-                            {t('common.save')}
-                        </>
-                    )}
-                </Button>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 min-w-0">

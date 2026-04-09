@@ -66,8 +66,8 @@ export default function AboutPage() {
                 <div
                     className="absolute inset-0"
                     style={{
-                        backgroundImage: company.hero_about_url
-                            ? `url('${getImageUrl(company.hero_about_url)}')`
+                        backgroundImage: company.about_hero_image_url ?? company.hero_about_url
+                            ? `url('${getImageUrl(company.about_hero_image_url ?? company.hero_about_url)}')`
                             : company.home_hero_image_url
                                 ? `url('${getImageUrl(company.home_hero_image_url)}')`
                                 : "url('/assets/barberShop.png')",

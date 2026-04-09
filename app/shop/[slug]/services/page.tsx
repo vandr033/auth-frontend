@@ -11,6 +11,7 @@ import { ServicesWrapper } from "@/components/shop/services/ServicesWrapper";
 import { FloatingBookCTA } from "@/components/shop/FloatingBookCTA";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
+import { getImageUrl } from "@/utils/image-url";
 
 // Icon mapping for categories
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -90,7 +91,7 @@ export default function ServicesPage() {
         return <ShopUnavailableState slug={slug} />;
     }
 
-    const heroImage = company.home_hero_image_url;
+    const heroImage = getImageUrl(company.home_hero_image_url);
 
     return (
         <main className="min-h-screen bg-page text-text-main">

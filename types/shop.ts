@@ -45,6 +45,7 @@ export interface ShopCompany {
     currency?: string;
     logo_url?: string;
     home_hero_image_url?: string;
+    about_hero_image_url?: string;
     hero_about_url?: string;
     about_image_1_url?: string;
     about_image_2_url?: string;

@@ -347,18 +347,6 @@ export default function AdminProfilePage() {
                 </CardContent>
             </Card>
 
-            <div className="pt-2 hidden md:block">
-                <Button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={saving || firstName.trim().length === 0}
-                    className="bg-brand hover:bg-brand-hover text-white"
-                >
-                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                    {saving ? t("staffProfile.saving") : t("staffProfile.save")}
-                </Button>
-            </div>
-
             <StickyFormActions
                 onSave={handleSave}
                 loading={saving}
