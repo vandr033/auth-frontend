@@ -90,19 +90,42 @@ export default function ServicesPage() {
         return <ShopUnavailableState slug={slug} />;
     }
 
+    const heroImage = company.home_hero_image_url;
+
     return (
         <main className="min-h-screen bg-page text-text-main">
             {/* Header */}
-            <div className="border-b border-surface-border bg-surface py-8">
-                <div className="mx-auto max-w-6xl px-4 md:px-8">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
-                        {t('shopServices.fullMenu')}
-                    </p>
-                    <h1 className="mt-2 font-heading text-3xl font-bold text-text-main md:text-4xl">
-                        {t('shopServices.title')}
-                    </h1>
+            {heroImage ? (
+                <div
+                    className="relative flex items-end px-4 py-12 md:px-8 md:py-16"
+                    style={{
+                        backgroundImage: `url('${heroImage}')`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                    }}
+                >
+                    <div className="absolute inset-0 bg-black/55" />
+                    <div className="relative z-10 mx-auto w-full max-w-6xl">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70 font-body">
+                            {t('shopServices.fullMenu')}
+                        </p>
+                        <h1 className="mt-2 font-heading text-3xl font-bold text-white md:text-4xl">
+                            {t('shopServices.title')}
+                        </h1>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="border-b border-surface-border bg-surface py-8">
+                    <div className="mx-auto max-w-6xl px-4 md:px-8">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                            {t('shopServices.fullMenu')}
+                        </p>
+                        <h1 className="mt-2 font-heading text-3xl font-bold text-text-main md:text-4xl">
+                            {t('shopServices.title')}
+                        </h1>
+                    </div>
+                </div>
+            )}
 
             {/* Mobile: Horizontal pill bar (sticky) */}
             <div className="sticky top-0 z-30 border-b border-surface-border bg-surface/95 backdrop-blur-sm md:hidden">

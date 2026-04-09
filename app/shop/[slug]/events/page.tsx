@@ -113,38 +113,77 @@ export default function ShopEventsPage() {
     { key: "paid", label: t("shopGroup.events.filterPaid") },
   ];
 
+  const heroImage = company.home_hero_image_url;
+
   return (
     <main className="min-h-screen bg-page text-text-main">
-      <section className="border-b border-surface-border bg-surface py-8">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 md:px-8">
-          <Button asChild variant="outline" className="w-fit">
-            <Link href={`/shop/${slug}`}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t("shopGroup.actions.backToShop")}
-            </Link>
-          </Button>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">{t("shopGroup.events.eyebrow")}</p>
-          <h1 className="font-heading text-3xl font-bold text-text-main md:text-4xl">{t("shopGroup.events.title")}</h1>
-          <p className="text-sm text-text-muted">{t("shopGroup.events.subtitle")}</p>
-
-          {/* Filter chips */}
-          <div className="mt-1 flex flex-wrap gap-2">
-            {filters.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveFilter(key)}
-                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-                  activeFilter === key
-                    ? "border-brand bg-brand text-white"
-                    : "border-surface-border bg-surface text-text-muted hover:border-brand hover:text-brand"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+      {heroImage ? (
+        <div
+          className="relative px-4 pt-8 pb-10 md:px-8 md:pb-12"
+          style={{
+            backgroundImage: `url('${heroImage}')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="absolute inset-0 bg-black/55" />
+          <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-3">
+            <Button asChild variant="outline" className="w-fit border-white/40 bg-white/10 text-white hover:bg-white/20">
+              <Link href={`/shop/${slug}`}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {t("shopGroup.actions.backToShop")}
+              </Link>
+            </Button>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">{t("shopGroup.events.eyebrow")}</p>
+            <h1 className="font-heading text-3xl font-bold text-white md:text-4xl">{t("shopGroup.events.title")}</h1>
+            <p className="text-sm text-white/80">{t("shopGroup.events.subtitle")}</p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {filters.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveFilter(key)}
+                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                    activeFilter === key
+                      ? "border-white bg-white text-black"
+                      : "border-white/40 bg-white/10 text-white hover:bg-white/20"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+      ) : (
+        <section className="border-b border-surface-border bg-surface py-8">
+          <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 md:px-8">
+            <Button asChild variant="outline" className="w-fit">
+              <Link href={`/shop/${slug}`}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {t("shopGroup.actions.backToShop")}
+              </Link>
+            </Button>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">{t("shopGroup.events.eyebrow")}</p>
+            <h1 className="font-heading text-3xl font-bold text-text-main md:text-4xl">{t("shopGroup.events.title")}</h1>
+            <p className="text-sm text-text-muted">{t("shopGroup.events.subtitle")}</p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {filters.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveFilter(key)}
+                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                    activeFilter === key
+                      ? "border-brand bg-brand text-white"
+                      : "border-surface-border bg-surface text-text-muted hover:border-brand hover:text-brand"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="mx-auto max-w-6xl px-4 py-8 md:px-8">
         {eventsLoading ? (

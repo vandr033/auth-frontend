@@ -164,17 +164,17 @@ export default function ShopPage() {
 
             {/* 3. About Snippet */}
             {company.about_us_text && (
-                <section className="py-16 md:py-24">
+                <section className="py-10 md:py-14">
                     <div className="mx-auto max-w-6xl px-4 md:px-8">
                         <div className="mx-auto max-w-3xl text-center">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
                                 {t('shopHome.aboutUs')}
                             </p>
-                            <p className="mt-4 font-heading text-xl leading-relaxed text-text-main md:text-2xl">
+                            <p className="mt-3 font-heading text-xl leading-relaxed text-text-main md:text-2xl">
                                 {company.about_us_text}
                             </p>
                             <Link href={`/shop/${slug}/about`}>
-                                <Button variant="ghost" className="mt-6 text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
+                                <Button variant="ghost" className="mt-4 text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
                                     {t('shopHome.learnMore')} →
                                 </Button>
                             </Link>
@@ -185,7 +185,7 @@ export default function ShopPage() {
 
             {/* 4. Services Preview */}
             {services.length > 0 && (
-                <section className="py-16 md:py-24">
+                <section className="py-10 md:py-16">
                     <div className="mx-auto max-w-6xl px-4 md:px-8">
                         <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                             <div>
@@ -208,7 +208,7 @@ export default function ShopPage() {
             )}
 
             {canSeeEvents && !groupsLoading && visibleEvents.length > 0 && (
-                <section className="py-16 md:py-24">
+                <section className="py-10 md:py-16">
                     <div className="mx-auto max-w-6xl px-4 md:px-8">
                         <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                             <div>
@@ -241,7 +241,7 @@ export default function ShopPage() {
             )}
 
             {canSeeClasses && !groupsLoading && classes.length > 0 && (
-                <section className="bg-section py-16 md:py-24">
+                <section className="bg-section py-10 md:py-16">
                     <div className="mx-auto max-w-6xl px-4 md:px-8">
                         <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                             <div>
@@ -276,7 +276,7 @@ export default function ShopPage() {
 
             {/* 5. Team */}
             {staff.length > 0 && (
-                <section className="bg-section py-16 md:py-24">
+                <section className="bg-section py-10 md:py-16">
                     <div className="mx-auto max-w-6xl px-4 md:px-8">
                         <div className="mb-8">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
