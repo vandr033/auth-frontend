@@ -14,6 +14,9 @@ export type PlanFeatureKey =
     | "REVIEW_REQUEST_WHATSAPP"
     | "BOOKING_FLOW_CUSTOMIZATION"
     | "HOME_CTA_CUSTOMIZATION"
+    | "HOME_SECTION_ORDER"
+    | "FOOTER_CUSTOMIZATION"
+    | "ANNOUNCEMENT_BANNERS"
     | "BULK_WHATSAPP_MESSAGING"
     | "BULK_EMAIL_CAMPAIGNS"
     | "OUTREACH_REACTIVATION_TOOLS"
@@ -40,6 +43,9 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             REVIEW_ANALYTICS: false,
             BOOKING_FLOW_CUSTOMIZATION: false,
             HOME_CTA_CUSTOMIZATION: false,
+            HOME_SECTION_ORDER: false,
+            FOOTER_CUSTOMIZATION: false,
+            ANNOUNCEMENT_BANNERS: false,
             REVIEW_REQUEST_REMINDERS: false,
             REVIEW_REQUEST_EMAIL: false,
             REVIEW_REQUEST_WHATSAPP: false,
@@ -64,6 +70,9 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             REVIEW_ANALYTICS: true,
             BOOKING_FLOW_CUSTOMIZATION: true,
             HOME_CTA_CUSTOMIZATION: false,
+            HOME_SECTION_ORDER: true,
+            FOOTER_CUSTOMIZATION: true,
+            ANNOUNCEMENT_BANNERS: false,
             REVIEW_REQUEST_REMINDERS: false,
             REVIEW_REQUEST_EMAIL: false,
             REVIEW_REQUEST_WHATSAPP: false,
@@ -88,6 +97,9 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             REVIEW_ANALYTICS: true,
             BOOKING_FLOW_CUSTOMIZATION: true,
             HOME_CTA_CUSTOMIZATION: true,
+            HOME_SECTION_ORDER: true,
+            FOOTER_CUSTOMIZATION: true,
+            ANNOUNCEMENT_BANNERS: true,
             REVIEW_REQUEST_REMINDERS: true,
             REVIEW_REQUEST_EMAIL: true,
             REVIEW_REQUEST_WHATSAPP: true,
@@ -112,6 +124,9 @@ export const FEATURE_REQUIRED_PLAN: Record<PlanFeatureKey, ShopPlan> = {
     REVIEW_ANALYTICS: "BUSINESS",
     BOOKING_FLOW_CUSTOMIZATION: "BUSINESS",
     HOME_CTA_CUSTOMIZATION: "PRO",
+    HOME_SECTION_ORDER: "BUSINESS",
+    FOOTER_CUSTOMIZATION: "BUSINESS",
+    ANNOUNCEMENT_BANNERS: "PRO",
     REVIEW_REQUEST_REMINDERS: "PRO",
     REVIEW_REQUEST_EMAIL: "PRO",
     REVIEW_REQUEST_WHATSAPP: "PRO",
@@ -162,6 +177,9 @@ export const FEATURE_DESCRIPTION_KEY: Record<PlanFeatureKey, string> = {
     REVIEW_ANALYTICS: "planEnforcement.desc.reviewAnalytics",
     BOOKING_FLOW_CUSTOMIZATION: "planEnforcement.desc.bookingFlowCustomization",
     HOME_CTA_CUSTOMIZATION: "planEnforcement.desc.homeCTACustomization",
+    HOME_SECTION_ORDER: "planEnforcement.desc.homeSectionOrder",
+    FOOTER_CUSTOMIZATION: "planEnforcement.desc.footerCustomization",
+    ANNOUNCEMENT_BANNERS: "planEnforcement.desc.announcementBanners",
     REVIEW_REQUEST_REMINDERS: "planEnforcement.desc.reviewRequestReminders",
     REVIEW_REQUEST_EMAIL: "planEnforcement.desc.reviewRequestEmail",
     REVIEW_REQUEST_WHATSAPP: "planEnforcement.desc.reviewRequestWhatsapp",
@@ -187,6 +205,9 @@ export const FEATURE_LABEL_KEY: Record<PlanFeatureKey, string> = {
     REVIEW_ANALYTICS: "planEnforcement.label.reviewAnalytics",
     BOOKING_FLOW_CUSTOMIZATION: "planEnforcement.label.bookingFlowCustomization",
     HOME_CTA_CUSTOMIZATION: "planEnforcement.label.homeCTACustomization",
+    HOME_SECTION_ORDER: "planEnforcement.label.homeSectionOrder",
+    FOOTER_CUSTOMIZATION: "planEnforcement.label.footerCustomization",
+    ANNOUNCEMENT_BANNERS: "planEnforcement.label.announcementBanners",
     REVIEW_REQUEST_REMINDERS: "planEnforcement.label.reviewRequestReminders",
     REVIEW_REQUEST_EMAIL: "planEnforcement.label.reviewRequestEmail",
     REVIEW_REQUEST_WHATSAPP: "planEnforcement.label.reviewRequestWhatsapp",

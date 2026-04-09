@@ -94,6 +94,43 @@ export interface ShopHours {
     is_closed: boolean;
 }
 
+export type HomeSectionKey = 'about' | 'services' | 'events' | 'classes' | 'team';
+export const DEFAULT_SECTION_ORDER: HomeSectionKey[] = ['about', 'services', 'events', 'classes', 'team'];
+
+export interface AnnouncementBanner {
+    id: string;           // stable UUID used as localStorage dismissal key
+    message: string;
+    link_url?: string | null;
+    link_label?: string | null;
+    background_color: string;
+    text_color: string;
+    enabled: boolean;
+    expires_at?: string | null; // ISO date string
+}
+
+export interface FooterConfig {
+    tagline?: string | null;
+    show_address: boolean;
+    show_phone: boolean;
+    show_email: boolean;
+    nav_links: { key: string; enabled: boolean }[];
+}
+
+export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
+    tagline: null,
+    show_address: true,
+    show_phone: true,
+    show_email: true,
+    nav_links: [
+        { key: 'home', enabled: true },
+        { key: 'services', enabled: true },
+        { key: 'events', enabled: true },
+        { key: 'classes', enabled: true },
+        { key: 'about', enabled: true },
+        { key: 'book', enabled: true },
+    ],
+};
+
 export interface ShopTheme {
     brand_color: string;
     page_background_color: string;
@@ -105,6 +142,9 @@ export interface ShopTheme {
     services_variant: ServicesVariant;
     team_variant: TeamVariant;
     home_cta_buttons?: HomeCTAButton[] | null;
+    home_section_order?: HomeSectionKey[] | null;
+    footer_config?: FooterConfig | null;
+    announcement_banners?: AnnouncementBanner[] | null;
 }
 
 export interface ShopSettings {

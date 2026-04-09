@@ -5,21 +5,38 @@ import { MapPin, Phone, Mail } from "lucide-react";
 import { SocialIcons } from "./SocialIcons";
 import { useShop } from "@/app/shop/contexts/ShopContext";
 import { useT } from "@/lib/i18n";
+import { DEFAULT_FOOTER_CONFIG } from "@/types/shop";
+import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 
 const PRICONPRI_DEMO_HREF = "https://cal.com/priconpri/demo";
 
+const ALL_NAV_LINKS = (slug: string, t: (key: string) => string) => [
+    { key: 'home', label: t('shopNav.home'), href: `/shop/${slug}` },
+    { key: 'services', label: t('shopNav.services'), href: `/shop/${slug}/services` },
+    { key: 'events', label: t('shopNav.events'), href: `/shop/${slug}/events` },
+    { key: 'classes', label: t('shopNav.classes'), href: `/shop/${slug}/classes` },
+    { key: 'about', label: t('shopNav.about'), href: `/shop/${slug}/about` },
+    { key: 'book', label: t('common.bookNow'), href: `/shop/${slug}/book` },
+];
+
 export function ShopFooter() {
-    const { company, socialLinks, slug } = useShop();
+    const { company, socialLinks, slug, footerConfig } = useShop();
     const t = useT();
 
     if (!company) return null;
 
-    const navLinks = [
-        { label: t('shopNav.home'), href: `/shop/${slug}` },
-        { label: t('shopNav.services'), href: `/shop/${slug}/services` },
-        { label: t('shopNav.about'), href: `/shop/${slug}/about` },
-        { label: t('common.bookNow'), href: `/shop/${slug}/book` },
-    ];
+    const plan = resolveShopPlan(company.plan);
+    const canCustomizeFooter = canUsePlanFeature(plan, "FOOTER_CUSTOMIZATION");
+
+    // Use footer config if plan supports it and config exists, otherwise use defaults
+    const config = (canCustomizeFooter && footerConfig) ? footerConfig : DEFAULT_FOOTER_CONFIG;
+
+    const allLinks = ALL_NAV_LINKS(slug, t);
+    const navLinks = allLinks.filter((link) => {
+        const found = config.nav_links.find((n) => n.key === link.key);
+        // If not in config, default to enabled
+        return found ? found.enabled : true;
+    });
 
     return (
         <footer className="border-t border-surface-border bg-section">
@@ -30,14 +47,17 @@ export function ShopFooter() {
                         <h3 className="font-heading text-xl font-bold text-text-main">
                             {company.name}
                         </h3>
+                        {config.tagline && (
+                            <p className="text-sm text-text-muted">{config.tagline}</p>
+                        )}
                         <div className="space-y-2 text-sm text-text-muted">
-                            {company.address && (
+                            {config.show_address && company.address && (
                                 <div className="flex items-start gap-2">
                                     <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span>{company.address}{company.city ? `, ${company.city}` : ""}</span>
                                 </div>
                             )}
-                            {company.phone && (
+                            {config.show_phone && company.phone && (
                                 <a
                                     href={`tel:+${company.phone_prefix}${company.phone}`}
                                     className="flex items-center gap-2 transition-colors hover:text-brand"
@@ -46,7 +66,7 @@ export function ShopFooter() {
                                     <span>+{company.phone_prefix} {company.phone}</span>
                                 </a>
                             )}
-                            {company.email && (
+                            {config.show_email && company.email && (
                                 <a
                                     href={`mailto:${company.email}`}
                                     className="flex items-center gap-2 transition-colors hover:text-brand"

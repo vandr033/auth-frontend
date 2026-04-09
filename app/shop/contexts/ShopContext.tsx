@@ -25,6 +25,9 @@ import type {
     FontPairing,
     SocialLinks,
     HomeCTAButton,
+    HomeSectionKey,
+    AnnouncementBanner,
+    FooterConfig,
 } from "@/types/shop";
 import { computeTheme, type ThemeConfig } from "@/utils/themepicker";
 import { DEFAULT_LOCALE, getLocaleCookie, I18nProvider, translate } from "@/lib/i18n";
@@ -53,6 +56,9 @@ type ShopContextValue = {
     fontPairing: FontPairing;
     socialLinks: SocialLinks;
     homeCTAButtons: HomeCTAButton[] | null;
+    homeSectionOrder: HomeSectionKey[] | null;
+    announcementBanners: AnnouncementBanner[] | null;
+    footerConfig: FooterConfig | null;
     loading: boolean;
     error: string | null;
     slug: string;
@@ -215,6 +221,9 @@ export function ShopProvider({
                 fontPairing: data?.theme?.font_pairing ?? "classic",
                 socialLinks: data?.settings?.social_links ?? {},
                 homeCTAButtons: data?.theme?.home_cta_buttons ?? null,
+                homeSectionOrder: data?.theme?.home_section_order ?? null,
+                announcementBanners: data?.theme?.announcement_banners ?? null,
+                footerConfig: data?.theme?.footer_config ?? null,
                 loading,
                 error,
                 slug,

@@ -23,6 +23,7 @@ import {
     buildSignInRedirectFromCurrentLocation,
     getCurrentInternalPathWithQuery,
 } from "@/app/lib/shop-context";
+import { AnnouncementBannerStrip } from "@/components/shop/AnnouncementBanner";
 
 const getInitials = (name?: string | null, email?: string | null) => {
     if (name && name.length > 0) return name.charAt(0).toUpperCase();
@@ -35,7 +36,7 @@ export function ShopNavbar() {
     const currentPathname = pathname ?? "";
     const router = useRouter();
     const { isAuthenticated, user, signOut, loading } = useAuth();
-    const { company, slug, socialLinks, loading: shopLoading, isShopActive } = useShop();
+    const { company, slug, socialLinks, loading: shopLoading, isShopActive, announcementBanners } = useShop();
     const t = useT();
 
     const [open, setOpen] = useState(false);
@@ -201,6 +202,8 @@ export function ShopNavbar() {
     }
 
     return (
+        <>
+        <AnnouncementBannerStrip banners={announcementBanners} />
         <header className="sticky top-0 z-50 w-full border-b border-surface-border bg-surface/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-surface/80">
             <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
                 {/* Logo & Company Name */}
@@ -371,5 +374,6 @@ export function ShopNavbar() {
                 </div>
             </div>
         </header>
+        </>
     );
 }

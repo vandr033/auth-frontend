@@ -44,12 +44,17 @@ export function getImageUrl(path: string | null | undefined): string | null {
   if (path.startsWith('blob:') || path.startsWith('data:')) return path;
 
   // Normalize absolute URLs, rewriting localhost URLs to the configured API origin in production.
+  // Also rewrite any absolute URL whose path looks like an API path but uses the wrong origin.
   if (path.startsWith('http://') || path.startsWith('https://')) {
     try {
       const parsed = new URL(path);
-      if (isLocalhostHost(parsed.hostname) && API_ORIGIN) {
-        const normalizedPath = normalizeImagePath(parsed.pathname);
-        return `${API_ORIGIN}${normalizedPath}${parsed.search}${parsed.hash}`;
+      if (API_ORIGIN && parsed.origin !== API_ORIGIN) {
+        if (isLocalhostHost(parsed.hostname) || parsed.pathname.startsWith('/api/')) {
+          const normalizedPath = isLocalhostHost(parsed.hostname)
+            ? normalizeImagePath(parsed.pathname)
+            : parsed.pathname;
+          return `${API_ORIGIN}${normalizedPath}${parsed.search}${parsed.hash}`;
+        }
       }
       return path;
     } catch {
