@@ -63,13 +63,20 @@ export function HeroCTAButtons({
                 const isPrimary = idx === 0;
 
                 if (isPrimary) {
+                    const bg = hexToRgba(btn.color, btn.opacity);
                     return (
                         <Link key={btn.destination} href={href}>
-                            <PrimaryButton
-                                style={{ backgroundColor: hexToRgba(btn.color, btn.opacity) }}
+                            <button
+                                style={
+                                    {
+                                        "--cta-bg": bg,
+                                        backgroundColor: "var(--cta-bg)",
+                                    } as React.CSSProperties
+                                }
+                                className="inline-flex min-w-[160px] items-center justify-center rounded-md px-5 py-3 text-base font-semibold text-white shadow-card transition focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 hover:opacity-90"
                             >
                                 {btn.label}
-                            </PrimaryButton>
+                            </button>
                         </Link>
                     );
                 }
