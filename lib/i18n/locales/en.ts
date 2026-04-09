@@ -19,6 +19,8 @@ const en = {
     success: "Saved successfully",
     error: "Something went wrong. Please try again.",
     poweredBy: "Powered by PriConPri",
+    share: "Share",
+    copied: "Copied!",
   },
 
   // ─── Shop Navbar ───

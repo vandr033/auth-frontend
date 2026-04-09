@@ -20,6 +20,8 @@ const es: TranslationKeys = {
     success: "Guardado exitosamente",
     error: "Algo sali\u00f3 mal. Por favor, int\u00e9ntalo de nuevo.",
     poweredBy: "Desarrollado por PriConPri",
+    share: "Compartir",
+    copied: "¡Copiado!",
   },
 
   shopNav: {

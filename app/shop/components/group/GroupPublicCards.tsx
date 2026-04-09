@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/utils/image-url";
+import { ShareButton } from "@/components/shop/ShareButton";
 import type { PublicGroupClass, PublicGroupClassSession, PublicGroupEvent } from "@/app/shop/lib/groupReservationsApi";
 import {
   formatGroupDateTime,
@@ -81,9 +82,17 @@ export function GroupEventCard({ event, slug, currency, t }: EventCardProps) {
           </p>
         ) : null}
 
-        <Button asChild className="w-full bg-brand text-white hover:bg-brand-hover">
-          <Link href={`/shop/${slug}/events/${event.id}`}>{t("shopGroup.actions.viewEvent")}</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild className="flex-1 bg-brand text-white hover:bg-brand-hover">
+            <Link href={`/shop/${slug}/events/${event.id}`}>{t("shopGroup.actions.viewEvent")}</Link>
+          </Button>
+          <ShareButton
+            title={event.title}
+            url={typeof window !== "undefined" ? `${window.location.origin}/shop/${slug}/events/${event.id}` : ""}
+            size="icon"
+            variant="outline"
+          />
+        </div>
       </div>
     </article>
   );
@@ -166,9 +175,17 @@ export function GroupClassCard({ groupClass, sessions, slug, currency, t }: Clas
           </p>
         ) : null}
 
-        <Button asChild className="w-full bg-brand text-white hover:bg-brand-hover">
-          <Link href={`/shop/${slug}/classes/${groupClass.id}`}>{t("shopGroup.actions.viewClass")}</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild className="flex-1 bg-brand text-white hover:bg-brand-hover">
+            <Link href={`/shop/${slug}/classes/${groupClass.id}`}>{t("shopGroup.actions.viewClass")}</Link>
+          </Button>
+          <ShareButton
+            title={groupClass.title}
+            url={typeof window !== "undefined" ? `${window.location.origin}/shop/${slug}/classes/${groupClass.id}` : ""}
+            size="icon"
+            variant="outline"
+          />
+        </div>
       </div>
     </article>
   );

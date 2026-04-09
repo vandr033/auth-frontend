@@ -5,6 +5,7 @@ import React from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, MapPin } from "lucide-react";
+import { ShareButton } from "@/components/shop/ShareButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -665,12 +666,15 @@ export default function ShopEventDetailPage() {
     <main className="min-h-screen bg-page text-text-main">
       <section className="border-b border-surface-border bg-surface py-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 md:px-8">
-          <Button asChild variant="outline" className="w-fit">
-            <Link href={`/shop/${slug}/events`}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t("shopGroup.actions.backToEvents")}
-            </Link>
-          </Button>
+          <div className="flex items-center justify-between">
+            <Button asChild variant="outline" className="w-fit">
+              <Link href={`/shop/${slug}/events`}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {t("shopGroup.actions.backToEvents")}
+              </Link>
+            </Button>
+            <ShareButton title={event.title} text={event.description ?? undefined} size="sm" />
+          </div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">{t("shopGroup.events.eyebrow")}</p>
           <h1 className="font-heading text-3xl font-bold text-text-main md:text-4xl">{event.title}</h1>
           <p className="text-sm text-text-muted">{t("shopGroup.events.subtitle")}</p>
