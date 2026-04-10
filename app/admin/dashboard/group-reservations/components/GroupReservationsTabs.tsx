@@ -32,7 +32,7 @@ export function GroupReservationsTabs() {
 
     return (
         <div className="overflow-x-auto">
-            <div className="inline-flex min-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
+            <div className="inline-flex min-w-full items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
                 {TABS.map((tab) => {
                     const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
                     const enabled = hasAccess(tab.access);
@@ -42,7 +42,7 @@ export function GroupReservationsTabs() {
                         return (
                             <span
                                 key={tab.href}
-                                className="inline-flex items-center gap-1 rounded-lg border border-dashed border-slate-200 px-3 py-2 text-sm text-slate-400"
+                                className="inline-flex items-center gap-1 rounded-xl border border-dashed border-slate-200 px-3 py-2 text-sm text-slate-400"
                             >
                                 <Lock className="h-3.5 w-3.5 shrink-0" />
                                 {label}
@@ -55,9 +55,9 @@ export function GroupReservationsTabs() {
                             key={tab.href}
                             href={tab.href}
                             className={cn(
-                                "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                                "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                                 isActive
-                                    ? "bg-brand text-white"
+                                    ? "bg-brand text-white shadow-sm"
                                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
                             )}
                         >

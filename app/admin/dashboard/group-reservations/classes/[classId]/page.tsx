@@ -1,35 +1,22 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Eye, Loader2, RefreshCcw, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RichTextEditor } from "@/components/admin/RichTextEditor";
-import { GroupLocationPicker } from "@/components/maps/GroupLocationPicker";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { useT } from "@/lib/i18n";
-import { notify } from "@/lib/notify";
-import { useGroupReservationsAccess } from "../../lib/useGroupReservationsAccess";
-import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+    ArrowLeft,
+    CalendarClock,
+    Eye,
+    ImageIcon,
+    Loader2,
+    RefreshCcw,
+    Send,
+    Ticket,
+    Users,
+} from "lucide-react";
+
+import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
     cancelGroupClassEnrollment,
     cancelGroupClassSession,
@@ -59,88 +46,50 @@ import {
     type GroupClassEnrollment,
     type GroupClassSession,
     type GroupEnrollmentInstallmentPlan,
-    type GroupItemStatus,
-    type GroupPricingMode,
-    type GroupRecurrenceType,
-    type GroupStaffRole,
+    type GroupPaymentStatus,
     type GroupTicket,
     type StaffMember,
 } from "@/app/admin/lib/adminApi";
-import { GroupBookingStatusBadge, GroupPaymentStatusBadge, GroupStatusBadge, GroupTicketStatusBadge } from "../../components/GroupBadges";
-import { formatDate, formatDateTime, formatMoneyFromCents } from "../../lib/format";
-import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
-import { getImageUrl } from "@/utils/image-url";
+import { AdminPageHeader } from "@/app/admin/dashboard/components/AdminPageHeader";
+import { AdminSectionCard } from "@/app/admin/dashboard/components/AdminSectionCard";
+import { AdminStatCard } from "@/app/admin/dashboard/components/AdminStatCard";
+import { GroupClassEditorForm } from "@/app/admin/dashboard/group-reservations/classes/components/GroupClassEditorForm";
+import {
+    type ClassFormState,
+    getCompanyLocationLabel,
+    getPricingModeLabelKey,
+} from "@/app/admin/dashboard/group-reservations/classes/components/groupClassForm.shared";
+import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useT } from "@/lib/i18n";
+import { notify } from "@/lib/notify";
 import { formatCurrencyInputFromCents, parseCurrencyInputToCents } from "@/lib/currency";
+import { getImageUrl } from "@/utils/image-url";
 
-type ManualStaff = {
-    display_name: string;
-    display_phone: string;
-    role: GroupStaffRole;
-};
-
-type ClassFormState = {
-    title: string;
-    slug: string;
-    description: string;
-    cover_image_url: string;
-    thumbnail_url: string;
-    status: GroupItemStatus;
-    pricing_mode: GroupPricingMode;
-    price_cents: string;
-    max_capacity_per_session: string;
-    session_duration_minutes: string;
-    recurrence_type: GroupRecurrenceType;
-    recurrence_start_date: string;
-    recurrence_end_date: string;
-    start_time: string;
-    location_text: string;
-    weekdays: number[];
-    monthdays: string;
-    linked_staff_ids: number[];
-    manual_staff: ManualStaff[];
-};
-
-const GROUP_MEDIA_RECOMMENDED_SIZE = "1920px x 1080px";
-
-const WEEKDAYS = [
-    { value: 0, label: "Sun" },
-    { value: 1, label: "Mon" },
-    { value: 2, label: "Tue" },
-    { value: 3, label: "Wed" },
-    { value: 4, label: "Thu" },
-    { value: 5, label: "Fri" },
-    { value: 6, label: "Sat" },
-];
-
-const EMPTY_MANUAL_STAFF: ManualStaff = {
-    display_name: "",
-    display_phone: "",
-    role: "INSTRUCTOR",
-};
-
-function normalizeSlugInput(value: string): string {
-    return value
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "")
-        .replace(/-+/g, "-")
-        .replace(/^-+/, "")
-        .slice(0, 255);
-}
-
-function slugifyInput(value: string): string {
-    return normalizeSlugInput(value).replace(/-+$/g, "");
-}
-
-function getCompanyLocationLabel(companyLocation: AdminCompanyLocation | null): string {
-    if (!companyLocation) return "";
-    return [companyLocation.address, companyLocation.city, companyLocation.state]
-        .map((value) => (value ?? "").trim())
-        .filter((value) => value.length > 0)
-        .join(", ");
-}
+import { useGroupReservationsAccess } from "../../lib/useGroupReservationsAccess";
+import {
+    GroupBookingStatusBadge,
+    GroupPaymentStatusBadge,
+    GroupStatusBadge,
+    GroupTicketStatusBadge,
+} from "../../components/GroupBadges";
+import { formatDate, formatDateTime, formatMoneyFromCents } from "../../lib/format";
 
 function fromGroupClass(groupClass: GroupClass): ClassFormState {
     const recurrenceConfig = groupClass.recurrence_config || {};
@@ -197,6 +146,7 @@ export default function GroupClassDetailPage() {
     const { companyId, companyUser } = useAdminAuth();
     const currency = companyUser?.company?.currency;
 
+    const [activeTab, setActiveTab] = useState("overview");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [groupClass, setGroupClass] = useState<GroupClass | null>(null);
@@ -208,7 +158,6 @@ export default function GroupClassDetailPage() {
     const [storeLocationText, setStoreLocationText] = useState("");
     const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
     const [sessionAttendance, setSessionAttendance] = useState<GroupAttendanceRow[]>([]);
-    const attendanceSectionRef = useRef<HTMLDivElement | null>(null);
     const [form, setForm] = useState<ClassFormState | null>(null);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
@@ -269,14 +218,7 @@ export default function GroupClassDetailPage() {
             const data = await listGroupClassSessionAttendance(sessionId);
             setSelectedSessionId(sessionId);
             setSessionAttendance(data);
-            requestAnimationFrame(() => {
-                const section = attendanceSectionRef.current;
-                if (!section) return;
-                section.scrollIntoView({ behavior: "smooth", block: "start" });
-                if (typeof window !== "undefined") {
-                    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#session-attendance`);
-                }
-            });
+            setActiveTab("attendance");
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.loadError"));
         }
@@ -304,23 +246,35 @@ export default function GroupClassDetailPage() {
         );
     }, [enrollments]);
 
-    const toggleWeekday = (weekday: number) => {
-        if (!form) return;
-        const exists = form.weekdays.includes(weekday);
-        setForm({
-            ...form,
-            weekdays: exists ? form.weekdays.filter((day) => day !== weekday) : [...form.weekdays, weekday],
-        });
-    };
+    const assignedStaff = useMemo(() => {
+        if (!groupClass?.staff_assignments) return [];
+        return groupClass.staff_assignments.map((assignment) => {
+            if (assignment.staff_profile_id) {
+                const member = staff.find((staffMember) => staffMember.id === assignment.staff_profile_id);
+                return {
+                    key: `staff-${assignment.staff_profile_id}`,
+                    name: member?.display_name || `#${assignment.staff_profile_id}`,
+                    role: assignment.role,
+                };
+            }
 
-    const toggleLinkedStaff = (staffId: number) => {
-        if (!form) return;
-        const exists = form.linked_staff_ids.includes(staffId);
-        setForm({
-            ...form,
-            linked_staff_ids: exists ? form.linked_staff_ids.filter((id) => id !== staffId) : [...form.linked_staff_ids, staffId],
+            return {
+                key: `manual-${assignment.display_name}-${assignment.display_phone}`,
+                name: assignment.display_name || t("adminGroup.fields.name"),
+                role: assignment.role,
+            };
         });
-    };
+    }, [groupClass?.staff_assignments, staff, t]);
+
+    const attendanceSummary = useMemo(() => {
+        const pendingQrCount = enrollments.filter((item) => item.payment_status === "PENDING_CONFIRMATION").length;
+        return {
+            sessions: sessions.length,
+            enrollments: enrollments.length,
+            activePasses: activePassHolders.length,
+            pendingQrCount,
+        };
+    }, [activePassHolders.length, enrollments, sessions.length]);
 
     const handleSelectCoverImage = (file: File | null) => {
         setCoverImageFile(file);
@@ -329,7 +283,9 @@ export default function GroupClassDetailPage() {
             return;
         }
         const reader = new FileReader();
-        reader.onload = (event) => setCoverImagePreview(typeof event.target?.result === "string" ? event.target.result : null);
+        reader.onload = (event) => {
+            setCoverImagePreview(typeof event.target?.result === "string" ? event.target.result : null);
+        };
         reader.readAsDataURL(file);
     };
 
@@ -340,7 +296,9 @@ export default function GroupClassDetailPage() {
             return;
         }
         const reader = new FileReader();
-        reader.onload = (event) => setThumbnailImagePreview(typeof event.target?.result === "string" ? event.target.result : null);
+        reader.onload = (event) => {
+            setThumbnailImagePreview(typeof event.target?.result === "string" ? event.target.result : null);
+        };
         reader.readAsDataURL(file);
     };
 
@@ -394,8 +352,6 @@ export default function GroupClassDetailPage() {
                 title: form.title.trim(),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
-                // Skip image fields that will be updated by uploadAdminImage to avoid a
-                // temporary null write that could cause the public page to show the wrong image.
                 ...(coverImageFile ? {} : { cover_image_url: form.cover_image_url.trim() || null }),
                 ...(thumbnailImageFile ? {} : { thumbnail_url: form.thumbnail_url.trim() || null }),
                 pricing_mode: form.pricing_mode,
@@ -409,7 +365,10 @@ export default function GroupClassDetailPage() {
                 start_time: form.start_time,
                 location_text: form.location_text.trim() || null,
                 staff_assignments: [
-                    ...form.linked_staff_ids.map((id) => ({ staff_profile_id: id, role: "INSTRUCTOR" as GroupStaffRole })),
+                    ...form.linked_staff_ids.map((id) => ({
+                        staff_profile_id: id,
+                        role: "INSTRUCTOR" as const,
+                    })),
                     ...form.manual_staff
                         .filter((entry) => entry.display_name.trim().length > 0)
                         .map((entry) => ({
@@ -618,543 +577,443 @@ export default function GroupClassDetailPage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <Button asChild variant="outline">
-                    <Link href="/admin/dashboard/group-reservations/classes">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        {t("adminGroup.actions.backToClasses")}
-                    </Link>
-                </Button>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => void loadData()}>
-                        <RefreshCcw className="mr-2 h-4 w-4" />
-                        {t("adminGroup.actions.refresh")}
-                    </Button>
-                    <Button onClick={() => void handleGenerateSessions()}>
-                        {t("adminGroup.classes.generateSessions")}
-                    </Button>
-                </div>
+            <AdminPageHeader
+                title={
+                    <span className="flex flex-wrap items-center gap-2">
+                        <span>{groupClass.title}</span>
+                        <GroupStatusBadge status={groupClass.status} />
+                    </span>
+                }
+                subtitle={groupClass.location_text || t(getPricingModeLabelKey(groupClass.pricing_mode))}
+                actions={
+                    <>
+                        <Button asChild variant="outline">
+                            <Link href="/admin/dashboard/group-reservations/classes">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                {t("adminGroup.actions.backToClasses")}
+                            </Link>
+                        </Button>
+                        <Button variant="outline" onClick={() => void loadData()}>
+                            <RefreshCcw className="mr-2 h-4 w-4" />
+                            {t("adminGroup.actions.refresh")}
+                        </Button>
+                        <Button onClick={() => void handleGenerateSessions()}>
+                            {t("adminGroup.classes.generateSessions")}
+                        </Button>
+                    </>
+                }
+            />
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <AdminStatCard
+                    label={t("adminGroup.fields.price")}
+                    value={formatMoneyFromCents(groupClass.price_cents, currency)}
+                    hint={t(getPricingModeLabelKey(groupClass.pricing_mode))}
+                    icon={<Ticket className="h-5 w-5" />}
+                    iconClassName="bg-blue-50 text-blue-700"
+                />
+                <AdminStatCard
+                    label={t("adminGroup.fields.sessions")}
+                    value={sessions.length}
+                    hint={t("adminGroup.classes.upcomingSessions")}
+                    icon={<CalendarClock className="h-5 w-5" />}
+                    iconClassName="bg-amber-50 text-amber-700"
+                />
+                <AdminStatCard
+                    label={t("adminGroup.fields.enrollments")}
+                    value={enrollments.length}
+                    hint={t("adminGroup.fields.activePassHolders")}
+                    icon={<Users className="h-5 w-5" />}
+                    iconClassName="bg-violet-50 text-violet-700"
+                />
+                <AdminStatCard
+                    label={t("adminGroup.fields.activePassHolders")}
+                    value={activePassHolders.length}
+                    hint={t("adminGroup.fields.capacityPerSession")}
+                    icon={<ImageIcon className="h-5 w-5" />}
+                    iconClassName="bg-emerald-50 text-emerald-700"
+                />
             </div>
 
-            <Card className="border-slate-200">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        {groupClass.title}
-                        <GroupStatusBadge status={groupClass.status} />
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-4">
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.pricingMode")}</p>
-                        <p className="text-sm text-slate-900">
-                            {t(`adminGroup.pricing.${groupClass.pricing_mode === "PER_SESSION" ? "perSession" : groupClass.pricing_mode === "WEEKLY_PASS" ? "weeklyPass" : groupClass.pricing_mode === "MONTHLY_PASS" ? "monthlyPass" : "fullCourse"}`)}
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.price")}</p>
-                        <p className="text-sm text-slate-900">{formatMoneyFromCents(groupClass.price_cents, currency)}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.capacityPerSession")}</p>
-                        <p className="text-sm text-slate-900">{groupClass.max_capacity_per_session}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.durationMinutes")}</p>
-                        <p className="text-sm text-slate-900">{groupClass.session_duration_minutes}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.recurrenceStartDate")}</p>
-                        <p className="text-sm text-slate-900">{formatDate(groupClass.recurrence_start_date)}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.recurrenceEndDate")}</p>
-                        <p className="text-sm text-slate-900">{formatDate(groupClass.recurrence_end_date)}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.activePassHolders")}</p>
-                        <p className="text-sm text-slate-900">{activePassHolders.length}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.sessions")}</p>
-                        <p className="text-sm text-slate-900">{sessions.length}</p>
-                    </div>
-                </CardContent>
-            </Card>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-4">
+                <Card className="overflow-hidden border-slate-200 shadow-sm">
+                    <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-slate-100 bg-white p-2">
+                        <TabsTrigger value="overview" className="flex-none px-3">
+                            {t("adminGroup.nav.overview")}
+                        </TabsTrigger>
+                        <TabsTrigger value="edit" className="flex-none px-3">
+                            {t("adminGroup.classes.editClass")}
+                        </TabsTrigger>
+                        <TabsTrigger value="sessions" className="flex-none px-3">
+                            {t("adminGroup.classes.sessionsTitle")}
+                        </TabsTrigger>
+                        <TabsTrigger value="enrollments" className="flex-none px-3">
+                            {t("adminGroup.classes.enrollmentsTitle")}
+                        </TabsTrigger>
+                        <TabsTrigger value="attendance" className="flex-none px-3">
+                            {t("adminGroup.attendance.sessionAttendance")}
+                        </TabsTrigger>
+                    </TabsList>
+                </Card>
 
-            <Card className="border-slate-200">
-                <CardHeader>
-                    <CardTitle className="text-base">{t("adminGroup.classes.editClass")}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                        <div className="space-y-2 md:col-span-2">
-                            <Label>{t("adminGroup.fields.title")}</Label>
-                            <Input
-                                value={form.title}
-                                onChange={(e) =>
-                                    setForm((prev) => {
-                                        if (!prev) return prev;
-                                        const nextTitle = e.target.value;
-                                        const prevAutoSlug = slugifyInput(prev.title);
-                                        const shouldSyncSlug = prev.slug.trim().length === 0 || prev.slug.trim() === prevAutoSlug;
-                                        return {
-                                            ...prev,
-                                            title: nextTitle,
-                                            slug: shouldSyncSlug ? slugifyInput(nextTitle) : prev.slug,
-                                        };
-                                    })
-                                }
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.slug")}</Label>
-                            <Input
-                                value={form.slug}
-                                onChange={(e) =>
-                                    setForm((prev) => prev ? { ...prev, slug: normalizeSlugInput(e.target.value) } : prev)
-                                }
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.status")}</Label>
-                            <Select value={form.status} onValueChange={(value) => setForm((prev) => prev ? { ...prev, status: value as GroupItemStatus } : prev)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="DRAFT">{t("adminGroup.status.draft")}</SelectItem>
-                                    <SelectItem value="PUBLISHED">{t("adminGroup.status.published")}</SelectItem>
-                                    <SelectItem value="ARCHIVED">{t("adminGroup.status.archived")}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                            <Label>{t("adminGroup.fields.description")}</Label>
-                            <RichTextEditor
-                                value={form.description}
-                                onChange={(html) => setForm((prev) => prev ? { ...prev, description: html } : prev)}
-                                placeholder="<p><strong>Descripcion en HTML</strong></p>"
-                                minHeightClassName="min-h-[120px]"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.coverImageUrl")}</Label>
-                            <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
-                            <Input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                onChange={(event) => handleSelectCoverImage(event.target.files?.[0] ?? null)}
-                            />
-                            {(coverImagePreview || form.cover_image_url) ? (
-                                <div className="h-44 overflow-hidden rounded-md border border-slate-200 md:h-64">
-                                    <img
-                                        src={coverImagePreview || getImageUrl(form.cover_image_url) || undefined}
-                                        alt="Cover preview"
-                                        className="h-full w-full object-cover"
-                                    />
+                <TabsContent value="overview" className="space-y-4">
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+                        <AdminSectionCard
+                            title={t("adminGroup.nav.overview")}
+                            description={t(getPricingModeLabelKey(groupClass.pricing_mode))}
+                        >
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        {t("adminGroup.fields.recurrenceStartDate")}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-900">
+                                        {formatDate(groupClass.recurrence_start_date)}
+                                    </p>
                                 </div>
-                            ) : null}
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.thumbnailUrl")}</Label>
-                            <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
-                            <Input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                onChange={(event) => handleSelectThumbnailImage(event.target.files?.[0] ?? null)}
-                            />
-                            {(thumbnailImagePreview || form.thumbnail_url) ? (
-                                <div className="h-44 overflow-hidden rounded-md border border-slate-200 md:h-64">
-                                    <img
-                                        src={thumbnailImagePreview || getImageUrl(form.thumbnail_url) || undefined}
-                                        alt="Thumbnail preview"
-                                        className="h-full w-full object-cover"
-                                    />
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        {t("adminGroup.fields.recurrenceEndDate")}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-900">
+                                        {formatDate(groupClass.recurrence_end_date)}
+                                    </p>
                                 </div>
-                            ) : null}
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.pricingMode")}</Label>
-                            <Select value={form.pricing_mode} onValueChange={(value) => setForm((prev) => prev ? { ...prev, pricing_mode: value as GroupPricingMode } : prev)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="PER_SESSION">{t("adminGroup.pricing.perSession")}</SelectItem>
-                                    <SelectItem value="WEEKLY_PASS">{t("adminGroup.pricing.weeklyPass")}</SelectItem>
-                                    <SelectItem value="MONTHLY_PASS">{t("adminGroup.pricing.monthlyPass")}</SelectItem>
-                                    <SelectItem value="FULL_COURSE">{t("adminGroup.pricing.fullCourse")}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
-                            <Input type="number" min={0} step="0.01" value={form.price_cents} onChange={(e) => setForm((prev) => prev ? { ...prev, price_cents: e.target.value } : prev)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.capacityPerSession")}</Label>
-                            <Input type="number" min={1} value={form.max_capacity_per_session} onChange={(e) => setForm((prev) => prev ? { ...prev, max_capacity_per_session: e.target.value } : prev)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.durationMinutes")}</Label>
-                            <Input type="number" min={5} value={form.session_duration_minutes} onChange={(e) => setForm((prev) => prev ? { ...prev, session_duration_minutes: e.target.value } : prev)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.recurrenceType")}</Label>
-                            <Select value={form.recurrence_type} onValueChange={(value) => setForm((prev) => prev ? { ...prev, recurrence_type: value as GroupRecurrenceType } : prev)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="WEEKLY">{t("adminGroup.recurrence.weekly")}</SelectItem>
-                                    <SelectItem value="MONTHLY">{t("adminGroup.recurrence.monthly")}</SelectItem>
-                                    <SelectItem value="CUSTOM">{t("adminGroup.recurrence.custom")}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.startTime")}</Label>
-                            <Input type="time" value={form.start_time} onChange={(e) => setForm((prev) => prev ? { ...prev, start_time: e.target.value } : prev)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.recurrenceStartDate")}</Label>
-                            <Input type="date" value={form.recurrence_start_date} onChange={(e) => setForm((prev) => prev ? { ...prev, recurrence_start_date: e.target.value } : prev)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.recurrenceEndDate")}</Label>
-                            <Input type="date" value={form.recurrence_end_date} onChange={(e) => setForm((prev) => prev ? { ...prev, recurrence_end_date: e.target.value } : prev)} />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                            <GroupLocationPicker
-                                label={t("adminGroup.fields.location")}
-                                value={form.location_text}
-                                onChange={(nextValue) => setForm((prev) => prev ? { ...prev, location_text: nextValue } : prev)}
-                                placeholder={storeLocationText || undefined}
-                                defaultLatitude={storeLocation?.latitude ?? null}
-                                defaultLongitude={storeLocation?.longitude ?? null}
-                            />
-                        </div>
-                    </div>
-
-                    {form.recurrence_type === "MONTHLY" ? (
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.monthdays")}</Label>
-                            <Input value={form.monthdays} onChange={(e) => setForm((prev) => prev ? { ...prev, monthdays: e.target.value } : prev)} />
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.weekdays")}</Label>
-                            <div className="grid gap-2 md:grid-cols-4">
-                                {WEEKDAYS.map((day) => (
-                                    <label key={day.value} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.weekdays.includes(day.value)}
-                                            onChange={() => toggleWeekday(day.value)}
-                                        />
-                                        {day.label}
-                                    </label>
-                                ))}
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        {t("adminGroup.fields.startTime")}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-900">{groupClass.start_time}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        {t("adminGroup.fields.capacityPerSession")}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-900">
+                                        {groupClass.max_capacity_per_session}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        {t("adminGroup.fields.durationMinutes")}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-900">
+                                        {groupClass.session_duration_minutes}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                                        {t("adminGroup.fields.location")}
+                                    </p>
+                                    <p className="mt-1 text-sm text-slate-900">
+                                        {groupClass.location_text || "—"}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                            {groupClass.description ? (
+                                <div
+                                    className="prose prose-sm mt-4 max-w-none text-slate-700"
+                                    dangerouslySetInnerHTML={{ __html: groupClass.description }}
+                                />
+                            ) : null}
+                        </AdminSectionCard>
 
-                    <Card className="border-slate-200">
-                        <CardHeader>
-                            <CardTitle className="text-sm">{t("adminGroup.staff.linkedStaff")}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-2 md:grid-cols-2">
-                            {staff
-                                .filter((member) => member.is_bookable)
-                                .map((member) => (
-                                    <label key={member.id} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.linked_staff_ids.includes(member.id)}
-                                            onChange={() => toggleLinkedStaff(member.id)}
-                                        />
-                                        {member.display_name}
-                                    </label>
-                                ))}
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-slate-200">
-                        <CardHeader className="flex-row items-center justify-between">
-                            <CardTitle className="text-sm">{t("adminGroup.staff.manualDisplay")}</CardTitle>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                    setForm((prev) =>
-                                        prev ? { ...prev, manual_staff: [...prev.manual_staff, { ...EMPTY_MANUAL_STAFF }] } : prev,
-                                    )
-                                }
-                            >
-                                {t("adminGroup.actions.add")}
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {form.manual_staff.length === 0 ? (
-                                <p className="text-sm text-slate-500">{t("adminGroup.staff.manualEmpty")}</p>
-                            ) : (
-                                form.manual_staff.map((entry, index) => (
-                                    <div key={index} className="grid gap-2 rounded-md border border-slate-200 p-3 md:grid-cols-4">
-                                        <Input
-                                            placeholder={t("adminGroup.fields.name")}
-                                            value={entry.display_name}
-                                            onChange={(e) =>
-                                                setForm((prev) =>
-                                                    prev
-                                                        ? {
-                                                            ...prev,
-                                                            manual_staff: prev.manual_staff.map((item, i) =>
-                                                                i === index ? { ...item, display_name: e.target.value } : item,
-                                                            ),
-                                                        }
-                                                        : prev,
-                                                )
-                                            }
-                                        />
-                                        <Input
-                                            placeholder={t("adminGroup.fields.phone")}
-                                            value={entry.display_phone}
-                                            onChange={(e) =>
-                                                setForm((prev) =>
-                                                    prev
-                                                        ? {
-                                                            ...prev,
-                                                            manual_staff: prev.manual_staff.map((item, i) =>
-                                                                i === index ? { ...item, display_phone: e.target.value } : item,
-                                                            ),
-                                                        }
-                                                        : prev,
-                                                )
-                                            }
-                                        />
-                                        <Select
-                                            value={entry.role}
-                                            onValueChange={(value) =>
-                                                setForm((prev) =>
-                                                    prev
-                                                        ? {
-                                                            ...prev,
-                                                            manual_staff: prev.manual_staff.map((item, i) =>
-                                                                i === index ? { ...item, role: value as GroupStaffRole } : item,
-                                                            ),
-                                                        }
-                                                        : prev,
-                                                )
-                                            }
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="INSTRUCTOR">{t("adminGroup.staff.instructor")}</SelectItem>
-                                                <SelectItem value="ASSISTANT">{t("adminGroup.staff.assistant")}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() =>
-                                                setForm((prev) =>
-                                                    prev
-                                                        ? {
-                                                            ...prev,
-                                                            manual_staff: prev.manual_staff.filter((_, i) => i !== index),
-                                                        }
-                                                        : prev,
-                                                )
-                                            }
-                                        >
-                                            {t("adminGroup.actions.remove")}
-                                        </Button>
-                                    </div>
-                                ))
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <div className="flex justify-end gap-2">
-                        <Button onClick={() => void handleSave()} disabled={saving} variant="outline">
-                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {t("adminGroup.actions.save")}
-                        </Button>
-                        <Button onClick={() => void handleSaveAndGenerateSessions()} disabled={saving}>
-                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {t("adminGroup.classes.updateAndGenerateSessions")}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-                <CardHeader>
-                    <CardTitle className="text-base">{t("adminGroup.classes.sessionsTitle")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {sessions.length === 0 ? (
-                        <p className="text-sm text-slate-500">{t("adminGroup.classes.noSessions")}</p>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{t("adminGroup.fields.startAt")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.endAt")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.capacity")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.occupancy")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.status")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.actions")}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {sessions.map((session) => (
-                                    <TableRow key={session.id}>
-                                        <TableCell>{formatDateTime(session.start_at)}</TableCell>
-                                        <TableCell>{formatDateTime(session.end_at)}</TableCell>
-                                        <TableCell>{session.max_capacity ?? groupClass.max_capacity_per_session}</TableCell>
-                                        <TableCell>{session.booked_count ?? 0}</TableCell>
-                                        <TableCell>
-                                            <GroupStatusBadge status={session.status} />
-                                        </TableCell>
-                                        <TableCell className="flex flex-wrap gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                type="button"
-                                                onClick={() => void loadSessionAttendance(session.id)}
+                        <div className="space-y-4">
+                            <AdminSectionCard title={t("adminGroup.staff.linkedStaff")}>
+                                {assignedStaff.length === 0 ? (
+                                    <p className="text-sm text-slate-500">{t("adminGroup.staff.manualEmpty")}</p>
+                                ) : (
+                                    <div className="flex flex-wrap gap-2">
+                                        {assignedStaff.map((entry) => (
+                                            <span
+                                                key={entry.key}
+                                                className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
                                             >
-                                                {t("adminGroup.actions.viewAttendance")}
-                                            </Button>
-                                            {!session.cancelled_at ? (
-                                                <Button size="sm" variant="outline" type="button" onClick={() => void handleCancelSession(session.id)}>
-                                                    {t("adminGroup.actions.cancelSession")}
-                                                </Button>
-                                            ) : null}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </CardContent>
-            </Card>
+                                                {entry.name} · {entry.role}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </AdminSectionCard>
 
-            <Card className="border-slate-200">
-                <CardHeader>
-                    <CardTitle className="text-base">{t("adminGroup.classes.enrollmentsTitle")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {enrollments.length === 0 ? (
-                        <p className="text-sm text-slate-500">{t("adminGroup.classes.noEnrollments")}</p>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{t("adminGroup.fields.name")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.status")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.payment")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.validity")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.ticket")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.actions")}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {enrollments.map((enrollment) => {
-                                    const ticket = ticketByEnrollmentId.get(enrollment.id);
-                                    return (
-                                        <TableRow key={enrollment.id}>
-                                            <TableCell>{enrollment.user?.name || enrollment.user?.email || enrollment.user_id}</TableCell>
+                            <AdminSectionCard title={t("adminGroup.fields.coverImageUrl")} contentClassName="space-y-3">
+                                {(groupClass.cover_image_url || groupClass.thumbnail_url) ? (
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        {groupClass.cover_image_url ? (
+                                            <div className="overflow-hidden rounded-lg border border-slate-200">
+                                                <img
+                                                    src={getImageUrl(groupClass.cover_image_url) || undefined}
+                                                    alt="Cover"
+                                                    className="h-32 w-full object-cover"
+                                                />
+                                            </div>
+                                        ) : null}
+                                        {groupClass.thumbnail_url ? (
+                                            <div className="overflow-hidden rounded-lg border border-slate-200">
+                                                <img
+                                                    src={getImageUrl(groupClass.thumbnail_url) || undefined}
+                                                    alt="Thumbnail"
+                                                    className="h-32 w-full object-cover"
+                                                />
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-slate-500">—</p>
+                                )}
+                            </AdminSectionCard>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="edit" className="space-y-4">
+                    <GroupClassEditorForm
+                        form={form}
+                        onFormChange={(updater) => setForm((prev) => (prev ? updater(prev) : prev))}
+                        staff={staff}
+                        currency={currency}
+                        storeLocation={storeLocation}
+                        storeLocationText={storeLocationText}
+                        coverImagePreview={coverImagePreview}
+                        thumbnailImagePreview={thumbnailImagePreview}
+                        onSelectCoverImage={handleSelectCoverImage}
+                        onSelectThumbnailImage={handleSelectThumbnailImage}
+                        footer={
+                            <>
+                                <Button onClick={() => void handleSave()} disabled={saving} variant="outline">
+                                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    {t("adminGroup.actions.save")}
+                                </Button>
+                                <Button onClick={() => void handleSaveAndGenerateSessions()} disabled={saving}>
+                                    {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    {t("adminGroup.classes.updateAndGenerateSessions")}
+                                </Button>
+                            </>
+                        }
+                    />
+                </TabsContent>
+
+                <TabsContent value="sessions" className="space-y-4">
+                    <AdminSectionCard
+                        title={t("adminGroup.classes.sessionsTitle")}
+                        description={`${attendanceSummary.sessions} ${t("adminGroup.fields.sessions").toLowerCase()}`}
+                    >
+                        {sessions.length === 0 ? (
+                            <p className="text-sm text-slate-500">{t("adminGroup.classes.noSessions")}</p>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>{t("adminGroup.fields.startAt")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.endAt")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.capacity")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.occupancy")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.status")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.actions")}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {sessions.map((session) => (
+                                        <TableRow key={session.id}>
+                                            <TableCell>{formatDateTime(session.start_at)}</TableCell>
+                                            <TableCell>{formatDateTime(session.end_at)}</TableCell>
                                             <TableCell>
-                                                <GroupBookingStatusBadge status={enrollment.status} />
+                                                {session.max_capacity ?? groupClass.max_capacity_per_session}
                                             </TableCell>
+                                            <TableCell>{session.booked_count ?? 0}</TableCell>
                                             <TableCell>
-                                                <GroupPaymentStatusBadge status={enrollment.payment_status} />
-                                            </TableCell>
-                                            <TableCell className="text-xs">
-                                                {formatDateTime(enrollment.valid_from)}
-                                                <br />
-                                                {formatDateTime(enrollment.valid_until)}
-                                            </TableCell>
-                                            <TableCell>
-                                                {canUseAdvanced && ticket ? (
-                                                    <div className="space-y-1">
-                                                        <GroupTicketStatusBadge status={ticket.status} />
-                                                        <div className="text-xs text-slate-500">{ticket.ticket_code}</div>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-slate-500">
-                                                        {canUseAdvanced ? t("adminGroup.ticket.none") : t("adminGroup.ticket.proOnly")}
-                                                    </span>
-                                                )}
+                                                <GroupStatusBadge status={session.status} />
                                             </TableCell>
                                             <TableCell className="flex flex-wrap gap-2">
-                                                {enrollment.status === "PENDING" ? (
-                                                    <Button size="sm" onClick={() => void handleEnrollmentAction(enrollment.id, "confirm")}>
-                                                        {t("common.confirm")}
-                                                    </Button>
-                                                ) : null}
-                                                {enrollment.status === "CONFIRMED" ? (
-                                                    <Button size="sm" variant="outline" onClick={() => void handleEnrollmentAction(enrollment.id, "unconfirm")}>
-                                                        {t("adminGroup.actions.unconfirm")}
-                                                    </Button>
-                                                ) : null}
-                                                {enrollment.payment_status === "PENDING_CONFIRMATION" ? (
-                                                    <Button size="sm" variant="outline" onClick={() => void handleConfirmPayment(enrollment.id)}>
-                                                        {t("adminGroup.actions.confirmPayment")}
-                                                    </Button>
-                                                ) : null}
-                                                {enrollment.pricing_mode === "FULL_COURSE" ? (
-                                                    <Button size="sm" variant="outline" onClick={() => void handleOpenInstallmentPlan(enrollment.id)}>
-                                                        {installmentPlanLoading && installmentPlanDialog?.enrollment.id === enrollment.id ? (
-                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        ) : null}
-                                                        {t("adminGroup.payments.viewPlan")}
-                                                    </Button>
-                                                ) : null}
-                                                {canUseAdvanced && enrollment.status === "CONFIRMED" && (!ticket || ticket.status === "CANCELLED") ? (
-                                                    <Button size="sm" variant="outline" onClick={() => void handleIssueTicket(enrollment.id)}>
-                                                        {t("adminGroup.ticket.issue")}
-                                                    </Button>
-                                                ) : null}
-                                                {canUseAdvanced && ticket && ticket.status === "ACTIVE" ? (
-                                                    <Button size="sm" variant="outline" onClick={() => void handleResendTicket(ticket.ticket_code)}>
-                                                        {t("adminGroup.ticket.resend")}
-                                                    </Button>
-                                                ) : null}
-                                                {enrollment.qr_proof_image_url ? (
-                                                    <Button size="sm" variant="outline" onClick={() => setQrProofDialog(enrollment.qr_proof_image_url!)}>
-                                                        <Eye className="mr-1 h-3 w-3" />
-                                                        {t("adminGroup.actions.viewQrProof")}
-                                                    </Button>
-                                                ) : null}
-                                                {enrollment.status !== "CANCELLED" ? (
-                                                    <Button size="sm" variant="outline" onClick={() => void handleEnrollmentAction(enrollment.id, "cancel")}>
-                                                        {t("common.cancel")}
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    type="button"
+                                                    onClick={() => void loadSessionAttendance(session.id)}
+                                                >
+                                                    {t("adminGroup.actions.viewAttendance")}
+                                                </Button>
+                                                {!session.cancelled_at ? (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        type="button"
+                                                        onClick={() => void handleCancelSession(session.id)}
+                                                    >
+                                                        {t("adminGroup.actions.cancelSession")}
                                                     </Button>
                                                 ) : null}
                                             </TableCell>
                                         </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    )}
-                </CardContent>
-            </Card>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
+                    </AdminSectionCard>
+                </TabsContent>
 
-            <div id="session-attendance" ref={attendanceSectionRef} className="scroll-mt-24">
-                <Card className="border-slate-200">
-                    <CardHeader>
-                        <CardTitle className="text-base">
-                            {t("adminGroup.attendance.sessionAttendance")}
-                            {selectedSessionId ? ` #${selectedSessionId}` : ""}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                <TabsContent value="enrollments" className="space-y-4">
+                    <AdminSectionCard
+                        title={t("adminGroup.classes.enrollmentsTitle")}
+                        description={`${attendanceSummary.enrollments} ${t("adminGroup.classes.enrollments").toLowerCase()}`}
+                    >
+                        {enrollments.length === 0 ? (
+                            <p className="text-sm text-slate-500">{t("adminGroup.classes.noEnrollments")}</p>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.status")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.payment")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.validity")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.ticket")}</TableHead>
+                                        <TableHead>{t("adminGroup.fields.actions")}</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {enrollments.map((enrollment) => {
+                                        const ticket = ticketByEnrollmentId.get(enrollment.id);
+                                        return (
+                                            <TableRow key={enrollment.id}>
+                                                <TableCell>
+                                                    {enrollment.user?.name || enrollment.user?.email || enrollment.user_id}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <GroupBookingStatusBadge status={enrollment.status} />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <GroupPaymentStatusBadge
+                                                        status={enrollment.payment_status as GroupPaymentStatus}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="text-xs">
+                                                    {formatDateTime(enrollment.valid_from)}
+                                                    <br />
+                                                    {formatDateTime(enrollment.valid_until)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {canUseAdvanced && ticket ? (
+                                                        <div className="space-y-1">
+                                                            <GroupTicketStatusBadge status={ticket.status} />
+                                                            <div className="text-xs text-slate-500">
+                                                                {ticket.ticket_code}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-500">
+                                                            {canUseAdvanced
+                                                                ? t("adminGroup.ticket.none")
+                                                                : t("adminGroup.ticket.proOnly")}
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="flex flex-wrap gap-2">
+                                                    {enrollment.status === "PENDING" ? (
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                void handleEnrollmentAction(enrollment.id, "confirm")
+                                                            }
+                                                        >
+                                                            {t("common.confirm")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {enrollment.status === "CONFIRMED" ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                void handleEnrollmentAction(enrollment.id, "unconfirm")
+                                                            }
+                                                        >
+                                                            {t("adminGroup.actions.unconfirm")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {enrollment.payment_status === "PENDING_CONFIRMATION" ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => void handleConfirmPayment(enrollment.id)}
+                                                        >
+                                                            {t("adminGroup.actions.confirmPayment")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {enrollment.pricing_mode === "FULL_COURSE" ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => void handleOpenInstallmentPlan(enrollment.id)}
+                                                        >
+                                                            {installmentPlanLoading &&
+                                                            installmentPlanDialog?.enrollment.id === enrollment.id ? (
+                                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            ) : null}
+                                                            {t("adminGroup.payments.viewPlan")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {canUseAdvanced &&
+                                                    enrollment.status === "CONFIRMED" &&
+                                                    (!ticket || ticket.status === "CANCELLED") ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => void handleIssueTicket(enrollment.id)}
+                                                        >
+                                                            {t("adminGroup.ticket.issue")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {canUseAdvanced && ticket && ticket.status === "ACTIVE" ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => void handleResendTicket(ticket.ticket_code)}
+                                                        >
+                                                            {t("adminGroup.ticket.resend")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {enrollment.qr_proof_image_url ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                setQrProofDialog(enrollment.qr_proof_image_url!)
+                                                            }
+                                                        >
+                                                            <Eye className="mr-1 h-3 w-3" />
+                                                            {t("adminGroup.actions.viewQrProof")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {enrollment.status !== "CANCELLED" ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                void handleEnrollmentAction(enrollment.id, "cancel")
+                                                            }
+                                                        >
+                                                            {t("common.cancel")}
+                                                        </Button>
+                                                    ) : null}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        )}
+                    </AdminSectionCard>
+                </TabsContent>
+
+                <TabsContent value="attendance" className="space-y-4">
+                    <AdminSectionCard
+                        title={t("adminGroup.attendance.sessionAttendance")}
+                        description={
+                            selectedSessionId
+                                ? `${t("adminGroup.fields.session")} #${selectedSessionId}`
+                                : undefined
+                        }
+                    >
                         {!selectedSessionId ? (
                             <p className="text-sm text-slate-500">{t("adminGroup.attendance.selectSession")}</p>
                         ) : sessionAttendance.length === 0 ? (
@@ -1179,11 +1038,16 @@ export default function GroupClassDetailPage() {
                                 </TableBody>
                             </Table>
                         )}
-                    </CardContent>
-                </Card>
-            </div>
+                    </AdminSectionCard>
+                </TabsContent>
+            </Tabs>
 
-            <Dialog open={!!installmentPlanDialog} onOpenChange={(open) => { if (!open) setInstallmentPlanDialog(null); }}>
+            <Dialog
+                open={!!installmentPlanDialog}
+                onOpenChange={(open) => {
+                    if (!open) setInstallmentPlanDialog(null);
+                }}
+            >
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>{t("adminGroup.payments.viewPlan")}</DialogTitle>
@@ -1191,28 +1055,41 @@ export default function GroupClassDetailPage() {
                     {installmentPlanDialog ? (
                         <div className="space-y-3">
                             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                                <p className="font-medium text-slate-900">{installmentPlanDialog.enrollment.user?.name || installmentPlanDialog.enrollment.user?.email || installmentPlanDialog.enrollment.user_id}</p>
-                                <p>{t("adminGroup.payments.planSummary", {
-                                    paid: installmentPlanDialog.summary.paid_count,
-                                    total: installmentPlanDialog.summary.total_installments,
-                                })}</p>
+                                <p className="font-medium text-slate-900">
+                                    {installmentPlanDialog.enrollment.user?.name ||
+                                        installmentPlanDialog.enrollment.user?.email ||
+                                        installmentPlanDialog.enrollment.user_id}
+                                </p>
+                                <p>
+                                    {t("adminGroup.payments.planSummary", {
+                                        paid: installmentPlanDialog.summary.paid_count,
+                                        total: installmentPlanDialog.summary.total_installments,
+                                    })}
+                                </p>
                             </div>
                             {installmentPlanDialog.installments.map((installment) => (
                                 <div key={installment.id} className="space-y-3 rounded-xl border border-slate-200 p-4">
                                     <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div>
                                             <p className="font-medium text-slate-900">
-                                                {t("adminGroup.payments.installmentNumber", { number: installment.installment_number })}
+                                                {t("adminGroup.payments.installmentNumber", {
+                                                    number: installment.installment_number,
+                                                })}
                                             </p>
                                             <p className="text-sm text-slate-600">
                                                 {t("adminGroup.payments.installmentMeta", {
                                                     due: formatDate(installment.due_date),
-                                                    amount: formatMoneyFromCents(installment.amount_cents, currency),
+                                                    amount: formatMoneyFromCents(
+                                                        installment.amount_cents,
+                                                        currency,
+                                                    ),
                                                 })}
                                             </p>
                                             {installment.last_reminder_at ? (
                                                 <p className="text-xs text-slate-500">
-                                                    {t("adminGroup.payments.lastReminder")}: {formatDateTime(installment.last_reminder_at)} · {installment.last_reminder_channel || ""}
+                                                    {t("adminGroup.payments.lastReminder")}:{" "}
+                                                    {formatDateTime(installment.last_reminder_at)} ·{" "}
+                                                    {installment.last_reminder_channel || ""}
                                                 </p>
                                             ) : null}
                                         </div>
@@ -1220,7 +1097,13 @@ export default function GroupClassDetailPage() {
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {installment.qr_proof_image_url ? (
-                                            <Button size="sm" variant="outline" onClick={() => setQrProofDialog(installment.qr_proof_image_url!)}>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    setQrProofDialog(installment.qr_proof_image_url!)
+                                                }
+                                            >
                                                 <Eye className="mr-1 h-3 w-3" />
                                                 {t("adminGroup.actions.viewQrProof")}
                                             </Button>
@@ -1229,10 +1112,17 @@ export default function GroupClassDetailPage() {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => void handleInstallmentConfirmQr(installmentPlanDialog.enrollment.id, installment.id)}
+                                                onClick={() =>
+                                                    void handleInstallmentConfirmQr(
+                                                        installmentPlanDialog.enrollment.id,
+                                                        installment.id,
+                                                    )
+                                                }
                                                 disabled={installmentActionKey === `confirm:${installment.id}`}
                                             >
-                                                {installmentActionKey === `confirm:${installment.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                {installmentActionKey === `confirm:${installment.id}` ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : null}
                                                 {t("adminGroup.payments.confirmQr")}
                                             </Button>
                                         ) : null}
@@ -1240,10 +1130,17 @@ export default function GroupClassDetailPage() {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => void handleInstallmentMarkCashPaid(installmentPlanDialog.enrollment.id, installment.id)}
+                                                onClick={() =>
+                                                    void handleInstallmentMarkCashPaid(
+                                                        installmentPlanDialog.enrollment.id,
+                                                        installment.id,
+                                                    )
+                                                }
                                                 disabled={installmentActionKey === `cash:${installment.id}`}
                                             >
-                                                {installmentActionKey === `cash:${installment.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                {installmentActionKey === `cash:${installment.id}` ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : null}
                                                 {t("adminGroup.payments.markCashPaid")}
                                             </Button>
                                         ) : null}
@@ -1251,10 +1148,19 @@ export default function GroupClassDetailPage() {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => void handleInstallmentReminder(installmentPlanDialog.enrollment.id, installment.id)}
+                                                onClick={() =>
+                                                    void handleInstallmentReminder(
+                                                        installmentPlanDialog.enrollment.id,
+                                                        installment.id,
+                                                    )
+                                                }
                                                 disabled={installmentActionKey === `reminder:${installment.id}`}
                                             >
-                                                {installmentActionKey === `reminder:${installment.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                                {installmentActionKey === `reminder:${installment.id}` ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Send className="mr-2 h-4 w-4" />
+                                                )}
                                                 {t("adminGroup.payments.sendReminder")}
                                             </Button>
                                         ) : null}
@@ -1266,7 +1172,12 @@ export default function GroupClassDetailPage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={!!qrProofDialog} onOpenChange={(open) => { if (!open) setQrProofDialog(null); }}>
+            <Dialog
+                open={!!qrProofDialog}
+                onOpenChange={(open) => {
+                    if (!open) setQrProofDialog(null);
+                }}
+            >
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
                         <DialogTitle>{t("adminGroup.actions.viewQrProof")}</DialogTitle>

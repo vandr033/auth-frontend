@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarRange, Loader2, Users, Wallet, ArrowRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { AdminSectionCard } from "@/app/admin/dashboard/components/AdminSectionCard";
+import { AdminStatCard } from "@/app/admin/dashboard/components/AdminStatCard";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { listGroupClasses, listGroupEvents, type GroupClass, type GroupEvent } from "@/app/admin/lib/adminApi";
@@ -72,112 +73,74 @@ export default function GroupReservationsOverviewPage() {
     return (
         <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="border-slate-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-slate-600">{t("adminGroup.cards.totalEvents")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-semibold text-slate-900">{summary.totalEvents}</div>
-                        <p className="mt-1 text-xs text-slate-500">{t("adminGroup.cards.upcomingEvents", { count: summary.upcomingEvents })}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-slate-600">{t("adminGroup.cards.seatsBooked")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-semibold text-slate-900">{summary.seatsBooked}</div>
-                        <p className="mt-1 text-xs text-slate-500">{t("adminGroup.cards.occupancy", { rate: summary.occupancy.toFixed(1) })}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-slate-600">{t("adminGroup.cards.soldOutEvents")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-semibold text-slate-900">{summary.soldOutEvents}</div>
-                        <p className="mt-1 text-xs text-slate-500">{t("adminGroup.cards.trackDemand")}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-slate-600">{t("adminGroup.cards.classEnrollments")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-semibold text-slate-900">{summary.classEnrollments}</div>
-                        <p className="mt-1 text-xs text-slate-500">
-                            {canUseClasses
-                                ? t("adminGroup.cards.activeClasses", { count: summary.activeClasses })
-                                : t("adminGroup.cards.proOnly")}
-                        </p>
-                    </CardContent>
-                </Card>
+                <AdminStatCard
+                    label={t("adminGroup.cards.totalEvents")}
+                    value={summary.totalEvents}
+                    hint={t("adminGroup.cards.upcomingEvents", { count: summary.upcomingEvents })}
+                    icon={<CalendarRange className="h-5 w-5" />}
+                    iconClassName="bg-blue-50 text-blue-700"
+                />
+                <AdminStatCard
+                    label={t("adminGroup.cards.seatsBooked")}
+                    value={summary.seatsBooked}
+                    hint={t("adminGroup.cards.occupancy", { rate: summary.occupancy.toFixed(1) })}
+                    icon={<Users className="h-5 w-5" />}
+                    iconClassName="bg-emerald-50 text-emerald-700"
+                />
+                <AdminStatCard
+                    label={t("adminGroup.cards.soldOutEvents")}
+                    value={summary.soldOutEvents}
+                    hint={t("adminGroup.cards.trackDemand")}
+                    icon={<ArrowRight className="h-5 w-5" />}
+                    iconClassName="bg-amber-50 text-amber-700"
+                />
+                <AdminStatCard
+                    label={t("adminGroup.cards.classEnrollments")}
+                    value={summary.classEnrollments}
+                    hint={
+                        canUseClasses
+                            ? t("adminGroup.cards.activeClasses", { count: summary.activeClasses })
+                            : t("adminGroup.cards.proOnly")
+                    }
+                    icon={<Wallet className="h-5 w-5" />}
+                    iconClassName="bg-violet-50 text-violet-700"
+                />
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-                <Card className="border-slate-200">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <CalendarRange className="h-4 w-4 text-brand" />
-                            {t("adminGroup.quick.events")}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <p className="text-sm text-slate-600">{t("adminGroup.quick.eventsDesc")}</p>
-                        <Button asChild variant="outline" className="w-full justify-between">
-                            <Link href="/admin/dashboard/group-reservations/events">
-                                {t("adminGroup.quick.openEvents")}
-                                <ArrowRight className="h-4 w-4" />
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Users className="h-4 w-4 text-brand" />
-                            {t("adminGroup.quick.attendance")}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <p className="text-sm text-slate-600">{t("adminGroup.quick.attendanceDesc")}</p>
-                        <Button asChild variant="outline" className="w-full justify-between">
-                            <Link href="/admin/dashboard/group-reservations/attendance">
-                                {t("adminGroup.quick.openAttendance")}
-                                <ArrowRight className="h-4 w-4" />
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Wallet className="h-4 w-4 text-brand" />
-                            {t("adminGroup.quick.metrics")}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <p className="text-sm text-slate-600">{t("adminGroup.quick.metricsDesc")}</p>
-                        <Button asChild variant="outline" className="w-full justify-between">
-                            <Link href="/admin/dashboard/group-reservations/metrics">
-                                {t("adminGroup.quick.openMetrics")}
-                                <ArrowRight className="h-4 w-4" />
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
+                <AdminSectionCard title={t("adminGroup.quick.events")} description={t("adminGroup.quick.eventsDesc")}>
+                    <Button asChild variant="outline" className="w-full justify-between">
+                        <Link href="/admin/dashboard/group-reservations/events">
+                            {t("adminGroup.quick.openEvents")}
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </AdminSectionCard>
+                <AdminSectionCard title={t("adminGroup.quick.attendance")} description={t("adminGroup.quick.attendanceDesc")}>
+                    <Button asChild variant="outline" className="w-full justify-between">
+                        <Link href="/admin/dashboard/group-reservations/attendance">
+                            {t("adminGroup.quick.openAttendance")}
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </AdminSectionCard>
+                <AdminSectionCard title={t("adminGroup.quick.metrics")} description={t("adminGroup.quick.metricsDesc")}>
+                    <Button asChild variant="outline" className="w-full justify-between">
+                        <Link href="/admin/dashboard/group-reservations/metrics">
+                            {t("adminGroup.quick.openMetrics")}
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </AdminSectionCard>
             </div>
 
-            <Card className="border-slate-200">
-                <CardHeader>
-                    <CardTitle className="text-base">{t("adminGroup.planSummary.title")}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-slate-600">
+            <AdminSectionCard title={t("adminGroup.planSummary.title")}>
+                <div className="space-y-2 text-sm text-slate-600">
                     <p>{t("adminGroup.planSummary.currentPlan", { plan: companyUser?.company?.plan || "BUSINESS" })}</p>
                     <p>{t("adminGroup.planSummary.business")}</p>
                     <p>{t("adminGroup.planSummary.pro")}</p>
-                </CardContent>
-            </Card>
+                </div>
+            </AdminSectionCard>
         </div>
     );
 }

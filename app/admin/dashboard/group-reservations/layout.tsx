@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminPageHeader } from "@/app/admin/dashboard/components/AdminPageHeader";
 import { useT } from "@/lib/i18n";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { GroupReservationsTabs } from "./components/GroupReservationsTabs";
@@ -16,7 +17,10 @@ export default function GroupReservationsLayout({
     if (!isOwnerOrAdmin) {
         return (
             <div className="space-y-4">
-                <h1 className="text-2xl font-bold text-slate-900">{t("adminGroup.title")}</h1>
+                <AdminPageHeader
+                    title={t("adminGroup.title")}
+                    subtitle={t("adminGroup.subtitle")}
+                />
                 <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                     {t("adminGroup.roleRestricted")}
                 </p>
@@ -27,7 +31,10 @@ export default function GroupReservationsLayout({
     if (!canUseEvents) {
         return (
             <div className="space-y-4">
-                <h1 className="text-2xl font-bold text-slate-900">{t("adminGroup.title")}</h1>
+                <AdminPageHeader
+                    title={t("adminGroup.title")}
+                    subtitle={t("adminGroup.subtitle")}
+                />
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={t("planEnforcement.availableOnBusiness")}
@@ -42,10 +49,10 @@ export default function GroupReservationsLayout({
 
     return (
         <div className="space-y-4">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">{t("adminGroup.title")}</h1>
-                <p className="text-sm text-slate-600">{t("adminGroup.subtitle")}</p>
-            </div>
+            <AdminPageHeader
+                title={t("adminGroup.title")}
+                subtitle={t("adminGroup.subtitle")}
+            />
             <GroupReservationsTabs />
             <div>{children}</div>
         </div>
