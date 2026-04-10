@@ -377,7 +377,16 @@ export default function GroupEventDetailPage() {
     const interestCount = interests.length || event?._count?.interests || 0;
 
     useEffect(() => {
-        setSelectedMassRecipients(new Set(massRecipients.map((recipient) => recipient.key)));
+        const validRecipientKeys = new Set(massRecipients.map((recipient) => recipient.key));
+        setSelectedMassRecipients((prev) => {
+            const next = new Set<string>();
+            prev.forEach((key) => {
+                if (validRecipientKeys.has(key)) {
+                    next.add(key);
+                }
+            });
+            return next;
+        });
     }, [massRecipients]);
 
     const soldOut = useMemo(() => {
@@ -1479,6 +1488,7 @@ export default function GroupEventDetailPage() {
                                                             key={recipient.key}
                                                             checked={selectedMassRecipients.has(recipient.key)}
                                                             onCheckedChange={(checked) => toggleMassRecipient(recipient.key, checked === true)}
+                                                            onSelect={(event) => event.preventDefault()}
                                                             className="items-start"
                                                         >
                                                             <div className="flex min-w-0 flex-col">
