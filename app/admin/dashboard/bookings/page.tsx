@@ -34,6 +34,7 @@ import { NewBookingModal } from "./components/NewBookingModal";
 import {
     getBookings,
     createBooking,
+    createRecurringBookings,
     updateBooking,
     getStaff,
     getServices,
@@ -44,6 +45,7 @@ import {
     StaffMember,
     ServiceItem,
     CreateBookingData,
+    CreateRecurringBookingData,
     DaySchedule,
 } from "@/app/admin/lib/adminApi";
 import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
@@ -215,11 +217,22 @@ export default function BookingsPage() {
 
     const handleCreateBooking = async (data: CreateBookingData) => {
         try {
-            const newBooking = await createBooking(data);
-            setBookings(prev => [...prev, newBooking]);
+            await createBooking(data);
+            await fetchBookings();
             setIsNewBookingOpen(false);
         } catch (err) {
             console.error("Failed to create booking:", err);
+            throw err;
+        }
+    };
+
+    const handleCreateRecurringBookings = async (data: CreateRecurringBookingData) => {
+        try {
+            await createRecurringBookings(data);
+            await fetchBookings();
+            setIsNewBookingOpen(false);
+        } catch (err) {
+            console.error("Failed to create recurring bookings:", err);
             throw err;
         }
     };
@@ -615,6 +628,7 @@ export default function BookingsPage() {
                     serviceList={serviceList}
                     currency={currency}
                     onCreate={handleCreateBooking}
+                    onCreateRecurring={handleCreateRecurringBookings}
                 />
             )}
 

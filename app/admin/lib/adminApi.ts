@@ -361,12 +361,16 @@ export interface CreateBookingData {
     staff_id: number;
     service_ids: number[];
     start_at: string; // ISO string
+    customer_id?: number;
     customer: {
         full_name: string;
         email?: string;
         phone?: string;
     };
     notes?: string;
+    is_paid?: boolean;
+    payment_method?: "NONE" | "CASH" | "QR";
+    qr_proof_image_url?: string | null;
 }
 
 export interface CreateBookingResponse {
@@ -379,6 +383,62 @@ export async function createBooking(data: CreateBookingData): Promise<AdminBooki
         body: JSON.stringify(data),
     });
     return response.data;
+}
+
+export interface RecurringBookingSessionData {
+    service_ids: number[];
+    start_at: string;
+    is_paid?: boolean;
+    payment_method?: "NONE" | "CASH" | "QR";
+    qr_proof_image_url?: string | null;
+}
+
+export interface CreateRecurringBookingData {
+    staff_id: number;
+    customer_id?: number;
+    customer: {
+        full_name: string;
+        email?: string;
+        phone?: string;
+    };
+    notes?: string;
+    sessions: RecurringBookingSessionData[];
+}
+
+export async function createRecurringBookings(data: CreateRecurringBookingData): Promise<AdminBooking[]> {
+    const response = await apiFetch<{ data: AdminBooking[] }>("/api/admin/bookings/batch", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+    return response.data;
+}
+
+export async function uploadAdminQrProof(file: File, companyId: number): Promise<string> {
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("company_id", String(companyId));
+
+    const response = await fetch(resolveUrl("/api/upload/qr"), {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+        const message =
+            (typeof payload?.message === "string" && payload.message) ||
+            (typeof payload?.error === "string" && payload.error) ||
+            `Upload failed: ${response.status}`;
+        throw new Error(message);
+    }
+
+    const url = payload?.data?.url;
+    if (typeof url !== "string" || !url) {
+        throw new Error("Upload succeeded but no QR proof URL was returned");
+    }
+
+    return url;
 }
 
 export interface UpdateBookingData {

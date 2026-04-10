@@ -473,6 +473,18 @@ export function BookingDetailSheet({
                         <h3 className="mb-3 text-sm font-semibold">{t("adminBookings.paymentInfo")}</h3>
                         <div className="grid gap-3 rounded-lg bg-page p-4">
                             <div className="flex items-center justify-between">
+                                <span className="text-sm text-text-muted">{t("adminBookings.status")}</span>
+                                <Badge variant="outline">
+                                    {booking.payment_status === "PAID"
+                                        ? t("adminGroup.paymentStatus.paid")
+                                        : booking.payment_status === "PENDING_CONFIRMATION"
+                                            ? t("adminGroup.paymentStatus.pendingConfirmation")
+                                            : booking.payment_status === "REJECTED"
+                                                ? t("adminGroup.paymentStatus.rejected")
+                                                : t("adminGroup.paymentStatus.unpaid")}
+                                </Badge>
+                            </div>
+                            <div className="flex items-center justify-between">
                                 <span className="text-sm text-text-muted">{t("adminBookings.method")}</span>
                                 <Badge variant="outline">
                                     {booking.payment_method == "QR"
