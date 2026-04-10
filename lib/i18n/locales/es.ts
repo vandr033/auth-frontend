@@ -1449,6 +1449,8 @@ const es: TranslationKeys = {
     announcementBannerTextColor: "Color de texto",
     announcementBannerExpiresAt: "Expira el (opcional)",
     announcementBannerEnabled: "Activo",
+    announcementBannerSticky: "Sticky",
+    announcementBannerStickyDesc: "Mantener fijo el banner en la parte superior al hacer scroll.",
     announcementBannerRemove: "Eliminar",
   },
 

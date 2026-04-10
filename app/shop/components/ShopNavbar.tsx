@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Menu, UserRound } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -73,6 +73,7 @@ export function ShopNavbar() {
             isActive(href) &&
             "text-brand after:absolute after:left-0 after:-bottom-2 after:h-0.5 after:w-full after:bg-brand after:content-['']",
         );
+    const stickyTopStyle = { top: "var(--shop-announcement-offset, 0px)" } as CSSProperties;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -187,7 +188,10 @@ export function ShopNavbar() {
     // Show skeleton while loading
     if (shopLoading) {
         return (
-            <header className="sticky top-0 z-50 w-full border-b border-surface-border bg-surface/95 shadow-sm backdrop-blur">
+            <header
+                className="sticky z-50 w-full border-b border-surface-border bg-surface/95 shadow-sm backdrop-blur"
+                style={stickyTopStyle}
+            >
                 <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
                     <div className="h-8 w-40 animate-pulse rounded bg-surface-border/60" />
                     <div className="hidden md:flex gap-8">
@@ -204,7 +208,10 @@ export function ShopNavbar() {
     return (
         <>
         <AnnouncementBannerStrip banners={announcementBanners} />
-        <header className="sticky top-0 z-50 w-full border-b border-surface-border bg-surface/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+        <header
+            className="sticky z-50 w-full border-b border-surface-border bg-surface/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-surface/80"
+            style={stickyTopStyle}
+        >
             <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
                 {/* Logo & Company Name */}
                 <Link href={basePath} className="flex items-center gap-3">

@@ -1462,6 +1462,8 @@ const en = {
     announcementBannerTextColor: "Text Color",
     announcementBannerExpiresAt: "Expires at (optional)",
     announcementBannerEnabled: "Active",
+    announcementBannerSticky: "Sticky",
+    announcementBannerStickyDesc: "Keep the banner pinned to the top while scrolling.",
     announcementBannerRemove: "Remove",
   },
 

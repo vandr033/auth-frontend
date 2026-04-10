@@ -106,6 +106,7 @@ export interface AnnouncementBanner {
     background_color: string;
     text_color: string;
     enabled: boolean;
+    sticky?: boolean;
     expires_at?: string | null; // ISO date string
 }
 
