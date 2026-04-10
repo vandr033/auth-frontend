@@ -94,7 +94,9 @@ type EventMessageRecipient = {
     id: number;
     source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
     label: string;
-    detail: string;
+    email: string | null;
+    phone: string | null;
+    status: string;
 };
 
 const EMPTY_MANUAL_STAFF: ManualStaff = {
@@ -335,13 +337,14 @@ export default function GroupEventDetailPage() {
                 const source = booking.source === "FREE_REGISTRATION" ? "FREE_REGISTRATION" : "GROUP_EVENT_BOOKING";
                 const rawId = source === "FREE_REGISTRATION" ? Math.abs(booking.id) : booking.id;
                 const name = booking.user?.name || booking.user?.email || booking.user_id;
-                const detail = booking.user?.email || booking.user?.phoneNumber || booking.status;
                 return {
                     key: `${source}:${rawId}`,
                     id: rawId,
                     source,
                     label: name,
-                    detail,
+                    email: booking.user?.email ?? null,
+                    phone: booking.user?.phoneNumber ?? null,
+                    status: booking.status,
                 };
             });
     }, [bookings]);
@@ -1404,7 +1407,20 @@ export default function GroupEventDetailPage() {
                                                     >
                                                         <div className="flex min-w-0 flex-col">
                                                             <span className="truncate font-medium">{recipient.label}</span>
-                                                            <span className="truncate text-xs text-slate-500">{recipient.detail}</span>
+                                                            <div className="mt-1 space-y-1 text-xs text-slate-500">
+                                                                <span className="flex items-center gap-1 truncate">
+                                                                    <Mail className="h-3 w-3 shrink-0" />
+                                                                    <span className="truncate">
+                                                                        {recipient.email || t("common.notAvailable")}
+                                                                    </span>
+                                                                </span>
+                                                                <span className="flex items-center gap-1 truncate">
+                                                                    <MessageCircle className="h-3 w-3 shrink-0" />
+                                                                    <span className="truncate">
+                                                                        {recipient.phone || t("common.notAvailable")}
+                                                                    </span>
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </DropdownMenuCheckboxItem>
                                                 ))}
