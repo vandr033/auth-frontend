@@ -59,7 +59,7 @@ import {
     listFreeEventRegistrations,
     listFreeEventInterested,
     removeFreeEventRegistration,
-    sendGroupEventMassMessage,
+    streamGroupEventMassMessage,
     inviteFreeEventInterested,
     setGroupEventStatus,
     unconfirmGroupEventBooking,
@@ -70,8 +70,10 @@ import {
     type GroupBookingFlowSettings,
     type GroupEvent,
     type GroupEventBooking,
+    type GroupEventMassMessageDeliveryMode,
     type GroupEventInterest,
     type GroupItemStatus,
+    type MassCustomerMessageProgress,
     type GroupTicket,
     type GroupStaffRole,
     type StaffMember,
@@ -219,8 +221,11 @@ export default function GroupEventDetailPage() {
     const [inviting, setInviting] = useState(false);
     const [massDialogOpen, setMassDialogOpen] = useState(false);
     const [massMessageBody, setMassMessageBody] = useState("");
+    const [massMessageDeliveryMode, setMassMessageDeliveryMode] = useState<GroupEventMassMessageDeliveryMode>("BOTH");
     const [sendingMassMessage, setSendingMassMessage] = useState(false);
     const [selectedMassRecipients, setSelectedMassRecipients] = useState<Set<string>>(new Set());
+    const [massRecipientSearch, setMassRecipientSearch] = useState("");
+    const [massMessageProgress, setMassMessageProgress] = useState<MassCustomerMessageProgress | null>(null);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
@@ -348,7 +353,27 @@ export default function GroupEventDetailPage() {
                 };
             });
     }, [bookings]);
+    const filteredMassRecipients = useMemo(() => {
+        const query = massRecipientSearch.trim().toLowerCase();
+        if (!query) return massRecipients;
+
+        return massRecipients.filter((recipient) => {
+            const haystack = [
+                recipient.label,
+                recipient.email ?? "",
+                recipient.phone ?? "",
+                recipient.status,
+            ]
+                .join(" ")
+                .toLowerCase();
+            return haystack.includes(query);
+        });
+    }, [massRecipientSearch, massRecipients]);
     const selectedMassRecipientCount = selectedMassRecipients.size;
+    const filteredSelectedMassRecipientCount = filteredMassRecipients.reduce(
+        (count, recipient) => count + (selectedMassRecipients.has(recipient.key) ? 1 : 0),
+        0,
+    );
     const interestCount = interests.length || event?._count?.interests || 0;
 
     useEffect(() => {
@@ -604,16 +629,39 @@ export default function GroupEventDetailPage() {
         }
 
         setSendingMassMessage(true);
+        setMassMessageProgress({
+            total_customers: selectedMassRecipients.size,
+            total_recipients: selectedMassRecipients.size,
+            processed: 0,
+            sent_total: 0,
+            sent_whatsapp: 0,
+            sent_email: 0,
+            skipped_no_contact: 0,
+            skipped_duplicates: 0,
+            failed: 0,
+        });
         try {
-            const result = await sendGroupEventMassMessage(eventId, {
-                message,
-                selected_targets: massRecipients
-                    .filter((recipient) => selectedMassRecipients.has(recipient.key))
-                    .map((recipient) => ({
-                        source: recipient.source,
-                        id: recipient.id,
-                    })),
-            });
+            const result = await streamGroupEventMassMessage(
+                eventId,
+                {
+                    message,
+                    delivery_mode: massMessageDeliveryMode,
+                    selected_targets: massRecipients
+                        .filter((recipient) => selectedMassRecipients.has(recipient.key))
+                        .map((recipient) => ({
+                            source: recipient.source,
+                            id: recipient.id,
+                        })),
+                },
+                {
+                    onProgress: (progress) => {
+                        setMassMessageProgress({
+                            ...progress,
+                            total_customers: progress.total_recipients,
+                        });
+                    },
+                },
+            );
             await notify.success(
                 t("adminGroup.events.massMessageSummary", {
                     sent: result.sent_total,
@@ -625,7 +673,9 @@ export default function GroupEventDetailPage() {
             );
             setMassMessageBody("");
             setMassDialogOpen(false);
+            setMassMessageProgress(null);
         } catch (error) {
+            setMassMessageProgress(null);
             await notify.error(error instanceof Error ? error.message : t("adminGroup.events.massMessageFailed"));
         } finally {
             setSendingMassMessage(false);
@@ -637,6 +687,22 @@ export default function GroupEventDetailPage() {
             const next = new Set(prev);
             if (checked) next.add(key);
             else next.delete(key);
+            return next;
+        });
+    };
+
+    const selectFilteredMassRecipients = () => {
+        setSelectedMassRecipients((prev) => {
+            const next = new Set(prev);
+            filteredMassRecipients.forEach((recipient) => next.add(recipient.key));
+            return next;
+        });
+    };
+
+    const clearFilteredMassRecipients = () => {
+        setSelectedMassRecipients((prev) => {
+            const next = new Set(prev);
+            filteredMassRecipients.forEach((recipient) => next.delete(recipient.key));
             return next;
         });
     };
@@ -1385,6 +1451,11 @@ export default function GroupEventDetailPage() {
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <Label>{t("adminGroup.events.massMessageRecipientsLabel")}</Label>
+                                    <Input
+                                        value={massRecipientSearch}
+                                        onChange={(e) => setMassRecipientSearch(e.target.value)}
+                                        placeholder={t("adminGroup.events.massMessageRecipientSearchPlaceholder")}
+                                    />
                                     <div className="flex flex-wrap items-center gap-2">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -1395,42 +1466,49 @@ export default function GroupEventDetailPage() {
                                                     })}
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start" className="w-[340px]">
+                                            <DropdownMenuContent align="start" className="w-[360px]">
                                                 <DropdownMenuLabel>{t("adminGroup.events.massMessageRecipientsLabel")}</DropdownMenuLabel>
                                                 <DropdownMenuSeparator />
-                                                {massRecipients.map((recipient) => (
-                                                    <DropdownMenuCheckboxItem
-                                                        key={recipient.key}
-                                                        checked={selectedMassRecipients.has(recipient.key)}
-                                                        onCheckedChange={(checked) => toggleMassRecipient(recipient.key, checked === true)}
-                                                        className="items-start"
-                                                    >
-                                                        <div className="flex min-w-0 flex-col">
-                                                            <span className="truncate font-medium">{recipient.label}</span>
-                                                            <div className="mt-1 space-y-1 text-xs text-slate-500">
-                                                                <span className="flex items-center gap-1 truncate">
-                                                                    <Mail className="h-3 w-3 shrink-0" />
-                                                                    <span className="truncate">
-                                                                        {recipient.email || t("common.notAvailable")}
+                                                {filteredMassRecipients.length === 0 ? (
+                                                    <div className="px-2 py-3 text-sm text-slate-500">
+                                                        {t("adminGroup.events.massMessageRecipientNoMatches")}
+                                                    </div>
+                                                ) : (
+                                                    filteredMassRecipients.map((recipient) => (
+                                                        <DropdownMenuCheckboxItem
+                                                            key={recipient.key}
+                                                            checked={selectedMassRecipients.has(recipient.key)}
+                                                            onCheckedChange={(checked) => toggleMassRecipient(recipient.key, checked === true)}
+                                                            className="items-start"
+                                                        >
+                                                            <div className="flex min-w-0 flex-col">
+                                                                <span className="truncate font-medium">{recipient.label}</span>
+                                                                <div className="mt-1 space-y-1 text-xs text-slate-500">
+                                                                    <span className="flex items-center gap-1 truncate">
+                                                                        <Mail className="h-3 w-3 shrink-0" />
+                                                                        <span className="truncate">
+                                                                            {recipient.email || t("common.notAvailable")}
+                                                                        </span>
                                                                     </span>
-                                                                </span>
-                                                                <span className="flex items-center gap-1 truncate">
-                                                                    <MessageCircle className="h-3 w-3 shrink-0" />
-                                                                    <span className="truncate">
-                                                                        {recipient.phone || t("common.notAvailable")}
+                                                                    <span className="flex items-center gap-1 truncate">
+                                                                        <MessageCircle className="h-3 w-3 shrink-0" />
+                                                                        <span className="truncate">
+                                                                            {recipient.phone || t("common.notAvailable")}
+                                                                        </span>
                                                                     </span>
-                                                                </span>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </DropdownMenuCheckboxItem>
-                                                ))}
+                                                        </DropdownMenuCheckboxItem>
+                                                    ))
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => setSelectedMassRecipients(new Set(massRecipients.map((recipient) => recipient.key)))}
+                                            onClick={selectFilteredMassRecipients}
+                                            disabled={filteredMassRecipients.length === 0}
                                         >
                                             {t("adminGroup.events.selectAllRecipients")}
                                         </Button>
@@ -1438,9 +1516,54 @@ export default function GroupEventDetailPage() {
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => setSelectedMassRecipients(new Set())}
+                                            onClick={clearFilteredMassRecipients}
+                                            disabled={filteredMassRecipients.length === 0}
                                         >
                                             {t("adminGroup.events.clearRecipientSelection")}
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                        {t("adminGroup.events.massMessageRecipientCounter", {
+                                            selected: filteredSelectedMassRecipientCount,
+                                            total: filteredMassRecipients.length,
+                                        })}
+                                    </p>
+                                    {sendingMassMessage && massMessageProgress ? (
+                                        <p className="text-xs font-medium text-brand">
+                                            {t("adminGroup.events.massMessageLiveCounter", {
+                                                sent: massMessageProgress.sent_total,
+                                                processed: massMessageProgress.processed,
+                                                total: massMessageProgress.total_recipients,
+                                            })}
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>{t("adminGroup.events.massMessageDeliveryLabel")}</Label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <Button
+                                            type="button"
+                                            variant={massMessageDeliveryMode === "WHATSAPP" ? "default" : "outline"}
+                                            onClick={() => setMassMessageDeliveryMode("WHATSAPP")}
+                                            disabled={sendingMassMessage}
+                                        >
+                                            {t("adminGroup.events.massMessageDeliveryWhatsapp")}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={massMessageDeliveryMode === "EMAIL" ? "default" : "outline"}
+                                            onClick={() => setMassMessageDeliveryMode("EMAIL")}
+                                            disabled={sendingMassMessage}
+                                        >
+                                            {t("adminGroup.events.massMessageDeliveryEmail")}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={massMessageDeliveryMode === "BOTH" ? "default" : "outline"}
+                                            onClick={() => setMassMessageDeliveryMode("BOTH")}
+                                            disabled={sendingMassMessage}
+                                        >
+                                            {t("adminGroup.events.massMessageDeliveryBoth")}
                                         </Button>
                                     </div>
                                 </div>
@@ -1465,7 +1588,12 @@ export default function GroupEventDetailPage() {
                                 </Button>
                                 <Button type="button" onClick={() => void handleSendMassMessage()} disabled={sendingMassMessage}>
                                     {sendingMassMessage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                                    {t("adminGroup.events.sendMassMessage")}
+                                    {sendingMassMessage && massMessageProgress
+                                        ? t("adminGroup.events.massMessageLiveButton", {
+                                            sent: massMessageProgress.sent_total,
+                                            total: massMessageProgress.total_recipients,
+                                        })
+                                        : t("adminGroup.events.sendMassMessage")}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

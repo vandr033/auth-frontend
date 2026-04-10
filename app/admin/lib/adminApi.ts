@@ -265,6 +265,24 @@ export interface MassCustomerMessageResult {
     failed: number;
 }
 
+export interface MassCustomerMessageProgress extends MassCustomerMessageResult {
+    processed: number;
+    total_recipients: number;
+}
+
+export type GroupEventMassMessageTarget = {
+    source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
+    id: number;
+};
+
+export type GroupEventMassMessageDeliveryMode = "WHATSAPP" | "EMAIL" | "BOTH";
+
+export type GroupEventMassMessagePayload = {
+    message: string;
+    delivery_mode?: GroupEventMassMessageDeliveryMode;
+    selected_targets?: GroupEventMassMessageTarget[];
+};
+
 export async function importCustomersFile(file: File): Promise<CustomerImportResult> {
     const formData = new FormData();
     formData.append("file", file);
@@ -1607,13 +1625,7 @@ export async function cancelGroupEventBooking(bookingId: number): Promise<void> 
 
 export async function sendGroupEventMassMessage(
     eventId: number,
-    payload: {
-        message: string;
-        selected_targets?: Array<{
-            source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
-            id: number;
-        }>;
-    },
+    payload: GroupEventMassMessagePayload,
 ): Promise<MassCustomerMessageResult> {
     const response = await apiFetch<{ data: MassCustomerMessageResult }>(
         `/api/admin/group/events/${eventId}/mass-message`,
@@ -1623,6 +1635,105 @@ export async function sendGroupEventMassMessage(
         },
     );
     return response.data;
+}
+
+export async function streamGroupEventMassMessage(
+    eventId: number,
+    payload: GroupEventMassMessagePayload,
+    options?: {
+        onProgress?: (progress: MassCustomerMessageProgress) => void;
+    },
+): Promise<MassCustomerMessageResult> {
+    const response = await fetch(resolveUrl(`/api/admin/group/events/${eventId}/mass-message/stream`), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        const fallback = await response.json().catch(() => null);
+        const message =
+            (typeof fallback?.message === "string" && fallback.message) ||
+            (typeof fallback?.error === "string" && fallback.error) ||
+            `Request failed: ${response.status}`;
+        throw new Error(message);
+    }
+
+    if (!response.body) {
+        throw new Error("Mass message progress stream is not available");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalResult: MassCustomerMessageResult | null = null;
+
+    const handleChunk = (chunk: string) => {
+        const lines = chunk.split("\n");
+        let eventName = "message";
+        const dataLines: string[] = [];
+
+        for (const line of lines) {
+            if (line.startsWith("event:")) {
+                eventName = line.slice(6).trim();
+            } else if (line.startsWith("data:")) {
+                dataLines.push(line.slice(5).trimStart());
+            }
+        }
+
+        if (dataLines.length === 0) return;
+
+        const payloadData = JSON.parse(dataLines.join("\n")) as
+            | MassCustomerMessageResult
+            | MassCustomerMessageProgress
+            | { message?: string };
+
+        if (eventName === "progress") {
+            options?.onProgress?.(payloadData as MassCustomerMessageProgress);
+            return;
+        }
+
+        if (eventName === "complete") {
+            finalResult = payloadData as MassCustomerMessageResult;
+            return;
+        }
+
+        if (eventName === "error") {
+            throw new Error(
+                (payloadData as { message?: string }).message || "Mass message stream failed",
+            );
+        }
+    };
+
+    while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const eventChunk of events) {
+            if (!eventChunk.trim()) continue;
+            handleChunk(eventChunk);
+        }
+
+        if (done) {
+            if (buffer.trim()) {
+                handleChunk(buffer);
+            }
+            break;
+        }
+    }
+
+    if (!finalResult) {
+        throw new Error("Mass message completed without a final response");
+    }
+
+    return finalResult;
 }
 
 export async function listGroupClasses(params?: {
