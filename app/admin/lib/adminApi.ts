@@ -1607,7 +1607,13 @@ export async function cancelGroupEventBooking(bookingId: number): Promise<void> 
 
 export async function sendGroupEventMassMessage(
     eventId: number,
-    payload: { message: string },
+    payload: {
+        message: string;
+        selected_targets?: Array<{
+            source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
+            id: number;
+        }>;
+    },
 ): Promise<MassCustomerMessageResult> {
     const response = await apiFetch<{ data: MassCustomerMessageResult }>(
         `/api/admin/group/events/${eventId}/mass-message`,

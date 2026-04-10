@@ -9,6 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -79,6 +87,14 @@ type ManualStaff = {
     display_name: string;
     display_phone: string;
     role: GroupStaffRole;
+};
+
+type EventMessageRecipient = {
+    key: string;
+    id: number;
+    source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
+    label: string;
+    detail: string;
 };
 
 const EMPTY_MANUAL_STAFF: ManualStaff = {
@@ -202,6 +218,7 @@ export default function GroupEventDetailPage() {
     const [massDialogOpen, setMassDialogOpen] = useState(false);
     const [massMessageBody, setMassMessageBody] = useState("");
     const [sendingMassMessage, setSendingMassMessage] = useState(false);
+    const [selectedMassRecipients, setSelectedMassRecipients] = useState<Set<string>>(new Set());
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
@@ -311,7 +328,29 @@ export default function GroupEventDetailPage() {
         () => bookings.filter((booking) => booking.status !== "CANCELLED").length,
         [bookings],
     );
+    const massRecipients = useMemo<EventMessageRecipient[]>(() => {
+        return bookings
+            .filter((booking) => booking.status !== "CANCELLED")
+            .map((booking) => {
+                const source = booking.source === "FREE_REGISTRATION" ? "FREE_REGISTRATION" : "GROUP_EVENT_BOOKING";
+                const rawId = source === "FREE_REGISTRATION" ? Math.abs(booking.id) : booking.id;
+                const name = booking.user?.name || booking.user?.email || booking.user_id;
+                const detail = booking.user?.email || booking.user?.phoneNumber || booking.status;
+                return {
+                    key: `${source}:${rawId}`,
+                    id: rawId,
+                    source,
+                    label: name,
+                    detail,
+                };
+            });
+    }, [bookings]);
+    const selectedMassRecipientCount = selectedMassRecipients.size;
     const interestCount = interests.length || event?._count?.interests || 0;
+
+    useEffect(() => {
+        setSelectedMassRecipients(new Set(massRecipients.map((recipient) => recipient.key)));
+    }, [massRecipients]);
 
     const soldOut = useMemo(() => {
         if (!event) return false;
@@ -556,9 +595,22 @@ export default function GroupEventDetailPage() {
             return;
         }
 
+        if (selectedMassRecipients.size === 0) {
+            await notify.warning(t("adminGroup.events.massMessageRecipientsRequired"));
+            return;
+        }
+
         setSendingMassMessage(true);
         try {
-            const result = await sendGroupEventMassMessage(eventId, { message });
+            const result = await sendGroupEventMassMessage(eventId, {
+                message,
+                selected_targets: massRecipients
+                    .filter((recipient) => selectedMassRecipients.has(recipient.key))
+                    .map((recipient) => ({
+                        source: recipient.source,
+                        id: recipient.id,
+                    })),
+            });
             await notify.success(
                 t("adminGroup.events.massMessageSummary", {
                     sent: result.sent_total,
@@ -575,6 +627,15 @@ export default function GroupEventDetailPage() {
         } finally {
             setSendingMassMessage(false);
         }
+    };
+
+    const toggleMassRecipient = (key: string, checked: boolean) => {
+        setSelectedMassRecipients((prev) => {
+            const next = new Set(prev);
+            if (checked) next.add(key);
+            else next.delete(key);
+            return next;
+        });
     };
 
     if (!canUseEvents) {
@@ -635,7 +696,7 @@ export default function GroupEventDetailPage() {
                             type="button"
                             variant="outline"
                             onClick={() => setMassDialogOpen(true)}
-                            disabled={!canBulkMessaging || sendingMassMessage || activeAudienceCount === 0}
+                            disabled={!canBulkMessaging || sendingMassMessage || massRecipients.length === 0}
                         >
                             <Send className="mr-2 h-4 w-4" />
                             {t("adminGroup.events.sendMassMessage")}
@@ -1320,6 +1381,54 @@ export default function GroupEventDetailPage() {
                             </DialogHeader>
                             <div className="space-y-4">
                                 <div className="space-y-2">
+                                    <Label>{t("adminGroup.events.massMessageRecipientsLabel")}</Label>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button type="button" variant="outline">
+                                                    {t("adminGroup.events.massMessageRecipientsButton", {
+                                                        selected: selectedMassRecipientCount,
+                                                        total: massRecipients.length,
+                                                    })}
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="w-[340px]">
+                                                <DropdownMenuLabel>{t("adminGroup.events.massMessageRecipientsLabel")}</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {massRecipients.map((recipient) => (
+                                                    <DropdownMenuCheckboxItem
+                                                        key={recipient.key}
+                                                        checked={selectedMassRecipients.has(recipient.key)}
+                                                        onCheckedChange={(checked) => toggleMassRecipient(recipient.key, checked === true)}
+                                                        className="items-start"
+                                                    >
+                                                        <div className="flex min-w-0 flex-col">
+                                                            <span className="truncate font-medium">{recipient.label}</span>
+                                                            <span className="truncate text-xs text-slate-500">{recipient.detail}</span>
+                                                        </div>
+                                                    </DropdownMenuCheckboxItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setSelectedMassRecipients(new Set(massRecipients.map((recipient) => recipient.key)))}
+                                        >
+                                            {t("adminGroup.events.selectAllRecipients")}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setSelectedMassRecipients(new Set())}
+                                        >
+                                            {t("adminGroup.events.clearRecipientSelection")}
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
                                     <Label htmlFor="event-mass-message">{t("adminGroup.events.massMessageBodyLabel")}</Label>
                                     <textarea
                                         id="event-mass-message"
@@ -1331,7 +1440,7 @@ export default function GroupEventDetailPage() {
                                     />
                                 </div>
                                 <p className="text-xs text-slate-500">
-                                    {t("adminGroup.events.massMessageAudienceHint", { count: activeAudienceCount })}
+                                    {t("adminGroup.events.massMessageAudienceHint", { count: selectedMassRecipientCount })}
                                 </p>
                             </div>
                             <DialogFooter>
