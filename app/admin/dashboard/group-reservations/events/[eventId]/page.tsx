@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Send, Trash2, UserPlus } from "lucide-react";
@@ -101,6 +101,12 @@ type EventMessageRecipient = {
     status: string;
 };
 
+type FailedEventMessageTarget = {
+    source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
+    id: number;
+    failed_channels: Array<"WHATSAPP" | "EMAIL">;
+};
+
 const EMPTY_MANUAL_STAFF: ManualStaff = {
     display_name: "",
     display_phone: "",
@@ -121,6 +127,10 @@ function normalizeSlugInput(value: string): string {
 
 function slugifyInput(value: string): string {
     return normalizeSlugInput(value).replace(/-+$/g, "");
+}
+
+function getMassRecipientKey(source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION", id: number): string {
+    return `${source}:${id}`;
 }
 
 type EventFormState = {
@@ -226,11 +236,14 @@ export default function GroupEventDetailPage() {
     const [selectedMassRecipients, setSelectedMassRecipients] = useState<Set<string>>(new Set());
     const [massRecipientSearch, setMassRecipientSearch] = useState("");
     const [massMessageProgress, setMassMessageProgress] = useState<MassCustomerMessageProgress | null>(null);
+    const [massRecipientMenuOpen, setMassRecipientMenuOpen] = useState(false);
+    const [failedMassRecipients, setFailedMassRecipients] = useState<FailedEventMessageTarget[]>([]);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
     const [thumbnailImagePreview, setThumbnailImagePreview] = useState<string | null>(null);
     const [qrProofDialog, setQrProofDialog] = useState<string | null>(null);
+    const massRecipientSearchInputRef = useRef<HTMLInputElement | null>(null);
 
     const loadData = useCallback(async () => {
         if (!Number.isInteger(eventId) || eventId <= 0) return;
@@ -343,7 +356,7 @@ export default function GroupEventDetailPage() {
                 const rawId = source === "FREE_REGISTRATION" ? Math.abs(booking.id) : booking.id;
                 const name = booking.user?.name || booking.user?.email || booking.user_id;
                 return {
-                    key: `${source}:${rawId}`,
+                    key: getMassRecipientKey(source, rawId),
                     id: rawId,
                     source,
                     label: name,
@@ -374,6 +387,14 @@ export default function GroupEventDetailPage() {
         (count, recipient) => count + (selectedMassRecipients.has(recipient.key) ? 1 : 0),
         0,
     );
+    const failedWhatsappRecipients = useMemo(
+        () => failedMassRecipients.filter((recipient) => recipient.failed_channels.includes("WHATSAPP")),
+        [failedMassRecipients],
+    );
+    const failedEmailRecipients = useMemo(
+        () => failedMassRecipients.filter((recipient) => recipient.failed_channels.includes("EMAIL")),
+        [failedMassRecipients],
+    );
     const interestCount = interests.length || event?._count?.interests || 0;
 
     useEffect(() => {
@@ -388,6 +409,14 @@ export default function GroupEventDetailPage() {
             return next;
         });
     }, [massRecipients]);
+
+    useEffect(() => {
+        if (!massRecipientMenuOpen) return;
+        const frame = window.requestAnimationFrame(() => {
+            massRecipientSearchInputRef.current?.focus();
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [massRecipientMenuOpen]);
 
     const soldOut = useMemo(() => {
         if (!event) return false;
@@ -620,7 +649,10 @@ export default function GroupEventDetailPage() {
         await loadData();
     };
 
-    const handleSendMassMessage = async () => {
+    const sendMassMessageToTargets = async (
+        targets: Array<{ source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION"; id: number }>,
+        deliveryMode: GroupEventMassMessageDeliveryMode,
+    ) => {
         if (!canBulkMessaging) {
             await notify.warning(t("planEnforcement.availableOnPro"));
             return;
@@ -632,15 +664,15 @@ export default function GroupEventDetailPage() {
             return;
         }
 
-        if (selectedMassRecipients.size === 0) {
+        if (targets.length === 0) {
             await notify.warning(t("adminGroup.events.massMessageRecipientsRequired"));
             return;
         }
 
         setSendingMassMessage(true);
         setMassMessageProgress({
-            total_customers: selectedMassRecipients.size,
-            total_recipients: selectedMassRecipients.size,
+            total_customers: targets.length,
+            total_recipients: targets.length,
             processed: 0,
             sent_total: 0,
             sent_whatsapp: 0,
@@ -654,13 +686,8 @@ export default function GroupEventDetailPage() {
                 eventId,
                 {
                     message,
-                    delivery_mode: massMessageDeliveryMode,
-                    selected_targets: massRecipients
-                        .filter((recipient) => selectedMassRecipients.has(recipient.key))
-                        .map((recipient) => ({
-                            source: recipient.source,
-                            id: recipient.id,
-                        })),
+                    delivery_mode: deliveryMode,
+                    selected_targets: targets,
                 },
                 {
                     onProgress: (progress) => {
@@ -671,17 +698,29 @@ export default function GroupEventDetailPage() {
                     },
                 },
             );
-            await notify.success(
-                t("adminGroup.events.massMessageSummary", {
-                    sent: result.sent_total,
-                    whatsapp: result.sent_whatsapp,
-                    email: result.sent_email,
-                    failed: result.failed,
-                    noContact: result.skipped_no_contact,
-                }),
-            );
-            setMassMessageBody("");
-            setMassDialogOpen(false);
+
+            const nextFailedRecipients = result.failed_targets ?? [];
+            setFailedMassRecipients(nextFailedRecipients);
+
+            if (nextFailedRecipients.length > 0) {
+                await notify.warning(
+                    t("adminGroup.events.massMessageRetryAvailable", {
+                        failed: nextFailedRecipients.length,
+                    }),
+                );
+            } else {
+                await notify.success(
+                    t("adminGroup.events.massMessageSummary", {
+                        sent: result.sent_total,
+                        whatsapp: result.sent_whatsapp,
+                        email: result.sent_email,
+                        failed: result.failed,
+                        noContact: result.skipped_no_contact,
+                    }),
+                );
+                setMassMessageBody("");
+                setMassDialogOpen(false);
+            }
             setMassMessageProgress(null);
         } catch (error) {
             setMassMessageProgress(null);
@@ -689,6 +728,30 @@ export default function GroupEventDetailPage() {
         } finally {
             setSendingMassMessage(false);
         }
+    };
+
+    const handleSendMassMessage = async () => {
+        await sendMassMessageToTargets(
+            massRecipients
+                .filter((recipient) => selectedMassRecipients.has(recipient.key))
+                .map((recipient) => ({
+                    source: recipient.source,
+                    id: recipient.id,
+                })),
+            massMessageDeliveryMode,
+        );
+    };
+
+    const handleRetryFailedMassMessage = async (channel: "WHATSAPP" | "EMAIL") => {
+        await sendMassMessageToTargets(
+            failedMassRecipients
+                .filter((recipient) => recipient.failed_channels.includes(channel))
+                .map((recipient) => ({
+                    source: recipient.source,
+                    id: recipient.id,
+                })),
+            channel,
+        );
     };
 
     const toggleMassRecipient = (key: string, checked: boolean) => {
@@ -1449,7 +1512,18 @@ export default function GroupEventDetailPage() {
                         </DialogContent>
                     </Dialog>
 
-                    <Dialog open={massDialogOpen} onOpenChange={setMassDialogOpen}>
+                    <Dialog
+                        open={massDialogOpen}
+                        onOpenChange={(open) => {
+                            setMassDialogOpen(open);
+                            if (!open) {
+                                setMassRecipientMenuOpen(false);
+                                setMassRecipientSearch("");
+                                setFailedMassRecipients([]);
+                                setMassMessageProgress(null);
+                            }
+                        }}
+                    >
                         <DialogContent className="sm:max-w-lg">
                             <DialogHeader>
                                 <DialogTitle>{t("adminGroup.events.sendMassMessageTitle")}</DialogTitle>
@@ -1460,13 +1534,12 @@ export default function GroupEventDetailPage() {
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <Label>{t("adminGroup.events.massMessageRecipientsLabel")}</Label>
-                                    <Input
-                                        value={massRecipientSearch}
-                                        onChange={(e) => setMassRecipientSearch(e.target.value)}
-                                        placeholder={t("adminGroup.events.massMessageRecipientSearchPlaceholder")}
-                                    />
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <DropdownMenu>
+                                        <DropdownMenu
+                                            modal={false}
+                                            open={massRecipientMenuOpen}
+                                            onOpenChange={setMassRecipientMenuOpen}
+                                        >
                                             <DropdownMenuTrigger asChild>
                                                 <Button type="button" variant="outline">
                                                     {t("adminGroup.events.massMessageRecipientsButton", {
@@ -1475,8 +1548,21 @@ export default function GroupEventDetailPage() {
                                                     })}
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="start" className="w-[360px]">
+                                            <DropdownMenuContent
+                                                align="start"
+                                                className="w-[360px]"
+                                                onCloseAutoFocus={(event) => event.preventDefault()}
+                                            >
                                                 <DropdownMenuLabel>{t("adminGroup.events.massMessageRecipientsLabel")}</DropdownMenuLabel>
+                                                <div className="px-2 pb-2">
+                                                    <Input
+                                                        ref={massRecipientSearchInputRef}
+                                                        value={massRecipientSearch}
+                                                        onChange={(e) => setMassRecipientSearch(e.target.value)}
+                                                        onKeyDown={(event) => event.stopPropagation()}
+                                                        placeholder={t("adminGroup.events.massMessageRecipientSearchPlaceholder")}
+                                                    />
+                                                </div>
                                                 <DropdownMenuSeparator />
                                                 {filteredMassRecipients.length === 0 ? (
                                                     <div className="px-2 py-3 text-sm text-slate-500">
@@ -1546,6 +1632,30 @@ export default function GroupEventDetailPage() {
                                                 total: massMessageProgress.total_recipients,
                                             })}
                                         </p>
+                                    ) : null}
+                                    {!sendingMassMessage && failedWhatsappRecipients.length > 0 ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => void handleRetryFailedMassMessage("WHATSAPP")}
+                                        >
+                                            {t("adminGroup.events.massMessageRetryWhatsapp", {
+                                                count: failedWhatsappRecipients.length,
+                                            })}
+                                        </Button>
+                                    ) : null}
+                                    {!sendingMassMessage && failedEmailRecipients.length > 0 ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => void handleRetryFailedMassMessage("EMAIL")}
+                                        >
+                                            {t("adminGroup.events.massMessageRetryEmail", {
+                                                count: failedEmailRecipients.length,
+                                            })}
+                                        </Button>
                                     ) : null}
                                 </div>
                                 <div className="space-y-2">

@@ -263,6 +263,11 @@ export interface MassCustomerMessageResult {
     skipped_no_contact: number;
     skipped_duplicates: number;
     failed: number;
+    failed_targets?: Array<{
+        source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
+        id: number;
+        failed_channels: Array<"WHATSAPP" | "EMAIL">;
+    }>;
 }
 
 export interface MassCustomerMessageProgress extends MassCustomerMessageResult {
