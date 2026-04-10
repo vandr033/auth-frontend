@@ -1605,6 +1605,20 @@ export async function cancelGroupEventBooking(bookingId: number): Promise<void> 
     await apiFetch(`/api/admin/group/events/bookings/${bookingId}/cancel`, { method: "POST" });
 }
 
+export async function sendGroupEventMassMessage(
+    eventId: number,
+    payload: { message: string },
+): Promise<MassCustomerMessageResult> {
+    const response = await apiFetch<{ data: MassCustomerMessageResult }>(
+        `/api/admin/group/events/${eventId}/mass-message`,
+        {
+            method: "POST",
+            body: JSON.stringify(payload),
+        },
+    );
+    return response.data;
+}
+
 export async function listGroupClasses(params?: {
     status?: GroupItemStatus;
 }): Promise<GroupClass[]> {

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Send, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +32,7 @@ import {
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { useGroupReservationsAccess } from "../../lib/useGroupReservationsAccess";
 import { formatDateTime, formatMoneyFromCents } from "../../lib/format";
 import {
@@ -50,6 +51,7 @@ import {
     listFreeEventRegistrations,
     listFreeEventInterested,
     removeFreeEventRegistration,
+    sendGroupEventMassMessage,
     inviteFreeEventInterested,
     setGroupEventStatus,
     unconfirmGroupEventBooking,
@@ -174,7 +176,9 @@ export default function GroupEventDetailPage() {
     const eventId = Number.parseInt(eventIdRaw, 10);
     const { companyId, companyUser } = useAdminAuth();
     const currency = companyUser?.company?.currency;
+    const plan = resolveShopPlan(companyUser?.company?.plan);
     const { canUseAdvanced, canUseEvents } = useGroupReservationsAccess();
+    const canBulkMessaging = canUsePlanFeature(plan, "BULK_WHATSAPP_MESSAGING");
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -195,6 +199,9 @@ export default function GroupEventDetailPage() {
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
     const [inviteChannels, setInviteChannels] = useState({ email: true, whatsapp: false });
     const [inviting, setInviting] = useState(false);
+    const [massDialogOpen, setMassDialogOpen] = useState(false);
+    const [massMessageBody, setMassMessageBody] = useState("");
+    const [sendingMassMessage, setSendingMassMessage] = useState(false);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
@@ -298,6 +305,10 @@ export default function GroupEventDetailPage() {
     );
     const waitlistBookings = useMemo(
         () => bookings.filter((booking) => booking.status === "WAITLISTED"),
+        [bookings],
+    );
+    const activeAudienceCount = useMemo(
+        () => bookings.filter((booking) => booking.status !== "CANCELLED").length,
         [bookings],
     );
     const interestCount = interests.length || event?._count?.interests || 0;
@@ -533,6 +544,39 @@ export default function GroupEventDetailPage() {
         await loadData();
     };
 
+    const handleSendMassMessage = async () => {
+        if (!canBulkMessaging) {
+            await notify.warning(t("planEnforcement.availableOnPro"));
+            return;
+        }
+
+        const message = massMessageBody.trim();
+        if (!message) {
+            await notify.warning(t("adminGroup.events.massMessageBodyRequired"));
+            return;
+        }
+
+        setSendingMassMessage(true);
+        try {
+            const result = await sendGroupEventMassMessage(eventId, { message });
+            await notify.success(
+                t("adminGroup.events.massMessageSummary", {
+                    sent: result.sent_total,
+                    whatsapp: result.sent_whatsapp,
+                    email: result.sent_email,
+                    failed: result.failed,
+                    noContact: result.skipped_no_contact,
+                }),
+            );
+            setMassMessageBody("");
+            setMassDialogOpen(false);
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.events.massMessageFailed"));
+        } finally {
+            setSendingMassMessage(false);
+        }
+    };
+
     if (!canUseEvents) {
         return (
             <PlanUpgradeNotice
@@ -572,12 +616,31 @@ export default function GroupEventDetailPage() {
                 </Button>
             </div>
 
+            {!canBulkMessaging ? (
+                <PlanUpgradeNotice
+                    title={t("planEnforcement.featureLockedTitle")}
+                    message={t("planEnforcement.availableOnPro")}
+                    feature="BULK_WHATSAPP_MESSAGING"
+                />
+            ) : null}
+
             <Card className="border-slate-200">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        {event.title}
-                        <GroupStatusBadge status={event.status} />
-                    </CardTitle>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            {event.title}
+                            <GroupStatusBadge status={event.status} />
+                        </CardTitle>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setMassDialogOpen(true)}
+                            disabled={!canBulkMessaging || sendingMassMessage || activeAudienceCount === 0}
+                        >
+                            <Send className="mr-2 h-4 w-4" />
+                            {t("adminGroup.events.sendMassMessage")}
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-3">
                     <div>
@@ -1242,6 +1305,42 @@ export default function GroupEventDetailPage() {
                                 <Button onClick={() => void handleInvite()} disabled={inviting || (!inviteChannels.email && !inviteChannels.whatsapp)}>
                                     {inviting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     {t("adminGroup.freeReg.inviteConfirm")}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={massDialogOpen} onOpenChange={setMassDialogOpen}>
+                        <DialogContent className="sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>{t("adminGroup.events.sendMassMessageTitle")}</DialogTitle>
+                                <DialogDescription>
+                                    {t("adminGroup.events.sendMassMessageDescription")}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="event-mass-message">{t("adminGroup.events.massMessageBodyLabel")}</Label>
+                                    <textarea
+                                        id="event-mass-message"
+                                        rows={6}
+                                        value={massMessageBody}
+                                        onChange={(e) => setMassMessageBody(e.target.value)}
+                                        placeholder={t("adminGroup.events.massMessageBodyPlaceholder")}
+                                        className="flex min-h-[140px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    />
+                                </div>
+                                <p className="text-xs text-slate-500">
+                                    {t("adminGroup.events.massMessageAudienceHint", { count: activeAudienceCount })}
+                                </p>
+                            </div>
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setMassDialogOpen(false)} disabled={sendingMassMessage}>
+                                    {t("common.cancel")}
+                                </Button>
+                                <Button type="button" onClick={() => void handleSendMassMessage()} disabled={sendingMassMessage}>
+                                    {sendingMassMessage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                    {t("adminGroup.events.sendMassMessage")}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
