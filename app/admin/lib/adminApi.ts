@@ -1821,7 +1821,17 @@ export async function listGroupClassEnrollments(classId: number): Promise<GroupC
 
 export async function adminCreateGroupClassEnrollment(
     classId: number,
-    input: { customer_id: number; payment_method: "NONE" | "CASH" | "QR"; mark_as_paid: boolean },
+    input: {
+        customer_id?: number;
+        new_member?: {
+            name: string;
+            email: string;
+            phone: string;
+        };
+        payment_method: "NONE" | "CASH" | "QR";
+        mark_as_paid: boolean;
+        qr_proof_image_url?: string | null;
+    },
 ): Promise<GroupClassEnrollment> {
     const response = await apiFetch<{ data: GroupClassEnrollment }>(`/api/admin/group/classes/${classId}/enrollments`, {
         method: "POST",

@@ -334,7 +334,7 @@ const es: TranslationKeys = {
       noUpcomingSessions: "No hay sesiones próximas.",
       scheduleTitle: "Próximo cronograma",
       activeRange: "Rango activo: {{start}} - {{end}}",
-      enrollFree: "Inscribirme gratis",
+      enrollFree: "Inscribirme",
       enrollPaid: "Inscribirme a esta clase · {{price}}",
       enrollmentConfirmed: "Tu inscripción está confirmada.",
       enrollmentPending: "Tu inscripción está pendiente de confirmación.",
@@ -1003,6 +1003,8 @@ const es: TranslationKeys = {
       noEnrollments: "No se encontraron inscripciones.",
       addMember: "Agregar miembro",
       memberAdded: "Miembro agregado exitosamente.",
+      newMemberOption: "Nuevo miembro",
+      newMemberRequired: "Completa nombre, email y teléfono para crear el nuevo miembro.",
       fullCourseInstallmentsNote: "Esta es una clase de curso completo. Las cuotas se generarán automáticamente para este miembro.",
     },
     recurrence: {

@@ -13,6 +13,7 @@ import {
     RefreshCcw,
     Send,
     Ticket,
+    Upload,
     UserPlus,
     Users,
 } from "lucide-react";
@@ -41,6 +42,7 @@ import {
     confirmGroupEnrollmentInstallmentQr,
     setGroupClassStatus,
     unconfirmGroupClassEnrollment,
+    uploadAdminQrProof,
     uploadAdminImage,
     updateGroupClass,
     type CustomerRecord,
@@ -174,12 +176,18 @@ export default function GroupClassDetailPage() {
 
     // Add Member dialog
     const [addMemberOpen, setAddMemberOpen] = useState(false);
+    const [addMemberMode, setAddMemberMode] = useState<"existing" | "new">("existing");
     const [addMemberSearch, setAddMemberSearch] = useState("");
     const [addMemberCustomers, setAddMemberCustomers] = useState<CustomerRecord[]>([]);
     const [addMemberSearching, setAddMemberSearching] = useState(false);
     const [addMemberSelected, setAddMemberSelected] = useState<CustomerRecord | null>(null);
+    const [addMemberNewName, setAddMemberNewName] = useState("");
+    const [addMemberNewEmail, setAddMemberNewEmail] = useState("");
+    const [addMemberNewPhone, setAddMemberNewPhone] = useState("");
     const [addMemberPaymentMethod, setAddMemberPaymentMethod] = useState<"NONE" | "CASH" | "QR">("CASH");
     const [addMemberMarkAsPaid, setAddMemberMarkAsPaid] = useState(false);
+    const [addMemberQrProofUrl, setAddMemberQrProofUrl] = useState<string | null>(null);
+    const [addMemberUploadingQr, setAddMemberUploadingQr] = useState(false);
     const [addMemberBusy, setAddMemberBusy] = useState(false);
 
     const loadData = useCallback(async () => {
@@ -565,6 +573,21 @@ export default function GroupClassDetailPage() {
         }
     };
 
+    const resetAddMemberDialog = () => {
+        setAddMemberOpen(false);
+        setAddMemberMode("existing");
+        setAddMemberSearch("");
+        setAddMemberCustomers([]);
+        setAddMemberSelected(null);
+        setAddMemberNewName("");
+        setAddMemberNewEmail("");
+        setAddMemberNewPhone("");
+        setAddMemberPaymentMethod("CASH");
+        setAddMemberMarkAsPaid(false);
+        setAddMemberQrProofUrl(null);
+        setAddMemberUploadingQr(false);
+    };
+
     const handleAddMemberSearchChange = async (value: string) => {
         setAddMemberSearch(value);
         setAddMemberSelected(null);
@@ -583,22 +606,53 @@ export default function GroupClassDetailPage() {
         }
     };
 
+    const handleAddMemberQrUpload = async (file: File | null) => {
+        if (!file || !companyId) return;
+        setAddMemberUploadingQr(true);
+        try {
+            const url = await uploadAdminQrProof(file, companyId);
+            setAddMemberQrProofUrl(url);
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminBookings.qrUploadFailed"));
+        } finally {
+            setAddMemberUploadingQr(false);
+        }
+    };
+
     const handleAddMember = async () => {
-        if (!addMemberSelected || !groupClass) return;
+        if (!groupClass) return;
+
+        if (addMemberMode === "existing" && !addMemberSelected) return;
+        if (addMemberMode === "new") {
+            if (!addMemberNewName.trim() || !addMemberNewEmail.trim() || !addMemberNewPhone.trim()) {
+                await notify.warning(t("adminGroup.classes.newMemberRequired"));
+                return;
+            }
+        }
+
+        if (addMemberPaymentMethod === "QR" && !addMemberQrProofUrl) {
+            await notify.warning(t("adminBookings.singleQrProofRequired"));
+            return;
+        }
+
         setAddMemberBusy(true);
         try {
             await adminCreateGroupClassEnrollment(groupClass.id, {
-                customer_id: addMemberSelected.id,
+                ...(addMemberMode === "existing"
+                    ? { customer_id: addMemberSelected?.id }
+                    : {
+                        new_member: {
+                            name: addMemberNewName.trim(),
+                            email: addMemberNewEmail.trim(),
+                            phone: addMemberNewPhone.trim(),
+                        },
+                    }),
                 payment_method: groupClass.price_cents === 0 ? "NONE" : addMemberPaymentMethod,
                 mark_as_paid: addMemberMarkAsPaid,
+                qr_proof_image_url: addMemberPaymentMethod === "QR" ? addMemberQrProofUrl : null,
             });
             await notify.success(t("adminGroup.classes.memberAdded"));
-            setAddMemberOpen(false);
-            setAddMemberSearch("");
-            setAddMemberCustomers([]);
-            setAddMemberSelected(null);
-            setAddMemberPaymentMethod("CASH");
-            setAddMemberMarkAsPaid(false);
+            resetAddMemberDialog();
             await loadData();
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
@@ -1260,12 +1314,7 @@ export default function GroupClassDetailPage() {
                 open={addMemberOpen}
                 onOpenChange={(open) => {
                     if (!open) {
-                        setAddMemberOpen(false);
-                        setAddMemberSearch("");
-                        setAddMemberCustomers([]);
-                        setAddMemberSelected(null);
-                        setAddMemberPaymentMethod("CASH");
-                        setAddMemberMarkAsPaid(false);
+                        resetAddMemberDialog();
                     }
                 }}
             >
@@ -1274,54 +1323,93 @@ export default function GroupClassDetailPage() {
                         <DialogTitle>{t("adminGroup.classes.addMember")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-1">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-slate-700">
-                                {t("adminBookings.searchCustomer")}
-                            </label>
-                            <input
-                                type="text"
-                                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand"
-                                placeholder={t("adminBookings.searchCustomer")}
-                                value={addMemberSearch}
-                                onChange={(e) => void handleAddMemberSearchChange(e.target.value)}
-                            />
-                            {addMemberSearching ? (
-                                <p className="flex items-center gap-1.5 text-xs text-slate-500">
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                    {t("common.loading")}
-                                </p>
-                            ) : addMemberCustomers.length > 0 ? (
-                                <ul className="max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-sm">
-                                    {addMemberCustomers.map((customer) => (
-                                        <li key={customer.id}>
-                                            <button
-                                                type="button"
-                                                className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${addMemberSelected?.id === customer.id ? "bg-brand/10 font-medium text-brand" : "text-slate-800"}`}
-                                                onClick={() => {
-                                                    setAddMemberSelected(customer);
-                                                    setAddMemberSearch(customer.name || customer.email || "");
-                                                    setAddMemberCustomers([]);
-                                                }}
-                                            >
-                                                <span className="font-medium">{customer.name || t("adminGroup.fields.name")}</span>
-                                                {customer.email ? (
-                                                    <span className="ml-2 text-xs text-slate-500">{customer.email}</span>
-                                                ) : null}
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : addMemberSearch.trim() && !addMemberSearching ? (
-                                <p className="text-xs text-slate-500">{t("adminBookings.noCustomersFound")}</p>
-                            ) : null}
-                            {addMemberSelected ? (
-                                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
-                                    ✓ {addMemberSelected.name || addMemberSelected.email}
-                                </p>
-                            ) : null}
-                        </div>
+                        <Tabs value={addMemberMode} onValueChange={(value) => setAddMemberMode(value as "existing" | "new")}>
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="existing">{t("adminBookings.existingClient")}</TabsTrigger>
+                                <TabsTrigger value="new">{t("adminGroup.classes.newMemberOption")}</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
 
-                        {groupClass.price_cents > 0 && groupClass.pricing_mode !== "FULL_COURSE" ? (
+                        {addMemberMode === "existing" ? (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-slate-700">
+                                    {t("adminBookings.searchCustomer")}
+                                </label>
+                                <input
+                                    type="text"
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand"
+                                    placeholder={t("adminBookings.searchCustomer")}
+                                    value={addMemberSearch}
+                                    onChange={(e) => void handleAddMemberSearchChange(e.target.value)}
+                                />
+                                {addMemberSearching ? (
+                                    <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        {t("common.loading")}
+                                    </p>
+                                ) : addMemberCustomers.length > 0 ? (
+                                    <ul className="max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-sm">
+                                        {addMemberCustomers.map((customer) => (
+                                            <li key={customer.id}>
+                                                <button
+                                                    type="button"
+                                                    className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${addMemberSelected?.id === customer.id ? "bg-brand/10 font-medium text-brand" : "text-slate-800"}`}
+                                                    onClick={() => {
+                                                        setAddMemberSelected(customer);
+                                                        setAddMemberSearch(customer.name || customer.email || "");
+                                                        setAddMemberCustomers([]);
+                                                    }}
+                                                >
+                                                    <span className="font-medium">{customer.name || t("adminGroup.fields.name")}</span>
+                                                    {customer.email ? (
+                                                        <span className="ml-2 text-xs text-slate-500">{customer.email}</span>
+                                                    ) : null}
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : addMemberSearch.trim() && !addMemberSearching ? (
+                                    <p className="text-xs text-slate-500">{t("adminBookings.noCustomersFound")}</p>
+                                ) : null}
+                                {addMemberSelected ? (
+                                    <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
+                                        ✓ {addMemberSelected.name || addMemberSelected.email}
+                                    </p>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-slate-700">{t("adminGroup.fields.name")}</label>
+                                    <input
+                                        type="text"
+                                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                                        value={addMemberNewName}
+                                        onChange={(e) => setAddMemberNewName(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-slate-700">{t("adminSettings.email")}</label>
+                                    <input
+                                        type="email"
+                                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                                        value={addMemberNewEmail}
+                                        onChange={(e) => setAddMemberNewEmail(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-slate-700">{t("adminSettings.phone")}</label>
+                                    <input
+                                        type="text"
+                                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                                        value={addMemberNewPhone}
+                                        onChange={(e) => setAddMemberNewPhone(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {groupClass.price_cents > 0 ? (
                             <div className="space-y-1.5">
                                 <label className="text-xs font-medium text-slate-700">
                                     {t("adminBookings.paymentMethod")}
@@ -1347,6 +1435,32 @@ export default function GroupClassDetailPage() {
                             </div>
                         ) : null}
 
+                        {groupClass.price_cents > 0 && addMemberPaymentMethod === "QR" ? (
+                            <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+                                <p className="text-xs font-medium text-slate-700">{t("adminBookings.uploadQrProof")}</p>
+                                <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    {addMemberUploadingQr ? t("common.loading") : t("adminBookings.uploadQrProof")}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => void handleAddMemberQrUpload(e.target.files?.[0] ?? null)}
+                                        disabled={addMemberUploadingQr}
+                                    />
+                                </label>
+                                {addMemberQrProofUrl ? (
+                                    <button
+                                        type="button"
+                                        className="text-xs font-medium text-brand underline-offset-4 hover:underline"
+                                        onClick={() => setQrProofDialog(addMemberQrProofUrl)}
+                                    >
+                                        {t("adminBookings.viewUploadedQrProof")}
+                                    </button>
+                                ) : null}
+                            </div>
+                        ) : null}
+
                         {groupClass.pricing_mode === "FULL_COURSE" ? (
                             <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                                 {t("adminGroup.classes.fullCourseInstallmentsNote")}
@@ -1357,7 +1471,7 @@ export default function GroupClassDetailPage() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setAddMemberOpen(false)}
+                                onClick={() => resetAddMemberDialog()}
                                 disabled={addMemberBusy}
                             >
                                 {t("common.cancel")}
@@ -1365,7 +1479,7 @@ export default function GroupClassDetailPage() {
                             <Button
                                 size="sm"
                                 onClick={() => void handleAddMember()}
-                                disabled={addMemberBusy || !addMemberSelected}
+                                disabled={addMemberBusy || (addMemberMode === "existing" ? !addMemberSelected : false)}
                             >
                                 {addMemberBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                 {t("adminGroup.classes.addMember")}

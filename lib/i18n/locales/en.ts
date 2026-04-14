@@ -338,7 +338,7 @@ const en = {
       noUpcomingSessions: "No upcoming sessions.",
       scheduleTitle: "Upcoming schedule",
       activeRange: "Active range: {{start}} - {{end}}",
-      enrollFree: "Enroll for free",
+      enrollFree: "Enroll",
       enrollPaid: "Enroll in this class · {{price}}",
       enrollmentConfirmed: "Your enrollment is confirmed.",
       enrollmentPending: "Your enrollment is pending confirmation.",
@@ -1012,6 +1012,8 @@ const en = {
       noEnrollments: "No enrollments found.",
       addMember: "Add member",
       memberAdded: "Member added successfully.",
+      newMemberOption: "New member",
+      newMemberRequired: "Complete name, email, and phone to create the new member.",
       fullCourseInstallmentsNote: "This is a full-course class. Installments will be generated automatically for this member.",
     },
     recurrence: {
