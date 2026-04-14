@@ -545,6 +545,7 @@ export default function GroupClassesPage() {
                         thumbnailImagePreview={thumbnailImagePreview}
                         onSelectCoverImage={handleSelectCoverImage}
                         onSelectThumbnailImage={handleSelectThumbnailImage}
+                        sectionTitle={t("adminGroup.classes.newClass")}
                         footer={
                             <Button onClick={() => void handleCreate()} disabled={creating}>
                                 {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

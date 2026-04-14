@@ -41,8 +41,48 @@ type GroupClassEditorFormProps = {
     thumbnailImagePreview: string | null;
     onSelectCoverImage: (file: File | null) => void;
     onSelectThumbnailImage: (file: File | null) => void;
+    sectionTitle?: ReactNode;
     footer?: ReactNode;
 };
+
+type MediaUploadFieldProps = {
+    title: string;
+    preview: string | null;
+    fallbackUrl?: string | null;
+    alt: string;
+    onSelectFile: (file: File | null) => void;
+};
+
+function MediaUploadField({
+    title,
+    preview,
+    fallbackUrl,
+    alt,
+    onSelectFile,
+}: MediaUploadFieldProps) {
+    return (
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="space-y-1">
+                <h4 className="text-sm font-semibold text-slate-900">{title}</h4>
+                <p className="text-xs text-slate-500">{GROUP_MEDIA_RECOMMENDED_SIZE}</p>
+            </div>
+            <Input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
+            />
+            {(preview || fallbackUrl) ? (
+                <div className="h-44 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                    <img
+                        src={preview || getImageUrl(fallbackUrl) || undefined}
+                        alt={alt}
+                        className="h-full w-full object-cover"
+                    />
+                </div>
+            ) : null}
+        </div>
+    );
+}
 
 export function GroupClassEditorForm({
     form,
@@ -55,6 +95,7 @@ export function GroupClassEditorForm({
     thumbnailImagePreview,
     onSelectCoverImage,
     onSelectThumbnailImage,
+    sectionTitle,
     footer,
 }: GroupClassEditorFormProps) {
     const t = useT();
@@ -83,299 +124,281 @@ export function GroupClassEditorForm({
 
     return (
         <div className="space-y-4">
-            <AdminSectionCard title={t("adminGroup.classes.editClass")}>
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)]">
-                    <div className="space-y-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-2 md:col-span-2">
-                                <Label>{t("adminGroup.fields.title")}</Label>
-                                <Input
-                                    value={form.title}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => {
-                                            const nextTitle = e.target.value;
-                                            const prevAutoSlug = slugifyInput(prev.title);
-                                            const shouldSyncSlug =
-                                                prev.slug.trim().length === 0 || prev.slug.trim() === prevAutoSlug;
-                                            return {
-                                                ...prev,
-                                                title: nextTitle,
-                                                slug: shouldSyncSlug ? slugifyInput(nextTitle) : prev.slug,
-                                            };
-                                        })
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.slug")}</Label>
-                                <Input
-                                    value={form.slug}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => ({
+            <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
+                <AdminSectionCard
+                    title={sectionTitle ?? t("adminGroup.classes.editClass")}
+                    className="min-w-0"
+                    contentClassName="space-y-5"
+                >
+                    <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                        <div className="space-y-2 lg:col-span-2">
+                            <Label>{t("adminGroup.fields.title")}</Label>
+                            <Input
+                                value={form.title}
+                                onChange={(e) =>
+                                    onFormChange((prev) => {
+                                        const nextTitle = e.target.value;
+                                        const prevAutoSlug = slugifyInput(prev.title);
+                                        const shouldSyncSlug =
+                                            prev.slug.trim().length === 0 || prev.slug.trim() === prevAutoSlug;
+                                        return {
                                             ...prev,
-                                            slug: normalizeSlugInput(e.target.value),
-                                        }))
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.status")}</Label>
-                                <Select
-                                    value={form.status}
-                                    onValueChange={(value) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            status: value as GroupItemStatus,
-                                        }))
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="DRAFT">{t("adminGroup.status.draft")}</SelectItem>
-                                        <SelectItem value="PUBLISHED">{t("adminGroup.status.published")}</SelectItem>
-                                        <SelectItem value="ARCHIVED">{t("adminGroup.status.archived")}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <Label>{t("adminGroup.fields.description")}</Label>
-                                <RichTextEditor
-                                    value={form.description}
-                                    onChange={(html) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            description: html,
-                                        }))
-                                    }
-                                    placeholder="<p><strong>Descripcion en HTML</strong></p>"
-                                    minHeightClassName="min-h-[120px]"
-                                />
-                            </div>
+                                            title: nextTitle,
+                                            slug: shouldSyncSlug ? slugifyInput(nextTitle) : prev.slug,
+                                        };
+                                    })
+                                }
+                            />
                         </div>
-
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.pricingMode")}</Label>
-                                <Select
-                                    value={form.pricing_mode}
-                                    onValueChange={(value) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            pricing_mode: value as GroupPricingMode,
-                                        }))
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="PER_SESSION">{t("adminGroup.pricing.perSession")}</SelectItem>
-                                        <SelectItem value="WEEKLY_PASS">{t("adminGroup.pricing.weeklyPass")}</SelectItem>
-                                        <SelectItem value="MONTHLY_PASS">{t("adminGroup.pricing.monthlyPass")}</SelectItem>
-                                        <SelectItem value="FULL_COURSE">{t("adminGroup.pricing.fullCourse")}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    step="0.01"
-                                    value={form.price_cents}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            price_cents: e.target.value,
-                                        }))
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.capacityPerSession")}</Label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    value={form.max_capacity_per_session}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            max_capacity_per_session: e.target.value,
-                                        }))
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.durationMinutes")}</Label>
-                                <Input
-                                    type="number"
-                                    min={5}
-                                    value={form.session_duration_minutes}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            session_duration_minutes: e.target.value,
-                                        }))
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.recurrenceType")}</Label>
-                                <Select
-                                    value={form.recurrence_type}
-                                    onValueChange={(value) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            recurrence_type: value as GroupRecurrenceType,
-                                        }))
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="WEEKLY">{t("adminGroup.recurrence.weekly")}</SelectItem>
-                                        <SelectItem value="MONTHLY">{t("adminGroup.recurrence.monthly")}</SelectItem>
-                                        <SelectItem value="CUSTOM">{t("adminGroup.recurrence.custom")}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.startTime")}</Label>
-                                <Input
-                                    type="time"
-                                    value={form.start_time}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            start_time: e.target.value,
-                                        }))
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.recurrenceStartDate")}</Label>
-                                <Input
-                                    type="date"
-                                    value={form.recurrence_start_date}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            recurrence_start_date: e.target.value,
-                                        }))
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.recurrenceEndDate")}</Label>
-                                <Input
-                                    type="date"
-                                    value={form.recurrence_end_date}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            recurrence_end_date: e.target.value,
-                                        }))
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <GroupLocationPicker
-                                    label={t("adminGroup.fields.location")}
-                                    value={form.location_text}
-                                    onChange={(nextValue) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            location_text: nextValue,
-                                        }))
-                                    }
-                                    placeholder={storeLocationText || undefined}
-                                    defaultLatitude={storeLocation?.latitude ?? null}
-                                    defaultLongitude={storeLocation?.longitude ?? null}
-                                />
-                            </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.slug")}</Label>
+                            <Input
+                                value={form.slug}
+                                onChange={(e) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        slug: normalizeSlugInput(e.target.value),
+                                    }))
+                                }
+                            />
                         </div>
-
-                        {form.recurrence_type === "MONTHLY" ? (
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.monthdays")}</Label>
-                                <Input
-                                    value={form.monthdays}
-                                    onChange={(e) =>
-                                        onFormChange((prev) => ({
-                                            ...prev,
-                                            monthdays: e.target.value,
-                                        }))
-                                    }
-                                />
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.weekdays")}</Label>
-                                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                                    {WEEKDAYS.map((day) => (
-                                        <label
-                                            key={day.value}
-                                            className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={form.weekdays.includes(day.value)}
-                                                onChange={() => toggleWeekday(day.value)}
-                                            />
-                                            {day.label}
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.status")}</Label>
+                            <Select
+                                value={form.status}
+                                onValueChange={(value) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        status: value as GroupItemStatus,
+                                    }))
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="DRAFT">{t("adminGroup.status.draft")}</SelectItem>
+                                    <SelectItem value="PUBLISHED">{t("adminGroup.status.published")}</SelectItem>
+                                    <SelectItem value="ARCHIVED">{t("adminGroup.status.archived")}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2 lg:col-span-2">
+                            <Label>{t("adminGroup.fields.description")}</Label>
+                            <RichTextEditor
+                                value={form.description}
+                                onChange={(html) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        description: html,
+                                    }))
+                                }
+                                placeholder="<p><strong>Descripcion en HTML</strong></p>"
+                                minHeightClassName="min-h-[160px]"
+                            />
+                        </div>
                     </div>
 
-                    <div className="space-y-4">
-                        <AdminSectionCard title={t("adminGroup.fields.coverImageUrl")} contentClassName="space-y-3">
-                            <p className="text-xs text-slate-500">
-                                {t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}
-                            </p>
+                    <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.pricingMode")}</Label>
+                            <Select
+                                value={form.pricing_mode}
+                                onValueChange={(value) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        pricing_mode: value as GroupPricingMode,
+                                    }))
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="PER_SESSION">{t("adminGroup.pricing.perSession")}</SelectItem>
+                                    <SelectItem value="WEEKLY_PASS">{t("adminGroup.pricing.weeklyPass")}</SelectItem>
+                                    <SelectItem value="MONTHLY_PASS">{t("adminGroup.pricing.monthlyPass")}</SelectItem>
+                                    <SelectItem value="FULL_COURSE">{t("adminGroup.pricing.fullCourse")}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
                             <Input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                onChange={(event) => onSelectCoverImage(event.target.files?.[0] ?? null)}
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={form.price_cents}
+                                onChange={(e) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        price_cents: e.target.value,
+                                    }))
+                                }
                             />
-                            {(coverImagePreview || form.cover_image_url) ? (
-                                <div className="h-44 overflow-hidden rounded-md border border-slate-200">
-                                    <img
-                                        src={coverImagePreview || getImageUrl(form.cover_image_url) || undefined}
-                                        alt="Cover preview"
-                                        className="h-full w-full object-cover"
-                                    />
-                                </div>
-                            ) : null}
-                        </AdminSectionCard>
-
-                        <AdminSectionCard title={t("adminGroup.fields.thumbnailUrl")} contentClassName="space-y-3">
-                            <p className="text-xs text-slate-500">
-                                {t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}
-                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.capacityPerSession")}</Label>
                             <Input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                onChange={(event) => onSelectThumbnailImage(event.target.files?.[0] ?? null)}
+                                type="number"
+                                min={1}
+                                value={form.max_capacity_per_session}
+                                onChange={(e) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        max_capacity_per_session: e.target.value,
+                                    }))
+                                }
                             />
-                            {(thumbnailImagePreview || form.thumbnail_url) ? (
-                                <div className="h-44 overflow-hidden rounded-md border border-slate-200">
-                                    <img
-                                        src={thumbnailImagePreview || getImageUrl(form.thumbnail_url) || undefined}
-                                        alt="Thumbnail preview"
-                                        className="h-full w-full object-cover"
-                                    />
-                                </div>
-                            ) : null}
-                        </AdminSectionCard>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.durationMinutes")}</Label>
+                            <Input
+                                type="number"
+                                min={5}
+                                value={form.session_duration_minutes}
+                                onChange={(e) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        session_duration_minutes: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.recurrenceType")}</Label>
+                            <Select
+                                value={form.recurrence_type}
+                                onValueChange={(value) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        recurrence_type: value as GroupRecurrenceType,
+                                    }))
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="WEEKLY">{t("adminGroup.recurrence.weekly")}</SelectItem>
+                                    <SelectItem value="MONTHLY">{t("adminGroup.recurrence.monthly")}</SelectItem>
+                                    <SelectItem value="CUSTOM">{t("adminGroup.recurrence.custom")}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.startTime")}</Label>
+                            <Input
+                                type="time"
+                                value={form.start_time}
+                                onChange={(e) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        start_time: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.recurrenceStartDate")}</Label>
+                            <Input
+                                type="date"
+                                value={form.recurrence_start_date}
+                                onChange={(e) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        recurrence_start_date: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.recurrenceEndDate")}</Label>
+                            <Input
+                                type="date"
+                                value={form.recurrence_end_date}
+                                onChange={(e) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        recurrence_end_date: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="space-y-2 sm:col-span-2 xl:col-span-3">
+                            <GroupLocationPicker
+                                label={t("adminGroup.fields.location")}
+                                value={form.location_text}
+                                onChange={(nextValue) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        location_text: nextValue,
+                                    }))
+                                }
+                                placeholder={storeLocationText || undefined}
+                                defaultLatitude={storeLocation?.latitude ?? null}
+                                defaultLongitude={storeLocation?.longitude ?? null}
+                            />
+                        </div>
                     </div>
-                </div>
-            </AdminSectionCard>
+
+                    {form.recurrence_type === "MONTHLY" ? (
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.monthdays")}</Label>
+                            <Input
+                                value={form.monthdays}
+                                onChange={(e) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        monthdays: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.weekdays")}</Label>
+                            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                {WEEKDAYS.map((day) => (
+                                    <label
+                                        key={day.value}
+                                        className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={form.weekdays.includes(day.value)}
+                                            onChange={() => toggleWeekday(day.value)}
+                                        />
+                                        {day.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </AdminSectionCard>
+
+                <AdminSectionCard
+                    title={t("adminGroup.fields.coverImageUrl")}
+                    description={t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}
+                    className="min-w-0"
+                    contentClassName="grid gap-4 lg:grid-cols-2 2xl:grid-cols-1"
+                >
+                    <MediaUploadField
+                        title={t("adminGroup.fields.coverImageUrl")}
+                        preview={coverImagePreview}
+                        fallbackUrl={form.cover_image_url}
+                        alt="Cover preview"
+                        onSelectFile={onSelectCoverImage}
+                    />
+                    <MediaUploadField
+                        title={t("adminGroup.fields.thumbnailUrl")}
+                        preview={thumbnailImagePreview}
+                        fallbackUrl={form.thumbnail_url}
+                        alt="Thumbnail preview"
+                        onSelectFile={onSelectThumbnailImage}
+                    />
+                </AdminSectionCard>
+            </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <AdminSectionCard title={t("adminGroup.staff.linkedStaff")} contentClassName="grid gap-2 sm:grid-cols-2">
