@@ -229,6 +229,7 @@ const es: TranslationKeys = {
       viewMyGroupReservations: "Ver mis reservas grupales",
       confirmEnrollment: "Confirmar inscripción",
       completeEnrollment: "Completar inscripción",
+      contactBusiness: "Contactarme con {{name}}",
     },
     fields: {
       staff: "Staff",
@@ -1000,6 +1001,9 @@ const es: TranslationKeys = {
       cancelSessionError: "No se pudo cancelar la sesión.",
       enrollmentsTitle: "Inscripciones / pases",
       noEnrollments: "No se encontraron inscripciones.",
+      addMember: "Agregar miembro",
+      memberAdded: "Miembro agregado exitosamente.",
+      fullCourseInstallmentsNote: "Esta es una clase de curso completo. Las cuotas se generarán automáticamente para este miembro.",
     },
     recurrence: {
       weekly: "Semanal",

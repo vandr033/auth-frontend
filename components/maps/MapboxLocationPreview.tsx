@@ -180,7 +180,9 @@ export function MapboxLocationPreview({
   React.useEffect(() => {
     const trimmedQuery = (query ?? "").trim();
     const map = mapRef.current;
-    if (!map || !mapLoaded || !trimmedQuery || !mapboxToken) return;
+    // Skip text geocoding when we already have precise saved coordinates — the
+    // geocoded centroid of an address string is less accurate than the stored point.
+    if (!map || !mapLoaded || !trimmedQuery || !mapboxToken || defaultCoordinates) return;
 
     let cancelled = false;
     const timer = window.setTimeout(() => {

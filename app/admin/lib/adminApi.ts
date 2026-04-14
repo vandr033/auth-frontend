@@ -1819,6 +1819,17 @@ export async function listGroupClassEnrollments(classId: number): Promise<GroupC
     return response.data;
 }
 
+export async function adminCreateGroupClassEnrollment(
+    classId: number,
+    input: { customer_id: number; payment_method: "NONE" | "CASH" | "QR"; mark_as_paid: boolean },
+): Promise<GroupClassEnrollment> {
+    const response = await apiFetch<{ data: GroupClassEnrollment }>(`/api/admin/group/classes/${classId}/enrollments`, {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+    return response.data;
+}
+
 export async function listGroupClassSessionAttendance(sessionId: number): Promise<GroupAttendanceRow[]> {
     const response = await apiFetch<{ data: GroupAttendanceRow[] }>(`/api/admin/group/classes/sessions/${sessionId}/attendance`);
     return response.data;

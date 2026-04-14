@@ -233,6 +233,7 @@ const en = {
       viewMyGroupReservations: "View my group reservations",
       confirmEnrollment: "Confirm enrollment",
       completeEnrollment: "Complete enrollment",
+      contactBusiness: "Contact {{name}}",
     },
     fields: {
       staff: "Staff",
@@ -1009,6 +1010,9 @@ const en = {
       cancelSessionError: "Could not cancel session.",
       enrollmentsTitle: "Enrollments / passes",
       noEnrollments: "No enrollments found.",
+      addMember: "Add member",
+      memberAdded: "Member added successfully.",
+      fullCourseInstallmentsNote: "This is a full-course class. Installments will be generated automatically for this member.",
     },
     recurrence: {
       weekly: "Weekly",

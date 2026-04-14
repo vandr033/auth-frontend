@@ -13,11 +13,13 @@ import {
     RefreshCcw,
     Send,
     Ticket,
+    UserPlus,
     Users,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
+    adminCreateGroupClassEnrollment,
     cancelGroupClassEnrollment,
     cancelGroupClassSession,
     confirmGroupClassEnrollment,
@@ -26,6 +28,7 @@ import {
     adminResendGroupTicket,
     generateGroupClassSessions,
     getAdminCompanyLocation,
+    getCustomers,
     getGroupClassById,
     getStaff,
     listGroupEnrollmentInstallments,
@@ -40,6 +43,7 @@ import {
     unconfirmGroupClassEnrollment,
     uploadAdminImage,
     updateGroupClass,
+    type CustomerRecord,
     type GroupAttendanceRow,
     type AdminCompanyLocation,
     type GroupClass,
@@ -167,6 +171,16 @@ export default function GroupClassDetailPage() {
     const [installmentPlanDialog, setInstallmentPlanDialog] = useState<GroupEnrollmentInstallmentPlan | null>(null);
     const [installmentPlanLoading, setInstallmentPlanLoading] = useState(false);
     const [installmentActionKey, setInstallmentActionKey] = useState<string | null>(null);
+
+    // Add Member dialog
+    const [addMemberOpen, setAddMemberOpen] = useState(false);
+    const [addMemberSearch, setAddMemberSearch] = useState("");
+    const [addMemberCustomers, setAddMemberCustomers] = useState<CustomerRecord[]>([]);
+    const [addMemberSearching, setAddMemberSearching] = useState(false);
+    const [addMemberSelected, setAddMemberSelected] = useState<CustomerRecord | null>(null);
+    const [addMemberPaymentMethod, setAddMemberPaymentMethod] = useState<"NONE" | "CASH" | "QR">("CASH");
+    const [addMemberMarkAsPaid, setAddMemberMarkAsPaid] = useState(false);
+    const [addMemberBusy, setAddMemberBusy] = useState(false);
 
     const loadData = useCallback(async () => {
         if (!Number.isInteger(classId) || classId <= 0) return;
@@ -551,6 +565,48 @@ export default function GroupClassDetailPage() {
         }
     };
 
+    const handleAddMemberSearchChange = async (value: string) => {
+        setAddMemberSearch(value);
+        setAddMemberSelected(null);
+        if (!value.trim()) {
+            setAddMemberCustomers([]);
+            return;
+        }
+        setAddMemberSearching(true);
+        try {
+            const results = await getCustomers(value.trim());
+            setAddMemberCustomers(results.slice(0, 8));
+        } catch {
+            setAddMemberCustomers([]);
+        } finally {
+            setAddMemberSearching(false);
+        }
+    };
+
+    const handleAddMember = async () => {
+        if (!addMemberSelected || !groupClass) return;
+        setAddMemberBusy(true);
+        try {
+            await adminCreateGroupClassEnrollment(groupClass.id, {
+                customer_id: addMemberSelected.id,
+                payment_method: groupClass.price_cents === 0 ? "NONE" : addMemberPaymentMethod,
+                mark_as_paid: addMemberMarkAsPaid,
+            });
+            await notify.success(t("adminGroup.classes.memberAdded"));
+            setAddMemberOpen(false);
+            setAddMemberSearch("");
+            setAddMemberCustomers([]);
+            setAddMemberSelected(null);
+            setAddMemberPaymentMethod("CASH");
+            setAddMemberMarkAsPaid(false);
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        } finally {
+            setAddMemberBusy(false);
+        }
+    };
+
     if (!canUseClasses) {
         return (
             <PlanUpgradeNotice
@@ -856,6 +912,12 @@ export default function GroupClassDetailPage() {
                     <AdminSectionCard
                         title={t("adminGroup.classes.enrollmentsTitle")}
                         description={`${attendanceSummary.enrollments} ${t("adminGroup.classes.enrollments").toLowerCase()}`}
+                        actions={
+                            <Button size="sm" onClick={() => setAddMemberOpen(true)}>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                {t("adminGroup.classes.addMember")}
+                            </Button>
+                        }
                     >
                         {enrollments.length === 0 ? (
                             <p className="text-sm text-slate-500">{t("adminGroup.classes.noEnrollments")}</p>
@@ -1191,6 +1253,125 @@ export default function GroupClassDetailPage() {
                             />
                         </div>
                     ) : null}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={addMemberOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setAddMemberOpen(false);
+                        setAddMemberSearch("");
+                        setAddMemberCustomers([]);
+                        setAddMemberSelected(null);
+                        setAddMemberPaymentMethod("CASH");
+                        setAddMemberMarkAsPaid(false);
+                    }
+                }}
+            >
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t("adminGroup.classes.addMember")}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-1">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-700">
+                                {t("adminBookings.searchCustomer")}
+                            </label>
+                            <input
+                                type="text"
+                                className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand"
+                                placeholder={t("adminBookings.searchCustomer")}
+                                value={addMemberSearch}
+                                onChange={(e) => void handleAddMemberSearchChange(e.target.value)}
+                            />
+                            {addMemberSearching ? (
+                                <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    {t("common.loading")}
+                                </p>
+                            ) : addMemberCustomers.length > 0 ? (
+                                <ul className="max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-sm">
+                                    {addMemberCustomers.map((customer) => (
+                                        <li key={customer.id}>
+                                            <button
+                                                type="button"
+                                                className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${addMemberSelected?.id === customer.id ? "bg-brand/10 font-medium text-brand" : "text-slate-800"}`}
+                                                onClick={() => {
+                                                    setAddMemberSelected(customer);
+                                                    setAddMemberSearch(customer.name || customer.email || "");
+                                                    setAddMemberCustomers([]);
+                                                }}
+                                            >
+                                                <span className="font-medium">{customer.name || t("adminGroup.fields.name")}</span>
+                                                {customer.email ? (
+                                                    <span className="ml-2 text-xs text-slate-500">{customer.email}</span>
+                                                ) : null}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : addMemberSearch.trim() && !addMemberSearching ? (
+                                <p className="text-xs text-slate-500">{t("adminBookings.noCustomersFound")}</p>
+                            ) : null}
+                            {addMemberSelected ? (
+                                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
+                                    ✓ {addMemberSelected.name || addMemberSelected.email}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        {groupClass.price_cents > 0 && groupClass.pricing_mode !== "FULL_COURSE" ? (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-slate-700">
+                                    {t("adminBookings.paymentMethod")}
+                                </label>
+                                <select
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
+                                    value={addMemberPaymentMethod}
+                                    onChange={(e) => setAddMemberPaymentMethod(e.target.value as "NONE" | "CASH" | "QR")}
+                                >
+                                    <option value="CASH">{t("adminBookings.paymentCash")}</option>
+                                    <option value="QR">{t("adminBookings.paymentQr")}</option>
+                                    <option value="NONE">{t("adminBookings.notSpecified")}</option>
+                                </select>
+                                <label className="flex cursor-pointer items-center gap-2 pt-1 text-sm text-slate-700">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-slate-300"
+                                        checked={addMemberMarkAsPaid}
+                                        onChange={(e) => setAddMemberMarkAsPaid(e.target.checked)}
+                                    />
+                                    {t("adminBookings.markAsPaid")}
+                                </label>
+                            </div>
+                        ) : null}
+
+                        {groupClass.pricing_mode === "FULL_COURSE" ? (
+                            <p className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                                {t("adminGroup.classes.fullCourseInstallmentsNote")}
+                            </p>
+                        ) : null}
+
+                        <div className="flex justify-end gap-2 pt-1">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setAddMemberOpen(false)}
+                                disabled={addMemberBusy}
+                            >
+                                {t("common.cancel")}
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => void handleAddMember()}
+                                disabled={addMemberBusy || !addMemberSelected}
+                            >
+                                {addMemberBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                {t("adminGroup.classes.addMember")}
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>
