@@ -7,33 +7,34 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useGroupReservationsAccess } from "../lib/useGroupReservationsAccess";
 
-type TabAccess = "events" | "classes" | "advanced" | "none";
+type TabAccess = "events" | "classes" | "advanced" | "attendance" | "none";
 
 const TABS: Array<{ key: string; href: string; access: TabAccess }> = [
     { key: "adminGroup.nav.overview", href: "/admin/dashboard/group-reservations", access: "none" },
     { key: "adminGroup.nav.events", href: "/admin/dashboard/group-reservations/events", access: "events" },
     { key: "adminGroup.nav.classes", href: "/admin/dashboard/group-reservations/classes", access: "classes" },
     { key: "adminGroup.nav.payments", href: "/admin/dashboard/group-reservations/payments", access: "events" },
-    { key: "adminGroup.nav.attendance", href: "/admin/dashboard/group-reservations/attendance", access: "advanced" },
+    { key: "adminGroup.nav.attendance", href: "/admin/dashboard/group-reservations/attendance", access: "attendance" },
     { key: "adminGroup.nav.metrics", href: "/admin/dashboard/group-reservations/metrics", access: "events" },
 ];
 
 export function GroupReservationsTabs() {
     const t = useT();
     const pathname = usePathname() ?? "";
-    const { canUseEvents, canUseClasses, canUseAdvanced } = useGroupReservationsAccess();
+    const { canUseEvents, canUseClasses, canUseAdvanced, canAccessAttendance, isStaff } = useGroupReservationsAccess();
 
     const hasAccess = (access: TabAccess): boolean => {
         if (access === "none") return true;
         if (access === "events") return canUseEvents;
         if (access === "classes") return canUseClasses;
+        if (access === "attendance") return canAccessAttendance;
         return canUseAdvanced;
     };
 
     return (
         <div className="overflow-x-auto">
             <div className="inline-flex min-w-full items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-                {TABS.map((tab) => {
+                {(isStaff ? TABS.filter((tab) => tab.access === "attendance") : TABS).map((tab) => {
                     const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
                     const enabled = hasAccess(tab.access);
                     const label = t(tab.key);

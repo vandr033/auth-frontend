@@ -1,3 +1,5 @@
+import type { CompanyModules } from "@/lib/company-modules";
+
 // Types for the shop public page data (from GET /api/company/:slug)
 
 export type HeroVariant = 'hero-cinematic' | 'hero-split' | 'hero-minimal';
@@ -98,6 +100,86 @@ export interface ShopHours {
 export type HomeSectionKey = 'about' | 'services' | 'events' | 'classes' | 'team';
 export const DEFAULT_SECTION_ORDER: HomeSectionKey[] = ['about', 'services', 'events', 'classes', 'team'];
 
+export interface ShopCommerceSettings {
+    store_enabled: boolean;
+    currency?: string | null;
+    supports_pickup: boolean;
+    supports_delivery: boolean;
+    qr_payment_enabled: boolean;
+    qr_image_url?: string | null;
+    support_phone?: string | null;
+    asap_orders_enabled: boolean;
+    scheduled_orders_enabled: boolean;
+    hero_title?: string | null;
+    hero_subtitle?: string | null;
+    banner_image_url?: string | null;
+}
+
+export interface ShopCommerceCategory {
+    id: number;
+    name: string;
+    slug: string;
+    sort_order: number;
+    is_active: boolean;
+}
+
+export interface ShopCommerceProduct {
+    id: number;
+    category_id: number | null;
+    name: string;
+    slug: string;
+    description?: string | null;
+    regular_price_cents: number;
+    promotional_price_cents?: number | null;
+    promo_valid_from?: string | null;
+    promo_valid_until?: string | null;
+    promotion_active?: boolean;
+    effective_price_cents?: number;
+    stock_quantity: number;
+    is_active: boolean;
+    is_featured: boolean;
+    is_combo: boolean;
+    images: string[];
+}
+
+export interface ShopCommercePointOfSale {
+    id: number;
+    name: string;
+    city: string;
+    osm_link?: string | null;
+    opening_hours_text?: string | null;
+    support_phone?: string | null;
+    pickup_enabled: boolean;
+    delivery_enabled: boolean;
+    is_active: boolean;
+}
+
+export interface ShopCommerceWindow {
+    id: number;
+    label: string;
+    start_time?: string | null;
+    end_time?: string | null;
+    sort_order: number;
+}
+
+export interface ShopCommerceDeliveryRule {
+    id: number;
+    weekday: number;
+    delivery_enabled: boolean;
+    asap_enabled: boolean;
+    scheduled_enabled: boolean;
+    windows: ShopCommerceWindow[];
+}
+
+export interface ShopCommerceData {
+    settings: ShopCommerceSettings;
+    categories: ShopCommerceCategory[];
+    products: ShopCommerceProduct[];
+    points_of_sale: ShopCommercePointOfSale[];
+    delivery_rules: ShopCommerceDeliveryRule[];
+    delivery_rules_source?: 'explicit' | 'company_hours';
+}
+
 export interface AnnouncementBanner {
     id: string;           // stable UUID used as localStorage dismissal key
     message: string;
@@ -157,6 +239,7 @@ export interface ShopSettings {
     auto_confirm_bookings?: boolean;
     social_links: SocialLinks;
     default_language?: string;
+    booking_proof_upload_token?: string;
     max_advance_booking_days?: number | null;
     min_advance_booking_minutes?: number | null;
     custom_tos?: string | null;
@@ -170,6 +253,7 @@ export interface ShopReviewStats {
 
 export interface ShopData {
     company: ShopCompany;
+    modules: CompanyModules;
     categories: ShopCategory[];
     services: ShopService[];
     staff: ShopStaff[];
@@ -177,4 +261,5 @@ export interface ShopData {
     settings: ShopSettings;
     theme: ShopTheme;
     reviewStats: ShopReviewStats;
+    commerce?: ShopCommerceData | null;
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getImageUrl } from "@/utils/image-url";
 import type { ShopStaff } from "@/types/shop";
 import { useT } from "@/lib/i18n";
+import { useShop } from "@/app/shop/contexts/ShopContext";
 
 interface TeamCardsProps {
     staff: ShopStaff[];
@@ -37,6 +38,7 @@ export function TeamCards({ staff, slug }: TeamCardsProps) {
 
 function StaffCard({ member, slug }: { member: ShopStaff; slug: string }) {
     const t = useT();
+    const { modules } = useShop();
     return (
         <div className="group relative w-[260px] shrink-0 overflow-hidden rounded-lg border border-surface-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg md:w-auto">
             {/* Photo */}
@@ -64,15 +66,17 @@ function StaffCard({ member, slug }: { member: ShopStaff; slug: string }) {
                         {member.bio}
                     </p>
                 )}
-                <Link
-                    href={`/shop/${slug}/book?staffId=${member.id}`}
-                    className="mt-3 inline-block text-sm font-semibold text-brand transition-colors hover:text-brand-hover"
-                >
-                    {(member.resource_type === 'ROOM' || member.resource_type === 'EQUIPMENT')
-                        ? t('shopHome.bookThe', { name: member.display_name })
-                        : t('shopHome.bookWith', { name: member.display_name.split(" ")[0] })}
-                    {' →'}
-                </Link>
+                {modules.reservations ? (
+                    <Link
+                        href={`/shop/${slug}/book?staffId=${member.id}`}
+                        className="mt-3 inline-block text-sm font-semibold text-brand transition-colors hover:text-brand-hover"
+                    >
+                        {(member.resource_type === 'ROOM' || member.resource_type === 'EQUIPMENT')
+                            ? t('shopHome.bookThe', { name: member.display_name })
+                            : t('shopHome.bookWith', { name: member.display_name.split(" ")[0] })}
+                        {' →'}
+                    </Link>
+                ) : null}
             </div>
         </div>
     );

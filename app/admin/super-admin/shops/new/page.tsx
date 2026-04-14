@@ -54,6 +54,8 @@ interface FormData {
     availableUntil: string;
     pricePaid: string;
     isMarketplaceVisible: boolean;
+    reservations_enabled: boolean;
+    store_enabled: boolean;
 }
 
 interface OwnerFormData {
@@ -108,6 +110,8 @@ const initialFormData: FormData = {
     availableUntil: toDateTimeLocalInput("2027-03-12T23:59:59.000Z"),
     pricePaid: "",
     isMarketplaceVisible: true,
+    reservations_enabled: true,
+    store_enabled: false,
 };
 
 function parseNumberOrUndefined(value: string): number | undefined {
@@ -334,6 +338,10 @@ export default function NewShopPage() {
             await notify.warning("Price paid must be a non-negative number.");
             return;
         }
+        if (!formData.reservations_enabled && !formData.store_enabled) {
+            await notify.warning("Enable at least one module for this company.");
+            return;
+        }
 
         const ownerEmail = ownerData.email.trim().toLowerCase();
         const ownerPassword = ownerData.password.trim();
@@ -411,6 +419,8 @@ export default function NewShopPage() {
                 availableUntil: availableUntilIso,
                 pricePaid,
                 isMarketplaceVisible: formData.isMarketplaceVisible,
+                reservations_enabled: formData.reservations_enabled,
+                store_enabled: formData.store_enabled,
                 owner: ownerPayload,
             };
             // TODO(super-admin-shops): Persist optional map metadata once backend supports it:
@@ -609,6 +619,47 @@ export default function NewShopPage() {
                                             setFormData({ ...formData, isMarketplaceVisible: checked })
                                         }
                                     />
+                                </div>
+
+                                <div className="rounded-lg border p-4">
+                                    <div className="mb-4">
+                                        <p className="text-sm font-medium text-slate-900">Company modules</p>
+                                        <p className="text-xs text-slate-500">
+                                            Control whether this company can use reservations, the store, or both.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-900">Reservations module</p>
+                                                <p className="text-xs text-slate-500">Bookings, services, availability, events, and classes.</p>
+                                            </div>
+                                            <Switch
+                                                checked={formData.reservations_enabled}
+                                                onCheckedChange={(checked) =>
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        reservations_enabled: checked,
+                                                    }))
+                                                }
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-900">Store module</p>
+                                                <p className="text-xs text-slate-500">Catalog, storefront, checkout, and order management.</p>
+                                            </div>
+                                            <Switch
+                                                checked={formData.store_enabled}
+                                                onCheckedChange={(checked) =>
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        store_enabled: checked,
+                                                    }))
+                                                }
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

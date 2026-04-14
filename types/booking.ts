@@ -50,7 +50,6 @@ export interface BookingRequest {
     company_id: number;
     staff_id: number;
     secondary_staff_id?: number;
-    customer_id: string;
     service_ids: number[];
     start_at: string;
     payment_method: 'CASH' | 'QR' | 'NONE';

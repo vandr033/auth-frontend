@@ -7,6 +7,7 @@ import { getImageUrl } from "@/utils/image-url";
 import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
 import { useT } from "@/lib/i18n";
 import { HeroCTAButtons } from "./HeroCTAButtons";
+import { useShop } from "@/app/shop/contexts/ShopContext";
 
 interface HeroSplitProps {
     company: ShopCompany;
@@ -18,6 +19,7 @@ interface HeroSplitProps {
 
 export function HeroSplit({ company, reviewStats, slug, homeCTAButtons }: HeroSplitProps) {
     const t = useT();
+    const { modules } = useShop();
     return (
         <section className="grid min-h-[60vh] grid-cols-1 md:min-h-[70vh] md:grid-cols-2">
             {/* Left: Text content */}
@@ -51,11 +53,19 @@ export function HeroSplit({ company, reviewStats, slug, homeCTAButtons }: HeroSp
                     buttons={homeCTAButtons}
                     className="mt-8 flex flex-wrap gap-3"
                     defaultContent={
-                        <Link href={`/shop/${slug}/book`}>
-                            <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
-                                {t('common.bookNow')}
-                            </PrimaryButton>
-                        </Link>
+                        modules.reservations ? (
+                            <Link href={`/shop/${slug}/book`}>
+                                <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                                    {t('common.bookNow')}
+                                </PrimaryButton>
+                            </Link>
+                        ) : modules.store ? (
+                            <Link href={`/shop/${slug}/store`}>
+                                <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                                    {t('shopNav.store')}
+                                </PrimaryButton>
+                            </Link>
+                        ) : null
                     }
                 />
             </div>

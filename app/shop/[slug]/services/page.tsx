@@ -46,6 +46,7 @@ export default function ServicesPage() {
         error,
         slug,
         isShopActive,
+        modules,
     } = useShop();
     const t = useT();
 
@@ -89,6 +90,20 @@ export default function ServicesPage() {
 
     if (!isShopActive) {
         return <ShopUnavailableState slug={slug} />;
+    }
+
+    if (!modules.reservations) {
+        return (
+            <main className="min-h-screen bg-page text-text-main">
+                <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+                    <h1 className="text-3xl font-bold">{t('shopNav.services')}</h1>
+                    <p className="mt-3 text-text-muted">This company does not currently offer reservation-based services.</p>
+                    <Link href={`/shop/${slug}`}>
+                        <Button className="mt-6 bg-brand text-white hover:bg-brand-hover">{t('shopHome.goHome')}</Button>
+                    </Link>
+                </div>
+            </main>
+        );
     }
 
     const heroImage = getImageUrl(company.home_hero_image_url);

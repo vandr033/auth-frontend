@@ -5,7 +5,6 @@ import {
     Loader2,
     Plus,
     Trash2,
-    Clock,
     Check,
 } from "lucide-react";
 
@@ -338,10 +337,7 @@ export default function HoursPage() {
             {/* Schedule Form */}
             <Card className="overflow-x-hidden">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-orange-500" />
-                        {t('adminHours.title')}
-                    </CardTitle>
+                    <CardTitle className="text-base text-slate-900">{t('adminHours.subtitle')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1">
                     {schedule.map((day, dayIndex) => {

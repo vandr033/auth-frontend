@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Calendar } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { useShop } from "@/app/shop/contexts/ShopContext";
 
 interface FloatingBookCTAProps {
     slug: string;
@@ -10,6 +11,10 @@ interface FloatingBookCTAProps {
 
 export function FloatingBookCTA({ slug }: FloatingBookCTAProps) {
     const t = useT();
+    const { modules } = useShop();
+
+    if (!modules.reservations) return null;
+
     return (
         <Link
             href={`/shop/${slug}/book`}

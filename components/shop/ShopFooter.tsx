@@ -13,6 +13,7 @@ const PRICONPRI_DEMO_HREF = "https://cal.com/priconpri/demo";
 const ALL_NAV_LINKS = (slug: string, t: (key: string) => string) => [
     { key: 'home', label: t('shopNav.home'), href: `/shop/${slug}` },
     { key: 'services', label: t('shopNav.services'), href: `/shop/${slug}/services` },
+    { key: 'store', label: t('shopNav.store'), href: `/shop/${slug}/store` },
     { key: 'events', label: t('shopNav.events'), href: `/shop/${slug}/events` },
     { key: 'classes', label: t('shopNav.classes'), href: `/shop/${slug}/classes` },
     { key: 'about', label: t('shopNav.about'), href: `/shop/${slug}/about` },
@@ -20,19 +21,36 @@ const ALL_NAV_LINKS = (slug: string, t: (key: string) => string) => [
 ];
 
 export function ShopFooter() {
-    const { company, socialLinks, slug, footerConfig } = useShop();
+    const { company, socialLinks, slug, footerConfig, commerce, modules } = useShop();
     const t = useT();
 
     if (!company) return null;
 
     const plan = resolveShopPlan(company.plan);
     const canCustomizeFooter = canUsePlanFeature(plan, "FOOTER_CUSTOMIZATION");
+    const canSeeEvents = modules.reservations && canUsePlanFeature(plan, "GROUP_EVENTS");
+    const canSeeClasses = modules.reservations && canUsePlanFeature(plan, "GROUP_CLASSES");
 
     // Use footer config if plan supports it and config exists, otherwise use defaults
     const config = (canCustomizeFooter && footerConfig) ? footerConfig : DEFAULT_FOOTER_CONFIG;
 
     const allLinks = ALL_NAV_LINKS(slug, t);
     const navLinks = allLinks.filter((link) => {
+        if (link.key === 'services' && !modules.reservations) {
+            return false;
+        }
+        if (link.key === 'book' && !modules.reservations) {
+            return false;
+        }
+        if (link.key === 'events' && !canSeeEvents) {
+            return false;
+        }
+        if (link.key === 'classes' && !canSeeClasses) {
+            return false;
+        }
+        if (link.key === 'store' && !(modules.store && commerce?.settings?.store_enabled)) {
+            return false;
+        }
         const found = config.nav_links.find((n) => n.key === link.key);
         // If not in config, default to enabled
         return found ? found.enabled : true;

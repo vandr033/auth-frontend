@@ -135,8 +135,8 @@ export function NearbyShopsMap() {
       }
       if (Date.now() - parsed.updatedAt > LOCATION_CACHE_TTL_MS) return null;
       return {
-        lat: parsed.lat,
-        lng: parsed.lng,
+        lat: parsed.lat as number,
+        lng: parsed.lng as number,
         updatedAt: parsed.updatedAt,
       };
     } catch {

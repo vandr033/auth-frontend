@@ -21,6 +21,7 @@ export default function AboutPage() {
         error,
         slug,
         isShopActive,
+        modules,
     } = useShop();
     const t = useT();
 
@@ -86,11 +87,13 @@ export default function AboutPage() {
                             {company.hero_overlay_text}
                         </p>
                     )}
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                        <Link href={`/shop/${slug}/book`}>
-                            <PrimaryButton>{t('common.bookNow')}</PrimaryButton>
-                        </Link>
-                    </div>
+                    {modules.reservations ? (
+                        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                            <Link href={`/shop/${slug}/book`}>
+                                <PrimaryButton>{t('common.bookNow')}</PrimaryButton>
+                            </Link>
+                        </div>
+                    ) : null}
                 </div>
             </section>
 

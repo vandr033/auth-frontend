@@ -21,6 +21,7 @@ import {
     FileText,
     Star,
     Ticket,
+    Store,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,6 +43,7 @@ import {
     resolveShopPlan,
     type PlanFeatureKey,
 } from "@/lib/plans/capabilities";
+import { resolveCompanyModules } from "@/lib/company-modules";
 
 type NavItem = {
     label: string;
@@ -49,6 +51,7 @@ type NavItem = {
     icon: React.ReactNode;
     roles?: string[];
     feature?: PlanFeatureKey;
+    module?: "reservations" | "store";
 };
 
 const navItems: NavItem[] = [
@@ -64,18 +67,21 @@ const navItems: NavItem[] = [
         href: "/admin/dashboard/bookings",
         icon: <Calendar className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
+        module: "reservations",
     },
     {
         label: "adminNav.groupReservations",
         href: "/admin/dashboard/group-reservations",
         icon: <Ticket className="h-5 w-5 shrink-0" />,
-        roles: ["OWNER", "ADMIN"],
+        roles: ["OWNER", "ADMIN", "STAFF"],
+        module: "reservations",
     },
     {
         label: "adminNav.services",
         href: "/admin/dashboard/services",
         icon: <Scissors className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
+        module: "reservations",
     },
     {
         label: "adminNav.staff",
@@ -102,6 +108,7 @@ const navItems: NavItem[] = [
         icon: <Calendar className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
         feature: "STAFF_AVAILABILITY",
+        module: "reservations",
     },
     {
         label: "adminNav.hours",
@@ -120,6 +127,14 @@ const navItems: NavItem[] = [
         href: "/admin/dashboard/page-management",
         icon: <FileText className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
+    },
+    {
+        label: "adminNav.store",
+        href: "/admin/dashboard/store",
+        icon: <Store className="h-5 w-5 shrink-0" />,
+        roles: ["OWNER", "ADMIN", "STAFF"],
+        feature: "STORE_MODULE",
+        module: "store",
     },
     {
         label: "adminNav.settings",
@@ -313,6 +328,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const activeMembership = companyUsers.find((membership) => membership.company_id === companyId) ?? null;
     const activePlan = resolveShopPlan(activeMembership?.company?.plan);
+    const activeModules = resolveCompanyModules(activeMembership?.company?.modules);
 
     useEffect(() => {
         console.info(`[reservas-admin] APP_VERSION=${APP_VERSION}`);
@@ -333,10 +349,24 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     const filteredNavItems = navItems.filter((item) => {
         if (!item.roles) return true;
         if (!role || !item.roles.includes(role)) return false;
+        if (item.module === "reservations" && !activeModules.reservations) return false;
+        if (item.module === "store" && !activeModules.store) return false;
         if (!item.feature) return true;
         if (user?.is_super_admin) return true;
         return canUsePlanFeature(activePlan, item.feature);
     });
+    const currentNavItem = navItems.find((item) => currentPath === item.href || currentPath.startsWith(`${item.href}/`));
+
+    useEffect(() => {
+        if (!currentNavItem) return;
+        const hasAccess =
+            filteredNavItems.some((item) => item.href === currentNavItem.href) ||
+            currentNavItem.href === "/admin/dashboard";
+
+        if (!hasAccess) {
+            router.replace("/admin/dashboard");
+        }
+    }, [currentNavItem, filteredNavItems, router]);
 
     const getInitials = () => {
         if (user?.name) return user.name.charAt(0).toUpperCase();
@@ -351,20 +381,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
         try {
             await switchActiveShop(nextCompanyId);
-
-            // If the current page is feature-gated, check whether the new
-            // shop's plan supports it. If not, redirect to bookings so the
-            // user never sees a "feature locked" dead-end after switching.
-            const nextMembership = companyUsers.find((m) => m.company_id === nextCompanyId);
-            const nextPlan = resolveShopPlan(nextMembership?.company?.plan);
-            const currentNavItem = navItems.find((item) => item.href === currentPath || currentPath.startsWith(`${item.href}/`));
-
-            const isCurrentPageLocked =
-                currentNavItem?.feature &&
-                !user?.is_super_admin &&
-                !canUsePlanFeature(nextPlan, currentNavItem.feature);
-
-            router.replace(isCurrentPageLocked ? "/admin/dashboard/bookings" : "/admin/dashboard");
+            router.replace("/admin/dashboard");
             router.refresh();
         } catch {
             // Error state is handled in auth context.

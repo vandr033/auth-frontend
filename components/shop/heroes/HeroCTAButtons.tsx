@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
 import { Button } from "@/components/ui/button";
 import type { HomeCTAButton, CTADestination } from "@/types/shop";
+import { useShop } from "@/app/shop/contexts/ShopContext";
 
 function getCTAHref(destination: CTADestination, slug: string): string {
     switch (destination) {
@@ -44,11 +45,22 @@ export function HeroCTAButtons({
     defaultContent,
     className,
 }: HeroCTAButtonsProps) {
+    const { modules } = useShop();
+
     if (!buttons || buttons.length === 0) {
         return <>{defaultContent}</>;
     }
 
     const sorted = [...buttons]
+        .filter((button) => {
+            if (button.destination === "booking" || button.destination === "services") {
+                return modules.reservations;
+            }
+            if (button.destination === "free-events" || button.destination === "events" || button.destination === "classes") {
+                return modules.reservations;
+            }
+            return true;
+        })
         .filter((b) => b.enabled)
         .sort((a, b) => a.order - b.order);
 

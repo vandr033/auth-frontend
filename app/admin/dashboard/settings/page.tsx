@@ -36,6 +36,7 @@ import {
     type LocationAutofillUpdate,
 } from "@/components/admin/location/LocationPicker";
 import { formatCurrencyAmount } from "@/lib/currency";
+import { uploadAdminImage } from "@/app/admin/lib/adminApi";
 
 // Combined interface
 interface CompanySettings {
@@ -175,7 +176,7 @@ export default function SettingsPage() {
         try {
             // Fetch both Company Config and General Details
             const [companyRes, settingsRes, historyRes] = await Promise.all([
-                fetch(getApiUrl(`/api/company/id/${companyId}`), { credentials: "include" }),
+                fetch(getApiUrl(`/api/admin/company`), { credentials: "include" }),
                 fetch(getApiUrl(`/api/admin/settings`), { credentials: "include" }),
                 fetch(getApiUrl(`/api/admin/settings/subscription-history`), { credentials: "include" }),
             ]);
@@ -324,21 +325,11 @@ export default function SettingsPage() {
 
             // Upload QR if selected
             if (selectedQR) {
-                const formData = new FormData();
-                formData.append('image', selectedQR);
-                formData.append('company_id', companyId.toString());
-                const uploadRes = await fetch(getApiUrl('/api/upload/qr'), {
-                    method: 'POST',
-                    body: formData,
-                    credentials: "include",
+                qrUrl = await uploadAdminImage({
+                    file: selectedQR,
+                    companyId,
+                    type: "payment_qr",
                 });
-
-                if (!uploadRes.ok) {
-                    throw new Error(t('adminSettings.uploadQrFailed'));
-                }
-
-                const uploadData = await uploadRes.json();
-                qrUrl = uploadData.data?.url || uploadData.url;
             }
 
             // Payload for Company (General)
@@ -383,7 +374,7 @@ export default function SettingsPage() {
             };
 
             const [companyRes, settingsRes] = await Promise.all([
-                fetch(getApiUrl(`/api/company/id/${companyId}`), {
+                fetch(getApiUrl(`/api/admin/company`), {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     credentials: "include",

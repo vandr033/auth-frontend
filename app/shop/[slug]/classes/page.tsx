@@ -28,9 +28,9 @@ function hasUpcomingSession(sessions: PublicGroupClassSession[]): boolean {
 
 export default function ShopClassesPage() {
   const t = useT();
-  const { company, slug, isShopActive, loading, error } = useShop();
+  const { company, slug, isShopActive, loading, error, modules } = useShop();
   const plan = resolveShopPlan(company?.plan);
-  const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
+  const canSeeClasses = modules.reservations && canUsePlanFeature(plan, "GROUP_CLASSES");
 
   const [classesLoading, setClassesLoading] = React.useState(true);
   const [classes, setClasses] = React.useState<PublicGroupClass[]>([]);

@@ -31,6 +31,14 @@ export function formatCurrencyAmount(
     return `${normalizeCurrencyLabel(currency)} ${formattedNumber}`;
 }
 
+export function formatFixedCurrencyAmount(
+    amount: number,
+    currency?: string | null,
+): string {
+    const numeric = Number.isFinite(amount) ? amount : 0;
+    return `${normalizeCurrencyLabel(currency)} ${numeric.toFixed(2)}`;
+}
+
 export function formatCurrencyFromCents(
     cents: number,
     currency?: string | null,
@@ -38,6 +46,14 @@ export function formatCurrencyFromCents(
 ): string {
     const numeric = Number.isFinite(cents) ? cents / 100 : 0;
     return formatCurrencyAmount(numeric, currency, options);
+}
+
+export function formatFixedCurrencyFromCents(
+    cents: number,
+    currency?: string | null,
+): string {
+    const numeric = Number.isFinite(cents) ? cents / 100 : 0;
+    return formatFixedCurrencyAmount(numeric, currency);
 }
 
 export function formatCurrencyInputFromCents(cents: number): string {

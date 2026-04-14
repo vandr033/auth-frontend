@@ -36,7 +36,7 @@ export function ShopNavbar() {
     const currentPathname = pathname ?? "";
     const router = useRouter();
     const { isAuthenticated, user, signOut, loading } = useAuth();
-    const { company, slug, socialLinks, loading: shopLoading, isShopActive, announcementBanners } = useShop();
+    const { company, slug, socialLinks, commerce, modules, loading: shopLoading, isShopActive, announcementBanners } = useShop();
     const t = useT();
 
     const [open, setOpen] = useState(false);
@@ -48,12 +48,15 @@ export function ShopNavbar() {
     const appointmentsHref = appendShopParam("/me/appointments", slug);
     const groupReservationsHref = appendShopParam("/me/group-reservations", slug);
     const plan = resolveShopPlan(company?.plan);
-    const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
-    const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
+    const canSeeReservations = modules.reservations;
+    const canSeeEvents = canSeeReservations && canUsePlanFeature(plan, "GROUP_EVENTS");
+    const canSeeClasses = canSeeReservations && canUsePlanFeature(plan, "GROUP_CLASSES");
+    const canSeeStore = modules.store && Boolean(commerce?.settings?.store_enabled);
 
     const navLinks = [
         { href: basePath, label: t('shopNav.home') },
-        { href: `${basePath}/services`, label: t('shopNav.services') },
+        ...(canSeeReservations ? [{ href: `${basePath}/services`, label: t('shopNav.services') }] : []),
+        ...(canSeeStore ? [{ href: `${basePath}/store`, label: t('shopNav.store') }] : []),
         ...(canSeeEvents ? [{ href: `${basePath}/events`, label: t('shopNav.events') }] : []),
         ...(canSeeClasses ? [{ href: `${basePath}/classes`, label: t('shopNav.classes') }] : []),
         { href: `${basePath}/about`, label: t('shopNav.about') },
@@ -159,18 +162,22 @@ export function ShopNavbar() {
                         >
                             {t('shopNav.myProfile')}
                         </Link>
-                        <Link
-                            href={appointmentsHref}
-                            className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
-                        >
-                            {t('shopNav.myAppointments')}
-                        </Link>
-                        <Link
-                            href={groupReservationsHref}
-                            className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
-                        >
-                            {t('shopNav.myGroupReservations')}
-                        </Link>
+                        {canSeeReservations ? (
+                            <Link
+                                href={appointmentsHref}
+                                className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
+                            >
+                                {t('shopNav.myAppointments')}
+                            </Link>
+                        ) : null}
+                        {canSeeReservations ? (
+                            <Link
+                                href={groupReservationsHref}
+                                className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
+                            >
+                                {t('shopNav.myGroupReservations')}
+                            </Link>
+                        ) : null}
                         <Separator className="border-surface-border" />
                         <button
                             type="button"
@@ -245,7 +252,7 @@ export function ShopNavbar() {
                 {/* Desktop Actions */}
                 <div className="hidden items-center gap-3 md:flex">
                     <SocialIcons socialLinks={socialLinks} iconSize={16} className="gap-2" />
-                    {isShopActive ? (
+                    {isShopActive && canSeeReservations ? (
                         <Link href={`${basePath}/book`}>
                             <Button className="rounded-md bg-brand px-6 py-2 text-white shadow-card transition hover:bg-brand-hover">
                                 {t('shopNav.book')}
@@ -258,7 +265,7 @@ export function ShopNavbar() {
 
                 {/* Mobile Actions */}
                 <div className="flex items-center gap-2 md:hidden">
-                    {isShopActive ? (
+                    {isShopActive && canSeeReservations ? (
                         <Link href={`${basePath}/book`}>
                             <Button className="rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover">
                                 {t('shopNav.bookShort')}
@@ -316,7 +323,7 @@ export function ShopNavbar() {
                                 <Separator className="border-surface-border" />
 
                                 {/* Book Now */}
-                                {isShopActive ? (
+                                {isShopActive && canSeeReservations ? (
                                     <Link href={`${basePath}/book`} onClick={() => setOpen(false)}>
                                         <Button className="w-full rounded-md bg-brand px-4 py-2 text-white shadow-card hover:bg-brand-hover">
                                             {t('shopNav.book')}
@@ -351,18 +358,22 @@ export function ShopNavbar() {
                                                 {t('shopNav.myProfile')}
                                             </Button>
                                         </Link>
-                                        <Link href={appointmentsHref} onClick={() => setOpen(false)}>
-                                            <Button variant="outline" className="w-full justify-start gap-2">
-                                                <span className="h-2 w-2 rounded-full bg-brand" />
-                                                {t('shopNav.myAppointments')}
-                                            </Button>
-                                        </Link>
-                                        <Link href={groupReservationsHref} onClick={() => setOpen(false)}>
-                                            <Button variant="outline" className="w-full justify-start gap-2">
-                                                <span className="h-2 w-2 rounded-full bg-brand" />
-                                                {t('shopNav.myGroupReservations')}
-                                            </Button>
-                                        </Link>
+                                        {canSeeReservations ? (
+                                            <Link href={appointmentsHref} onClick={() => setOpen(false)}>
+                                                <Button variant="outline" className="w-full justify-start gap-2">
+                                                    <span className="h-2 w-2 rounded-full bg-brand" />
+                                                    {t('shopNav.myAppointments')}
+                                                </Button>
+                                            </Link>
+                                        ) : null}
+                                        {canSeeReservations ? (
+                                            <Link href={groupReservationsHref} onClick={() => setOpen(false)}>
+                                                <Button variant="outline" className="w-full justify-start gap-2">
+                                                    <span className="h-2 w-2 rounded-full bg-brand" />
+                                                    {t('shopNav.myGroupReservations')}
+                                                </Button>
+                                            </Link>
+                                        ) : null}
                                         <Button
                                             variant="ghost"
                                             className="w-full justify-start text-brand hover:bg-brand-soft-bg hover:text-brand"

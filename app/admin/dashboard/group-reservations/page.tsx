@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarRange, Loader2, Users, Wallet, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
@@ -15,12 +16,19 @@ import { clampPercent } from "./lib/format";
 
 export default function GroupReservationsOverviewPage() {
     const t = useT();
-    const { companyUser } = useAdminAuth();
+    const router = useRouter();
+    const { companyUser, role } = useAdminAuth();
     const { canUseClasses } = useGroupReservationsAccess();
 
     const [loading, setLoading] = useState(true);
     const [events, setEvents] = useState<GroupEvent[]>([]);
     const [classes, setClasses] = useState<GroupClass[]>([]);
+
+    useEffect(() => {
+        if (role === "STAFF") {
+            router.replace("/admin/dashboard/group-reservations/attendance");
+        }
+    }, [role, router]);
 
     useEffect(() => {
         const run = async () => {

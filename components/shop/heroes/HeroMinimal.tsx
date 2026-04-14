@@ -6,6 +6,7 @@ import { PrimaryButton } from "@/app/components/PrimaryButton";
 import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
 import { useT } from "@/lib/i18n";
 import { HeroCTAButtons } from "./HeroCTAButtons";
+import { useShop } from "@/app/shop/contexts/ShopContext";
 
 interface HeroMinimalProps {
     company: ShopCompany;
@@ -17,6 +18,7 @@ interface HeroMinimalProps {
 
 export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons }: HeroMinimalProps) {
     const t = useT();
+    const { modules } = useShop();
     return (
         <section className="bg-page py-20 md:py-32">
             <div className="mx-auto max-w-4xl px-4 text-center md:px-8">
@@ -57,11 +59,19 @@ export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons }: Hero
                     buttons={homeCTAButtons}
                     className="mt-10 flex flex-wrap items-center justify-center gap-3"
                     defaultContent={
-                        <Link href={`/shop/${slug}/book`}>
-                            <PrimaryButton className="px-10 py-4 text-lg">
-                                {t('common.bookNow')}
-                            </PrimaryButton>
-                        </Link>
+                        modules.reservations ? (
+                            <Link href={`/shop/${slug}/book`}>
+                                <PrimaryButton className="px-10 py-4 text-lg">
+                                    {t('common.bookNow')}
+                                </PrimaryButton>
+                            </Link>
+                        ) : modules.store ? (
+                            <Link href={`/shop/${slug}/store`}>
+                                <PrimaryButton className="px-10 py-4 text-lg">
+                                    {t('shopNav.store')}
+                                </PrimaryButton>
+                            </Link>
+                        ) : null
                     }
                 />
             </div>

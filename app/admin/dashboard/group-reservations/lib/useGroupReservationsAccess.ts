@@ -9,17 +9,20 @@ export function useGroupReservationsAccess() {
     const plan = resolveShopPlan(companyUser?.company?.plan);
     const isSuperAdmin = Boolean(user?.is_super_admin);
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
+    const isStaff = role === "STAFF";
 
     const access = useMemo(
         () => ({
             plan,
             isSuperAdmin,
             isOwnerOrAdmin,
+            isStaff,
+            canAccessAttendance: isSuperAdmin || canUsePlanFeature(plan, "GROUP_EVENTS") || canUsePlanFeature(plan, "GROUP_CLASSES") || canUsePlanFeature(plan, "GROUP_ADVANCED"),
             canUseEvents: isSuperAdmin || canUsePlanFeature(plan, "GROUP_EVENTS"),
             canUseClasses: isSuperAdmin || canUsePlanFeature(plan, "GROUP_CLASSES"),
             canUseAdvanced: isSuperAdmin || canUsePlanFeature(plan, "GROUP_ADVANCED"),
         }),
-        [isSuperAdmin, plan, isOwnerOrAdmin],
+        [isSuperAdmin, plan, isOwnerOrAdmin, isStaff],
     );
 
     return access;

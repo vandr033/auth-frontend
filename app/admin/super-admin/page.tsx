@@ -245,33 +245,31 @@ export default function SuperAdminDashboard() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {statCards.map((stat) => (
                     <Card key={stat.label} className="border-slate-200">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">{stat.label}</CardTitle>
-                            <div className={cn("p-2 rounded-lg", stat.color)}>{stat.icon}</div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                            <p className="text-xs text-slate-500 mt-1">{stat.sub}</p>
+                        <CardContent className="p-4">
+                            <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                                <span className={stat.color.split(" ")[0]}>{stat.icon}</span>
+                                {stat.label}
+                            </p>
+                            <div className="mt-2 text-2xl font-bold text-slate-900">{stat.value}</div>
+                            <p className="mt-1 text-xs text-slate-500">{stat.sub}</p>
                         </CardContent>
                     </Card>
                 ))}
             </div>
 
             {/* Secondary Stat Cards */}
-            <div className="grid gap-4 sm:grid-cols-3">
-                {secondaryCards.map((stat) => (
-                    <Card key={stat.label} className="border-slate-200">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className={cn("p-2 rounded-lg", stat.color)}>{stat.icon}</div>
-                                <div>
-                                    <p className="text-sm text-slate-500">{stat.label}</p>
-                                    <p className="text-xl font-bold text-slate-900">{stat.value.toLocaleString()}</p>
-                                </div>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                <div className="grid grid-cols-1 gap-px sm:grid-cols-3">
+                    {secondaryCards.map((stat) => (
+                        <div key={stat.label} className="flex items-center gap-3 bg-white px-4 py-4">
+                            <span className={stat.color.split(" ")[0]}>{stat.icon}</span>
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{stat.label}</p>
+                                <p className="mt-0.5 text-xl font-bold text-slate-900">{stat.value.toLocaleString()}</p>
                             </div>
-                        </CardContent>
-                    </Card>
-                ))}
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {marketplace && (
@@ -593,90 +591,27 @@ export default function SuperAdminDashboard() {
             </Card>
 
             {/* Quick Links */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                <Link href="/admin/super-admin/shops">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <Store className="h-5 w-5 text-brand" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-slate-900">{t("superAdminDashboard.manageShops")}</p>
-                                </div>
-                                <ArrowRight className="h-4 w-4 text-slate-400" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
-
-                <Link href="/admin/super-admin/service-types">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <Tags className="h-5 w-5 text-brand" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-slate-900">{t("superAdminDashboard.manageServiceTypes")}</p>
-                                </div>
-                                <ArrowRight className="h-4 w-4 text-slate-400" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
-
-                <Link href="/admin/super-admin/company-types">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <Building2 className="h-5 w-5 text-brand" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-slate-900">{t("superAdminDashboard.manageCompanyTypes")}</p>
-                                </div>
-                                <ArrowRight className="h-4 w-4 text-slate-400" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
-
-                <Link href="/admin/super-admin/test-notifications">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <MessageSquare className="h-5 w-5 text-brand" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-slate-900">
-                                        {t("superAdminDashboard.manageTestNotifications")}
-                                    </p>
-                                </div>
-                                <ArrowRight className="h-4 w-4 text-slate-400" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
-
-                <Link href="/admin/super-admin/users">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <Users className="h-5 w-5 text-brand" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-slate-900">
-                                        {t("superAdminDashboard.manageAllUsers")}
-                                    </p>
-                                </div>
-                                <ArrowRight className="h-4 w-4 text-slate-400" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                {[
+                    { href: "/admin/super-admin/shops", icon: <Store className="h-4 w-4 shrink-0 text-brand" />, label: t("superAdminDashboard.manageShops") },
+                    { href: "/admin/super-admin/service-types", icon: <Tags className="h-4 w-4 shrink-0 text-brand" />, label: t("superAdminDashboard.manageServiceTypes") },
+                    { href: "/admin/super-admin/company-types", icon: <Building2 className="h-4 w-4 shrink-0 text-brand" />, label: t("superAdminDashboard.manageCompanyTypes") },
+                    { href: "/admin/super-admin/test-notifications", icon: <MessageSquare className="h-4 w-4 shrink-0 text-brand" />, label: t("superAdminDashboard.manageTestNotifications") },
+                    { href: "/admin/super-admin/users", icon: <Users className="h-4 w-4 shrink-0 text-brand" />, label: t("superAdminDashboard.manageAllUsers") },
+                ].map((item, i, arr) => (
+                    <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                            "flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900",
+                            i < arr.length - 1 && "border-b border-slate-100",
+                        )}
+                    >
+                        {item.icon}
+                        {item.label}
+                        <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    </Link>
+                ))}
             </div>
         </div>
     );

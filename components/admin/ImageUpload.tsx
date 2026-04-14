@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { getImageUrl, getUploadEndpoint, type CompanyImageType } from "@/utils/image-url";
 import { useT } from "@/lib/i18n";
 
-export type ImageUploadType = CompanyImageType | 'staff';
+export type ImageUploadType = CompanyImageType | 'staff' | 'payment_qr' | 'commerce_banner' | 'commerce_product';
 
 interface ImageUploadProps {
     companyId: number;
@@ -50,6 +50,9 @@ const recommendedSizesByType: Record<ImageUploadType, string> = {
     about_3: "1600px x 1200px",
     qr: "1080px x 1080px",
     staff: "1080px x 1080px",
+    payment_qr: "1080px x 1080px",
+    commerce_banner: "1920px x 1080px",
+    commerce_product: "1600px x 1600px",
 };
 
 export function ImageUpload({

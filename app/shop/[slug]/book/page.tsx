@@ -62,6 +62,7 @@ type PendingBookingIntent = {
     slug: string;
     company_id: number;
     staff_id: number;
+    secondary_staff_id?: number;
     service_ids: number[];
     start_at: string;
     payment_method: "CASH" | "QR" | "NONE";
@@ -1109,7 +1110,7 @@ export default function BookingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, loading: authLoading } = useAuth();
-    const { company, services, staff, categories, settings, loading, error, slug, isShopActive } = useShop();
+    const { company, services, staff, categories, settings, loading, error, slug, isShopActive, modules } = useShop();
     const t = useT();
     const api = useApi();
     const searchParamsString = searchParams?.toString() || "";
@@ -1518,12 +1519,21 @@ export default function BookingPage() {
         }
     };
 
-    const uploadQrProof = async (file: File, companyId: number): Promise<string> => {
+    const uploadQrProof = async (
+        file: File,
+        companyId: number,
+        uploadToken?: string | null,
+    ): Promise<string> => {
+        if (!uploadToken) {
+            throw new Error(t('shopBooking.uploadProofError'));
+        }
+
         const formData = new FormData();
         formData.append('image', file);
         formData.append('company_id', companyId.toString());
+        formData.append('upload_token', uploadToken);
 
-        const uploadRes = await fetch(resolveApiUrl('/upload/qr'), {
+        const uploadRes = await fetch(resolveApiUrl('/upload/booking-proof'), {
             method: 'POST',
             body: formData,
         });
@@ -1540,18 +1550,6 @@ export default function BookingPage() {
         return uploadData.data.url as string;
     };
 
-    const deleteUploadedQrProof = React.useCallback(async (url: string) => {
-        try {
-            await fetch(resolveApiUrl('/upload/qr'), {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url }),
-            });
-        } catch {
-            // Best-effort cleanup: ignore delete failures.
-        }
-    }, []);
-
     const buildBookingPayload = async (): Promise<Omit<BookingRequest, "customer_id">> => {
         if (!booking.slot || !company) {
             throw new Error(t('shopBooking.bookingError'));
@@ -1564,7 +1562,11 @@ export default function BookingPage() {
                 throw new Error(t('shopBooking.qrProofRequired'));
             }
             if (qrProofFile) {
-                qrProofUrl = await uploadQrProof(qrProofFile, company.id);
+                qrProofUrl = await uploadQrProof(
+                    qrProofFile,
+                    company.id,
+                    settings?.booking_proof_upload_token,
+                );
             }
         }
 
@@ -1583,14 +1585,9 @@ export default function BookingPage() {
     };
 
     const submitBookingPayload = React.useCallback(async (
-        payload: Omit<BookingRequest, "customer_id">,
-        customerId: string,
+        payload: BookingRequest,
     ) => {
-        const fullPayload: BookingRequest = {
-            ...payload,
-            customer_id: customerId,
-        };
-        await api.post("/booking/customer", fullPayload as unknown as Record<string, unknown>);
+        await api.post("/booking", payload as unknown as Record<string, unknown>);
     }, [api]);
 
     useEffect(() => {
@@ -1604,9 +1601,10 @@ export default function BookingPage() {
         setSubmitting(true);
         setSubmitError(null);
 
-        const payload: Omit<BookingRequest, "customer_id"> = {
+        const payload: BookingRequest = {
             company_id: pending.company_id,
             staff_id: pending.staff_id,
+            secondary_staff_id: pending.secondary_staff_id,
             service_ids: pending.service_ids,
             start_at: pending.start_at,
             payment_method: pending.payment_method,
@@ -1617,19 +1615,16 @@ export default function BookingPage() {
 
         void (async () => {
             try {
-                await submitBookingPayload(payload, user.id!);
+                await submitBookingPayload(payload);
                 setCompletedAfterSignIn(true);
                 setSuccess(true);
             } catch (err) {
-                if (payload.qr_proof_image_url) {
-                    await deleteUploadedQrProof(payload.qr_proof_image_url);
-                }
                 setSubmitError(err instanceof Error ? err.message : t('shopBooking.bookingError'));
             } finally {
                 setSubmitting(false);
             }
         })();
-    }, [authLoading, user, slug, success, submitBookingPayload, t, deleteUploadedQrProof]);
+    }, [authLoading, user, slug, success, submitBookingPayload, t]);
 
     const handleSubmit = async () => {
         if (!booking.slot || !company) return;
@@ -1654,14 +1649,11 @@ export default function BookingPage() {
                 return;
             }
 
-            await submitBookingPayload(payload, user.id);
+            await submitBookingPayload(payload);
             clearPendingBookingIntent();
             setSuccess(true);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : t('shopBooking.bookingError');
-            if (uploadedQrUrl) {
-                await deleteUploadedQrProof(uploadedQrUrl);
-            }
 
             if (SLOT_UNAVAILABLE_PATTERN.test(errorMessage)) {
                 setBooking((prev) => ({
@@ -1727,6 +1719,20 @@ export default function BookingPage() {
 
     if (!isShopActive) {
         return <ShopUnavailableState slug={slug} />;
+    }
+
+    if (!modules.reservations) {
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-page text-text-main">
+                <div className="text-center">
+                    <h1 className="mb-4 text-4xl font-bold">{t('shopNav.book')}</h1>
+                    <p className="mb-6 text-text-muted">Reservations are not available for this company.</p>
+                    <Link href={`/shop/${slug}`}>
+                        <Button className="bg-brand text-white hover:bg-brand-hover">{t('shopHome.goHome')}</Button>
+                    </Link>
+                </div>
+            </main>
+        );
     }
 
     if (success) {

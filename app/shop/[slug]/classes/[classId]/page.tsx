@@ -66,9 +66,9 @@ export default function ShopClassDetailPage() {
   const classId = Number.parseInt(params?.classId || "", 10);
 
   const { user, loading: authLoading } = useAuth();
-  const { company, settings, slug, isShopActive, loading, error } = useShop();
+  const { company, settings, slug, isShopActive, loading, error, modules } = useShop();
   const plan = resolveShopPlan(company?.plan);
-  const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
+  const canSeeClasses = modules.reservations && canUsePlanFeature(plan, "GROUP_CLASSES");
 
   const [classLoading, setClassLoading] = React.useState(true);
   const [groupClass, setGroupClass] = React.useState<PublicGroupClass | null>(null);

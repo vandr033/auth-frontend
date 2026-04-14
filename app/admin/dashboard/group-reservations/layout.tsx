@@ -12,9 +12,9 @@ export default function GroupReservationsLayout({
     children: React.ReactNode;
 }) {
     const t = useT();
-    const { plan, canUseEvents, isOwnerOrAdmin } = useGroupReservationsAccess();
+    const { plan, canUseEvents, canAccessAttendance, isOwnerOrAdmin, isStaff } = useGroupReservationsAccess();
 
-    if (!isOwnerOrAdmin) {
+    if (!isOwnerOrAdmin && !isStaff) {
         return (
             <div className="space-y-4">
                 <AdminPageHeader
@@ -28,7 +28,7 @@ export default function GroupReservationsLayout({
         );
     }
 
-    if (!canUseEvents) {
+    if (!canUseEvents && !canAccessAttendance) {
         return (
             <div className="space-y-4">
                 <AdminPageHeader

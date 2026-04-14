@@ -71,9 +71,9 @@ export default function ShopEventDetailPage() {
     sendPhoneOtp,
     verifyPhoneOtp,
   } = useAuth();
-  const { company, settings, slug, isShopActive, loading, error } = useShop();
+  const { company, settings, slug, isShopActive, loading, error, modules } = useShop();
   const plan = resolveShopPlan(company?.plan);
-  const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
+  const canSeeEvents = modules.reservations && canUsePlanFeature(plan, "GROUP_EVENTS");
   const canUseAdvanced = canUsePlanFeature(plan, "GROUP_ADVANCED");
 
   const [eventLoading, setEventLoading] = React.useState(true);

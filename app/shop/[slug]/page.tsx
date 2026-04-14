@@ -16,6 +16,7 @@ import { PublicReviewList } from "@/components/shop/PublicReviewList";
 import { ShopUnavailableState } from "../components/ShopUnavailableState";
 import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { DEFAULT_SECTION_ORDER, type HomeSectionKey } from "@/types/shop";
+import { formatFixedCurrencyFromCents } from "@/lib/currency";
 import { useAuth } from "@/lib/useAuth";
 import {
     listPublicClasses,
@@ -40,13 +41,19 @@ export default function ShopPage() {
         services,
         staff,
         homeSectionOrder,
+        modules,
+        commerce,
     } = useShop();
     const sectionOrder: HomeSectionKey[] = homeSectionOrder ?? DEFAULT_SECTION_ORDER;
     const t = useT();
     const { user } = useAuth();
     const plan = resolveShopPlan(company?.plan);
-    const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
-    const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
+    const canSeeEvents = modules.reservations && canUsePlanFeature(plan, "GROUP_EVENTS");
+    const canSeeClasses = modules.reservations && canUsePlanFeature(plan, "GROUP_CLASSES");
+    const featuredProducts = React.useMemo(
+        () => (commerce?.products ?? []).filter((product) => product.is_featured).slice(0, 4),
+        [commerce?.products],
+    );
     const [events, setEvents] = React.useState<PublicGroupEvent[]>([]);
     const [classes, setClasses] = React.useState<PublicGroupClass[]>([]);
     const [classSessionsById, setClassSessionsById] = React.useState<Record<number, PublicGroupClassSession[]>>({});
@@ -190,7 +197,7 @@ export default function ShopPage() {
                     );
                 }
                 if (key === 'services') {
-                    if (services.length === 0) return null;
+                    if (!modules.reservations || services.length === 0) return null;
                     return (
                         <section key="services" className="py-10 md:py-16">
                             <div className="mx-auto max-w-6xl px-4 md:px-8">
@@ -305,6 +312,51 @@ export default function ShopPage() {
                 }
                 return null;
             })}
+
+            {modules.store && featuredProducts.length > 0 ? (
+                <section className="py-10 md:py-16">
+                    <div className="mx-auto max-w-6xl px-4 md:px-8">
+                        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                    {t('shopNav.store')}
+                                </p>
+                                <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                                    Featured products
+                                </h2>
+                            </div>
+                            <Link href={`/shop/${slug}/store`}>
+                                <Button variant="ghost" className="text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
+                                    View store →
+                                </Button>
+                            </Link>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            {featuredProducts.map((product) => (
+                                <div key={product.id} className="rounded-2xl border border-surface-border bg-surface p-5 shadow-card">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
+                                        {product.is_combo ? "Combo" : "Product"}
+                                    </p>
+                                    <h3 className="mt-2 text-lg font-semibold text-text-main">{product.name}</h3>
+                                    <p className="mt-2 line-clamp-2 text-sm text-text-muted">
+                                        {product.description || "Available in this company's product catalog."}
+                                    </p>
+                                    <div className="mt-4 flex items-center justify-between">
+                                        <span className="text-base font-semibold text-brand">
+                                            {formatFixedCurrencyFromCents(product.effective_price_cents ?? product.promotional_price_cents ?? product.regular_price_cents, company.currency)}
+                                        </span>
+                                        <Link href={`/shop/${slug}/store`}>
+                                            <Button size="sm" className="bg-brand text-white hover:bg-brand-hover">
+                                                Shop
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            ) : null}
 
             {/* 6. Reviews Banner */}
             {reviewStats && reviewStats.count > 0 && (

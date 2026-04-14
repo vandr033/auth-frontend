@@ -8,6 +8,7 @@ import { getImageUrl } from "@/utils/image-url";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
 import type { ShopStaff } from "@/types/shop";
 import { useT } from "@/lib/i18n";
+import { useShop } from "@/app/shop/contexts/ShopContext";
 
 interface TeamSpotlightProps {
     staff: ShopStaff[];
@@ -16,6 +17,7 @@ interface TeamSpotlightProps {
 
 export function TeamSpotlight({ staff, slug }: TeamSpotlightProps) {
     const t = useT();
+    const { modules } = useShop();
     const [featuredIndex, setFeaturedIndex] = useState(0);
 
     if (staff.length === 0) {
@@ -50,11 +52,13 @@ export function TeamSpotlight({ staff, slug }: TeamSpotlightProps) {
                             {featured.bio}
                         </p>
                     )}
-                    <div className="mt-6">
-                        <Link href={`/shop/${slug}/book?staffId=${featured.id}`}>
-                            <PrimaryButton>{t('shopHome.bookWith', { name: featured.display_name.split(" ")[0] })}</PrimaryButton>
-                        </Link>
-                    </div>
+                    {modules.reservations ? (
+                        <div className="mt-6">
+                            <Link href={`/shop/${slug}/book?staffId=${featured.id}`}>
+                                <PrimaryButton>{t('shopHome.bookWith', { name: featured.display_name.split(" ")[0] })}</PrimaryButton>
+                            </Link>
+                        </div>
+                    ) : null}
                 </div>
             </div>
 

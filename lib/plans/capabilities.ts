@@ -22,7 +22,8 @@ export type PlanFeatureKey =
     | "OUTREACH_REACTIVATION_TOOLS"
     | "GROUP_EVENTS"
     | "GROUP_CLASSES"
-    | "GROUP_ADVANCED";
+    | "GROUP_ADVANCED"
+    | "STORE_MODULE";
 
 export type PlanCapabilities = {
     maxStaffMembers: number | null;
@@ -55,6 +56,7 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             GROUP_EVENTS: false,
             GROUP_CLASSES: false,
             GROUP_ADVANCED: false,
+            STORE_MODULE: false,
         },
     },
     BUSINESS: {
@@ -82,6 +84,7 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             GROUP_EVENTS: true,
             GROUP_CLASSES: false,
             GROUP_ADVANCED: false,
+            STORE_MODULE: true,
         },
     },
     PRO: {
@@ -109,6 +112,7 @@ export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
             GROUP_EVENTS: true,
             GROUP_CLASSES: true,
             GROUP_ADVANCED: true,
+            STORE_MODULE: true,
         },
     },
 };
@@ -136,6 +140,7 @@ export const FEATURE_REQUIRED_PLAN: Record<PlanFeatureKey, ShopPlan> = {
     GROUP_EVENTS: "BUSINESS",
     GROUP_CLASSES: "PRO",
     GROUP_ADVANCED: "PRO",
+    STORE_MODULE: "BUSINESS",
 };
 
 export function resolveShopPlan(plan?: string | null): ShopPlan {
@@ -189,6 +194,7 @@ export const FEATURE_DESCRIPTION_KEY: Record<PlanFeatureKey, string> = {
     GROUP_EVENTS: "planEnforcement.desc.groupEvents",
     GROUP_CLASSES: "planEnforcement.desc.groupClasses",
     GROUP_ADVANCED: "planEnforcement.desc.groupAdvanced",
+    STORE_MODULE: "planEnforcement.desc.storeModule",
 };
 
 /**
@@ -217,4 +223,5 @@ export const FEATURE_LABEL_KEY: Record<PlanFeatureKey, string> = {
     GROUP_EVENTS: "planEnforcement.label.groupEvents",
     GROUP_CLASSES: "planEnforcement.label.groupClasses",
     GROUP_ADVANCED: "planEnforcement.label.groupAdvanced",
+    STORE_MODULE: "planEnforcement.label.storeModule",
 };

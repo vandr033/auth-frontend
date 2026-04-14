@@ -9,6 +9,7 @@ import { getImageUrl } from "@/utils/image-url";
 import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
 import { useT } from "@/lib/i18n";
 import { HeroCTAButtons } from "./HeroCTAButtons";
+import { useShop } from "@/app/shop/contexts/ShopContext";
 
 interface HeroCinematicProps {
     company: ShopCompany;
@@ -20,6 +21,7 @@ interface HeroCinematicProps {
 
 export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTAButtons }: HeroCinematicProps) {
     const t = useT();
+    const { modules } = useShop();
     return (
         <section className="relative isolate min-h-[80vh] overflow-hidden text-white md:min-h-screen">
             <div
@@ -74,16 +76,26 @@ export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTA
                     className="mt-4 flex flex-wrap items-center justify-center gap-4"
                     defaultContent={
                         <>
-                            <Link href={`/shop/${slug}/book`}>
-                                <PrimaryButton className="min-w-[180px] px-8 py-4 text-lg">
-                                    {t('common.bookNow')}
-                                </PrimaryButton>
-                            </Link>
-                            <Link href={`/shop/${slug}/services`}>
-                                <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
-                                    {t('shopNav.services')}
-                                </Button>
-                            </Link>
+                            {modules.reservations ? (
+                                <>
+                                    <Link href={`/shop/${slug}/book`}>
+                                        <PrimaryButton className="min-w-[180px] px-8 py-4 text-lg">
+                                            {t('common.bookNow')}
+                                        </PrimaryButton>
+                                    </Link>
+                                    <Link href={`/shop/${slug}/services`}>
+                                        <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
+                                            {t('shopNav.services')}
+                                        </Button>
+                                    </Link>
+                                </>
+                            ) : modules.store ? (
+                                <Link href={`/shop/${slug}/store`}>
+                                    <PrimaryButton className="min-w-[180px] px-8 py-4 text-lg">
+                                        {t('shopNav.store')}
+                                    </PrimaryButton>
+                                </Link>
+                            ) : null}
                         </>
                     }
                 />

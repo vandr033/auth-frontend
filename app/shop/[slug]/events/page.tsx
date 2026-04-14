@@ -22,13 +22,13 @@ export default function ShopEventsPage() {
   const t = useT();
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const { company, slug, isShopActive, loading, error } = useShop();
+  const { company, slug, isShopActive, loading, error, modules } = useShop();
   const plan = resolveShopPlan(company?.plan);
-  const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
+  const canSeeEvents = modules.reservations && canUsePlanFeature(plan, "GROUP_EVENTS");
 
   // Read initial filter from URL (?free=true)
   const [activeFilter, setActiveFilter] = React.useState<EventFilter>(
-    searchParams.get("free") === "true" ? "free" : "all",
+    searchParams?.get("free") === "true" ? "free" : "all",
   );
 
   const [eventsLoading, setEventsLoading] = React.useState(true);

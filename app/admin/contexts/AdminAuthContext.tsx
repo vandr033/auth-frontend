@@ -8,6 +8,7 @@ import React, {
     useMemo,
     useState,
 } from "react";
+import type { CompanyModules } from "@/lib/company-modules";
 
 export type AdminUser = {
     id?: string;
@@ -33,6 +34,7 @@ export type CompanyUser = {
         default_language?: string;
         availableUntil?: string;
         plan?: "STARTER" | "BUSINESS" | "PRO";
+        modules?: CompanyModules;
     };
 };
 

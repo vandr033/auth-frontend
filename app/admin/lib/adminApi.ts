@@ -44,7 +44,11 @@ export type AdminUploadImageType =
     | "about_1"
     | "about_2"
     | "about_3"
+    | "booking_proof"
+    | "payment_qr"
     | "staff"
+    | "commerce_banner"
+    | "commerce_product"
     | "group_event_cover"
     | "group_event_thumbnail"
     | "group_class_cover"
@@ -437,31 +441,11 @@ export async function createRecurringBookings(data: CreateRecurringBookingData):
 }
 
 export async function uploadAdminQrProof(file: File, companyId: number): Promise<string> {
-    const formData = new FormData();
-    formData.append("image", file);
-    formData.append("company_id", String(companyId));
-
-    const response = await fetch(resolveUrl("/api/upload/qr"), {
-        method: "POST",
-        body: formData,
-        credentials: "include",
+    return uploadAdminImage({
+        file,
+        companyId,
+        type: "booking_proof",
     });
-
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-        const message =
-            (typeof payload?.message === "string" && payload.message) ||
-            (typeof payload?.error === "string" && payload.error) ||
-            `Upload failed: ${response.status}`;
-        throw new Error(message);
-    }
-
-    const url = payload?.data?.url;
-    if (typeof url !== "string" || !url) {
-        throw new Error("Upload succeeded but no QR proof URL was returned");
-    }
-
-    return url;
 }
 
 export interface UpdateBookingData {
@@ -1526,7 +1510,7 @@ export async function getGroupBookingFlowSettings(): Promise<GroupBookingFlowSet
 export async function getAdminCompanyLocation(companyId: number): Promise<AdminCompanyLocation | null> {
     if (!Number.isInteger(companyId) || companyId <= 0) return null;
 
-    const response = await apiFetch<{ data?: Record<string, unknown> }>(`/api/company/id/${companyId}`);
+    const response = await apiFetch<{ data?: Record<string, unknown> }>(`/api/admin/company`);
     const source = (response?.data ?? response) as Record<string, unknown>;
 
     const latitudeValue = source.latitude;

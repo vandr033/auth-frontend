@@ -28,7 +28,9 @@ import type {
     HomeSectionKey,
     AnnouncementBanner,
     FooterConfig,
+    ShopCommerceData,
 } from "@/types/shop";
+import { resolveCompanyModules, type CompanyModules } from "@/lib/company-modules";
 import { computeTheme, type ThemeConfig } from "@/utils/themepicker";
 import { DEFAULT_LOCALE, getLocaleCookie, I18nProvider, translate } from "@/lib/i18n";
 import { applyMainSiteTheme } from "@/theme/mainSiteTheme";
@@ -43,6 +45,7 @@ type ShopContextValue = {
     company: ShopCompany | null;
     availableUntil: string | null;
     isShopActive: boolean;
+    modules: CompanyModules;
     categories: ShopCategory[];
     services: ShopService[];
     staff: ShopStaff[];
@@ -59,6 +62,7 @@ type ShopContextValue = {
     homeSectionOrder: HomeSectionKey[] | null;
     announcementBanners: AnnouncementBanner[] | null;
     footerConfig: FooterConfig | null;
+    commerce: ShopCommerceData | null;
     loading: boolean;
     error: string | null;
     slug: string;
@@ -208,6 +212,7 @@ export function ShopProvider({
                 company: data?.company ?? null,
                 availableUntil,
                 isShopActive,
+                modules: resolveCompanyModules(data?.modules),
                 categories: data?.categories ?? [],
                 services: data?.services ?? [],
                 staff: data?.staff ?? [],
@@ -224,6 +229,7 @@ export function ShopProvider({
                 homeSectionOrder: data?.theme?.home_section_order ?? null,
                 announcementBanners: data?.theme?.announcement_banners ?? null,
                 footerConfig: data?.theme?.footer_config ?? null,
+                commerce: data?.commerce ?? null,
                 loading,
                 error,
                 slug,

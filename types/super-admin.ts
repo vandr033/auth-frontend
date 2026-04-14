@@ -35,6 +35,8 @@ export interface SuperAdminShop {
     pricePaid?: string | number | null;
     availableUntil: string;
     isMarketplaceVisible: boolean;
+    reservations_enabled: boolean;
+    store_enabled: boolean;
     logo_url?: string;
     is_active: boolean;
     company_type_id: number;
@@ -65,6 +67,8 @@ export interface CreateShopPayload {
     pricePaid?: number | null;
     availableUntil: string;
     isMarketplaceVisible: boolean;
+    reservations_enabled: boolean;
+    store_enabled: boolean;
     owner: {
         existingUserId?: string;
         email?: string;
