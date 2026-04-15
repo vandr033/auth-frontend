@@ -692,9 +692,8 @@ export default function AdminStorePage() {
         }
     }
 
-    async function updateSelectedOrderStatus(nextStatus?: string) {
+    async function updateSelectedOrderStatus() {
         if (!selectedOrder) return;
-        const status = nextStatus || orderStatusDraft;
         const path = isStaffOnly
             ? `/api/admin/commerce/staff/orders/${selectedOrder.id}/status`
             : `/api/admin/commerce/orders/${selectedOrder.id}/status`;
@@ -704,7 +703,7 @@ export default function AdminStorePage() {
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    status,
+                    status: orderStatusDraft,
                     tracking_link: trackingDraft || null,
                 }),
             });
@@ -740,9 +739,8 @@ export default function AdminStorePage() {
         }
     }
 
-    async function updatePaymentStatus(nextPaymentStatus?: string) {
+    async function updatePaymentStatus() {
         if (!selectedOrder || isStaffOnly) return;
-        const paymentStatus = nextPaymentStatus || paymentStatusDraft;
         try {
             const response = await fetch(
                 getApiUrl(`/api/admin/commerce/orders/${selectedOrder.id}/payment-status`),
@@ -750,7 +748,7 @@ export default function AdminStorePage() {
                     method: "POST",
                     credentials: "include",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ payment_status: paymentStatus }),
+                    body: JSON.stringify({ payment_status: paymentStatusDraft }),
                 },
             );
             const result = await response.json();
@@ -1623,13 +1621,6 @@ export default function AdminStorePage() {
                                             <Button className="w-full bg-brand text-white hover:bg-brand-hover" onClick={() => void updateSelectedOrderStatus()}>
                                                 {t("adminStore.updateStatus")}
                                             </Button>
-                                            <div className="flex flex-wrap gap-2">
-                                                {(isStaffOnly ? STAFF_STATUSES : ADMIN_STATUSES).map((status) => (
-                                                    <Button key={status} variant="outline" size="sm" onClick={() => void updateSelectedOrderStatus(status)}>
-                                                        {getOrderStatusLabel(status)}
-                                                    </Button>
-                                                ))}
-                                            </div>
                                         </CardContent>
                                     </Card>
 
@@ -1647,13 +1638,6 @@ export default function AdminStorePage() {
                                                 <Button variant="outline" className="w-full" onClick={() => void updatePaymentStatus()}>
                                                     {t("adminStore.updatePaymentStatus")}
                                                 </Button>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {ADMIN_PAYMENT_STATUSES.map((status) => (
-                                                        <Button key={status} variant="outline" size="sm" onClick={() => void updatePaymentStatus(status)}>
-                                                            {getPaymentStatusLabel(status)}
-                                                        </Button>
-                                                    ))}
-                                                </div>
                                             </CardContent>
                                         </Card>
                                     ) : null}
