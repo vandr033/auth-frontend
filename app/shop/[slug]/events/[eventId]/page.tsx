@@ -4,12 +4,13 @@
 import React from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, MapPin } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, X } from "lucide-react";
 import { ShareButton } from "@/components/shop/ShareButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
@@ -19,7 +20,7 @@ import { useShop } from "../../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
-import { appendShopParam, buildSignInRedirectFromCurrentLocation, buildSignInRedirectPath } from "@/app/lib/shop-context";
+import { appendShopParam, buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
 import {
   capturePublicEventInterest,
   createPublicEventBooking,
@@ -30,13 +31,18 @@ import {
   joinPublicEventWaitlist,
   leavePublicEventWaitlist,
   type GroupPaymentMethod,
+  type PaidEventGuestCheckoutStartResult,
   type PublicGroupEvent,
   type PublicGroupEventBooking,
   type FreeRegistrationStateData,
   type FreeRegistrationResult,
+  resendPaidEventGuestCheckout,
+  startPaidEventGuestCheckout,
   uploadGroupQrProof,
+  verifyPaidEventGuestCheckout,
 } from "@/app/shop/lib/groupReservationsApi";
 import { FreeEventRegistrationForm } from "@/app/shop/components/group/FreeEventRegistrationForm";
+import { PaidEventBookingForm } from "@/app/shop/components/group/PaidEventBookingForm";
 import {
   formatGroupDateRange,
   formatGroupMoney,
@@ -46,7 +52,6 @@ import {
   getVisibleStaffAssignments,
   isEventSoldOut,
 } from "@/app/shop/lib/groupReservationsFormat";
-import { GroupPaymentMethodForm } from "@/app/shop/components/group/GroupPaymentMethodForm";
 import { getImageUrl } from "@/utils/image-url";
 
 type NoticeTone = "success" | "warning" | "error";
@@ -55,6 +60,8 @@ type ExtraAttendeeForm = {
   email: string;
   phone: string;
 };
+type PaidGuestCheckoutStep = "contact" | "booking" | "conflict";
+type PaidGuestModalState = "none" | "tos";
 
 export default function ShopEventDetailPage() {
   const { t, locale } = useI18n();
@@ -66,6 +73,7 @@ export default function ShopEventDetailPage() {
   const {
     user,
     loading: authLoading,
+    refreshSession,
     sendLoginEmailOtp,
     verifyLoginEmailOtp,
     sendPhoneOtp,
@@ -101,6 +109,26 @@ export default function ShopEventDetailPage() {
   const [otpError, setOtpError] = React.useState<string | null>(null);
   const [otpSuccess, setOtpSuccess] = React.useState<string | null>(null);
   const { secondsRemaining, canResend, startCooldown, resetCooldown } = useOtpResendTimer();
+  const [isPaidGuestCheckoutModalOpen, setIsPaidGuestCheckoutModalOpen] = React.useState(false);
+  const [paidGuestCheckoutStep, setPaidGuestCheckoutStep] = React.useState<PaidGuestCheckoutStep>("contact");
+  const [paidGuestModal, setPaidGuestModal] = React.useState<PaidGuestModalState>("none");
+  const [paidGuestFullName, setPaidGuestFullName] = React.useState("");
+  const [paidGuestEmail, setPaidGuestEmail] = React.useState("");
+  const [paidGuestPhonePrefix, setPaidGuestPhonePrefix] = React.useState("591");
+  const [paidGuestPhoneNumber, setPaidGuestPhoneNumber] = React.useState("");
+  const [paidGuestTosAccepted, setPaidGuestTosAccepted] = React.useState(false);
+  const [paidGuestFieldErrors, setPaidGuestFieldErrors] = React.useState<Record<string, string>>({});
+  const [paidGuestGlobalError, setPaidGuestGlobalError] = React.useState<string | null>(null);
+  const [paidGuestSuccess, setPaidGuestSuccess] = React.useState<string | null>(null);
+  const [paidGuestCheckoutResult, setPaidGuestCheckoutResult] = React.useState<PaidEventGuestCheckoutStartResult | null>(null);
+  const [paidGuestOtpCode, setPaidGuestOtpCode] = React.useState("");
+  const [paidGuestBusy, setPaidGuestBusy] = React.useState<"start" | "verify" | "resend" | "book" | null>(null);
+  const {
+    secondsRemaining: paidGuestSecondsRemaining,
+    canResend: canResendPaidGuestOtp,
+    startCooldown: startPaidGuestCooldown,
+    resetCooldown: resetPaidGuestCooldown,
+  } = useOtpResendTimer();
   const autoInterestHandledRef = React.useRef(false);
 
   const loadData = React.useCallback(async () => {
@@ -221,6 +249,58 @@ export default function ShopEventDetailPage() {
     return `+${localDigits}`;
   }, []);
 
+  const resetPaidGuestCheckoutState = React.useCallback(() => {
+    setPaidGuestCheckoutStep("contact");
+    setPaidGuestModal("none");
+    setPaidGuestFullName("");
+    setPaidGuestEmail("");
+    setPaidGuestPhonePrefix("591");
+    setPaidGuestPhoneNumber("");
+    setPaidGuestTosAccepted(false);
+    setPaidGuestFieldErrors({});
+    setPaidGuestGlobalError(null);
+    setPaidGuestSuccess(null);
+    setPaidGuestCheckoutResult(null);
+    setPaidGuestOtpCode("");
+    setPaidGuestBusy(null);
+    resetPaidGuestCooldown();
+  }, [resetPaidGuestCooldown]);
+
+  const handlePaidGuestCheckoutModalChange = React.useCallback((open: boolean) => {
+    setIsPaidGuestCheckoutModalOpen(open);
+    if (!open) {
+      resetPaidGuestCheckoutState();
+    }
+  }, [resetPaidGuestCheckoutState]);
+
+  const validatePaidGuestContactStep = React.useCallback(() => {
+    const errors: Record<string, string> = {};
+    if (!paidGuestFullName.trim()) {
+      errors.full_name = t("shopGroup.guestCheckout.validation.fullNameRequired");
+    }
+    if (!paidGuestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(paidGuestEmail.trim())) {
+      errors.email = t("shopGroup.guestCheckout.validation.invalidEmail");
+    }
+    if (!paidGuestPhonePrefix.trim()) {
+      errors.phonePrefix = t("shopGroup.guestCheckout.validation.phoneRequired");
+    }
+    if (!paidGuestPhoneNumber.trim()) {
+      errors.phoneNumber = t("shopGroup.guestCheckout.validation.phoneRequired");
+    }
+    if (!paidGuestTosAccepted) {
+      errors.tos = t("shopGroup.guestCheckout.validation.tosRequired");
+    }
+
+    setPaidGuestFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [paidGuestEmail, paidGuestFullName, paidGuestPhoneNumber, paidGuestPhonePrefix, paidGuestTosAccepted, t]);
+
+  const paidGuestPhoneFullValue = React.useMemo(() => {
+    const local = paidGuestPhoneNumber.trim();
+    if (!local) return "";
+    return `+${paidGuestPhonePrefix}${local}`;
+  }, [paidGuestPhoneNumber, paidGuestPhonePrefix]);
+
   const otpSection = freeSubmitResult?.otpSection;
   const otpAvailableChannels = React.useMemo(() => {
     if (!otpSection?.show) return [] as Array<"email" | "phone">;
@@ -239,6 +319,31 @@ export default function ShopEventDetailPage() {
       startCooldown();
     }
   }, [freeSubmitResult, isFreeOutcomeModalOpen, otpAvailableChannels, resetCooldown, startCooldown]);
+
+  React.useEffect(() => {
+    if (!paidGuestCheckoutResult?.checkout_session_id || paidGuestCheckoutStep !== "contact") return;
+    setPaidGuestOtpCode("");
+    setPaidGuestGlobalError(null);
+    setPaidGuestSuccess(null);
+    resetPaidGuestCooldown();
+    if (paidGuestCheckoutResult.resendCooldownSeconds > 0) {
+      startPaidGuestCooldown();
+    }
+  }, [
+    paidGuestCheckoutResult,
+    paidGuestCheckoutStep,
+    resetPaidGuestCooldown,
+    startPaidGuestCooldown,
+  ]);
+
+  React.useEffect(() => {
+    if (paidGuestModal !== "tos") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [paidGuestModal]);
 
   const handleOtpResend = React.useCallback(async () => {
     if (!freeSubmitResult?.otpSection?.show || !freeSubmitContact || !otpChannel) return;
@@ -317,6 +422,126 @@ export default function ShopEventDetailPage() {
     verifyPhoneOtp,
   ]);
 
+  const handlePaidGuestCheckoutStart = React.useCallback(async () => {
+    if (!event || !company) return;
+    if (!validatePaidGuestContactStep()) return;
+
+    setPaidGuestBusy("start");
+    setPaidGuestGlobalError(null);
+    setPaidGuestSuccess(null);
+
+    try {
+      const result = await startPaidEventGuestCheckout(event.id, {
+        company_id: company.id,
+        full_name: paidGuestFullName.trim(),
+        email: paidGuestEmail.trim().toLowerCase(),
+        phonePrefix: paidGuestPhonePrefix,
+        phoneNumber: paidGuestPhoneNumber.trim(),
+        tosAccepted: paidGuestTosAccepted,
+      });
+
+      setPaidGuestCheckoutResult(result);
+      setPaidGuestFieldErrors({});
+      setPaidGuestGlobalError(null);
+
+      if (result.accountOutcome === "ACCOUNT_CONFLICT_PHONE_EMAIL") {
+        setPaidGuestCheckoutStep("conflict");
+        return;
+      }
+
+      if (!result.checkout_session_id) {
+        throw new Error(t("shopGroup.guestCheckout.errors.startFailed"));
+      }
+
+      setPaidGuestSuccess(
+        result.canVerify
+          ? t("shopGroup.guestCheckout.verify.codeSent")
+          : t("shopGroup.guestCheckout.verify.noDelivery"),
+      );
+    } catch (err) {
+      setPaidGuestGlobalError(err instanceof Error ? err.message : t("shopGroup.guestCheckout.errors.startFailed"));
+    } finally {
+      setPaidGuestBusy(null);
+    }
+  }, [
+    company,
+    event,
+    paidGuestEmail,
+    paidGuestFullName,
+    paidGuestPhoneNumber,
+    paidGuestPhonePrefix,
+    paidGuestTosAccepted,
+    t,
+    validatePaidGuestContactStep,
+  ]);
+
+  const handlePaidGuestCheckoutResend = React.useCallback(async () => {
+    if (!event || !company || !paidGuestCheckoutResult?.checkout_session_id) return;
+    if (!canResendPaidGuestOtp || paidGuestBusy) return;
+
+    setPaidGuestBusy("resend");
+    setPaidGuestGlobalError(null);
+    setPaidGuestSuccess(null);
+
+    try {
+      const result = await resendPaidEventGuestCheckout(event.id, {
+        company_id: company.id,
+        checkout_session_id: paidGuestCheckoutResult.checkout_session_id,
+      });
+      setPaidGuestCheckoutResult(result);
+      setPaidGuestSuccess(
+        result.canVerify
+          ? t("shopGroup.guestCheckout.verify.resendSuccess")
+          : t("shopGroup.guestCheckout.verify.noDelivery"),
+      );
+    } catch (err) {
+      setPaidGuestGlobalError(err instanceof Error ? err.message : t("shopGroup.guestCheckout.errors.resendFailed"));
+    } finally {
+      setPaidGuestBusy(null);
+    }
+  }, [
+    canResendPaidGuestOtp,
+    company,
+    event,
+    paidGuestBusy,
+    paidGuestCheckoutResult?.checkout_session_id,
+    t,
+  ]);
+
+  const handlePaidGuestCheckoutVerify = React.useCallback(async () => {
+    if (!event || !company || !paidGuestCheckoutResult?.checkout_session_id) return;
+    if (!paidGuestOtpCode.trim()) {
+      setPaidGuestGlobalError(t("shopGroup.guestCheckout.validation.codeRequired"));
+      return;
+    }
+
+    setPaidGuestBusy("verify");
+    setPaidGuestGlobalError(null);
+    setPaidGuestSuccess(null);
+
+    try {
+      await verifyPaidEventGuestCheckout(event.id, {
+        company_id: company.id,
+        checkout_session_id: paidGuestCheckoutResult.checkout_session_id,
+        code: paidGuestOtpCode.trim(),
+      });
+      await refreshSession();
+      setPaidGuestCheckoutStep("booking");
+      setPaidGuestSuccess(t("shopGroup.guestCheckout.verify.success"));
+    } catch (err) {
+      setPaidGuestGlobalError(err instanceof Error ? err.message : t("shopGroup.guestCheckout.errors.verifyFailed"));
+    } finally {
+      setPaidGuestBusy(null);
+    }
+  }, [
+    company,
+    event,
+    paidGuestCheckoutResult?.checkout_session_id,
+    paidGuestOtpCode,
+    refreshSession,
+    t,
+  ]);
+
   const handleFreeRegSubmitted = React.useCallback((
     result: FreeRegistrationResult,
     contact: { email: string; phonePrefix: string; phoneNumber: string },
@@ -333,16 +558,7 @@ export default function ShopEventDetailPage() {
     return false;
   }, [eventId, router, slug, user?.id]);
 
-  const handleSignInToContinue = React.useCallback(() => {
-    if (soldOut) {
-      router.push(buildSignInRedirectPath(`/shop/${slug}/events/${event?.id ?? eventId}?interest_intent=1`, slug));
-      return;
-    }
-
-    router.push(buildSignInRedirectFromCurrentLocation(`/shop/${slug}/events/${event?.id ?? eventId}`));
-  }, [event?.id, eventId, router, slug, soldOut]);
-
-  const handleBook = async () => {
+  const handleBook = async (options?: { onSuccess?: () => void; onError?: (message: string) => void }) => {
     if (!event || !company) return;
     if (!requireSignIn()) return;
 
@@ -415,16 +631,29 @@ export default function ShopEventDetailPage() {
       setBookedSpots("1");
       setExtraAttendees([]);
       await loadData();
+      options?.onSuccess?.();
     } catch (err) {
       if (uploadedQrUrl) {
         await deleteGroupQrProof(uploadedQrUrl);
       }
       const message = err instanceof Error ? err.message : t("shopGroup.events.bookError");
       setNotice({ tone: "error", text: message });
+      options?.onError?.(message);
       await notify.error(message);
     } finally {
       setBusyAction(null);
     }
+  };
+
+  const handlePaidGuestBooking = async () => {
+    await handleBook({
+      onSuccess: () => {
+        handlePaidGuestCheckoutModalChange(false);
+      },
+      onError: (message) => {
+        setPaidGuestGlobalError(message);
+      },
+    });
   };
 
   const handleJoinWaitlist = async () => {
@@ -607,7 +836,8 @@ export default function ShopEventDetailPage() {
   const locationQuery = event.location_text?.trim()
     || company.address?.trim()
     || [company.city, company.state].map((value) => value?.trim() || "").filter((value) => value.length > 0).join(", ");
-  const showPaymentForm = !event.is_free && !soldOut && !activeBooking;
+  const paidGuestRequiresQrProof = paymentMethod === "QR" && settings?.require_comprobante_for_qr !== false && !qrProofFile;
+  const paidGuestHasPendingCode = paidGuestCheckoutStep === "contact" && Boolean(paidGuestCheckoutResult?.checkout_session_id);
   const autoConfirmBookings = settings?.auto_confirm_bookings ?? true;
   const accountOutcome = freeSubmitResult?.accountOutcome ?? "NOT_REQUESTED";
   const accountCopy = (() => {
@@ -835,14 +1065,7 @@ export default function ShopEventDetailPage() {
               )
             ) : (
               <>
-                {!user?.id ? (
-                  <Button
-                    className="w-full bg-brand text-white hover:bg-brand-hover"
-                    onClick={handleSignInToContinue}
-                  >
-                    {t("shopGroup.actions.signInToContinue")}
-                  </Button>
-                ) : activeBooking ? (
+                {activeBooking ? (
                   <div className="space-y-3">
                     <Badge variant="outline">{t(`shopGroup.status.${activeBooking.status}`)}</Badge>
                     <p className="text-sm text-text-muted">
@@ -885,108 +1108,274 @@ export default function ShopEventDetailPage() {
                       <p className="text-sm text-text-muted">{t("shopGroup.events.waitlistUnavailable")}</p>
                     )}
                   </div>
+                ) : !user?.id ? (
+                  <Button
+                    className="w-full bg-brand text-white hover:bg-brand-hover"
+                    onClick={() => handlePaidGuestCheckoutModalChange(true)}
+                  >
+                    {t("shopGroup.guestCheckout.openCta")}
+                  </Button>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-text-muted">{t("shopGroup.fields.spots")}</label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={Math.max(1, event.max_capacity)}
-                        value={bookedSpots}
-                        onChange={(e) => {
-                          const val = Number.parseInt(e.target.value, 10);
-                          const max = Math.max(1, event.max_capacity);
-                          setBookedSpots(Number.isInteger(val) && val > max ? String(max) : e.target.value);
-                        }}
-                      />
-                    </div>
-
-                    {extraAttendees.length > 0 ? (
-                      <div className="space-y-3 rounded-md border border-surface-border bg-section p-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                          {t("shopGroup.forms.extraAttendeesTitle")}
-                        </p>
-                        <div className="space-y-3">
-                          {extraAttendees.map((attendee, index) => (
-                            <div key={`extra-attendee-${index}`} className="rounded-md border border-surface-border bg-surface p-3">
-                              <p className="mb-2 text-xs font-medium text-text-muted">{t("shopGroup.forms.extraTicketLabel", { number: index + 2 })}</p>
-                              <div className="grid gap-2">
-                                <Input
-                                  placeholder={t("shopGroup.forms.fullNamePlaceholder")}
-                                  value={attendee.full_name}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    setExtraAttendees((prev) => prev.map((row, rowIndex) => (
-                                      rowIndex === index ? { ...row, full_name: value } : row
-                                    )));
-                                  }}
-                                />
-                                <Input
-                                  type="email"
-                                  placeholder={t("shopGroup.forms.emailOptionalPlaceholder")}
-                                  value={attendee.email}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    setExtraAttendees((prev) => prev.map((row, rowIndex) => (
-                                      rowIndex === index ? { ...row, email: value } : row
-                                    )));
-                                  }}
-                                />
-                                <Input
-                                  placeholder={t("shopGroup.forms.phoneOptionalPlaceholder")}
-                                  value={attendee.phone}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    setExtraAttendees((prev) => prev.map((row, rowIndex) => (
-                                      rowIndex === index ? { ...row, phone: value } : row
-                                    )));
-                                  }}
-                                />
-                                <p className="text-[11px] text-text-muted">{t("shopGroup.forms.contactHint")}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {showPaymentForm ? (
-                      <GroupPaymentMethodForm
-                        settings={settings}
-                        paymentMethod={paymentMethod}
-                        onPaymentMethodChange={setPaymentMethod}
-                        qrProofFile={qrProofFile}
-                        onQrProofChange={setQrProofFile}
-                        t={t}
-                      />
-                    ) : null}
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-text-muted">{t("shopGroup.fields.notes")}</label>
-                      <textarea
-                        className="min-h-[90px] w-full rounded-md border border-surface-border bg-white px-3 py-2 text-sm text-text-main"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder={t("shopGroup.forms.notesPlaceholder")}
-                      />
-                    </div>
-
-                    <Button
-                      className="w-full bg-brand text-white hover:bg-brand-hover"
-                      onClick={() => void handleBook()}
-                      disabled={busyAction === "book"}
-                    >
-                      {busyAction === "book" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      {t("shopGroup.actions.completeBooking")}
-                    </Button>
-                  </div>
+                  <PaidEventBookingForm
+                    event={event}
+                    settings={settings}
+                    bookedSpots={bookedSpots}
+                    onBookedSpotsChange={setBookedSpots}
+                    extraAttendees={extraAttendees}
+                    onExtraAttendeesChange={setExtraAttendees}
+                    paymentMethod={paymentMethod}
+                    onPaymentMethodChange={setPaymentMethod}
+                    qrProofFile={qrProofFile}
+                    onQrProofChange={setQrProofFile}
+                    notes={notes}
+                    onNotesChange={setNotes}
+                    busy={busyAction === "book"}
+                    disableSubmit={paidGuestRequiresQrProof}
+                    onSubmit={handleBook}
+                    submitLabel={t("shopGroup.actions.completeBooking")}
+                    t={t}
+                  />
                 )}
               </>
             )}
           </article>
         </aside>
       </section>
+
+      <Dialog open={isPaidGuestCheckoutModalOpen} onOpenChange={handlePaidGuestCheckoutModalChange}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader className="text-left sm:text-left">
+            <DialogTitle className="text-xl font-semibold text-text-main">
+              {t("shopGroup.guestCheckout.title")}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-text-muted">
+              {paidGuestCheckoutStep === "booking"
+                ? t("shopGroup.guestCheckout.booking.description")
+                : paidGuestHasPendingCode
+                  ? t("shopGroup.guestCheckout.verify.description")
+                  : t("shopGroup.guestCheckout.contact.description")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {paidGuestCheckoutStep === "contact" ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-text-muted">{t("shopGroup.guestCheckout.fields.fullName")}</label>
+                <Input
+                  value={paidGuestFullName}
+                  onChange={(e) => setPaidGuestFullName(e.target.value)}
+                  placeholder={t("shopGroup.guestCheckout.fields.fullNamePlaceholder")}
+                  disabled={paidGuestHasPendingCode}
+                />
+                {paidGuestFieldErrors.full_name ? (
+                  <p className="text-xs text-rose-600">{paidGuestFieldErrors.full_name}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-text-muted">{t("shopGroup.guestCheckout.fields.email")}</label>
+                <Input
+                  type="email"
+                  value={paidGuestEmail}
+                  onChange={(e) => setPaidGuestEmail(e.target.value)}
+                  placeholder={t("shopGroup.guestCheckout.fields.emailPlaceholder")}
+                  disabled={paidGuestHasPendingCode}
+                />
+                {paidGuestFieldErrors.email ? (
+                  <p className="text-xs text-rose-600">{paidGuestFieldErrors.email}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-text-muted">{t("shopGroup.guestCheckout.fields.phone")}</label>
+                <PhoneInput
+                  value={paidGuestPhoneFullValue}
+                  onChange={(fullNumber, dialCode) => {
+                    const prefix = dialCode.replace("+", "");
+                    setPaidGuestPhonePrefix(prefix);
+                    const stripped = fullNumber.startsWith(dialCode)
+                      ? fullNumber.slice(dialCode.length)
+                      : fullNumber.startsWith(prefix)
+                        ? fullNumber.slice(prefix.length)
+                        : fullNumber;
+                    setPaidGuestPhoneNumber(stripped.trim());
+                  }}
+                  disabled={paidGuestHasPendingCode}
+                />
+                {paidGuestFieldErrors.phonePrefix || paidGuestFieldErrors.phoneNumber ? (
+                  <p className="text-xs text-rose-600">{paidGuestFieldErrors.phonePrefix || paidGuestFieldErrors.phoneNumber}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-1">
+                <label className="flex cursor-pointer items-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-surface-border text-brand focus:ring-brand"
+                    checked={paidGuestTosAccepted}
+                    onChange={(e) => setPaidGuestTosAccepted(e.target.checked)}
+                    disabled={paidGuestHasPendingCode}
+                  />
+                  <span className="text-sm text-text-muted">
+                    {t("shopGroup.guestCheckout.tos.acceptPrefix")}{" "}
+                    <button
+                      type="button"
+                      className="text-brand underline underline-offset-2 hover:text-brand-hover"
+                      onClick={() => setPaidGuestModal("tos")}
+                    >
+                      {t("shopGroup.guestCheckout.tos.link")}
+                    </button>
+                  </span>
+                </label>
+                {paidGuestFieldErrors.tos ? (
+                  <p className="text-xs text-rose-600">{paidGuestFieldErrors.tos}</p>
+                ) : null}
+              </div>
+
+              {paidGuestHasPendingCode ? (
+                <div className="space-y-3 rounded-md border border-surface-border bg-section p-3">
+                  <div className="text-sm text-text-muted">
+                    <p>{t("shopGroup.guestCheckout.verify.sentLabel")}</p>
+                    <p>{t("shopGroup.guestCheckout.verify.emailStatus", { value: paidGuestCheckoutResult?.otpDelivery.emailSent ? t("shopGroup.guestCheckout.values.sent") : t("shopGroup.guestCheckout.values.failed") })}</p>
+                    <p>{t("shopGroup.guestCheckout.verify.phoneStatus", { value: paidGuestCheckoutResult?.otpDelivery.phoneSent ? t("shopGroup.guestCheckout.values.sent") : t("shopGroup.guestCheckout.values.failed") })}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-text-muted">{t("shopGroup.guestCheckout.verify.codeLabel")}</label>
+                    <Input
+                      value={paidGuestOtpCode}
+                      onChange={(e) => setPaidGuestOtpCode(e.target.value)}
+                      placeholder={t("shopGroup.guestCheckout.verify.codePlaceholder")}
+                      inputMode="numeric"
+                      maxLength={8}
+                    />
+                  </div>
+
+                  <Button
+                    className="w-full bg-brand text-white hover:bg-brand-hover"
+                    onClick={() => void handlePaidGuestCheckoutVerify()}
+                    disabled={paidGuestBusy === "verify" || !paidGuestCheckoutResult?.canVerify}
+                  >
+                    {paidGuestBusy === "verify" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {t("shopGroup.guestCheckout.verify.submit")}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => void handlePaidGuestCheckoutResend()}
+                    disabled={paidGuestBusy === "resend" || !canResendPaidGuestOtp}
+                  >
+                    {paidGuestBusy === "resend"
+                      ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      : null}
+                    {canResendPaidGuestOtp
+                      ? t("shopGroup.guestCheckout.verify.resend")
+                      : t("shopGroup.guestCheckout.verify.resendIn", { seconds: paidGuestSecondsRemaining })}
+                  </Button>
+                </div>
+              ) : null}
+
+              {paidGuestGlobalError ? (
+                <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
+                  {paidGuestGlobalError}
+                </p>
+              ) : null}
+
+              <Button
+                className="w-full bg-brand text-white hover:bg-brand-hover"
+                onClick={() => void handlePaidGuestCheckoutStart()}
+                disabled={paidGuestBusy === "start" || paidGuestHasPendingCode}
+              >
+                {paidGuestBusy === "start" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {t("shopGroup.guestCheckout.contact.submit")}
+              </Button>
+            </div>
+          ) : null}
+
+          {paidGuestCheckoutStep === "conflict" ? (
+            <div className="space-y-3">
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                {t("shopGroup.guestCheckout.conflict.body")}
+              </p>
+              <Button
+                className="w-full bg-brand text-white hover:bg-brand-hover"
+                onClick={() => {
+                  handlePaidGuestCheckoutModalChange(false);
+                  router.push(buildSignInRedirectFromCurrentLocation(`/shop/${slug}/events/${event.id}`));
+                }}
+              >
+                {t("shopGroup.guestCheckout.conflict.cta")}
+              </Button>
+            </div>
+          ) : null}
+
+          {paidGuestCheckoutStep === "booking" ? (
+            <div className="space-y-3">
+              {paidGuestSuccess ? (
+                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  {paidGuestSuccess}
+                </p>
+              ) : null}
+              {paidGuestGlobalError ? (
+                <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
+                  {paidGuestGlobalError}
+                </p>
+              ) : null}
+
+              <PaidEventBookingForm
+                event={event}
+                settings={settings}
+                bookedSpots={bookedSpots}
+                onBookedSpotsChange={setBookedSpots}
+                extraAttendees={extraAttendees}
+                onExtraAttendeesChange={setExtraAttendees}
+                paymentMethod={paymentMethod}
+                onPaymentMethodChange={setPaymentMethod}
+                qrProofFile={qrProofFile}
+                onQrProofChange={setQrProofFile}
+                notes={notes}
+                onNotesChange={setNotes}
+                busy={busyAction === "book"}
+                disableSubmit={paidGuestRequiresQrProof}
+                onSubmit={handlePaidGuestBooking}
+                submitLabel={t("shopGroup.actions.completeBooking")}
+                t={t}
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {paidGuestModal === "tos" ? (
+        <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 px-4 py-6 sm:py-10">
+          <div className="mx-auto flex h-full w-full max-w-sm items-center justify-center">
+            <div className="flex max-h-full w-full flex-col rounded-xl bg-white shadow-xl">
+              <div className="flex items-start justify-between px-6 pb-4 pt-6">
+                <h2 className="text-base font-semibold text-text-main">{t("freeEventReg.tos.title")}</h2>
+                <button onClick={() => setPaidGuestModal("none")} className="text-text-muted hover:text-text-main">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                <p className="whitespace-pre-wrap text-sm text-text-muted">{settings?.custom_tos || t("freeEventReg.tos.body")}</p>
+              </div>
+              <div className="px-6 pb-6 pt-4">
+                <Button
+                  className="w-full bg-brand text-white hover:bg-brand-hover"
+                  onClick={() => {
+                    setPaidGuestTosAccepted(true);
+                    setPaidGuestModal("none");
+                  }}
+                >
+                  {t("freeEventReg.tos.action")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <Dialog open={isFreeOutcomeModalOpen} onOpenChange={setIsFreeOutcomeModalOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">

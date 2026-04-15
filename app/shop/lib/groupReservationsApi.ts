@@ -362,6 +362,96 @@ export async function createPublicEventBooking(payload: {
   });
 }
 
+export interface PaidEventGuestCheckoutStartInput {
+  company_id: number;
+  full_name: string;
+  email: string;
+  phonePrefix: string;
+  phoneNumber: string;
+  tosAccepted: boolean;
+}
+
+export interface PaidEventGuestCheckoutOtpDelivery {
+  emailSent: boolean;
+  phoneSent: boolean;
+  maskedEmail: string | null;
+  maskedPhone: string | null;
+}
+
+export interface PaidEventGuestCheckoutStartResult {
+  checkout_session_id: string | null;
+  accountOutcome:
+    | "NEW_ACCOUNT_PENDING_CREATION"
+    | "ACCOUNT_FOUND_BY_EMAIL"
+    | "ACCOUNT_FOUND_BY_PHONE"
+    | "ACCOUNT_ALREADY_EXISTS"
+    | "ACCOUNT_CONFLICT_PHONE_EMAIL";
+  otpDelivery: PaidEventGuestCheckoutOtpDelivery;
+  expiresAt: string | null;
+  resendCooldownSeconds: number;
+  canVerify: boolean;
+}
+
+export interface PaidEventGuestCheckoutResendInput {
+  company_id: number;
+  checkout_session_id: string;
+}
+
+export type PaidEventGuestCheckoutResendResult = PaidEventGuestCheckoutStartResult;
+
+export interface PaidEventGuestCheckoutVerifyInput {
+  company_id: number;
+  checkout_session_id: string;
+  code: string;
+}
+
+export interface PaidEventGuestCheckoutVerifyResult {
+  authenticated: true;
+  storefrontLinked: true;
+  user: {
+    id: string;
+    email?: string | null;
+    name?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    phone_prefix?: string | null;
+    phoneNumber?: string | null;
+    emailVerified?: boolean;
+    phoneNumberVerified?: boolean;
+    image?: string | null;
+  };
+}
+
+export async function startPaidEventGuestCheckout(
+  eventId: number,
+  payload: PaidEventGuestCheckoutStartInput,
+): Promise<PaidEventGuestCheckoutStartResult> {
+  return groupFetch<PaidEventGuestCheckoutStartResult>(`/group/events/${eventId}/guest-checkout/start`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resendPaidEventGuestCheckout(
+  eventId: number,
+  payload: PaidEventGuestCheckoutResendInput,
+): Promise<PaidEventGuestCheckoutResendResult> {
+  return groupFetch<PaidEventGuestCheckoutResendResult>(`/group/events/${eventId}/guest-checkout/resend`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyPaidEventGuestCheckout(
+  eventId: number,
+  payload: PaidEventGuestCheckoutVerifyInput,
+): Promise<PaidEventGuestCheckoutVerifyResult> {
+  return groupFetch<PaidEventGuestCheckoutVerifyResult>(`/group/events/${eventId}/guest-checkout/verify`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function createPublicClassEnrollment(payload: {
   company_id: number;
   group_class_id: number;
