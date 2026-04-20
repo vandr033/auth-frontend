@@ -52,7 +52,7 @@ export default function ShopPage() {
     const [classSessionsById, setClassSessionsById] = React.useState<Record<number, PublicGroupClassSession[]>>({});
     const [groupsLoading, setGroupsLoading] = React.useState(false);
     const visibleEvents = React.useMemo(
-        () => (user?.id ? events : events.filter((event) => !isEventSoldOut(event))),
+        () => (user?.id ? events : events.filter((event) => event.is_free || !isEventSoldOut(event))),
         [events, user?.id],
     );
 
