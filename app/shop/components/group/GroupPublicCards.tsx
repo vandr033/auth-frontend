@@ -130,12 +130,11 @@ export function GroupClassCard({ groupClass, sessions, slug, currency, t }: Clas
           <Badge variant="outline" className="bg-white/90 text-xs text-text-main">
             {t(`shopGroup.pricing.${groupClass.pricing_mode}`)}
           </Badge>
-          <Badge
-            variant="outline"
-            className={cn("text-xs", groupClass.price_cents === 0 ? "bg-emerald-50 text-emerald-700" : "bg-white/90 text-text-main")}
-          >
-            {groupClass.price_cents === 0 ? t("shopGroup.labels.free") : formatGroupMoney(groupClass.price_cents, currency)}
-          </Badge>
+          {groupClass.price_cents > 0 && (
+            <Badge variant="outline" className="bg-white/90 text-xs text-text-main">
+              {formatGroupMoney(groupClass.price_cents, currency)}
+            </Badge>
+          )}
         </div>
       </div>
 

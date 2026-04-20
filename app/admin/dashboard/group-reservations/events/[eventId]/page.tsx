@@ -59,6 +59,10 @@ import {
     listFreeEventRegistrations,
     listFreeEventInterested,
     removeFreeEventRegistration,
+    listWhatsappEventGroups,
+    createWhatsappEventGroup,
+    sendWhatsappGroupMessage,
+    type WhatsappEventGroup,
     streamGroupEventMassMessage,
     inviteFreeEventInterested,
     setGroupEventStatus,
@@ -244,6 +248,15 @@ export default function GroupEventDetailPage() {
     const [thumbnailImagePreview, setThumbnailImagePreview] = useState<string | null>(null);
     const [qrProofDialog, setQrProofDialog] = useState<string | null>(null);
     const massRecipientSearchInputRef = useRef<HTMLInputElement | null>(null);
+    const [waGroups, setWaGroups] = useState<WhatsappEventGroup[]>([]);
+    const [waGroupDialogOpen, setWaGroupDialogOpen] = useState(false);
+    const [waGroupName, setWaGroupName] = useState("");
+    const [waGroupIncludeParticipants, setWaGroupIncludeParticipants] = useState(true);
+    const [waGroupSelectedStaff, setWaGroupSelectedStaff] = useState<Set<number>>(new Set());
+    const [waGroupCreating, setWaGroupCreating] = useState(false);
+    const [waMsgDialogGroup, setWaMsgDialogGroup] = useState<WhatsappEventGroup | null>(null);
+    const [waMsgText, setWaMsgText] = useState("");
+    const [waMsgSending, setWaMsgSending] = useState(false);
 
     const loadData = useCallback(async () => {
         if (!Number.isInteger(eventId) || eventId <= 0) return;
@@ -287,13 +300,15 @@ export default function GroupEventDetailPage() {
             setTickets(ticketsData);
 
             if (eventData.is_free) {
-                const [freeRegs, freeInt] = await Promise.all([
+                const [freeRegs, freeInt, waGroupsData] = await Promise.all([
                     listFreeEventRegistrations(eventId),
                     listFreeEventInterested(eventId),
+                    listWhatsappEventGroups(eventId),
                 ]);
                 setFreeRegistrations(freeRegs);
                 setFreeInterested(freeInt);
                 setSelectedInterested(new Set());
+                setWaGroups(waGroupsData);
             }
             setCoverImageFile(null);
             setThumbnailImageFile(null);
@@ -777,6 +792,44 @@ export default function GroupEventDetailPage() {
             filteredMassRecipients.forEach((recipient) => next.delete(recipient.key));
             return next;
         });
+    };
+
+    const handleCreateWaGroup = async () => {
+        setWaGroupCreating(true);
+        try {
+            const staffPhones = (form?.manual_staff ?? [])
+                .filter((_, i) => waGroupSelectedStaff.has(i) && _?.display_phone?.trim())
+                .map((s) => s.display_phone.replace(/\D/g, ""));
+            const group = await createWhatsappEventGroup(eventId, {
+                groupName: waGroupName.trim() || undefined,
+                staffPhones,
+                includeParticipants: waGroupIncludeParticipants,
+            });
+            setWaGroups((prev) => [group, ...prev]);
+            setWaGroupDialogOpen(false);
+            setWaGroupName("");
+            setWaGroupSelectedStaff(new Set());
+            await notify.success("Grupo de WhatsApp creado");
+        } catch (err) {
+            await notify.error(err instanceof Error ? err.message : "Error al crear grupo");
+        } finally {
+            setWaGroupCreating(false);
+        }
+    };
+
+    const handleSendWaGroupMessage = async () => {
+        if (!waMsgDialogGroup) return;
+        setWaMsgSending(true);
+        try {
+            await sendWhatsappGroupMessage(eventId, waMsgDialogGroup.id, waMsgText);
+            setWaMsgDialogGroup(null);
+            setWaMsgText("");
+            await notify.success("Mensaje enviado al grupo");
+        } catch (err) {
+            await notify.error(err instanceof Error ? err.message : "Error al enviar mensaje");
+        } finally {
+            setWaMsgSending(false);
+        }
     };
 
     if (!canUseEvents) {
@@ -1400,20 +1453,40 @@ export default function GroupEventDetailPage() {
                                         {freeRegistrations.map((reg) => (
                                             <TableRow key={reg.id}>
                                                 <TableCell className="font-medium">{reg.firstName} {reg.lastName}</TableCell>
-                                                <TableCell>{reg.email}</TableCell>
+                                                <TableCell>{reg.email || "—"}</TableCell>
                                                 <TableCell>{reg.phonePrefix && reg.phoneNumber ? `+${reg.phonePrefix}${reg.phoneNumber}` : "—"}</TableCell>
                                                 <TableCell>
                                                     <span className="font-mono text-xs">{reg.reservationCode ?? "—"}</span>
                                                 </TableCell>
                                                 <TableCell>{reg.checkedInAt ? formatDateTime(reg.checkedInAt) : "—"}</TableCell>
                                                 <TableCell>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => void handleRemoveFreeRegistration(reg.id)}
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
+                                                    <div className="flex items-center gap-1">
+                                                        {reg.phonePrefix && reg.phoneNumber && (
+                                                            <a
+                                                                href={`https://wa.me/${reg.phonePrefix.replace(/\D/g, "")}${reg.phoneNumber.replace(/\D/g, "")}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                <Button size="sm" variant="outline" title="WhatsApp">
+                                                                    <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                                                                </Button>
+                                                            </a>
+                                                        )}
+                                                        {reg.email && (
+                                                            <a href={`mailto:${reg.email}`}>
+                                                                <Button size="sm" variant="outline" title="Email">
+                                                                    <Mail className="h-3.5 w-3.5 text-blue-500" />
+                                                                </Button>
+                                                            </a>
+                                                        )}
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => void handleRemoveFreeRegistration(reg.id)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -1450,6 +1523,7 @@ export default function GroupEventDetailPage() {
                                             <TableHead>{t("adminGroup.fields.email")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.phone")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.createdAt")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.actions")}</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -1462,9 +1536,31 @@ export default function GroupEventDetailPage() {
                                                     />
                                                 </TableCell>
                                                 <TableCell className="font-medium">{person.firstName} {person.lastName}</TableCell>
-                                                <TableCell>{person.email}</TableCell>
+                                                <TableCell>{person.email || "—"}</TableCell>
                                                 <TableCell>{person.phonePrefix && person.phoneNumber ? `+${person.phonePrefix}${person.phoneNumber}` : "—"}</TableCell>
                                                 <TableCell>{formatDateTime(person.createdAt)}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-1">
+                                                        {person.phonePrefix && person.phoneNumber && (
+                                                            <a
+                                                                href={`https://wa.me/${person.phonePrefix.replace(/\D/g, "")}${person.phoneNumber.replace(/\D/g, "")}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                <Button size="sm" variant="outline" title="WhatsApp">
+                                                                    <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                                                                </Button>
+                                                            </a>
+                                                        )}
+                                                        {person.email && (
+                                                            <a href={`mailto:${person.email}`}>
+                                                                <Button size="sm" variant="outline" title="Email">
+                                                                    <Mail className="h-3.5 w-3.5 text-blue-500" />
+                                                                </Button>
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -1472,6 +1568,119 @@ export default function GroupEventDetailPage() {
                             )}
                         </CardContent>
                     </Card>
+
+                    {/* WhatsApp Groups */}
+                    <Card className="border-slate-200">
+                        <CardHeader className="flex-row items-center justify-between">
+                            <CardTitle className="text-base">Grupos de WhatsApp</CardTitle>
+                            <Button size="sm" onClick={() => setWaGroupDialogOpen(true)}>
+                                <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                                Crear grupo
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            {waGroups.length === 0 ? (
+                                <p className="text-sm text-slate-500">No hay grupos creados aún.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {waGroups.map((g) => (
+                                        <div key={g.id} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+                                            <div>
+                                                <p className="text-sm font-medium">{g.group_name}</p>
+                                                <p className="font-mono text-xs text-slate-400">{g.group_jid}</p>
+                                            </div>
+                                            <Button size="sm" variant="outline" onClick={() => { setWaMsgDialogGroup(g); setWaMsgText(""); }}>
+                                                <Send className="mr-1.5 h-3.5 w-3.5" />
+                                                Enviar mensaje
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Create WA group dialog */}
+                    <Dialog open={waGroupDialogOpen} onOpenChange={setWaGroupDialogOpen}>
+                        <DialogContent className="max-w-sm">
+                            <DialogHeader>
+                                <DialogTitle>Crear grupo de WhatsApp</DialogTitle>
+                                <DialogDescription>Se añadirán los participantes confirmados y el staff seleccionado.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-3 py-2">
+                                <div>
+                                    <Label className="mb-1 block text-xs">Nombre del grupo (opcional)</Label>
+                                    <Input
+                                        value={waGroupName}
+                                        onChange={(e) => setWaGroupName(e.target.value)}
+                                        placeholder={event?.title ?? ""}
+                                    />
+                                </div>
+                                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                    <Checkbox
+                                        checked={waGroupIncludeParticipants}
+                                        onCheckedChange={(v) => setWaGroupIncludeParticipants(Boolean(v))}
+                                    />
+                                    Incluir participantes confirmados
+                                </label>
+                                {(form?.manual_staff ?? []).filter((s) => s.display_phone?.trim()).length > 0 && (
+                                    <div>
+                                        <p className="mb-1 text-xs font-medium text-slate-500">Agregar staff</p>
+                                        <div className="space-y-1">
+                                            {(form?.manual_staff ?? []).map((s, i) => s.display_phone?.trim() ? (
+                                                <label key={i} className="flex cursor-pointer items-center gap-2 text-sm">
+                                                    <Checkbox
+                                                        checked={waGroupSelectedStaff.has(i)}
+                                                        onCheckedChange={(v) => {
+                                                            setWaGroupSelectedStaff((prev) => {
+                                                                const next = new Set(prev);
+                                                                if (v) next.add(i); else next.delete(i);
+                                                                return next;
+                                                            });
+                                                        }}
+                                                    />
+                                                    {s.display_name}{s.display_phone ? ` · ${s.display_phone}` : ""}
+                                                </label>
+                                            ) : null)}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setWaGroupDialogOpen(false)}>Cancelar</Button>
+                                <Button onClick={() => void handleCreateWaGroup()} disabled={waGroupCreating}>
+                                    {waGroupCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Crear grupo
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Send WA group message dialog */}
+                    <Dialog open={!!waMsgDialogGroup} onOpenChange={(open) => { if (!open) setWaMsgDialogGroup(null); }}>
+                        <DialogContent className="max-w-sm">
+                            <DialogHeader>
+                                <DialogTitle>Enviar mensaje al grupo</DialogTitle>
+                                <DialogDescription>{waMsgDialogGroup?.group_name}</DialogDescription>
+                            </DialogHeader>
+                            <div className="py-2">
+                                <textarea
+                                    value={waMsgText}
+                                    onChange={(e) => setWaMsgText(e.target.value)}
+                                    rows={4}
+                                    placeholder="Escribe tu mensaje..."
+                                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setWaMsgDialogGroup(null)}>Cancelar</Button>
+                                <Button onClick={() => void handleSendWaGroupMessage()} disabled={waMsgSending || !waMsgText.trim()}>
+                                    {waMsgSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Enviar
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
 
                     {/* Invite dialog */}
                     <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>

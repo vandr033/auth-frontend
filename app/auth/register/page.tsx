@@ -403,7 +403,7 @@ function RegisterPageInner() {
 
               <button
                 onClick={method === "email" ? handleEmailComplete : handlePhoneComplete}
-                disabled={sending || !firstName}
+                disabled={sending || !firstName || !lastName}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
               >
                 {sending && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -2101,3 +2101,36 @@ export async function inviteFreeEventInterested(
     );
     return response.data;
 }
+
+// ─── WhatsApp event groups ─────────────────────────────────────────────────────
+
+export interface WhatsappEventGroup {
+    id: number;
+    group_event_id: number;
+    group_jid: string;
+    group_name: string;
+    created_at: string;
+}
+
+export async function listWhatsappEventGroups(eventId: number): Promise<WhatsappEventGroup[]> {
+    const response = await apiFetch<{ groups: WhatsappEventGroup[] }>(`/api/admin/group/events/${eventId}/whatsapp-groups`);
+    return response.groups;
+}
+
+export async function createWhatsappEventGroup(
+    eventId: number,
+    payload: { groupName?: string; staffPhones?: string[]; includeParticipants?: boolean },
+): Promise<WhatsappEventGroup> {
+    const response = await apiFetch<{ group: WhatsappEventGroup }>(`/api/admin/group/events/${eventId}/whatsapp-groups`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.group;
+}
+
+export async function sendWhatsappGroupMessage(eventId: number, groupId: number, message: string): Promise<void> {
+    await apiFetch(`/api/admin/group/events/${eventId}/whatsapp-groups/${groupId}/message`, {
+        method: "POST",
+        body: JSON.stringify({ message }),
+    });
+}
