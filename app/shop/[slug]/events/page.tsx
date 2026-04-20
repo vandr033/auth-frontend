@@ -35,7 +35,7 @@ export default function ShopEventsPage() {
   const [events, setEvents] = React.useState<PublicGroupEvent[]>([]);
 
   const visibleEvents = React.useMemo(() => {
-    const base = user?.id ? events : events.filter((event) => !isEventSoldOut(event));
+    const base = user?.id ? events : events.filter((event) => event.is_free || !isEventSoldOut(event));
     if (activeFilter === "free") return base.filter((e) => e.is_free);
     if (activeFilter === "paid") return base.filter((e) => !e.is_free);
     return base;
