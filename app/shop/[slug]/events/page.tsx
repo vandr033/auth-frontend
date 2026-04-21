@@ -28,7 +28,7 @@ export default function ShopEventsPage() {
 
   // Read initial filter from URL (?free=true)
   const [activeFilter, setActiveFilter] = React.useState<EventFilter>(
-    searchParams.get("free") === "true" ? "free" : "all",
+    searchParams?.get("free") === "true" ? "free" : "all",
   );
 
   const [eventsLoading, setEventsLoading] = React.useState(true);

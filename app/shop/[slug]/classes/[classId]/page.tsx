@@ -527,7 +527,7 @@ export default function ShopClassDetailPage() {
                   </Button>
                   {company.phone?.trim() ? (
                     <a
-                      href={`https://wa.me/${(company.phone_prefix ?? "").replace(/\D/g, "")}${company.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${company.name}, quiero inscribirme al curso ${groupClass.name}`)}`}
+                      href={`https://wa.me/${(company.phone_prefix ?? "").replace(/\D/g, "")}${company.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${company.name}, quiero inscribirme al curso ${groupClass.title}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"

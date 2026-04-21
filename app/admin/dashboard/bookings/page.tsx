@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import { getDateLocale } from "@/lib/date-locale";
-import { format, addDays, addMonths, endOfMonth, startOfMonth, subDays, subMonths } from "date-fns";
+import { format, addDays, addMonths, endOfDay, endOfMonth, startOfDay, startOfMonth, subDays, subMonths } from "date-fns";
 import {
     Calendar as CalendarIcon,
     List as ListIcon,
@@ -78,7 +78,7 @@ export default function BookingsPage() {
     // View State
     const [viewMode, setViewMode] = useState<"calendar" | "month" | "list">(isStaffRole ? "list" : "calendar");
     const [dayCount, setDayCount] = useState<DayCount>(7);
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date()));
 
     // Filters
     const [staffFilter, setStaffFilter] = useState<string>("ALL");
@@ -151,10 +151,11 @@ export default function BookingsPage() {
 
         setLoading(true);
         try {
-            const startDate = viewMode === "month" ? startOfMonth(currentDate) : currentDate;
+            const rangeStart = startOfDay(currentDate);
+            const startDate = viewMode === "month" ? startOfMonth(rangeStart) : rangeStart;
             const endDate = viewMode === "month"
-                ? endOfMonth(currentDate)
-                : addDays(currentDate, dayCount - 1);
+                ? endOfMonth(rangeStart)
+                : endOfDay(addDays(rangeStart, dayCount - 1));
 
             const params: Parameters<typeof getBookings>[0] = {
                 start: startDate.toISOString(),
@@ -205,10 +206,10 @@ export default function BookingsPage() {
 
     // Navigation handlers
     const handleNext = () =>
-        setCurrentDate((prev) => (viewMode === "month" ? addMonths(prev, 1) : addDays(prev, dayCount)));
+        setCurrentDate((prev) => startOfDay(viewMode === "month" ? addMonths(prev, 1) : addDays(prev, dayCount)));
     const handlePrev = () =>
-        setCurrentDate((prev) => (viewMode === "month" ? subMonths(prev, 1) : subDays(prev, dayCount)));
-    const handleToday = () => setCurrentDate(new Date());
+        setCurrentDate((prev) => startOfDay(viewMode === "month" ? subMonths(prev, 1) : subDays(prev, dayCount)));
+    const handleToday = () => setCurrentDate(startOfDay(new Date()));
 
     const handleBookingClick = (booking: AdminBooking) => {
         setSelectedBooking(booking);
@@ -615,6 +616,7 @@ export default function BookingsPage() {
                         bookings={bookings}
                         currency={currency}
                         onBookingClick={handleBookingClick}
+                        onStatusUpdate={handleStatusUpdate}
                     />
                 )}
             </div>

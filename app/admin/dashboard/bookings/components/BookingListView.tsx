@@ -31,9 +31,10 @@ interface BookingListViewProps {
     bookings: AdminBooking[];
     currency?: string | null;
     onBookingClick: (booking: AdminBooking) => void;
+    onStatusUpdate: (id: number, status: AdminBooking["status"]) => Promise<void>;
 }
 
-export function BookingListView({ bookings, currency, onBookingClick }: BookingListViewProps) {
+export function BookingListView({ bookings, currency, onBookingClick, onStatusUpdate }: BookingListViewProps) {
     const { t, locale } = useI18n();
     const dateFnsLocale = getDateLocale(locale);
     if (bookings.length === 0) {
@@ -75,7 +76,10 @@ export function BookingListView({ bookings, currency, onBookingClick }: BookingL
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {bookings.map((booking) => (
+                    {bookings.map((booking) => {
+                        const displayStatus = getBookingDisplayStatus(booking);
+
+                        return (
                         <TableRow
                             key={booking.id}
                             className="cursor-pointer hover:bg-page/50"
@@ -103,7 +107,7 @@ export function BookingListView({ bookings, currency, onBookingClick }: BookingL
                                 </div>
                             </TableCell>
                             <TableCell>{booking.staff.name}</TableCell>
-                            <TableCell>{getStatusBadge(getBookingDisplayStatus(booking))}</TableCell>
+                            <TableCell>{getStatusBadge(displayStatus)}</TableCell>
                             <TableCell className="text-right font-medium">
                                 {formatCurrencyFromCents(booking.total_price, currency)}
                             </TableCell>
@@ -121,17 +125,36 @@ export function BookingListView({ bookings, currency, onBookingClick }: BookingL
                                             {t('adminBookings.details')}
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem className="text-emerald-600">
-                                            {t('adminBookings.confirmBooking')}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem className="text-rose-600">
-                                            {t('adminBookings.cancelBooking')}
-                                        </DropdownMenuItem>
+                                        {displayStatus === "PENDING" && (
+                                            <DropdownMenuItem
+                                                className="text-emerald-600"
+                                                onClick={() => void onStatusUpdate(booking.id, "CONFIRMED")}
+                                            >
+                                                {t('adminBookings.confirmBooking')}
+                                            </DropdownMenuItem>
+                                        )}
+                                        {displayStatus === "CONFIRMED" && (
+                                            <DropdownMenuItem
+                                                className="text-blue-600"
+                                                onClick={() => void onStatusUpdate(booking.id, "COMPLETED")}
+                                            >
+                                                {t('adminBookings.markCompleted')}
+                                            </DropdownMenuItem>
+                                        )}
+                                        {(displayStatus === "PENDING" || displayStatus === "CONFIRMED") && (
+                                            <DropdownMenuItem
+                                                className="text-rose-600"
+                                                onClick={() => void onStatusUpdate(booking.id, "CANCELLED")}
+                                            >
+                                                {t('adminBookings.cancelBooking')}
+                                            </DropdownMenuItem>
+                                        )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
                         </TableRow>
-                    ))}
+                        );
+                    })}
                 </TableBody>
             </Table>
         </div>

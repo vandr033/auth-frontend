@@ -459,7 +459,7 @@ export default function GroupEventDetailPage() {
             await notify.warning(t("adminGroup.forms.invalidCapacity"));
             return;
         }
-        if (!form.is_free && (priceCents === null || priceCents <= 0)) {
+        if (!form.is_free && priceCents === null) {
             await notify.warning(t("adminGroup.forms.invalidPrice"));
             return;
         }

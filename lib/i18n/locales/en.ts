@@ -224,7 +224,7 @@ const en = {
       viewClass: "View class",
       viewAllEvents: "View all events",
       viewAllClasses: "View all classes",
-      signInToContinue: "SIGN UP FOR FREE",
+      signInToContinue: "Sign in to register",
       confirmRegistration: "Confirm registration",
       completeBooking: "Complete booking",
       notifyInterest: "Notify me if more spots open",

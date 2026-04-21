@@ -229,7 +229,7 @@ export default function GroupEventsAdminPage() {
         }
 
         const priceCents = parseCurrencyInputToCents(form.price_cents);
-        if (!form.is_free && (priceCents === null || priceCents <= 0)) {
+        if (!form.is_free && priceCents === null) {
             await notify.warning(t("adminGroup.forms.invalidPrice"));
             return;
         }
