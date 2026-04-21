@@ -465,7 +465,7 @@ const es: TranslationKeys = {
     },
     positiveModal: {
       title: "Felicidades! tu cupo esta confirmado",
-      body: "Estas dentro de los primeros {{maxCapacity}} registrados y tenes tu lugar asegurado.",
+      body: "Tenes tu lugar asegurado.",
       policyLine1: "En caso de no poder asistir, te pedimos cancelar con al menos 24 horas de anticipacion para liberar tu cupo",
       policyLine2: "La inasistencia sin aviso puede limitar tu acceso a futuros eventos gratuitos.",
     },

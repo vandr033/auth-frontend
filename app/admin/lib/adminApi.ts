@@ -156,6 +156,26 @@ export async function getCustomers(search?: string): Promise<CustomerRecord[]> {
     return response.data;
 }
 
+export interface InterestCaptureLead {
+    id: string;
+    source: "EVENT" | "CLASS";
+    sourceLabel: string;
+    itemId: number;
+    itemTitle: string;
+    itemDate: string | null;
+    personName: string | null;
+    email: string | null;
+    phonePrefix: string | null;
+    phoneNumber: string | null;
+    status: string;
+    createdAt: string;
+}
+
+export async function getInterestCaptureLeads(): Promise<InterestCaptureLead[]> {
+    const response = await apiFetch<{ data: InterestCaptureLead[] }>("/api/admin/customers/interest-capture");
+    return response.data;
+}
+
 export interface CustomerHistoryItem {
     id: number;
     startAt: string;
@@ -985,6 +1005,7 @@ export interface GroupEvent {
     is_free: boolean;
     price_cents: number;
     max_capacity: number;
+    capacity_visible: boolean;
     start_at: string;
     end_at: string;
     location_text: string | null;
@@ -1040,6 +1061,7 @@ export interface GroupClass {
     pricing_mode: GroupPricingMode;
     price_cents: number;
     max_capacity_per_session: number;
+    capacity_visible: boolean;
     session_duration_minutes: number;
     recurrence_type: GroupRecurrenceType;
     recurrence_config: Record<string, unknown>;
@@ -1476,6 +1498,7 @@ export interface CreateGroupEventPayload {
     is_free: boolean;
     price_cents: number;
     max_capacity: number;
+    capacity_visible?: boolean;
     start_at: string;
     end_at: string;
     location_text?: string | null;
@@ -1494,6 +1517,7 @@ export interface CreateGroupClassPayload {
     pricing_mode: GroupPricingMode;
     price_cents: number;
     max_capacity_per_session: number;
+    capacity_visible?: boolean;
     session_duration_minutes: number;
     recurrence_type: GroupRecurrenceType;
     recurrence_config: Record<string, unknown>;

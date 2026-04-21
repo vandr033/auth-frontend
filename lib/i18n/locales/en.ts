@@ -469,7 +469,7 @@ const en = {
     },
     positiveModal: {
       title: "Congratulations! your spot is confirmed",
-      body: "You are within the first {{maxCapacity}} registered and your spot is secured.",
+      body: "Your spot is secured.",
       policyLine1: "If you cannot attend, please cancel at least 24 hours in advance to release your spot.",
       policyLine2: "No-shows without notice may limit your access to future free events.",
     },

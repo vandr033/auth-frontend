@@ -3,11 +3,20 @@
 
 import React from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, Clock, Loader2, MapPin } from "lucide-react";
+import { useParams } from "next/navigation";
+import { ArrowLeft, CalendarDays, Clock, Loader2, MapPin, MessageCircle, Upload, X } from "lucide-react";
 import { ShareButton } from "@/components/shop/ShareButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
@@ -17,16 +26,18 @@ import { useShop } from "../../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
-import { appendShopParam, buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
+import { appendShopParam } from "@/app/lib/shop-context";
 import {
   createPublicClassEnrollment,
+  capturePublicClassInterest,
   deleteGroupQrProof,
   getMyGroupPaymentPlans,
   getMyPublicGroupEnrollments,
   getPublicClassById,
   listPublicClassSessions,
+  startClassGuestEnrollment,
+  verifyClassGuestEnrollment,
   type GroupEnrollmentInstallmentPlan,
-  type GroupPaymentMethod,
   type PublicGroupClass,
   type PublicGroupClassEnrollment,
   type PublicGroupClassSession,
@@ -42,10 +53,7 @@ import {
   getStaffDisplayPhone,
   getVisibleStaffAssignments,
 } from "@/app/shop/lib/groupReservationsFormat";
-import { GroupPaymentMethodForm } from "@/app/shop/components/group/GroupPaymentMethodForm";
 import { getImageUrl } from "@/utils/image-url";
-
-type NoticeTone = "success" | "warning" | "error";
 
 function hasUpcomingSession(sessions: PublicGroupClassSession[]): boolean {
   const now = Date.now();
@@ -61,11 +69,10 @@ function getSessionMaxCapacity(session: PublicGroupClassSession, fallback: numbe
 
 export default function ShopClassDetailPage() {
   const { t, locale } = useI18n();
-  const router = useRouter();
   const params = useParams<{ classId: string }>();
   const classId = Number.parseInt(params?.classId || "", 10);
 
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshSession } = useAuth();
   const { company, settings, slug, isShopActive, loading, error } = useShop();
   const plan = resolveShopPlan(company?.plan);
   const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
@@ -77,10 +84,18 @@ export default function ShopClassDetailPage() {
   const [paymentPlans, setPaymentPlans] = React.useState<GroupEnrollmentInstallmentPlan[]>([]);
   const [selectedSessionId, setSelectedSessionId] = React.useState<number | null>(null);
 
-  const [paymentMethod, setPaymentMethod] = React.useState<GroupPaymentMethod>("CASH");
   const [qrProofFile, setQrProofFile] = React.useState<File | null>(null);
   const [busyEnroll, setBusyEnroll] = React.useState(false);
-  const [notice, setNotice] = React.useState<{ tone: NoticeTone; text: string } | null>(null);
+  const [registrationOpen, setRegistrationOpen] = React.useState(false);
+  const [registrationStep, setRegistrationStep] = React.useState<"contact" | "code" | "thanks" | "online" | "submitted">("contact");
+  const [guestFullName, setGuestFullName] = React.useState("");
+  const [guestEmail, setGuestEmail] = React.useState("");
+  const [guestPhonePrefix, setGuestPhonePrefix] = React.useState("591");
+  const [guestPhoneNumber, setGuestPhoneNumber] = React.useState("");
+  const [guestCode, setGuestCode] = React.useState("");
+  const [guestSessionId, setGuestSessionId] = React.useState<string | null>(null);
+  const [guestBusy, setGuestBusy] = React.useState<"start" | "verify" | "interest" | null>(null);
+  const [guestError, setGuestError] = React.useState<string | null>(null);
 
   const loadData = React.useCallback(async () => {
     if (!company?.id || !Number.isInteger(classId) || classId <= 0 || !canSeeClasses) {
@@ -135,20 +150,6 @@ export default function ShopClassDetailPage() {
   }, [canSeeClasses, classId, company?.id, t, user?.id]);
 
   React.useEffect(() => {
-    const allowCash = settings?.allow_cash_payment ?? true;
-    const allowQr = settings?.allow_qr_payment ?? true;
-    if (allowCash) {
-      setPaymentMethod("CASH");
-      return;
-    }
-    if (allowQr) {
-      setPaymentMethod("QR");
-      return;
-    }
-    setPaymentMethod("NONE");
-  }, [settings?.allow_cash_payment, settings?.allow_qr_payment]);
-
-  React.useEffect(() => {
     if (authLoading) return;
     void loadData();
   }, [authLoading, loadData]);
@@ -192,60 +193,150 @@ export default function ShopClassDetailPage() {
     return booked >= maxCapacity;
   }, [groupClass, selectedSession]);
 
-  const requireSignIn = React.useCallback(() => {
-    if (user?.id) return true;
-    router.push(buildSignInRedirectFromCurrentLocation(`/shop/${slug}/classes/${classId}`));
-    return false;
-  }, [classId, router, slug, user?.id]);
+  const whatsappUrl = React.useMemo(() => {
+    if (!company?.phone?.trim() || !groupClass) return null;
+    const shopPhone = `${(company.phone_prefix ?? "").replace(/\D/g, "")}${company.phone.replace(/\D/g, "")}`;
+    if (!shopPhone) return null;
+    const customerName = user?.name || guestFullName || "Cliente";
+    const customerEmail = user?.email || guestEmail;
+    const customerPhone = user?.phoneNumber || guestPhoneNumber;
+    const message = [
+      `Hola ${company.name}, quiero confirmar mi reserva para el curso ${groupClass.title}.`,
+      `Nombre: ${customerName}`,
+      customerEmail ? `Email: ${customerEmail}` : null,
+      customerPhone ? `Celular: +${user?.phone_prefix || guestPhonePrefix || ""}${customerPhone}` : null,
+    ].filter(Boolean).join("\n");
+    return `https://wa.me/${shopPhone}?text=${encodeURIComponent(message)}`;
+  }, [company, groupClass, guestEmail, guestFullName, guestPhoneNumber, guestPhonePrefix, user]);
 
-  const handleEnroll = async () => {
+  const openRegistrationFlow = async () => {
     if (!groupClass || !company) return;
-    if (!requireSignIn()) return;
+    setGuestError(null);
+    setRegistrationOpen(true);
 
+    if (user?.id) {
+      setRegistrationStep("thanks");
+      setGuestBusy("interest");
+      try {
+        await capturePublicClassInterest(company.id, groupClass.id);
+      } catch {
+        // Non-blocking: the user can still confirm by WhatsApp or QR.
+      } finally {
+        setGuestBusy(null);
+      }
+      return;
+    }
+
+    setRegistrationStep("contact");
+  };
+
+  const handleStartGuestRegistration = async () => {
+    if (!groupClass || !company) return;
+    const fullName = guestFullName.trim();
+    const email = guestEmail.trim().toLowerCase();
+    const phonePrefix = guestPhonePrefix.replace(/\D/g, "");
+    const phoneNumber = guestPhoneNumber.replace(/\D/g, "");
+
+    if (!fullName || !email || !phonePrefix || !phoneNumber) {
+      setGuestError("Completa tu nombre, email y celular.");
+      return;
+    }
+
+    setGuestBusy("start");
+    setGuestError(null);
+    try {
+      const result = await startClassGuestEnrollment(groupClass.id, {
+        company_id: company.id,
+        full_name: fullName,
+        email,
+        phonePrefix,
+        phoneNumber,
+      });
+      if (result.accountOutcome === "ACCOUNT_CONFLICT_PHONE_EMAIL") {
+        setGuestError("El correo y el celular pertenecen a cuentas distintas. Inicia sesión manualmente para continuar.");
+        return;
+      }
+      if (!result.checkout_session_id || !result.canVerify) {
+        setGuestError("No pudimos enviar el código. Inténtalo nuevamente.");
+        return;
+      }
+      setGuestSessionId(result.checkout_session_id);
+      setGuestPhonePrefix(phonePrefix);
+      setGuestPhoneNumber(phoneNumber);
+      setRegistrationStep("code");
+    } catch (err) {
+      setGuestError(err instanceof Error ? err.message : "No se pudo enviar el código.");
+    } finally {
+      setGuestBusy(null);
+    }
+  };
+
+  const handleVerifyGuestRegistration = async () => {
+    if (!groupClass || !company || !guestSessionId) return;
+    if (!guestCode.trim()) {
+      setGuestError("Ingresa el código de verificación.");
+      return;
+    }
+
+    setGuestBusy("verify");
+    setGuestError(null);
+    try {
+      await verifyClassGuestEnrollment(groupClass.id, {
+        company_id: company.id,
+        checkout_session_id: guestSessionId,
+        code: guestCode.trim(),
+      });
+      await refreshSession();
+      await loadData();
+      setRegistrationStep("thanks");
+    } catch (err) {
+      setGuestError(err instanceof Error ? err.message : "No se pudo verificar el código.");
+    } finally {
+      setGuestBusy(null);
+    }
+  };
+
+  const handleOnlineReservation = async () => {
+    if (!groupClass || !company) return;
+    if (!user?.id && !(await refreshSession())?.id) {
+      setGuestError("Verifica tu código antes de reservar en línea.");
+      return;
+    }
     if (groupClass.pricing_mode === "PER_SESSION") {
       if (!selectedSessionId) {
-        await notify.warning(t("shopGroup.classes.selectSessionRequired"));
+        setGuestError(t("shopGroup.classes.selectSessionRequired"));
         return;
       }
       if (selectedSessionSoldOut) {
-        await notify.warning(t("shopGroup.classes.selectedSessionSoldOut"));
+        setGuestError(t("shopGroup.classes.selectedSessionSoldOut"));
         return;
       }
+    }
+    if ((settings?.require_comprobante_for_qr ?? true) && !qrProofFile) {
+      setGuestError(t("shopGroup.payment.uploadProofRequired"));
+      return;
     }
 
     let uploadedQrUrl: string | undefined;
     setBusyEnroll(true);
-    setNotice(null);
-
+    setGuestError(null);
     try {
-      if (groupClass.price_cents > 0 && paymentMethod === "QR" && qrProofFile) {
+      if (qrProofFile) {
         uploadedQrUrl = await uploadGroupQrProof(qrProofFile, company.id);
       }
-
-      const enrollment = await createPublicClassEnrollment({
+      await createPublicClassEnrollment({
         company_id: company.id,
         group_class_id: groupClass.id,
         group_class_session_id: groupClass.pricing_mode === "PER_SESSION" ? selectedSessionId ?? undefined : undefined,
-        payment_method: groupClass.price_cents === 0 ? "NONE" : paymentMethod,
+        payment_method: "QR",
         qr_proof_image_url: uploadedQrUrl || null,
-      });
-
-      setNotice({
-        tone: enrollment.status === "CONFIRMED" ? "success" : "warning",
-        text:
-          enrollment.status === "CONFIRMED"
-            ? t("shopGroup.classes.enrollmentConfirmed")
-            : t("shopGroup.classes.enrollmentPending"),
       });
       setQrProofFile(null);
       await loadData();
+      setRegistrationStep("submitted");
     } catch (err) {
-      if (uploadedQrUrl) {
-        await deleteGroupQrProof(uploadedQrUrl);
-      }
-      const message = err instanceof Error ? err.message : t("shopGroup.classes.enrollError");
-      setNotice({ tone: "error", text: message });
-      await notify.error(message);
+      if (uploadedQrUrl) await deleteGroupQrProof(uploadedQrUrl);
+      setGuestError(err instanceof Error ? err.message : t("shopGroup.classes.enrollError"));
     } finally {
       setBusyEnroll(false);
     }
@@ -308,7 +399,6 @@ export default function ShopClassDetailPage() {
   const locationQuery = groupClass.location_text?.trim()
     || company.address?.trim()
     || [company.city, company.state].map((value) => value?.trim() || "").filter((value) => value.length > 0).join(", ");
-  const showPaymentForm = groupClass.price_cents > 0 && !activeEnrollment;
   const autoConfirmBookings = settings?.auto_confirm_bookings ?? true;
   const noUpcomingSessions = !hasUpcomingSession(sessions);
 
@@ -433,26 +523,12 @@ export default function ShopClassDetailPage() {
                 : t("shopGroup.events.autoConfirmOff")}
             </p>
 
-            {notice ? (
-              <p
-                className={
-                  notice.tone === "success"
-                    ? "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
-                    : notice.tone === "warning"
-                      ? "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"
-                      : "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
-                }
-              >
-                {notice.text}
-              </p>
-            ) : null}
-
             {!user?.id ? (
               <Button
                 className="w-full bg-brand text-white hover:bg-brand-hover"
-                onClick={() => router.push(buildSignInRedirectFromCurrentLocation(`/shop/${slug}/classes/${groupClass.id}`))}
+                onClick={() => void openRegistrationFlow()}
               >
-                {t("shopGroup.actions.signInToContinue")}
+                Regístrate aquí
               </Button>
             ) : activeEnrollment ? (
               <div className="space-y-3">
@@ -483,68 +559,167 @@ export default function ShopClassDetailPage() {
             ) : noUpcomingSessions ? (
               <p className="text-sm text-text-muted">{t("shopGroup.classes.noUpcomingForEnrollment")}</p>
             ) : (
-              <div className="space-y-3">
-                {groupClass.pricing_mode === "PER_SESSION" ? (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-text-muted">{t("shopGroup.classes.selectSession")}</label>
-                    <select
-                      className="h-10 w-full rounded-md border border-surface-border bg-white px-3 text-sm text-text-main"
-                      value={selectedSessionId ?? ""}
-                      onChange={(event) => {
-                        const value = Number.parseInt(event.target.value, 10);
-                        setSelectedSessionId(Number.isInteger(value) ? value : null);
-                      }}
-                    >
-                      <option value="">{t("shopGroup.classes.selectSessionPlaceholder")}</option>
-                      {upcomingSessions.map((session) => (
-                        <option key={session.id} value={session.id}>
-                          {formatGroupDateTime(session.start_at, locale)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-
-                {showPaymentForm ? (
-                  <GroupPaymentMethodForm
-                    settings={settings}
-                    paymentMethod={paymentMethod}
-                    onPaymentMethodChange={setPaymentMethod}
-                    qrProofFile={qrProofFile}
-                    onQrProofChange={setQrProofFile}
-                    t={t}
-                  />
-                ) : null}
-
-                <div className="flex items-stretch gap-2">
-                  <Button
-                    className="flex-1 bg-brand text-white hover:bg-brand-hover"
-                    onClick={() => void handleEnroll()}
-                    disabled={busyEnroll || (groupClass.pricing_mode === "PER_SESSION" && !selectedSessionId)}
-                  >
-                    {busyEnroll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Reservar ahora
-                  </Button>
-                  {company.phone?.trim() ? (
-                    <a
-                      href={`https://wa.me/${(company.phone_prefix ?? "").replace(/\D/g, "")}${company.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${company.name}, quiero inscribirme al curso ${groupClass.title}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-5 w-5 flex-none fill-emerald-600" aria-hidden="true">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-                        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.563 4.14 1.544 5.876L.057 23.7a.75.75 0 0 0 .955.894l6.037-1.517A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.894 0-3.668-.5-5.207-1.375l-.374-.218-3.882.976.996-3.789-.24-.386A9.953 9.953 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
-                      </svg>
-                      Reservar por whatsapp
-                    </a>
-                  ) : null}
-                </div>
-              </div>
+              <Button
+                className="w-full bg-brand text-white hover:bg-brand-hover"
+                onClick={() => void openRegistrationFlow()}
+              >
+                Inscribirme
+              </Button>
             )}
           </article>
         </aside>
       </section>
+
+      <Dialog open={registrationOpen} onOpenChange={setRegistrationOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader className="text-left">
+            <DialogTitle>
+              {registrationStep === "submitted" ? "Tu reserva será confirmada" : "Regístrate aquí"}
+            </DialogTitle>
+            <DialogDescription>
+              {registrationStep === "thanks" || registrationStep === "online"
+                ? "Gracias! Has hecho tu reserva, por favor confirma en línea o por WhatsApp"
+                : registrationStep === "submitted"
+                  ? "Tu reserva será confirmada, gracias."
+                  : "Ingresa tus datos para recibir un código de verificación."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {guestError ? (
+            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{guestError}</p>
+          ) : null}
+
+          {registrationStep === "contact" ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Nombre</Label>
+                <Input value={guestFullName} onChange={(event) => setGuestFullName(event.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Email</Label>
+                <Input type="email" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} />
+              </div>
+              <div className="grid grid-cols-[88px_1fr] gap-2">
+                <div className="space-y-1">
+                  <Label>Prefijo</Label>
+                  <Input value={guestPhonePrefix} onChange={(event) => setGuestPhonePrefix(event.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Celular</Label>
+                  <Input value={guestPhoneNumber} onChange={(event) => setGuestPhoneNumber(event.target.value)} />
+                </div>
+              </div>
+              <Button className="w-full bg-brand text-white hover:bg-brand-hover" onClick={() => void handleStartGuestRegistration()} disabled={guestBusy === "start"}>
+                {guestBusy === "start" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Enviar código
+              </Button>
+            </div>
+          ) : null}
+
+          {registrationStep === "code" ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Código</Label>
+                <Input value={guestCode} onChange={(event) => setGuestCode(event.target.value)} inputMode="numeric" />
+              </div>
+              <Button className="w-full bg-brand text-white hover:bg-brand-hover" onClick={() => void handleVerifyGuestRegistration()} disabled={guestBusy === "verify"}>
+                {guestBusy === "verify" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Confirmar código
+              </Button>
+            </div>
+          ) : null}
+
+          {registrationStep === "thanks" ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {whatsappUrl ? (
+                <Button asChild variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    WhatsApp
+                  </a>
+                </Button>
+              ) : null}
+              <Button className="bg-brand text-white hover:bg-brand-hover" onClick={() => setRegistrationStep("online")}>
+                Reservar en línea
+              </Button>
+            </div>
+          ) : null}
+
+          {registrationStep === "online" ? (
+            <div className="space-y-3">
+              {groupClass.pricing_mode === "PER_SESSION" ? (
+                <div className="space-y-1">
+                  <Label>{t("shopGroup.classes.selectSession")}</Label>
+                  <select
+                    className="h-10 w-full rounded-md border border-surface-border bg-white px-3 text-sm text-text-main"
+                    value={selectedSessionId ?? ""}
+                    onChange={(event) => {
+                      const value = Number.parseInt(event.target.value, 10);
+                      setSelectedSessionId(Number.isInteger(value) ? value : null);
+                    }}
+                  >
+                    <option value="">{t("shopGroup.classes.selectSessionPlaceholder")}</option>
+                    {upcomingSessions.map((session) => (
+                      <option key={session.id} value={session.id}>
+                        {formatGroupDateTime(session.start_at, locale)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              <div className="space-y-3 rounded-md border border-surface-border bg-section p-3">
+                {settings?.qr_image_url ? (
+                  <div className="rounded-md border border-surface-border bg-white p-3">
+                    <img
+                      src={getImageUrl(settings.qr_image_url) || undefined}
+                      alt={t("shopGroup.payment.qrCode")}
+                      className="mx-auto h-44 w-44 object-contain"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-text-muted">{t("shopGroup.payment.qrMissing")}</p>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => document.getElementById("class-online-qr-proof-upload")?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {qrProofFile ? t("shopGroup.payment.changeProof") : t("shopGroup.payment.uploadProof")}
+                </Button>
+                <input
+                  id="class-online-qr-proof-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => setQrProofFile(event.target.files?.[0] || null)}
+                />
+                {qrProofFile ? (
+                  <div className="flex items-center justify-between gap-2 rounded-md border border-surface-border bg-white px-3 py-2 text-xs">
+                    <span className="truncate">{qrProofFile.name}</span>
+                    <button type="button" className="rounded p-1 hover:bg-slate-100" onClick={() => setQrProofFile(null)}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              <Button className="w-full bg-brand text-white hover:bg-brand-hover" onClick={() => void handleOnlineReservation()} disabled={busyEnroll}>
+                {busyEnroll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Enviar comprobante
+              </Button>
+            </div>
+          ) : null}
+
+          {registrationStep === "submitted" ? (
+            <Button className="w-full bg-brand text-white hover:bg-brand-hover" onClick={() => setRegistrationOpen(false)}>
+              Cerrar
+            </Button>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <ShopFooter />
     </main>

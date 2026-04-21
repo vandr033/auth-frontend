@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Send, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, Download, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Send, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -147,6 +147,7 @@ type EventFormState = {
     is_free: boolean;
     price_cents: string;
     max_capacity: string;
+    capacity_visible: boolean;
     start_at: string;
     end_at: string;
     location_text: string;
@@ -194,6 +195,7 @@ function fromEvent(event: GroupEvent): EventFormState {
         is_free: event.is_free,
         price_cents: formatCurrencyInputFromCents(event.price_cents),
         max_capacity: String(event.max_capacity),
+        capacity_visible: event.capacity_visible ?? false,
         start_at: toLocalInput(event.start_at),
         end_at: toLocalInput(event.end_at),
         location_text: event.location_text ?? "",
@@ -478,6 +480,7 @@ export default function GroupEventDetailPage() {
                 is_free: form.is_free,
                 price_cents: form.is_free ? 0 : (priceCents ?? 0),
                 max_capacity: maxCapacity,
+                capacity_visible: form.capacity_visible,
                 start_at: startAt.toISOString(),
                 end_at: endAt.toISOString(),
                 location_text: form.location_text.trim() || null,
@@ -662,6 +665,33 @@ export default function GroupEventDetailPage() {
         if (succeeded > 0) await notify.success(t("adminGroup.freeReg.inviteSent", { count: succeeded }));
         if (failed > 0) await notify.warning(t("adminGroup.freeReg.inviteFailed", { count: failed }));
         await loadData();
+    };
+
+    const exportInterestedCsv = () => {
+        const headers = ["name", "email", "phone", "event", "created_at", "status"];
+        const rows = freeInterested.map((person) => [
+            `${person.firstName} ${person.lastName}`.trim(),
+            person.email || "",
+            person.phonePrefix && person.phoneNumber ? `+${person.phonePrefix}${person.phoneNumber}` : "",
+            event?.title || "",
+            person.createdAt,
+            "INTERESTED",
+        ]);
+        const csv = [headers, ...rows]
+            .map((row) => row.map((cell) => {
+                const text = String(cell).replace(/"/g, '""');
+                return /[",\n]/.test(text) ? `"${text}"` : text;
+            }).join(","))
+            .join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `interesados-evento-${eventId}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
     };
 
     const sendMassMessageToTargets = async (
@@ -1034,6 +1064,13 @@ export default function GroupEventDetailPage() {
                             <Label>{t("adminGroup.fields.capacity")}</Label>
                             <Input type="number" min={1} value={form.max_capacity} onChange={(e) => setForm((prev) => prev ? { ...prev, max_capacity: e.target.value } : prev)} />
                         </div>
+                        <label className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
+                            <Checkbox
+                                checked={form.capacity_visible}
+                                onCheckedChange={(checked) => setForm((prev) => prev ? { ...prev, capacity_visible: Boolean(checked) } : prev)}
+                            />
+                            Cupos visibles
+                        </label>
                         <div className="space-y-2 md:col-span-2">
                             <GroupLocationPicker
                                 label={t("adminGroup.fields.location")}
@@ -1501,14 +1538,20 @@ export default function GroupEventDetailPage() {
                         <CardHeader className="flex-row items-center justify-between">
                             <CardTitle className="text-base">{t("adminGroup.freeReg.interestedTitle")} ({freeInterested.length})</CardTitle>
                             {freeInterested.length > 0 && (
-                                <Button
-                                    size="sm"
-                                    disabled={selectedInterested.size === 0}
-                                    onClick={() => setInviteDialogOpen(true)}
-                                >
-                                    <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                                    {t("adminGroup.freeReg.inviteSelected")} ({selectedInterested.size})
-                                </Button>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button size="sm" variant="outline" onClick={exportInterestedCsv}>
+                                        <Download className="mr-1.5 h-3.5 w-3.5" />
+                                        Exportar CSV
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        disabled={selectedInterested.size === 0}
+                                        onClick={() => setInviteDialogOpen(true)}
+                                    >
+                                        <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                                        {t("adminGroup.freeReg.inviteSelected")} ({selectedInterested.size})
+                                    </Button>
+                                </div>
                             )}
                         </CardHeader>
                         <CardContent>

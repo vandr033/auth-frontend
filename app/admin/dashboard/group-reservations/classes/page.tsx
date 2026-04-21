@@ -222,6 +222,7 @@ export default function GroupClassesPage() {
                 pricing_mode: form.pricing_mode,
                 price_cents: priceCents,
                 max_capacity_per_session: maxCapacity,
+                capacity_visible: form.capacity_visible,
                 session_duration_minutes: duration,
                 recurrence_type: form.recurrence_type,
                 recurrence_config: recurrenceConfig,

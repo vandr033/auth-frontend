@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import {
     downloadCustomerImportTemplate,
     downloadCustomersExport,
+    getInterestCaptureLeads,
     getCustomerGroupPayments,
     getCustomerHistory,
     getCustomers,
@@ -24,6 +25,7 @@ import {
     type CustomerHistoryItem,
     type CustomerGroupPaymentsResponse,
     type CustomerRecord,
+    type InterestCaptureLead,
 } from "../../lib/adminApi";
 import {
     Search,
@@ -53,6 +55,7 @@ import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -104,10 +107,15 @@ export default function CustomersPage() {
     const canImportExport = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "CUSTOMER_IMPORT_EXPORT");
     const canBulkMessaging = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BULK_WHATSAPP_MESSAGING");
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+    const [interestLeads, setInterestLeads] = useState<InterestCaptureLead[]>([]);
     const [loading, setLoading] = useState(true);
+    const [interestLoading, setInterestLoading] = useState(true);
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [interestSearchQuery, setInterestSearchQuery] = useState("");
+    const [interestSourceFilter, setInterestSourceFilter] = useState<"ALL" | "EVENT" | "CLASS">("ALL");
+    const [interestItemFilter, setInterestItemFilter] = useState("ALL");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [isMassDialogOpen, setIsMassDialogOpen] = useState(false);
     const [massMessageBody, setMassMessageBody] = useState("");
@@ -145,6 +153,22 @@ export default function CustomersPage() {
     useEffect(() => {
         void fetchCustomers();
     }, [fetchCustomers]);
+
+    const fetchInterestLeads = useCallback(async () => {
+        setInterestLoading(true);
+        try {
+            const rows = await getInterestCaptureLeads();
+            setInterestLeads(rows);
+        } catch (err: unknown) {
+            void notify.error(err instanceof Error ? err.message : "No se pudo cargar la captación de interesados");
+        } finally {
+            setInterestLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void fetchInterestLeads();
+    }, [fetchInterestLeads]);
 
     const handleDownloadTemplate = async () => {
         if (!canImportExport) {
@@ -315,6 +339,66 @@ export default function CustomersPage() {
         await loadCustomerHistory(historyCustomer, historyPage + 1, true);
     };
 
+    const interestItemOptions = useMemo(() => {
+        const options = new Map<string, { value: string; label: string }>();
+        interestLeads.forEach((lead) => {
+            if (interestSourceFilter !== "ALL" && lead.source !== interestSourceFilter) return;
+            const value = `${lead.source}:${lead.itemId}`;
+            options.set(value, { value, label: `${lead.sourceLabel}: ${lead.itemTitle}` });
+        });
+        return Array.from(options.values()).sort((a, b) => a.label.localeCompare(b.label));
+    }, [interestLeads, interestSourceFilter]);
+
+    const filteredInterestLeads = useMemo(() => {
+        const query = interestSearchQuery.trim().toLowerCase();
+        return interestLeads.filter((lead) => {
+            if (interestSourceFilter !== "ALL" && lead.source !== interestSourceFilter) return false;
+            if (interestItemFilter !== "ALL" && `${lead.source}:${lead.itemId}` !== interestItemFilter) return false;
+            if (!query) return true;
+            return [
+                lead.personName,
+                lead.email,
+                lead.phoneNumber,
+                lead.itemTitle,
+                lead.status,
+            ].filter(Boolean).join(" ").toLowerCase().includes(query);
+        });
+    }, [interestItemFilter, interestLeads, interestSearchQuery, interestSourceFilter]);
+
+    const exportInterestLeadsCsv = () => {
+        const headers = ["name", "email", "phone", "type", "item", "created_at", "status"];
+        const rows = filteredInterestLeads.map((lead) => [
+            lead.personName || "",
+            lead.email || "",
+            lead.phonePrefix && lead.phoneNumber ? `+${lead.phonePrefix}${lead.phoneNumber}` : "",
+            lead.sourceLabel,
+            lead.itemTitle,
+            lead.createdAt,
+            lead.status,
+        ]);
+        const csv = [headers, ...rows]
+            .map((row) => row.map((cell) => {
+                const text = String(cell).replace(/"/g, '""');
+                return /[",\n]/.test(text) ? `"${text}"` : text;
+            }).join(","))
+            .join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `captacion-interesados-${Date.now()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const buildLeadWhatsAppUrl = (lead: InterestCaptureLead) => {
+        if (!lead.phoneNumber) return null;
+        const digits = `${lead.phonePrefix || ""}${lead.phoneNumber}`.replace(/\D/g, "");
+        return digits ? `https://wa.me/${digits}` : null;
+    };
+
     const notAvailable = t("adminCustomers.notAvailable");
 
     return (
@@ -398,15 +482,22 @@ export default function CustomersPage() {
                 />
             )}
 
-            <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                    placeholder={t("adminCustomers.searchPlaceholder")}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                />
-            </div>
+            <Tabs defaultValue="customers" className="space-y-4">
+                <TabsList>
+                    <TabsTrigger value="customers">Clientes</TabsTrigger>
+                    <TabsTrigger value="interest-capture">Captación de interesados</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="customers" className="space-y-4">
+                    <div className="relative max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder={t("adminCustomers.searchPlaceholder")}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
 
             <Card className="border-slate-200">
                 <CardContent className="p-0">
@@ -587,6 +678,128 @@ export default function CustomersPage() {
                     )}
                 </CardContent>
             </Card>
+                </TabsContent>
+
+                <TabsContent value="interest-capture" className="space-y-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="grid gap-2 md:grid-cols-[220px_260px_1fr]">
+                            <Select
+                                value={interestSourceFilter}
+                                onValueChange={(value) => {
+                                    setInterestSourceFilter(value as "ALL" | "EVENT" | "CLASS");
+                                    setInterestItemFilter("ALL");
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Tipo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Todos</SelectItem>
+                                    <SelectItem value="EVENT">Eventos</SelectItem>
+                                    <SelectItem value="CLASS">Clases</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select value={interestItemFilter} onValueChange={setInterestItemFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Evento o clase" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Todos los eventos y clases</SelectItem>
+                                    {interestItemOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <Input
+                                    placeholder="Buscar por nombre, correo, celular o evento"
+                                    value={interestSearchQuery}
+                                    onChange={(event) => setInterestSearchQuery(event.target.value)}
+                                    className="pl-9"
+                                />
+                            </div>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={exportInterestLeadsCsv}
+                            disabled={filteredInterestLeads.length === 0}
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Exportar como CSV
+                        </Button>
+                    </div>
+
+                    <Card className="border-slate-200">
+                        <CardContent className="p-0">
+                            {interestLoading ? (
+                                <div className="flex items-center justify-center py-20">
+                                    <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                                </div>
+                            ) : filteredInterestLeads.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                    <Users className="mb-3 h-10 w-10" />
+                                    <p className="text-sm">No hay interesados para estos filtros.</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Nombre</TableHead>
+                                                <TableHead>Contacto</TableHead>
+                                                <TableHead>Origen</TableHead>
+                                                <TableHead>Estado</TableHead>
+                                                <TableHead>Fecha</TableHead>
+                                                <TableHead className="text-right">Acciones</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {filteredInterestLeads.map((lead) => {
+                                                const waUrl = buildLeadWhatsAppUrl(lead);
+                                                return (
+                                                    <TableRow key={lead.id}>
+                                                        <TableCell>
+                                                            <p className="font-medium text-slate-900">{lead.personName || notAvailable}</p>
+                                                            <p className="text-xs text-slate-500">{lead.email || notAvailable}</p>
+                                                        </TableCell>
+                                                        <TableCell className="text-sm text-slate-600">
+                                                            {lead.phonePrefix && lead.phoneNumber ? `+${lead.phonePrefix} ${lead.phoneNumber}` : notAvailable}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <p className="text-sm font-medium text-slate-900">{lead.itemTitle}</p>
+                                                            <p className="text-xs text-slate-500">{lead.sourceLabel}</p>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge variant="outline">{lead.status}</Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-sm text-slate-600">{formatDateTime(lead.createdAt, notAvailable)}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                {lead.email ? (
+                                                                    <a href={`mailto:${lead.email}`} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
+                                                                        <Mail className="h-4 w-4" />
+                                                                    </a>
+                                                                ) : null}
+                                                                {waUrl ? (
+                                                                    <a href={waUrl} target="_blank" rel="noopener noreferrer" className="rounded-md p-1.5 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
+                                                                        <MessageCircle className="h-4 w-4" />
+                                                                    </a>
+                                                                ) : null}
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
 
             <Dialog open={isMassDialogOpen} onOpenChange={setIsMassDialogOpen}>
                 <DialogContent>

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useT } from "@/lib/i18n";
 import { getImageUrl } from "@/utils/image-url";
 import { AdminSectionCard } from "@/app/admin/dashboard/components/AdminSectionCard";
@@ -247,6 +248,18 @@ export function GroupClassEditorForm({
                                     onFormChange((prev) => ({
                                         ...prev,
                                         max_capacity_per_session: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+                            <Label className="text-sm">Cupos visibles</Label>
+                            <Switch
+                                checked={form.capacity_visible}
+                                onCheckedChange={(checked) =>
+                                    onFormChange((prev) => ({
+                                        ...prev,
+                                        capacity_visible: checked,
                                     }))
                                 }
                             />

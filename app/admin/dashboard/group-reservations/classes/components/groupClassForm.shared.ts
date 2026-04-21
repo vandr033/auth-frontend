@@ -22,6 +22,7 @@ export type ClassFormState = {
     pricing_mode: GroupPricingMode;
     price_cents: string;
     max_capacity_per_session: string;
+    capacity_visible: boolean;
     session_duration_minutes: string;
     recurrence_type: GroupRecurrenceType;
     recurrence_start_date: string;
@@ -88,6 +89,7 @@ export function defaultClassForm(defaultLocationText = ""): ClassFormState {
         pricing_mode: "PER_SESSION",
         price_cents: "0",
         max_capacity_per_session: "20",
+        capacity_visible: false,
         session_duration_minutes: "60",
         recurrence_type: "WEEKLY",
         recurrence_start_date: day,

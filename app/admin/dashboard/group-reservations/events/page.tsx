@@ -70,6 +70,7 @@ type EventFormState = {
     is_free: boolean;
     price_cents: string;
     max_capacity: string;
+    capacity_visible: boolean;
     start_at: string;
     end_at: string;
     location_text: string;
@@ -128,6 +129,7 @@ function createDefaultForm(defaultLocationText = ""): EventFormState {
         is_free: true,
         price_cents: "0",
         max_capacity: "20",
+        capacity_visible: false,
         start_at: toLocalInputValue(start),
         end_at: toLocalInputValue(end),
         location_text: defaultLocationText,
@@ -254,6 +256,7 @@ export default function GroupEventsAdminPage() {
                 is_free: form.is_free,
                 price_cents: form.is_free ? 0 : (priceCents ?? 0),
                 max_capacity: maxCapacity,
+                capacity_visible: form.capacity_visible,
                 start_at: startAt.toISOString(),
                 end_at: endAt.toISOString(),
                 location_text: form.location_text.trim() || null,
@@ -616,6 +619,13 @@ export default function GroupEventsAdminPage() {
                                 min={1}
                                 value={form.max_capacity}
                                 onChange={(e) => setForm((prev) => ({ ...prev, max_capacity: e.target.value }))}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+                            <Label className="text-sm">Cupos visibles</Label>
+                            <Switch
+                                checked={form.capacity_visible}
+                                onCheckedChange={(checked) => setForm((prev) => ({ ...prev, capacity_visible: checked }))}
                             />
                         </div>
                         <div className="space-y-2 md:col-span-2">

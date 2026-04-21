@@ -38,6 +38,7 @@ export interface PublicGroupEvent {
   is_free: boolean;
   price_cents: number;
   max_capacity: number;
+  capacity_visible: boolean;
   start_at: string;
   end_at: string;
   location_text: string | null;
@@ -77,6 +78,7 @@ export interface PublicGroupClass {
   pricing_mode: GroupPricingMode;
   price_cents: number;
   max_capacity_per_session: number;
+  capacity_visible: boolean;
   session_duration_minutes: number;
   recurrence_type: GroupRecurrenceType;
   recurrence_config: Record<string, unknown>;
@@ -465,6 +467,56 @@ export async function createPublicClassEnrollment(payload: {
   });
 }
 
+export interface ClassGuestEnrollmentStartInput {
+  company_id: number;
+  full_name: string;
+  email: string;
+  phonePrefix: string;
+  phoneNumber: string;
+}
+
+export type ClassGuestEnrollmentStartResult = PaidEventGuestCheckoutStartResult;
+
+export interface ClassGuestEnrollmentVerifyInput {
+  company_id: number;
+  checkout_session_id: string;
+  code: string;
+}
+
+export type ClassGuestEnrollmentVerifyResult = PaidEventGuestCheckoutVerifyResult & {
+  interestCaptured?: boolean;
+};
+
+export async function startClassGuestEnrollment(
+  classId: number,
+  payload: ClassGuestEnrollmentStartInput,
+): Promise<ClassGuestEnrollmentStartResult> {
+  return groupFetch<ClassGuestEnrollmentStartResult>(`/group/classes/${classId}/guest-enrollment/start`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resendClassGuestEnrollment(
+  classId: number,
+  payload: PaidEventGuestCheckoutResendInput,
+): Promise<ClassGuestEnrollmentStartResult> {
+  return groupFetch<ClassGuestEnrollmentStartResult>(`/group/classes/${classId}/guest-enrollment/resend`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyClassGuestEnrollment(
+  classId: number,
+  payload: ClassGuestEnrollmentVerifyInput,
+): Promise<ClassGuestEnrollmentVerifyResult> {
+  return groupFetch<ClassGuestEnrollmentVerifyResult>(`/group/classes/${classId}/guest-enrollment/verify`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function joinPublicEventWaitlist(companyId: number, eventId: number): Promise<void> {
   await groupFetch<void>(`/group/events/${eventId}/waitlist`, {
     method: "POST",
@@ -481,6 +533,13 @@ export async function leavePublicEventWaitlist(companyId: number, eventId: numbe
 
 export async function capturePublicEventInterest(companyId: number, eventId: number): Promise<CapturePublicEventInterestResult> {
   return groupFetch<CapturePublicEventInterestResult>(`/group/events/${eventId}/interest`, {
+    method: "POST",
+    body: JSON.stringify({ company_id: companyId }),
+  });
+}
+
+export async function capturePublicClassInterest(companyId: number, classId: number): Promise<CapturePublicEventInterestResult> {
+  return groupFetch<CapturePublicEventInterestResult>(`/group/classes/${classId}/interest`, {
     method: "POST",
     body: JSON.stringify({ company_id: companyId }),
   });

@@ -160,12 +160,14 @@ export function GroupClassCard({ groupClass, sessions, slug, currency, t }: Clas
               {t("shopGroup.classes.noUpcomingSessions")}
             </p>
           )}
-          <p className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            {t("shopGroup.classes.capacityPerSession", {
-              value: groupClass.max_capacity_per_session,
-            })}
-          </p>
+          {groupClass.capacity_visible ? (
+            <p className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              {t("shopGroup.classes.capacityPerSession", {
+                value: groupClass.max_capacity_per_session,
+              })}
+            </p>
+          ) : null}
         </div>
 
         {staff.length > 0 ? (
