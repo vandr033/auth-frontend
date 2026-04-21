@@ -394,6 +394,7 @@ function StaffStep({
 // Step 3: Date & Time Selection
 function DateTimeStep({
     companyId,
+    isActive,
     selectedServices,
     selectedStaff,
     selectedSecondaryStaff,
@@ -408,6 +409,7 @@ function DateTimeStep({
     minAdvanceMinutes,
 }: {
     companyId: number;
+    isActive: boolean;
     selectedServices: SelectedService[];
     selectedStaff: SelectedStaff | null;
     selectedSecondaryStaff: SelectedStaff | null;
@@ -433,10 +435,19 @@ function DateTimeStep({
     const [selectedHour, setSelectedHour] = useState<number | null>(null);
     const hasLoadedDates = React.useRef(false);
     const prefillSlotAppliedRef = React.useRef(false);
+    const activeSlotsRequestKeyRef = React.useRef<string | null>(null);
+    const completedSlotsRequestKeyRef = React.useRef<string | null>(null);
     const api = useApi();
+    const selectedServiceIds = useMemo(
+        () => selectedServices.map((service) => service.id).join(","),
+        [selectedServices],
+    );
+    const selectedStaffId = selectedStaff?.id === "any" ? "" : selectedStaff?.id ?? "";
+    const selectedSecondaryStaffId = selectedSecondaryStaff?.id ?? "";
 
     // Fetch available dates on mount (only once)
     React.useEffect(() => {
+        if (!isActive) return;
         if (hasLoadedDates.current) return;
 
         const fetchAvailableDates = async () => {
@@ -471,7 +482,7 @@ function DateTimeStep({
         };
 
         void fetchAvailableDates();
-    }, [companyId, api, onSelectDate, selectedDate]);
+    }, [companyId, api, isActive, maxAdvanceDays, onSelectDate, selectedDate]);
 
     const dateOptions = useMemo(() => {
         const locale = typeof navigator !== "undefined" ? navigator.language : "en-US";
@@ -513,20 +524,36 @@ function DateTimeStep({
 
     // Fetch available slots when date changes
     React.useEffect(() => {
-        const fetchSlots = async () => {
-            if (!selectedDate || selectedServices.length === 0) return;
+        if (!isActive || !selectedDate || selectedServiceIds.length === 0) return;
 
+        const requestKey = [
+            companyId,
+            selectedDate,
+            selectedServiceIds,
+            selectedStaffId,
+            selectedSecondaryStaffId,
+            minAdvanceMinutes ?? "",
+        ].join("|");
+
+        if (
+            activeSlotsRequestKeyRef.current === requestKey ||
+            completedSlotsRequestKeyRef.current === requestKey
+        ) {
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const fetchSlots = async () => {
+            activeSlotsRequestKeyRef.current = requestKey;
             setLoadingSlots(true);
             setSlotsError(null);
             setSlots([]);
 
             try {
-                const serviceIds = selectedServices.map((s) => s.id).join(",");
-                const staffId = selectedStaff?.id === "any" ? "" : selectedStaff?.id;
-                const secondaryStaffId = selectedSecondaryStaff?.id;
-
                 const response = await api.get<{ data: TimeSlot[] }>(
-                    `/booking/slots?company_id=${companyId}&date=${selectedDate}&service_ids=${serviceIds}${staffId ? `&staff_id=${staffId}` : ""}${secondaryStaffId ? `&secondary_staff_id=${secondaryStaffId}` : ""}`
+                    `/booking/slots?company_id=${companyId}&date=${selectedDate}&service_ids=${selectedServiceIds}${selectedStaffId ? `&staff_id=${selectedStaffId}` : ""}${selectedSecondaryStaffId ? `&secondary_staff_id=${selectedSecondaryStaffId}` : ""}`,
+                    { signal: controller.signal },
                 );
 
                 let fetchedSlots = response.data || [];
@@ -546,14 +573,35 @@ function DateTimeStep({
 
                 setSlots(fetchedSlots);
             } catch (err) {
+                if (controller.signal.aborted) return;
                 setSlotsError(err instanceof Error ? err.message : "Unable to load available times. Please try again.");
             } finally {
+                if (!controller.signal.aborted) {
+                    completedSlotsRequestKeyRef.current = requestKey;
+                }
+                if (activeSlotsRequestKeyRef.current === requestKey) {
+                    activeSlotsRequestKeyRef.current = null;
+                }
+                if (controller.signal.aborted) return;
                 setLoadingSlots(false);
             }
         };
 
         void fetchSlots();
-    }, [selectedDate, selectedServices, selectedStaff, companyId, api, minAdvanceMinutes]);
+
+        return () => {
+            controller.abort();
+        };
+    }, [
+        api,
+        companyId,
+        isActive,
+        minAdvanceMinutes,
+        selectedDate,
+        selectedSecondaryStaffId,
+        selectedServiceIds,
+        selectedStaffId,
+    ]);
 
     const availableHours = useMemo(() => {
         const unique = new Set<number>();
@@ -1214,24 +1262,30 @@ export default function BookingPage() {
     ]);
 
     // Convert shop services to SelectedService format
-    const selectableServices: SelectedService[] = services.map((s) => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        price_cents: s.price_cents,
-        duration_minutes: s.duration_minutes,
-        category_id: s.category_id,
-        required_resource_ids: s.required_resource_ids ?? [],
-    }));
+    const selectableServices: SelectedService[] = useMemo(
+        () => services.map((s) => ({
+            id: s.id,
+            name: s.name,
+            description: s.description,
+            price_cents: s.price_cents,
+            duration_minutes: s.duration_minutes,
+            category_id: s.category_id,
+            required_resource_ids: s.required_resource_ids ?? [],
+        })),
+        [services],
+    );
 
     // Convert shop staff to SelectedStaff format
-    const selectableStaff: SelectedStaff[] = staff.map((s) => ({
-        id: s.id,
-        display_name: s.display_name,
-        image_url: s.image_url,
-        services: s.services,
-        resource_type: s.resource_type,
-    }));
+    const selectableStaff: SelectedStaff[] = useMemo(
+        () => staff.map((s) => ({
+            id: s.id,
+            display_name: s.display_name,
+            image_url: s.image_url,
+            services: s.services,
+            resource_type: s.resource_type,
+        })),
+        [staff],
+    );
 
     // In service-first mode: filter staff based on selected services
     const filteredStaff = useMemo(() => {
@@ -1422,7 +1476,7 @@ export default function BookingPage() {
     ]);
 
     // Handlers
-    const toggleService = (service: SelectedService) => {
+    const toggleService = React.useCallback((service: SelectedService) => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setBooking((prev) => {
             const exists = prev.services.find((s) => s.id === service.id);
@@ -1433,16 +1487,16 @@ export default function BookingPage() {
                     : [...prev.services, service],
             };
         });
-    };
+    }, [isMarketplaceSource]);
 
-    const selectStaff = (staff: SelectedStaff) => {
+    const selectStaff = React.useCallback((staff: SelectedStaff) => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setBooking((prev) => ({ ...prev, staff, slot: null }));
-    };
+    }, [isMarketplaceSource]);
 
-    const selectSlot = (slot: SelectedSlot) => {
+    const selectSlot = React.useCallback((slot: SelectedSlot) => {
         setBooking((prev) => ({ ...prev, slot }));
-    };
+    }, []);
 
     const nextStep = () => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
@@ -1870,9 +1924,10 @@ export default function BookingPage() {
                         />
                     )}
                 </div>
-                <div style={{ display: booking.step === 3 ? 'block' : 'none' }}>
+                {booking.step === 3 && (
                     <DateTimeStep
                         companyId={company.id}
+                        isActive={booking.step === 3}
                         selectedServices={booking.services}
                         selectedStaff={booking.staff}
                         selectedSecondaryStaff={booking.secondaryStaff}
@@ -1886,7 +1941,7 @@ export default function BookingPage() {
                         maxAdvanceDays={settings?.max_advance_booking_days}
                         minAdvanceMinutes={settings?.min_advance_booking_minutes}
                     />
-                </div>
+                )}
                 {booking.step === 4 && (
                     <ConfirmStep
                         booking={booking}
