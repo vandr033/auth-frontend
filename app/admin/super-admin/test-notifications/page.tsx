@@ -124,7 +124,7 @@ export default function SuperAdminTestNotificationsPage() {
                 <Card className="border-slate-200">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
-                            <Mail className="h-4 w-4 text-brand" />
+                            <Mail className="h-4 w-4 text-admin-brand" />
                             {t("superAdminTestNotifications.emailCardTitle")}
                         </CardTitle>
                         <CardDescription>{t("superAdminTestNotifications.emailCardDescription")}</CardDescription>
@@ -183,7 +183,7 @@ export default function SuperAdminTestNotificationsPage() {
                 <Card className="border-slate-200">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
-                            <MessageCircle className="h-4 w-4 text-brand" />
+                            <MessageCircle className="h-4 w-4 text-admin-brand" />
                             {t("superAdminTestNotifications.whatsappCardTitle")}
                         </CardTitle>
                         <CardDescription>{t("superAdminTestNotifications.whatsappCardDescription")}</CardDescription>

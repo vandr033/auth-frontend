@@ -57,7 +57,7 @@ export function GroupReservationsTabs() {
                             className={cn(
                                 "inline-flex min-h-10 items-center rounded-xl border px-3 py-2 text-sm font-medium shadow-sm transition-colors",
                                 isActive
-                                    ? "border-brand bg-brand text-white shadow-sm"
+                                    ? "border-admin-brand bg-admin-brand text-white shadow-sm"
                                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900",
                             )}
                         >

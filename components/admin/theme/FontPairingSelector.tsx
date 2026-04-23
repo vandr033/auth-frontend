@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { fontPairingMap } from "@/utils/themepicker";
+import { useT } from "@/lib/i18n";
 
 interface FontPairingSelectorProps {
     selected: string;
@@ -12,42 +13,44 @@ interface FontPairingSelectorProps {
 const pairings = [
     {
         value: "classic",
-        label: "Classic",
+        labelKey: "adminTheme.fontPairingClassicLabel",
         description: "Playfair Display + Inter",
-        sampleHeading: "Elegant Style",
-        sampleBody: "Timeless serif headings with clean sans-serif body text.",
+        sampleHeadingKey: "adminTheme.fontPairingClassicHeading",
+        sampleBodyKey: "adminTheme.fontPairingClassicBody",
     },
     {
         value: "modern",
-        label: "Modern",
+        labelKey: "adminTheme.fontPairingModernLabel",
         description: "Space Grotesk + DM Sans",
-        sampleHeading: "Sharp & Clean",
-        sampleBody: "Geometric headings with a contemporary feel.",
+        sampleHeadingKey: "adminTheme.fontPairingModernHeading",
+        sampleBodyKey: "adminTheme.fontPairingModernBody",
     },
     {
         value: "bold",
-        label: "Bold",
+        labelKey: "adminTheme.fontPairingBoldLabel",
         description: "Bebas Neue + Roboto",
-        sampleHeading: "MAKE A STATEMENT",
-        sampleBody: "High-impact condensed headings with reliable body text.",
+        sampleHeadingKey: "adminTheme.fontPairingBoldHeading",
+        sampleBodyKey: "adminTheme.fontPairingBoldBody",
     },
     {
         value: "refined",
-        label: "Refined",
+        labelKey: "adminTheme.fontPairingRefinedLabel",
         description: "Cormorant Garamond + Lato",
-        sampleHeading: "Luxury Feel",
-        sampleBody: "Sophisticated serif headings with elegant proportions.",
+        sampleHeadingKey: "adminTheme.fontPairingRefinedHeading",
+        sampleBodyKey: "adminTheme.fontPairingRefinedBody",
     },
     {
         value: "friendly",
-        label: "Friendly",
+        labelKey: "adminTheme.fontPairingFriendlyLabel",
         description: "Nunito + Nunito Sans",
-        sampleHeading: "Warm & Inviting",
-        sampleBody: "Rounded, approachable fonts for a welcoming vibe.",
+        sampleHeadingKey: "adminTheme.fontPairingFriendlyHeading",
+        sampleBodyKey: "adminTheme.fontPairingFriendlyBody",
     },
 ];
 
 export function FontPairingSelector({ selected, onChange }: FontPairingSelectorProps) {
+    const t = useT();
+
     return (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {pairings.map((pairing) => {
@@ -61,12 +64,12 @@ export function FontPairingSelector({ selected, onChange }: FontPairingSelectorP
                         className={cn(
                             "relative flex flex-col gap-2 rounded-xl border-2 p-4 text-left transition-all",
                             isSelected
-                                ? "border-brand bg-brand/5 shadow-sm"
-                                : "border-surface-border hover:border-brand/40"
+                                ? "border-admin-brand bg-admin-brand-soft shadow-sm"
+                                : "border-surface-border hover:border-admin-brand/40"
                         )}
                     >
                         {isSelected && (
-                            <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white">
+                            <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-admin-brand text-white">
                                 <Check className="h-3 w-3" />
                             </div>
                         )}
@@ -75,21 +78,21 @@ export function FontPairingSelector({ selected, onChange }: FontPairingSelectorP
                                 className="text-lg font-bold text-text-main leading-tight"
                                 style={{ fontFamily: fonts?.heading }}
                             >
-                                {pairing.sampleHeading}
+                                {t(pairing.sampleHeadingKey)}
                             </p>
                             <p
                                 className="text-xs text-text-muted"
                                 style={{ fontFamily: fonts?.body }}
                             >
-                                {pairing.sampleBody}
+                                {t(pairing.sampleBodyKey)}
                             </p>
                         </div>
                         <div className="mt-auto pt-2 border-t border-surface-border">
                             <p className={cn(
                                 "text-xs font-semibold",
-                                isSelected ? "text-brand" : "text-text-main"
+                                isSelected ? "text-admin-brand" : "text-text-main"
                             )}>
-                                {pairing.label}
+                                {t(pairing.labelKey)}
                             </p>
                             <p className="text-[10px] text-text-muted">{pairing.description}</p>
                         </div>

@@ -94,6 +94,28 @@
 
   --shadow-card: 0 18px 30px rgba(15, 23, 42, 0.08);
 
+  /* Canonical admin system */
+  --admin-brand: #e73886;
+  --admin-brand-hover: #c92870;
+  --admin-brand-soft: #fdf2f8;
+  --admin-brand-soft-text: #b91764;
+  --admin-page-bg: #f6f4f7;
+  --admin-surface: #fffafd;
+  --admin-surface-subtle: #faf7fb;
+  --admin-border: rgba(148, 33, 91, 0.13);
+  --admin-border-strong: rgba(148, 33, 91, 0.2);
+  --admin-shadow-card: 0 14px 32px rgba(69, 12, 42, 0.07);
+  --admin-shadow-lift: 0 20px 44px rgba(69, 12, 42, 0.12);
+  --admin-sidebar-bg: #121018;
+  --admin-sidebar-panel: #191521;
+  --admin-sidebar-hover: #211a2a;
+  --admin-sidebar-active: #2a1d2b;
+  --admin-sidebar-border: rgba(255, 209, 231, 0.1);
+  --admin-sidebar-text: #f7eef4;
+  --admin-sidebar-muted: #a99ba6;
+  --admin-sidebar-scrollbar: rgba(231, 56, 134, 0.45);
+  --admin-sidebar-scrollbar-hover: rgba(231, 56, 134, 0.68);
+
   --radius-sm: 0.25rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
@@ -188,5 +210,92 @@ html {
   body {
     @apply bg-page text-text-main;
     font-family: var(--font-family-base, var(--font-geist-sans, system-ui, sans-serif));
+  }
+}
+
+@layer components {
+  .admin-card {
+    @apply rounded-lg border border-admin-border bg-admin-surface shadow-admin;
+  }
+
+  .admin-textarea {
+    @apply w-full rounded-md border border-admin-border bg-admin-surface px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .admin-sticky-actions {
+    @apply border-admin-border bg-admin-surface/95 shadow-admin-lift backdrop-blur supports-[backdrop-filter]:bg-admin-surface/85;
+  }
+
+  .admin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 33, 91, 0.28) transparent;
+  }
+
+  .admin-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .admin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .admin-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(148, 33, 91, 0.24);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+
+  .admin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 33, 91, 0.38);
+    background-clip: content-box;
+  }
+
+  .admin-sidebar-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--admin-sidebar-scrollbar) var(--admin-sidebar-bg);
+    background: var(--admin-sidebar-bg);
+    /* Reserve space for scrollbars so the sidebar background shows behind them */
+    scrollbar-gutter: stable both-edges;
+    padding-right: 6px;
+    position: relative;
+  }
+
+  .admin-sidebar-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .admin-sidebar-scrollbar::-webkit-scrollbar-track {
+    background: var(--admin-sidebar-bg);
+  }
+
+  .admin-sidebar-scrollbar::-webkit-scrollbar-corner {
+    background: var(--admin-sidebar-bg);
+  }
+
+  /* Safari workaround: draw a background strip at the right edge so
+     overlay scrollbars or inconsistent track rendering never reveal
+     the page background behind the admin sidebar. */
+  .admin-sidebar-scrollbar::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 14px;
+    height: 100%;
+    background: var(--admin-sidebar-bg);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .admin-sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--admin-sidebar-scrollbar);
+    border: 3px solid var(--admin-sidebar-bg);
+    border-radius: 999px;
+  }
+
+  .admin-sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--admin-sidebar-scrollbar-hover);
   }
 }

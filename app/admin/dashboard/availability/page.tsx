@@ -1,44 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2, Check, X } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Clock3, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
-import { useI18n, useT } from "@/lib/i18n";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
+import { AdminPageHeader, AdminPageShell, ConfirmDialog } from "@/components/admin/shared";
+import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { canUsePlanFeature, getRequiredPlanForFeature, resolveShopPlan } from "@/lib/plans/capabilities";
-import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import {
-    StaffMember,
     StaffAvailabilitySlot,
-    StaffTimeOffRequest,
-    StaffTimeOffStatus,
+    StaffMember,
+    assignStaffAvailabilityFromStoreHours,
+    getMyStaffAvailability,
     getStaff,
     getStaffAvailability,
-    getMyStaffAvailability,
     saveStaffAvailability,
-    listTimeOffRequests,
-    createTimeOffRequest,
-    reviewTimeOffRequest,
-    cancelTimeOffRequest,
 } from "@/app/admin/lib/adminApi";
-
-function statusVariant(status: StaffTimeOffStatus): "default" | "secondary" | "destructive" | "outline" {
-    if (status === "APPROVED") return "default";
-    if (status === "REJECTED") return "destructive";
-    if (status === "CANCELLED") return "outline";
-    return "secondary";
-}
 
 export default function AvailabilityPage() {
     const { role, isAuthenticated, companyUser, user } = useAdminAuth();
-    const { locale } = useI18n();
     const t = useT();
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
     const isStaff = role === "STAFF";
@@ -48,18 +36,12 @@ export default function AvailabilityPage() {
 
     const [loading, setLoading] = useState(true);
     const [savingSchedule, setSavingSchedule] = useState(false);
-    const [submittingRequest, setSubmittingRequest] = useState(false);
-
+    const [autoAssigning, setAutoAssigning] = useState(false);
+    const [confirmAutoAssignOpen, setConfirmAutoAssignOpen] = useState(false);
     const [staffList, setStaffList] = useState<StaffMember[]>([]);
     const [selectedStaffId, setSelectedStaffId] = useState<string>("ALL");
     const [slots, setSlots] = useState<StaffAvailabilitySlot[]>([]);
-    const [requests, setRequests] = useState<StaffTimeOffRequest[]>([]);
-    const [statusFilter, setStatusFilter] = useState<StaffTimeOffStatus | "ALL">("ALL");
-    const [requestStaffFilter, setRequestStaffFilter] = useState<string>("ALL");
 
-    const [startsAt, setStartsAt] = useState("");
-    const [endsAt, setEndsAt] = useState("");
-    const [reason, setReason] = useState("");
     const days = useMemo(
         () => [
             { value: 0, label: t("adminHours.sunday") },
@@ -73,22 +55,16 @@ export default function AvailabilityPage() {
         [t],
     );
 
-    const getStatusLabel = useCallback(
-        (status: StaffTimeOffStatus | "ALL") => {
-            if (status === "ALL") return t("adminAvailability.all");
-            if (status === "PENDING") return t("adminAvailability.pending");
-            if (status === "APPROVED") return t("adminAvailability.approved");
-            if (status === "REJECTED") return t("adminAvailability.rejected");
-            return t("adminAvailability.cancelled");
-        },
-        [t],
-    );
-
     const selectedStaffNumericId = useMemo(() => {
         if (selectedStaffId === "ALL") return null;
         const n = parseInt(selectedStaffId, 10);
         return Number.isNaN(n) ? null : n;
     }, [selectedStaffId]);
+
+    const selectedStaff = useMemo(
+        () => staffList.find((staff) => staff.id === selectedStaffNumericId) || null,
+        [staffList, selectedStaffNumericId],
+    );
 
     const loadSchedule = useCallback(async () => {
         if (!isAuthenticated || !role) return;
@@ -109,18 +85,6 @@ export default function AvailabilityPage() {
         }
     }, [isAuthenticated, role, isOwnerOrAdmin, isStaff, selectedStaffNumericId]);
 
-    const loadRequests = useCallback(async () => {
-        if (!isAuthenticated || !role) return;
-
-        const params: { status?: StaffTimeOffStatus; staff_id?: number } = {};
-        if (statusFilter !== "ALL") params.status = statusFilter;
-        if (isOwnerOrAdmin && requestStaffFilter !== "ALL") {
-            params.staff_id = parseInt(requestStaffFilter, 10);
-        }
-        const data = await listTimeOffRequests(params);
-        setRequests(data);
-    }, [isAuthenticated, role, statusFilter, isOwnerOrAdmin, requestStaffFilter]);
-
     const loadInitial = useCallback(async () => {
         if (!isAuthenticated || !role) return;
 
@@ -131,7 +95,6 @@ export default function AvailabilityPage() {
                 setStaffList(staff);
                 if (staff.length > 0) {
                     setSelectedStaffId(String(staff[0].id));
-                    setRequestStaffFilter("ALL");
                 }
             }
         } catch (err) {
@@ -152,14 +115,6 @@ export default function AvailabilityPage() {
             );
         }
     }, [loading, loadSchedule, t]);
-
-    useEffect(() => {
-        if (!loading) {
-            void loadRequests().catch((err) =>
-                notify.error(err instanceof Error ? err.message : t("adminAvailability.loadRequestsError")),
-            );
-        }
-    }, [loading, loadRequests, t]);
 
     const addSlot = (dayOfWeek: number) => {
         setSlots((prev) => [
@@ -197,51 +152,37 @@ export default function AvailabilityPage() {
         }
     };
 
-    const submitTimeOff = async () => {
-        if (!startsAt || !endsAt) {
-            void notify.warning(t("adminAvailability.dateTimeRequired"));
+    const runAutoAssign = async (overwrite: boolean) => {
+        if (!selectedStaffNumericId) {
+            void notify.warning(t("adminAvailability.selectStaffFirst"));
             return;
         }
-        setSubmittingRequest(true);
+
+        setAutoAssigning(true);
         try {
-            await createTimeOffRequest({
-                starts_at: new Date(startsAt).toISOString(),
-                ends_at: new Date(endsAt).toISOString(),
-                reason: reason.trim() || undefined,
-                ...(isOwnerOrAdmin && selectedStaffNumericId ? { staff_id: selectedStaffNumericId } : {}),
-            });
-            setStartsAt("");
-            setEndsAt("");
-            setReason("");
-            await notify.success(t("adminAvailability.requestSubmitted"));
-            await loadRequests();
+            const data = await assignStaffAvailabilityFromStoreHours(selectedStaffNumericId, overwrite);
+            setSlots(data.slots || []);
+            setConfirmAutoAssignOpen(false);
+            await notify.success(t("adminAvailability.autoAssignSuccess"));
         } catch (err) {
-            await notify.error(err instanceof Error ? err.message : t("adminAvailability.submitRequestError"));
+            await notify.error(err instanceof Error ? err.message : t("adminAvailability.autoAssignError"));
         } finally {
-            setSubmittingRequest(false);
+            setAutoAssigning(false);
         }
     };
 
-    const handleReview = async (requestId: number, status: "APPROVED" | "REJECTED") => {
-        try {
-            await reviewTimeOffRequest(requestId, { status });
-            await notify.success(
-                t("adminAvailability.requestReviewed", { status: getStatusLabel(status).toLowerCase() }),
-            );
-            await loadRequests();
-        } catch (err) {
-            await notify.error(err instanceof Error ? err.message : t("adminAvailability.reviewRequestError"));
+    const handleAutoAssign = () => {
+        if (!selectedStaffNumericId) {
+            void notify.warning(t("adminAvailability.selectStaffFirst"));
+            return;
         }
-    };
 
-    const handleCancel = async (requestId: number) => {
-        try {
-            await cancelTimeOffRequest(requestId);
-            await notify.success(t("adminAvailability.requestCancelled"));
-            await loadRequests();
-        } catch (err) {
-            await notify.error(err instanceof Error ? err.message : t("adminAvailability.cancelRequestError"));
+        if (slots.length > 0) {
+            setConfirmAutoAssignOpen(true);
+            return;
         }
+
+        void runAutoAssign(false);
     };
 
     if (!isAuthenticated || !role) {
@@ -251,8 +192,8 @@ export default function AvailabilityPage() {
     if (!canUseAvailability) {
         const requiredPlan = getRequiredPlanForFeature(availabilityFeature);
         return (
-            <div className="space-y-4">
-                <h1 className="text-2xl font-bold text-slate-900">{t("adminNav.availability")}</h1>
+            <AdminPageShell>
+                <AdminPageHeader title={t("adminNav.availability")} />
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={
@@ -265,192 +206,64 @@ export default function AvailabilityPage() {
                     requiredPlan={requiredPlan}
                     fullPage
                 />
-            </div>
+            </AdminPageShell>
         );
     }
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            <div className="flex h-64 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 pb-24 md:pb-0">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">{t("adminAvailability.title")}</h1>
-                <p className="text-slate-500">
-                    {isOwnerOrAdmin
-                        ? t("adminAvailability.subtitleOwnerAdmin")
-                        : t("adminAvailability.subtitleStaff")}
-                </p>
-            </div>
+        <AdminPageShell className="pb-24 md:pb-0">
+            <AdminPageHeader
+                title={t("adminAvailability.title")}
+                subtitle={isOwnerOrAdmin ? t("adminAvailability.subtitleOwnerAdmin") : t("adminAvailability.subtitleStaff")}
+                actions={
+                    isOwnerOrAdmin ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleAutoAssign}
+                            disabled={!selectedStaffNumericId || autoAssigning || staffList.length === 0}
+                        >
+                            {autoAssigning ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="h-4 w-4" />
+                            )}
+                            {t("adminAvailability.autoAssignStoreAvailability")}
+                        </Button>
+                    ) : null
+                }
+            />
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>
-                        {isOwnerOrAdmin ? t("adminAvailability.staffWeeklySchedule") : t("adminAvailability.myWeeklySchedule")}
-                    </CardTitle>
-                    <CardDescription>
-                        {t("adminAvailability.scheduleDescription")}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {isOwnerOrAdmin && (
-                        <div className="max-w-sm space-y-2">
-                            <Label>{t("adminAvailability.staffMember")}</Label>
-                            <Select
-                                value={selectedStaffId}
-                                onValueChange={(value) => {
-                                    setSelectedStaffId(value);
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder={t("adminAvailability.selectStaff")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {staffList.map((staff) => (
-                                        <SelectItem key={staff.id} value={String(staff.id)}>
-                                            {staff.display_name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+            <Card className="admin-card">
+                <CardHeader className="gap-3 pb-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="space-y-1">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <Clock3 className="h-4 w-4 text-admin-brand" />
+                                {isOwnerOrAdmin
+                                    ? t("adminAvailability.staffWeeklySchedule")
+                                    : t("adminAvailability.myWeeklySchedule")}
+                            </CardTitle>
+                            <CardDescription className="max-w-3xl">
+                                {t("adminAvailability.scheduleDescription")}
+                            </CardDescription>
                         </div>
-                    )}
-
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        {days.map((day) => {
-                            const daySlots = slots
-                                .map((slot, index) => ({ slot, index }))
-                                .filter((entry) => entry.slot.day_of_week === day.value);
-
-                            return (
-                                <Card key={day.value} className="border-slate-200">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-base">{day.label}</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        {daySlots.length === 0 && (
-                                            <p className="text-sm text-slate-500">{t("adminAvailability.noSlotsConfigured")}</p>
-                                        )}
-                                        {daySlots.map(({ slot, index }) => (
-                                            <div key={`${day.value}-${index}`} className="flex items-center gap-2">
-                                                <Input
-                                                    type="time"
-                                                    value={slot.start_time}
-                                                    onChange={(e) => updateSlot(index, "start_time", e.target.value)}
-                                                    disabled={!isOwnerOrAdmin}
-                                                />
-                                                <span className="text-slate-500 text-sm">{t("adminAvailability.to")}</span>
-                                                <Input
-                                                    type="time"
-                                                    value={slot.end_time}
-                                                    onChange={(e) => updateSlot(index, "end_time", e.target.value)}
-                                                    disabled={!isOwnerOrAdmin}
-                                                />
-                                                {isOwnerOrAdmin && (
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() => removeSlot(index)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        ))}
-                                        {isOwnerOrAdmin && (
-                                            <Button type="button" variant="outline" size="sm" onClick={() => addSlot(day.value)}>
-                                                <Plus className="h-4 w-4 mr-1" />
-                                                {t("adminAvailability.addSlot")}
-                                            </Button>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
-                    </div>
-
-                </CardContent>
-            </Card>
-
-            {isOwnerOrAdmin && (
-                <>
-                    <StickyFormActions
-                        onSave={saveSchedule}
-                        loading={savingSchedule}
-                        saveLabel={t("adminAvailability.saveSchedule")}
-                        loadingLabel={t("adminAvailability.saveSchedule")}
-                        saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
-                    />
-                </>
-            )}
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{isOwnerOrAdmin ? t("adminAvailability.timeOffManagement") : t("adminAvailability.myTimeOffRequests")}</CardTitle>
-                    <CardDescription>
-                        {isOwnerOrAdmin
-                            ? t("adminAvailability.timeOffOwnerDescription")
-                            : t("adminAvailability.timeOffStaffDescription")}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label>{t("adminAvailability.startsAt")}</Label>
-                            <Input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminAvailability.endsAt")}</Label>
-                            <Input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>{t("adminAvailability.reasonOptional")}</Label>
-                        <Input
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            placeholder={t("adminAvailability.reasonPlaceholder")}
-                        />
-                    </div>
-                    <StickyFormActions
-                        onSave={submitTimeOff}
-                        loading={submittingRequest}
-                        saveLabel={t("adminAvailability.submitRequest")}
-                        loadingLabel={t("adminAvailability.submitRequest")}
-                        saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
-                    />
-
-                    <div className="flex flex-wrap gap-3 pt-4 border-t">
-                        <div className="w-[180px]">
-                            <Label className="text-xs">{t("adminAvailability.status")}</Label>
-                            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StaffTimeOffStatus | "ALL")}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">{t("adminAvailability.all")}</SelectItem>
-                                    <SelectItem value="PENDING">{t("adminAvailability.pending")}</SelectItem>
-                                    <SelectItem value="APPROVED">{t("adminAvailability.approved")}</SelectItem>
-                                    <SelectItem value="REJECTED">{t("adminAvailability.rejected")}</SelectItem>
-                                    <SelectItem value="CANCELLED">{t("adminAvailability.cancelled")}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        {isOwnerOrAdmin && (
-                            <div className="w-[220px]">
-                                <Label className="text-xs">{t("adminAvailability.staff")}</Label>
-                                <Select value={requestStaffFilter} onValueChange={setRequestStaffFilter}>
+                        {isOwnerOrAdmin ? (
+                            <div className="w-full max-w-sm space-y-2">
+                                <Label>{t("adminAvailability.staffMember")}</Label>
+                                <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
                                     <SelectTrigger>
-                                        <SelectValue />
+                                        <SelectValue placeholder={t("adminAvailability.selectStaff")} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="ALL">{t("adminAvailability.allStaff")}</SelectItem>
                                         {staffList.map((staff) => (
                                             <SelectItem key={staff.id} value={String(staff.id)}>
                                                 {staff.display_name}
@@ -459,66 +272,131 @@ export default function AvailabilityPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                        )}
+                        ) : null}
                     </div>
+                    {isOwnerOrAdmin ? (
+                        <p className="text-xs text-slate-500">{t("adminAvailability.autoAssignDescription")}</p>
+                    ) : null}
+                </CardHeader>
+                <CardContent>
+                    {isOwnerOrAdmin && staffList.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-admin-border bg-admin-surface-subtle p-6 text-sm text-slate-500">
+                            {t("adminAvailability.noStaffMembers")}
+                        </div>
+                    ) : (
+                        <div className="grid gap-3 xl:grid-cols-2">
+                            {days.map((day) => {
+                                const daySlots = slots
+                                    .map((slot, index) => ({ slot, index }))
+                                    .filter((entry) => entry.slot.day_of_week === day.value);
 
-                    <div className="space-y-3">
-                        {requests.length === 0 && (
-                            <p className="text-sm text-slate-500">{t("adminAvailability.noRequestsFound")}</p>
-                        )}
-                        {requests.map((request) => (
-                            <Card key={request.id} className="border-slate-200">
-                                <CardContent className="pt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-medium text-slate-900">
-                                                {request.staff?.display_name || t("adminAvailability.staffFallback")}
-                                            </p>
-                                            <Badge variant={statusVariant(request.status)}>{getStatusLabel(request.status)}</Badge>
+                                return (
+                                    <section
+                                        key={day.value}
+                                        className="rounded-lg border border-admin-border bg-admin-surface-subtle p-3"
+                                    >
+                                        <div className="mb-3 flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <h2 className="text-sm font-semibold text-slate-900">{day.label}</h2>
+                                                <p className="text-xs text-slate-500">
+                                                    {daySlots.length > 0
+                                                        ? t("adminAvailability.dayOpen", { count: daySlots.length })
+                                                        : t("adminAvailability.dayClosed")}
+                                                </p>
+                                            </div>
+                                            <Badge variant={daySlots.length > 0 ? "secondary" : "outline"}>
+                                                {daySlots.length > 0 ? daySlots.length : 0}
+                                            </Badge>
                                         </div>
-                                        <p className="text-sm text-slate-600">
-                                            {new Date(request.starts_at).toLocaleString(locale)} {t("adminAvailability.to")}{" "}
-                                            {new Date(request.ends_at).toLocaleString(locale)}
-                                        </p>
-                                        <p className="text-sm text-slate-500">{request.reason || t("adminAvailability.noReasonProvided")}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {isOwnerOrAdmin && request.status === "PENDING" && (
-                                            <>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => handleReview(request.id, "APPROVED")}
+
+                                        <div className="space-y-2">
+                                            {daySlots.length === 0 ? (
+                                                <p className="rounded-md border border-dashed border-slate-200 bg-white/60 px-3 py-2 text-sm text-slate-500">
+                                                    {t("adminAvailability.noSlotsConfigured")}
+                                                </p>
+                                            ) : null}
+
+                                            {daySlots.map(({ slot, index }) => (
+                                                <div
+                                                    key={`${day.value}-${index}`}
+                                                    className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2"
                                                 >
-                                                    <Check className="h-4 w-4 mr-1" />
-                                                    {t("adminAvailability.approve")}
-                                                </Button>
+                                                    <Input
+                                                        type="time"
+                                                        value={slot.start_time}
+                                                        onChange={(e) => updateSlot(index, "start_time", e.target.value)}
+                                                        disabled={!isOwnerOrAdmin}
+                                                        className="h-10"
+                                                        aria-label={`${day.label} ${t("adminHours.open")}`}
+                                                    />
+                                                    <span className="text-xs text-slate-500">{t("adminAvailability.to")}</span>
+                                                    <Input
+                                                        type="time"
+                                                        value={slot.end_time}
+                                                        onChange={(e) => updateSlot(index, "end_time", e.target.value)}
+                                                        disabled={!isOwnerOrAdmin}
+                                                        className="h-10"
+                                                        aria-label={`${day.label} ${t("adminHours.close")}`}
+                                                    />
+                                                    {isOwnerOrAdmin ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            onClick={() => removeSlot(index)}
+                                                            aria-label={t("common.delete")}
+                                                            className="text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="h-8 w-8" aria-hidden="true" />
+                                                    )}
+                                                </div>
+                                            ))}
+
+                                            {isOwnerOrAdmin ? (
                                                 <Button
-                                                    size="sm"
+                                                    type="button"
                                                     variant="outline"
-                                                    onClick={() => handleReview(request.id, "REJECTED")}
+                                                    size="sm"
+                                                    onClick={() => addSlot(day.value)}
+                                                    className="mt-1 w-full sm:w-auto"
                                                 >
-                                                    <X className="h-4 w-4 mr-1" />
-                                                    {t("adminAvailability.reject")}
+                                                    <Plus className="h-4 w-4" />
+                                                    {t("adminAvailability.addSlot")}
                                                 </Button>
-                                            </>
-                                        )}
-                                        {(request.status === "PENDING" || request.status === "APPROVED") && (
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() => handleCancel(request.id)}
-                                            >
-                                                {t("adminAvailability.cancel")}
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                                            ) : null}
+                                        </div>
+                                    </section>
+                                );
+                            })}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
-        </div>
+
+            {isOwnerOrAdmin ? (
+                <StickyFormActions
+                    onSave={saveSchedule}
+                    loading={savingSchedule}
+                    disabled={!selectedStaff || staffList.length === 0}
+                    saveLabel={t("adminAvailability.saveSchedule")}
+                    loadingLabel={t("adminAvailability.saveSchedule")}
+                    saveClassName="bg-admin-brand text-white hover:bg-admin-brand-hover"
+                />
+            ) : null}
+
+            <ConfirmDialog
+                open={confirmAutoAssignOpen}
+                onOpenChange={setConfirmAutoAssignOpen}
+                title={t("adminAvailability.autoAssignConfirmTitle")}
+                description={t("adminAvailability.autoAssignConfirmDescription")}
+                confirmLabel={t("adminAvailability.autoAssignConfirmAction")}
+                cancelLabel={t("common.cancel")}
+                loading={autoAssigning}
+                onConfirm={() => runAutoAssign(true)}
+            />
+        </AdminPageShell>
     );
 }

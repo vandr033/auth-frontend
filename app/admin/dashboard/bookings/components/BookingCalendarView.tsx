@@ -29,7 +29,7 @@ const STAFF_COLORS = [
     { bg: "bg-rose-100", text: "text-rose-800", border: "border-rose-200", dot: "bg-rose-500" },
     { bg: "bg-cyan-100", text: "text-cyan-800", border: "border-cyan-200", dot: "bg-cyan-500" },
     { bg: "bg-indigo-100", text: "text-indigo-800", border: "border-indigo-200", dot: "bg-indigo-500" },
-    { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-200", dot: "bg-orange-500" },
+    { bg: "bg-admin-brand-soft", text: "text-admin-brand-soft-text", border: "border-admin-border-strong", dot: "bg-admin-brand" },
 ];
 
 const STATUS_BADGES: Record<string, string> = {
@@ -218,55 +218,62 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
     const gridMinWidth = timeColumnWidth + dayCount * dayColumnMinWidth;
 
     return (
-        <div className="flex flex-col h-full border border-surface-border rounded-lg bg-surface overflow-hidden">
+        <div className="admin-card flex h-full flex-col overflow-hidden">
             {/* Staff Legend */}
             {staffLegend.length > 1 && (
-                <div className="flex items-center gap-4 px-4 py-2 bg-page/50 border-b border-surface-border flex-wrap">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-admin-border bg-admin-surface-subtle px-4 py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        {t("adminBookings.staff")}
+                    </span>
                     {staffLegend.map((staff) => (
                         <div key={staff.id} className="flex items-center gap-1.5">
                             <div className={cn("w-2.5 h-2.5 rounded-full", staff.color.dot)} />
-                            <span className="text-xs text-text-muted font-medium">{staff.name}</span>
+                            <span className="text-xs font-medium text-slate-600">{staff.name}</span>
                         </div>
                     ))}
                 </div>
             )}
 
             {/* Calendar Surface - horizontal swipe on mobile instead of squeezed columns */}
-            <div className="flex-1 min-h-0 overflow-x-auto">
+            <div className="admin-scrollbar flex-1 min-h-0 overflow-x-auto">
                 <div className="flex min-h-0 flex-col" style={{ minWidth: `${gridMinWidth}px` }}>
                     {/* Header */}
                     <div
-                        className="grid border-b border-surface-border bg-page/50"
+                        className="grid border-b border-admin-border bg-admin-surface"
                         style={{ gridTemplateColumns }}
                     >
-                        <div className="sticky left-0 z-20 border-r border-surface-border bg-page/90 px-2 py-3 text-center text-[11px] font-semibold text-text-muted backdrop-blur-sm sm:text-xs">
+                        <div className="sticky left-0 z-20 border-r border-admin-border bg-admin-surface/95 px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 backdrop-blur-sm sm:text-xs">
                             {t("adminBookings.time")}
                         </div>
                         {days.map((date) => {
                             const dayOfWeek = date.getDay();
                             const dayHours = businessHours.find(h => h.day === dayOfWeek);
                             const isDayClosed = dayHours ? !dayHours.is_open : false;
+                            const isToday = isSameDay(date, new Date());
 
                             return (
                                 <div
                                     key={date.toISOString()}
                                     className={cn(
-                                        "border-r border-surface-border px-1 py-2 text-center last:border-r-0 sm:px-2 sm:py-3",
-                                        isSameDay(date, new Date()) && "bg-brand/5",
+                                        "border-r border-admin-border px-1 py-2 text-center last:border-r-0 sm:px-2 sm:py-3",
+                                        isToday && "bg-admin-brand-soft",
                                         isDayClosed && "bg-rose-50/50"
                                     )}
                                 >
-                                    <div className="mb-1 text-[10px] font-medium uppercase text-text-muted sm:text-xs">
+                                    <div className={cn(
+                                        "mb-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 sm:text-xs",
+                                        isToday && "text-admin-brand-soft-text"
+                                    )}>
                                         {format(date, "EEE", { locale: dateFnsLocale })}
                                     </div>
                                     <div className={cn(
-                                        "mx-auto flex h-7 w-7 items-center justify-center rounded-full text-base font-bold sm:h-8 sm:w-8 sm:text-lg",
-                                        isSameDay(date, new Date()) && "bg-brand text-white"
+                                        "mx-auto flex h-8 w-8 items-center justify-center rounded-md text-base font-bold text-slate-950 sm:h-9 sm:w-9 sm:text-lg",
+                                        isToday && "bg-admin-brand text-white shadow-sm"
                                     )}>
                                         {format(date, "d")}
                                     </div>
                                     {dayCount <= 3 && (
-                                        <div className="mt-1 text-[10px] text-text-muted sm:text-xs">
+                                        <div className="mt-1 text-[10px] text-slate-500 sm:text-xs">
                                             {format(date, "MMM", { locale: dateFnsLocale })}
                                         </div>
                                     )}
@@ -283,19 +290,22 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                     {/* Grid - vertical scroll */}
                     <div
                         ref={scrollContainerRef}
-                        className="relative flex-1 overflow-y-auto bg-surface"
-                        style={{ maxHeight: "calc(100dvh - 320px)" }}
+                        className="admin-scrollbar relative flex-1 overflow-y-auto bg-admin-surface"
+                        style={{ maxHeight: "calc(100dvh - 380px)" }}
                     >
                         <div
                             className="grid min-h-[1440px]"
                             style={{ gridTemplateColumns }}
                         >
                             {/* Time Column */}
-                            <div className="sticky left-0 z-10 border-r border-surface-border bg-page/90 backdrop-blur-sm">
+                            <div className="sticky left-0 z-10 border-r border-admin-border bg-admin-surface/95 backdrop-blur-sm">
                                 {HOURS.map((hour) => (
                                     <div
                                         key={hour}
-                                        className="h-[60px] border-b border-surface-border px-2 py-2 text-right text-xs text-text-muted"
+                                        className={cn(
+                                            "h-[60px] border-b border-admin-border/70 px-2 py-2 text-right text-xs text-slate-500",
+                                            hour % 6 === 0 && "font-semibold text-slate-700"
+                                        )}
                                     >
                                         {format(new Date().setHours(hour, 0), "h a", { locale: dateFnsLocale })}
                                     </div>
@@ -325,7 +335,10 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                 return (
                                     <div
                                         key={day.toISOString()}
-                                        className="group relative border-r border-surface-border last:border-r-0"
+                                        className={cn(
+                                            "group relative border-r border-admin-border last:border-r-0",
+                                            isSameDay(day, new Date()) && "bg-admin-brand-soft/25"
+                                        )}
                                     >
                                         {/* Closed Day Overlay */}
                                         {isDayClosed && (
@@ -343,11 +356,20 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                             <div
                                                 key={hour}
                                                 className={cn(
-                                                    "h-[60px] border-b border-surface-border/50",
-                                                    !hourOpen && !isDayClosed && "bg-slate-100/50"
+                                                    "h-[60px] border-b border-admin-border/50",
+                                                    hourOpen ? "bg-white/70" : "bg-slate-50/70"
                                                 )}
                                             />
                                         );})}
+
+                                        {dayBookings.length === 0 && !isDayClosed && (
+                                            <div
+                                                className="pointer-events-none absolute left-2 right-2 flex items-center justify-center rounded-md border border-dashed border-admin-border bg-white/70 px-2 py-3 text-center text-xs font-medium text-slate-400"
+                                                style={{ top: `${Math.max(earliestOpenHour, 1) * ROW_HEIGHT}px` }}
+                                            >
+                                                {t("adminBookings.noBookingsForDay")}
+                                            </div>
+                                        )}
 
                                         {/* Bookings */}
                                         {dayBookings.map((booking) => {
@@ -359,7 +381,7 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                                     key={booking.id}
                                                     onClick={() => onBookingClick(booking)}
                                                     className={cn(
-                                                        "absolute overflow-hidden rounded-md border text-left text-xs shadow-sm transition-transform hover:z-10 hover:scale-[1.02]",
+                                                        "absolute overflow-hidden rounded-md border text-left text-xs shadow-sm ring-1 ring-white/70 transition-transform hover:z-10 hover:scale-[1.015] focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand",
                                                         compact ? "px-1.5 py-0.5" : "p-1.5",
                                                         getStaffColor(booking.staff.id)
                                                     )}

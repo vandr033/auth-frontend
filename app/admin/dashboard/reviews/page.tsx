@@ -193,7 +193,12 @@ export default function AdminReviewsPage() {
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
 
     const handleDelete = async (reviewId: number) => {
-        if (!confirm(t("adminReviews.confirmDelete"))) return;
+        const result = await notify.confirm(t("adminReviews.confirmDelete"), undefined, {
+            variant: "destructive",
+            confirmButtonText: t("common.delete"),
+            cancelButtonText: t("common.cancel"),
+        });
+        if (!result.isConfirmed) return;
         try {
             await deleteAdminReview(reviewId);
             void notify.success(t("adminReviews.deleted"));

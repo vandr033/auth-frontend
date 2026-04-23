@@ -65,7 +65,7 @@ export default function GroupReservationsOverviewPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-7 w-7 animate-spin text-brand" />
+                <Loader2 className="h-7 w-7 animate-spin text-admin-brand" />
             </div>
         );
     }

@@ -3,27 +3,26 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-    Plus,
-    Pencil,
-    Trash2,
+    CalendarClock,
+    CheckCircle2,
     Loader2,
-    Search,
-    Mail,
-    Calendar,
+    Pencil,
+    Plus,
+    RefreshCw,
+    Trash2,
+    UserRound,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,8 +40,19 @@ import { getImageUrl } from "@/utils/image-url";
 import { notify } from "@/lib/notify";
 import { canUsePlanFeature, getStaffLimitForPlan, resolveShopPlan } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import {
+    ActionMenu,
+    AdminPageHeader,
+    AdminPageShell,
+    ConfirmDialog,
+    DataTable,
+    DataToolbar,
+    EmptyState,
+    LoadingSkeleton,
+    StatusBadge,
+    StatCard,
+} from "@/components/admin/shared";
 
-// Types
 // Types
 interface Service {
     id: number;
@@ -93,6 +103,12 @@ interface StaffFormData {
     end_date: string;
 }
 
+type StaffRosterStatus = "active" | "pending" | "inactive" | "scheduled" | "expired";
+
+type StaffResourceFilter = "all" | "PERSON" | "ROOM" | "EQUIPMENT";
+
+type StaffBookableFilter = "all" | "bookable" | "not-bookable";
+
 const initialFormData: StaffFormData = {
     email: "",
     role: "STAFF",
@@ -123,6 +139,27 @@ function getApiUrl(path: string): string {
     return `${base}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
 }
 
+function isPastDate(value?: string | null): boolean {
+    return Boolean(value && new Date(value) < new Date());
+}
+
+function isFutureDate(value?: string | null): boolean {
+    return Boolean(value && new Date(value) > new Date());
+}
+
+function formatShortDate(value?: string | null): string | null {
+    if (!value) return null;
+    return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function getStaffRosterStatus(member: Staff): StaffRosterStatus {
+    if (isPastDate(member.end_date)) return "expired";
+    if (isFutureDate(member.start_date)) return "scheduled";
+    if (member.status === "PENDING") return "pending";
+    if (member.status === "INACTIVE" || member.is_active === false) return "inactive";
+    return "active";
+}
+
 export default function StaffPage() {
     const { companyId, isAuthenticated, loading: authLoading, role: currentRole, companyUser, user } = useAdminAuth();
     const t = useT();
@@ -135,8 +172,11 @@ export default function StaffPage() {
     const [services, setServices] = useState<Service[]>([]); // New state for services
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [resourceFilter, setResourceFilter] = useState<StaffResourceFilter>("all");
+    const [bookableFilter, setBookableFilter] = useState<StaffBookableFilter>("all");
+    const [statusFilter, setStatusFilter] = useState<"all" | StaffRosterStatus>("all");
 
-    // Modal state
+    // Editor state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
@@ -187,14 +227,84 @@ export default function StaffPage() {
         }
     }, [isAuthenticated, companyId, fetchData]);
 
-    // Filtered staff
-    const filteredStaff = staff.filter((member) =>
-        member.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        member.user?.email?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    const isStaffLimitReached = maxStaffMembers !== null && staff.length >= maxStaffMembers;
+    const servicesById = useMemo(() => {
+        return new Map(services.map((service) => [service.id, service]));
+    }, [services]);
 
-    // Open modal for add/edit
+    const getResourceTypeLabel = useCallback((type?: Staff["resource_type"]) => {
+        if (type === "ROOM") return t("adminStaff.resourceTypeRoom");
+        if (type === "EQUIPMENT") return t("adminStaff.resourceTypeEquipment");
+        return t("adminStaff.resourceTypePerson");
+    }, [t]);
+
+    const getStatusLabel = useCallback((status: StaffRosterStatus) => {
+        const labels: Record<StaffRosterStatus, string> = {
+            active: t("adminStaff.statusActive"),
+            pending: t("adminStaff.statusPending"),
+            inactive: t("adminStaff.statusInactive"),
+            scheduled: t("adminStaff.statusScheduled"),
+            expired: t("adminStaff.statusExpired"),
+        };
+        return labels[status];
+    }, [t]);
+
+    const getStatusTone = (status: StaffRosterStatus) => {
+        const tones: Record<StaffRosterStatus, "success" | "warning" | "neutral" | "info" | "danger"> = {
+            active: "success",
+            pending: "warning",
+            inactive: "neutral",
+            scheduled: "info",
+            expired: "danger",
+        };
+        return tones[status];
+    };
+
+    const getAvailabilityLabel = useCallback((member: Staff) => {
+        if (isPastDate(member.end_date)) return t("adminStaff.availabilityEnded", { date: formatShortDate(member.end_date) || "" });
+        if (isFutureDate(member.start_date)) return t("adminStaff.availabilityStarts", { date: formatShortDate(member.start_date) || "" });
+        if (member.end_date) return t("adminStaff.availabilityEnds", { date: formatShortDate(member.end_date) || "" });
+        return t("adminStaff.availabilityOpen");
+    }, [t]);
+
+    const getServiceCoverage = useCallback((member: Staff) => {
+        const assigned = member.services || [];
+        if (assigned.length === 0) return t("adminStaff.noServicesAssigned");
+        const firstNames = assigned
+            .slice(0, 2)
+            .map((id) => servicesById.get(id)?.name)
+            .filter(Boolean);
+        const remainder = Math.max(0, assigned.length - firstNames.length);
+        return remainder > 0
+            ? `${firstNames.join(", ")} +${remainder}`
+            : firstNames.join(", ");
+    }, [servicesById, t]);
+
+    const filteredStaff = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+
+        return staff.filter((member) => {
+            const status = getStaffRosterStatus(member);
+            const searchable = [
+                member.display_name,
+                member.user?.email,
+                getResourceTypeLabel(member.resource_type),
+                getServiceCoverage(member),
+            ].filter(Boolean).join(" ").toLowerCase();
+
+            if (query && !searchable.includes(query)) return false;
+            if (resourceFilter !== "all" && (member.resource_type || "PERSON") !== resourceFilter) return false;
+            if (bookableFilter === "bookable" && !member.is_bookable) return false;
+            if (bookableFilter === "not-bookable" && member.is_bookable) return false;
+            if (statusFilter !== "all" && status !== statusFilter) return false;
+            return true;
+        });
+    }, [bookableFilter, getResourceTypeLabel, getServiceCoverage, resourceFilter, searchQuery, staff, statusFilter]);
+    const isStaffLimitReached = maxStaffMembers !== null && staff.length >= maxStaffMembers;
+    const bookableCount = staff.filter((member) => member.is_bookable).length;
+    const pendingCount = staff.filter((member) => getStaffRosterStatus(member) === "pending").length;
+    const inactiveCount = staff.filter((member) => ["inactive", "expired"].includes(getStaffRosterStatus(member))).length;
+
+    // Open editor for add/edit
     const openAddModal = () => {
         if (isStaffLimitReached) {
             void notify.warning(t("planEnforcement.staffLimitReached"));
@@ -436,32 +546,165 @@ export default function StaffPage() {
         }
     };
 
+    const renderMemberIdentity = (member: Staff) => (
+        <div className="flex min-w-0 items-center gap-3">
+            {member.image_url ? (
+                <img
+                    src={getImageUrl(member.image_url) || ""}
+                    alt={member.display_name}
+                    className="h-10 w-10 rounded-lg object-cover"
+                />
+            ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-admin-brand-soft text-sm font-semibold text-admin-brand-soft-text">
+                    {getInitials(member.display_name)}
+                </div>
+            )}
+            <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-950">{member.display_name}</p>
+                </div>
+                <p className="truncate text-xs text-slate-500">
+                    {member.user?.email || t("adminStaff.noEmail")}
+                </p>
+            </div>
+        </div>
+    );
+
+    const renderStatus = (member: Staff) => {
+        const status = getStaffRosterStatus(member);
+        return (
+            <div className="flex flex-col items-start gap-1.5">
+                <StatusBadge tone={getStatusTone(status)} dot>
+                    {getStatusLabel(status)}
+                </StatusBadge>
+                <span className="text-xs text-slate-500">{getAvailabilityLabel(member)}</span>
+            </div>
+        );
+    };
+
+    const renderActions = (member: Staff) => (
+        <div className="flex items-center justify-end gap-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openEditModal(member)}
+                className="h-8 gap-1.5"
+            >
+                <Pencil className="h-3.5 w-3.5" />
+                {t("meProfile.edit")}
+            </Button>
+            <ActionMenu
+                label={t("adminStaff.memberActions")}
+                items={[
+                    ...(member.status === "PENDING"
+                        ? [{
+                            label: t("adminStaff.resendInvite"),
+                            icon: resendingInviteId === member.id
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <RefreshCw className="h-4 w-4" />,
+                            disabled: resendingInviteId === member.id,
+                            onSelect: () => void handleResendInvite(member),
+                        }]
+                        : []),
+                    {
+                        label: t("adminStaff.removeStaff"),
+                        icon: <Trash2 className="h-4 w-4" />,
+                        destructive: true,
+                        separatorBefore: member.status === "PENDING",
+                        onSelect: () => {
+                            setDeletingStaff(member);
+                            setIsDeleteDialogOpen(true);
+                        },
+                    },
+                ]}
+            />
+        </div>
+    );
+
+    const renderMobileMember = (member: Staff) => (
+        <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+                {renderMemberIdentity(member)}
+                {renderStatus(member)}
+            </div>
+            <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">{t("adminStaff.resourceType")}</span>
+                    <span className="font-medium text-slate-800">{getResourceTypeLabel(member.resource_type)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">{t("adminStaff.assignedServices")}</span>
+                    <span className="max-w-[60%] truncate text-right font-medium text-slate-800">{getServiceCoverage(member)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">{t("adminStaff.bookable")}</span>
+                    <div className="flex items-center gap-2">
+                        <span className={cn("text-xs font-medium", member.is_bookable ? "text-emerald-700" : "text-slate-500")}>
+                            {member.is_bookable ? t("superAdminShops.yes") : t("superAdminShops.no")}
+                        </span>
+                        <Switch checked={member.is_bookable} onCheckedChange={() => void toggleBookable(member)} />
+                    </div>
+                </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+                {renderActions(member)}
+            </div>
+        </div>
+    );
+
     // Loading state
     if (authLoading || loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-slate-600">{t('common.loading')}</span>
-            </div>
+            <AdminPageShell>
+                <LoadingSkeleton rows={5} variant="table" />
+            </AdminPageShell>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t('adminStaff.title')}</h1>
-                    <p className="text-slate-500">{t('adminStaff.subtitle')}</p>
-                </div>
-                <Button
-                    onClick={openAddModal}
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
-                    disabled={isStaffLimitReached}
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('adminStaff.inviteStaff')}
-                </Button>
+        <AdminPageShell>
+            <AdminPageHeader
+                title={t('adminStaff.title')}
+                subtitle={t('adminStaff.subtitle')}
+                meta={(
+                    <span>
+                        {staff.length}
+                        {maxStaffMembers !== null ? ` / ${maxStaffMembers}` : ""}
+                        {" "}
+                        {t("adminStaff.rosterSlots")}
+                    </span>
+                )}
+                actions={
+                    <Button
+                        onClick={openAddModal}
+                        className="bg-admin-brand text-white hover:bg-admin-brand-hover"
+                        disabled={isStaffLimitReached}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        {t('adminStaff.inviteStaff')}
+                    </Button>
+                }
+            />
+
+            <div className="grid gap-3 md:grid-cols-3">
+                <StatCard
+                    label={t("adminStaff.totalMembers")}
+                    value={staff.length}
+                    hint={t("adminStaff.totalMembersHint")}
+                    icon={<UserRound className="h-5 w-5" />}
+                />
+                <StatCard
+                    label={t("adminStaff.bookableMembers")}
+                    value={bookableCount}
+                    hint={t("adminStaff.bookableMembersHint")}
+                    icon={<CalendarClock className="h-5 w-5" />}
+                />
+                <StatCard
+                    label={t("adminStaff.needsAttention")}
+                    value={pendingCount + inactiveCount}
+                    hint={t("adminStaff.needsAttentionHint", { pending: pendingCount, inactive: inactiveCount })}
+                    icon={<CheckCircle2 className="h-5 w-5" />}
+                />
             </div>
 
             {isStaffLimitReached && (
@@ -478,446 +721,411 @@ export default function StaffPage() {
                 />
             )}
 
-            {/* Search */}
-            <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                    placeholder={t('adminStaff.searchPlaceholder')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                />
-            </div>
+            <DataToolbar
+                searchValue={searchQuery}
+                searchPlaceholder={t("adminStaff.searchPlaceholder")}
+                onSearchChange={setSearchQuery}
+                summary={t("adminStaff.showingMembers", { count: filteredStaff.length, total: staff.length })}
+                filters={(
+                    <>
+                        <Select value={resourceFilter} onValueChange={(value) => setResourceFilter(value as StaffResourceFilter)}>
+                            <SelectTrigger className="h-9 w-full sm:w-40">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t("adminStaff.allResourceTypes")}</SelectItem>
+                                <SelectItem value="PERSON">{t("adminStaff.resourceTypePerson")}</SelectItem>
+                                <SelectItem value="ROOM">{t("adminStaff.resourceTypeRoom")}</SelectItem>
+                                <SelectItem value="EQUIPMENT">{t("adminStaff.resourceTypeEquipment")}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={bookableFilter} onValueChange={(value) => setBookableFilter(value as StaffBookableFilter)}>
+                            <SelectTrigger className="h-9 w-full sm:w-40">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t("adminStaff.allBookableStates")}</SelectItem>
+                                <SelectItem value="bookable">{t("adminStaff.onlyBookable")}</SelectItem>
+                                <SelectItem value="not-bookable">{t("adminStaff.onlyNotBookable")}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | StaffRosterStatus)}>
+                            <SelectTrigger className="h-9 w-full sm:w-40">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t("adminStaff.allStatuses")}</SelectItem>
+                                <SelectItem value="active">{t("adminStaff.statusActive")}</SelectItem>
+                                <SelectItem value="pending">{t("adminStaff.statusPending")}</SelectItem>
+                                <SelectItem value="scheduled">{t("adminStaff.statusScheduled")}</SelectItem>
+                                <SelectItem value="inactive">{t("adminStaff.statusInactive")}</SelectItem>
+                                <SelectItem value="expired">{t("adminStaff.statusExpired")}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </>
+                )}
+            />
 
-            {/* Staff Cards Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredStaff.length === 0 ? (
-                    <Card className="sm:col-span-2 lg:col-span-3">
-                        <CardContent className="py-12 text-center text-slate-500">
-                            {t('adminStaff.noStaff')}
-                        </CardContent>
-                    </Card>
-                ) : (
-                    filteredStaff.map((member) => (
-                        <Card key={member.id} className="overflow-hidden">
-                            <CardContent className="p-0">
-                                {/* Card Header with Photo */}
-                                <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-4 flex items-center gap-4">
-                                    {member.image_url ? (
-                                        <img
-                                            src={getImageUrl(member.image_url) || ""}
-                                            alt={member.display_name}
-                                            className="w-16 h-16 rounded-full object-cover border-2 border-white/30"
-                                        />
-                                    ) : (
-                                        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-semibold border-2 border-white/30">
-                                            {getInitials(member.display_name)}
-                                        </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-white truncate">
-                                                {member.display_name}
-                                            </h3>
-                                            {member.status === 'PENDING' && (
-                                                <Badge className="bg-amber-400 text-amber-900 text-[10px] px-1.5 py-0">
-                                                    {t('adminBookings.pending')}
-                                                </Badge>
-                                            )}
-                                            {member.status === 'INACTIVE' && (
-                                                <Badge className="bg-gray-400 text-gray-900 text-[10px] px-1.5 py-0">
-                                                    {t('adminServices.inactive')}
-                                                </Badge>
-                                            )}
-                                            {member.end_date && new Date(member.end_date) < new Date() && (
-                                                <Badge className="bg-rose-400 text-rose-900 text-[10px] px-1.5 py-0">
-                                                    {t('adminStaff.expired')}
-                                                </Badge>
-                                            )}
-                                            {member.start_date && new Date(member.start_date) > new Date() && (
-                                                <Badge className="bg-blue-400 text-blue-900 text-[10px] px-1.5 py-0">
-                                                    {t('adminStaff.startsOn', { date: new Date(member.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) })}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        {member.user?.email && (
-                                            <p className="text-white/80 text-sm truncate flex items-center gap-1">
-                                                <Mail className="h-3 w-3 flex-shrink-0" />
-                                                {member.user.email}
-                                            </p>
-                                        )}
+            <DataTable
+                data={filteredStaff}
+                getRowKey={(member) => member.id}
+                mobileBreakpoint="lg"
+                renderMobileItem={renderMobileMember}
+                empty={(
+                    <EmptyState
+                        icon={UserRound}
+                        title={searchQuery || resourceFilter !== "all" || bookableFilter !== "all" || statusFilter !== "all"
+                            ? t("adminStaff.noFilteredStaffTitle")
+                            : t("adminStaff.noStaffTitle")}
+                        description={searchQuery || resourceFilter !== "all" || bookableFilter !== "all" || statusFilter !== "all"
+                            ? t("adminStaff.noFilteredStaffDesc")
+                            : t("adminStaff.noStaff")}
+                        action={!isStaffLimitReached ? (
+                            <Button onClick={openAddModal} className="bg-admin-brand text-white hover:bg-admin-brand-hover">
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t("adminStaff.inviteStaff")}
+                            </Button>
+                        ) : null}
+                    />
+                )}
+                columns={[
+                    {
+                        key: "member",
+                        header: t("adminStaff.member"),
+                        cell: (member) => renderMemberIdentity(member),
+                        className: "min-w-[240px]",
+                    },
+                    {
+                        key: "type",
+                        header: t("adminStaff.resourceType"),
+                        cell: (member) => (
+                            <StatusBadge tone="neutral">
+                                {getResourceTypeLabel(member.resource_type)}
+                            </StatusBadge>
+                        ),
+                    },
+                    {
+                        key: "status",
+                        header: t("adminStaff.availability"),
+                        cell: (member) => renderStatus(member),
+                    },
+                    {
+                        key: "services",
+                        header: t("adminStaff.assignedServices"),
+                        cell: (member) => (
+                            <div className="max-w-xs">
+                                <p className="truncate text-sm font-medium text-slate-800">{getServiceCoverage(member)}</p>
+                                <p className="text-xs text-slate-500">
+                                    {t("adminStaff.servicesCount", { count: member.services?.length || 0 })}
+                                </p>
+                            </div>
+                        ),
+                    },
+                    {
+                        key: "bookable",
+                        header: t("adminStaff.bookable"),
+                        cell: (member) => (
+                            <div className="flex items-center gap-2">
+                                <Switch checked={member.is_bookable} onCheckedChange={() => void toggleBookable(member)} />
+                                <span className={cn("text-xs font-medium", member.is_bookable ? "text-emerald-700" : "text-slate-500")}>
+                                    {member.is_bookable ? t("superAdminShops.yes") : t("superAdminShops.no")}
+                                </span>
+                            </div>
+                        ),
+                    },
+                    {
+                        key: "actions",
+                        header: <span className="sr-only">{t("adminStaff.memberActions")}</span>,
+                        cell: (member) => renderActions(member),
+                        className: "text-right",
+                    },
+                ]}
+            />
+
+            <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <SheetContent className="w-full gap-0 overflow-hidden bg-page p-0 sm:max-w-2xl lg:max-w-4xl">
+                    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                        <SheetHeader className="border-b border-slate-200 bg-white px-5 py-4 pr-14 text-left">
+                            <SheetTitle>
+                                {editingStaff
+                                    ? t('adminStaff.editStaff', { name: editingStaff.display_name })
+                                    : t('adminStaff.addNewStaff')}
+                            </SheetTitle>
+                            <SheetDescription>
+                                {editingStaff
+                                    ? t('adminStaff.updateStaffDetails')
+                                    : t('adminStaff.inviteStaffByEmail')}
+                            </SheetDescription>
+                        </SheetHeader>
+
+                        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                            <div className="mx-auto flex max-w-2xl flex-col gap-4">
+                                {formError && (
+                                    <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                                        {formError}
                                     </div>
-                                </div>
+                                )}
 
-                                {/* Card Body */}
-                                <div className="p-4 space-y-4">
-                                    {/* Bio Preview */}
-                                    {member.bio ? (
-                                        <p className="text-sm text-slate-600 line-clamp-2">
-                                            {member.bio}
-                                        </p>
-                                    ) : (
-                                        <p className="text-sm text-slate-400 italic">
-                                            {t('adminStaff.noBioProvided')}
-                                        </p>
-                                    )}
-
-                                    {/* Bookable Toggle */}
-                                    <div className="flex items-center justify-between py-2 border-t border-slate-100">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="h-4 w-4 text-slate-400" />
-                                            <span className="text-sm text-slate-600">{t('adminStaff.bookable')}</span>
+                                {!editingStaff && (
+                                    <section className="admin-card">
+                                        <div className="border-b border-slate-100 px-4 py-3">
+                                            <h3 className="text-sm font-semibold text-slate-950">{t('adminStaff.inviteStaff')}</h3>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className={cn(
-                                                    "text-xs font-medium",
-                                                    member.is_bookable ? "text-emerald-600" : "text-slate-400"
-                                                )}
-                                                >
-                                                {member.is_bookable ? t('superAdminShops.yes') : t('superAdminShops.no')}
-                                            </span>
+                                        <div className="space-y-4 p-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="email">{t('adminStaff.email')} *</Label>
+                                                <Input
+                                                    id="email"
+                                                    type="email"
+                                                    value={formData.email}
+                                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                                    placeholder={t('adminStaff.emailPlaceholder')}
+                                                />
+                                                <p className="text-xs text-slate-500">
+                                                    {t('adminStaff.inviteHint')}
+                                                </p>
+                                            </div>
+
+                                            {canManageRoles && (
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="role">{t("superAdminShops.roleRequiredLabel")}</Label>
+                                                    <Select
+                                                        value={formData.role}
+                                                        onValueChange={(value: "OWNER" | "ADMIN" | "STAFF") =>
+                                                            setFormData({ ...formData, role: value })
+                                                        }
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {currentRole === "OWNER" && (
+                                                                <SelectItem value="OWNER">{t("superAdminShops.roleOwner")}</SelectItem>
+                                                            )}
+                                                            <SelectItem value="ADMIN">{t("superAdminShops.roleAdmin")}</SelectItem>
+                                                            <SelectItem value="STAFF">{t("superAdminShops.roleStaff")}</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
+
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="phone_prefix">{t("superAdminShops.countryCode")}</Label>
+                                                    <Input
+                                                        id="phone_prefix"
+                                                        value={formData.phone_prefix}
+                                                        onChange={(e) => setFormData({ ...formData, phone_prefix: e.target.value })}
+                                                        placeholder="591"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 space-y-2">
+                                                    <Label htmlFor="phone">{t("adminCustomers.phone")}</Label>
+                                                    <Input
+                                                        id="phone"
+                                                        value={formData.phone}
+                                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                        placeholder="70000000"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="start_date">{t('adminStaff.startDate')}</Label>
+                                                    <Input
+                                                        id="start_date"
+                                                        type="date"
+                                                        value={formData.start_date}
+                                                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                                                    />
+                                                    <p className="text-xs text-slate-500">{t('common.optional')}</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="end_date">{t('adminStaff.endDate')}</Label>
+                                                    <Input
+                                                        id="end_date"
+                                                        type="date"
+                                                        value={formData.end_date}
+                                                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                                                    />
+                                                    <p className="text-xs text-slate-500">{t('common.optional')}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                )}
+
+                                <section className="admin-card">
+                                    <div className="border-b border-slate-100 px-4 py-3">
+                                        <h3 className="text-sm font-semibold text-slate-950">{t('adminStaff.name')}</h3>
+                                    </div>
+                                    <div className="grid gap-4 p-4 sm:grid-cols-2">
+                                        <div className="space-y-2 sm:col-span-2">
+                                            <Label htmlFor="display_name">{t('adminStaff.name')} *</Label>
+                                            <Input
+                                                id="display_name"
+                                                value={formData.display_name}
+                                                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                                                placeholder={t('adminStaff.namePlaceholder')}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="resource_type">{t('adminStaff.resourceType')}</Label>
+                                            <Select
+                                                value={formData.resource_type}
+                                                onValueChange={(value: 'PERSON' | 'ROOM' | 'EQUIPMENT') =>
+                                                    setFormData({ ...formData, resource_type: value })
+                                                }
+                                            >
+                                                <SelectTrigger id="resource_type">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="PERSON">{t('adminStaff.resourceTypePerson')}</SelectItem>
+                                                    <SelectItem value="ROOM">{t('adminStaff.resourceTypeRoom')}</SelectItem>
+                                                    <SelectItem value="EQUIPMENT">{t('adminStaff.resourceTypeEquipment')}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+                                            <div>
+                                                <Label htmlFor="is_bookable">{t('adminStaff.bookable')}</Label>
+                                                <p className="text-xs text-slate-500">
+                                                    {t('adminStaff.bookableHint')}
+                                                </p>
+                                            </div>
                                             <Switch
-                                                checked={member.is_bookable}
-                                                onCheckedChange={() => toggleBookable(member)}
+                                                id="is_bookable"
+                                                checked={formData.is_bookable}
+                                                onCheckedChange={(checked) =>
+                                                    setFormData({ ...formData, is_bookable: checked })
+                                                }
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 sm:col-span-2">
+                                            <Label htmlFor="bio">{t('adminStaff.bio')}</Label>
+                                            <textarea
+                                                id="bio"
+                                                value={formData.bio}
+                                                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                                                placeholder={t('adminStaff.bioPlaceholder')}
+                                                className="admin-textarea h-28 resize-none"
                                             />
                                         </div>
                                     </div>
+                                </section>
 
-                                    {/* Actions */}
-                                    <div className="flex gap-2 pt-2 border-t border-slate-100">
-                                        {member.status === "PENDING" && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => void handleResendInvite(member)}
-                                                disabled={resendingInviteId === member.id}
-                                                className="flex-1"
-                                            >
-                                                {resendingInviteId === member.id ? (
-                                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                                ) : (
-                                                    <Mail className="h-4 w-4 mr-1" />
-                                                )}
-                                                {t("adminStaff.resendInvite")}
-                                            </Button>
-                                        )}
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => openEditModal(member)}
-                                            className="flex-1"
-                                        >
-                                            <Pencil className="h-4 w-4 mr-1" />
-                                            {t('meProfile.edit')}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                setDeletingStaff(member);
-                                                setIsDeleteDialogOpen(true);
-                                            }}
-                                            className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                <section className="admin-card">
+                                    <div className="border-b border-slate-100 px-4 py-3">
+                                        <h3 className="text-sm font-semibold text-slate-950">{t('adminStaff.assignedServices')}</h3>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))
-                )}
-            </div>
-
-            {/* Add/Edit Staff Modal */}
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {editingStaff
-                                ? t('adminStaff.editStaff', { name: editingStaff.display_name })
-                                : t('adminStaff.addNewStaff')}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {editingStaff
-                                ? t('adminStaff.updateStaffDetails')
-                                : t('adminStaff.inviteStaffByEmail')}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {formError && (
-                            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
-                                {formError}
-                            </div>
-                        )}
-
-                        {/* Email - only for new staff */}
-                        {!editingStaff && (
-                            <div className="space-y-2">
-                                <Label htmlFor="email">{t('adminStaff.email')} *</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder={t('adminStaff.emailPlaceholder')}
-                                />
-                                <p className="text-xs text-slate-500">
-                                    {t('adminStaff.inviteHint')}
-                                </p>
-                            </div>
-                        )}
-
-                        {!editingStaff && canManageRoles && (
-                            <div className="space-y-2">
-                                <Label htmlFor="role">{t("superAdminShops.roleRequiredLabel")}</Label>
-                                <Select
-                                    value={formData.role}
-                                    onValueChange={(value: "OWNER" | "ADMIN" | "STAFF") =>
-                                        setFormData({ ...formData, role: value })
-                                    }
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {currentRole === "OWNER" && (
-                                            <SelectItem value="OWNER">{t("superAdminShops.roleOwner")}</SelectItem>
+                                    <div className="p-4">
+                                        {services.length === 0 ? (
+                                            <p className="text-sm italic text-slate-500">{t('adminStaff.noServicesHint')}</p>
+                                        ) : (
+                                            <div className="max-h-72 space-y-3 overflow-y-auto rounded-md border border-slate-200 p-2">
+                                                {servicesByCategory.map((group) => (
+                                                    <div key={group.key} className="space-y-1">
+                                                        <p className="px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                            {group.name}
+                                                        </p>
+                                                        {group.services.length === 0 ? (
+                                                            <p className="px-2 pb-2 text-xs text-slate-400">
+                                                                {t("adminStaff.emptyCategoryServices")}
+                                                            </p>
+                                                        ) : (
+                                                            group.services.map((service) => (
+                                                                <label key={service.id} className="flex cursor-pointer items-center gap-2 rounded p-2 transition-colors hover:bg-slate-50">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={formData.service_ids.includes(service.id)}
+                                                                        onChange={() => toggleService(service.id)}
+                                                                        className="h-4 w-4 rounded border-slate-300 text-admin-brand-hover focus:ring-admin-brand"
+                                                                    />
+                                                                    <span className="text-sm text-slate-700">{service.name}</span>
+                                                                </label>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         )}
-                                        <SelectItem value="ADMIN">{t("superAdminShops.roleAdmin")}</SelectItem>
-                                        <SelectItem value="STAFF">{t("superAdminShops.roleStaff")}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
+                                    </div>
+                                </section>
 
-                        {!editingStaff && (
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="space-y-2">
-                                    <Label htmlFor="phone_prefix">{t("superAdminShops.countryCode")}</Label>
-                                    <Input
-                                        id="phone_prefix"
-                                        value={formData.phone_prefix}
-                                        onChange={(e) => setFormData({ ...formData, phone_prefix: e.target.value })}
-                                        placeholder="591"
-                                    />
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                    <Label htmlFor="phone">{t("adminCustomers.phone")}</Label>
-                                    <Input
-                                        id="phone"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        placeholder="70000000"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <Label htmlFor="display_name">{t('adminStaff.name')} *</Label>
-                            <Input
-                                id="display_name"
-                                value={formData.display_name}
-                                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                                placeholder={t('adminStaff.namePlaceholder')}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="resource_type">{t('adminStaff.resourceType')}</Label>
-                            <Select
-                                value={formData.resource_type}
-                                onValueChange={(value: 'PERSON' | 'ROOM' | 'EQUIPMENT') =>
-                                    setFormData({ ...formData, resource_type: value })
-                                }
-                            >
-                                <SelectTrigger id="resource_type">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="PERSON">{t('adminStaff.resourceTypePerson')}</SelectItem>
-                                    <SelectItem value="ROOM">{t('adminStaff.resourceTypeRoom')}</SelectItem>
-                                    <SelectItem value="EQUIPMENT">{t('adminStaff.resourceTypeEquipment')}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="bio">{t('adminStaff.bio')}</Label>
-                            <textarea
-                                id="bio"
-                                value={formData.bio}
-                                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                                placeholder={t('adminStaff.bioPlaceholder')}
-                                className="w-full h-24 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
-                            />
-                        </div>
-
-                        {/* Date Range (for new staff) */}
-                        {!editingStaff && (
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                    <Label htmlFor="start_date">{t('adminStaff.startDate')}</Label>
-                                    <Input
-                                        id="start_date"
-                                        type="date"
-                                        value={formData.start_date}
-                                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                                    />
-                                    <p className="text-xs text-slate-500">{t('common.optional')}</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="end_date">{t('adminStaff.endDate')}</Label>
-                                    <Input
-                                        id="end_date"
-                                        type="date"
-                                        value={formData.end_date}
-                                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                                    />
-                                    <p className="text-xs text-slate-500">{t('common.optional')}</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Service Selection */}
-                        <div className="space-y-2">
-                            <Label>{t('adminStaff.assignedServices')}</Label>
-                            {services.length === 0 ? (
-                                <p className="text-sm text-slate-500 italic">{t('adminStaff.noServicesHint')}</p>
-                            ) : (
-                                <div className="max-h-56 overflow-y-auto border rounded-md p-2 space-y-3">
-                                    {servicesByCategory.map((group) => (
-                                        <div key={group.key} className="space-y-1">
-                                            <p className="px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                                {group.name}
-                                            </p>
-                                            {group.services.length === 0 ? (
-                                                <p className="px-2 pb-2 text-xs text-slate-400">
-                                                    {t("adminStaff.emptyCategoryServices")}
-                                                </p>
-                                            ) : (
-                                                group.services.map((service) => (
-                                                    <label key={service.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded cursor-pointer transition-colors">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={formData.service_ids.includes(service.id)}
-                                                            onChange={() => toggleService(service.id)}
-                                                            className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-                                                        />
-                                                        <span className="text-sm text-slate-700">{service.name}</span>
-                                                    </label>
-                                                ))
-                                            )}
+                                <section className="admin-card">
+                                    <div className="border-b border-slate-100 px-4 py-3">
+                                        <h3 className="text-sm font-semibold text-slate-950">{t('adminStaff.photo')}</h3>
+                                    </div>
+                                    <div className="p-4">
+                                        <div className="max-w-xs">
+                                            <ImageUpload
+                                                companyId={companyId!}
+                                                type="staff"
+                                                currentUrl={previewImage}
+                                                autoUpload={false}
+                                                onFileSelect={(file) => {
+                                                    setSelectedImage(file);
+                                                    setPreviewImage(URL.createObjectURL(file));
+                                                }}
+                                                aspectRatio="1:1"
+                                                maxSizeMB={2}
+                                            />
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Photo Upload */}
-                        <div className="space-y-2">
-                            <Label>{t('adminStaff.photo')}</Label>
-                            <div className="max-w-xs mx-auto sm:mx-0">
-                                <ImageUpload
-                                    companyId={companyId!}
-                                    type="staff"
-                                    currentUrl={previewImage}
-                                    autoUpload={false}
-                                    onFileSelect={(file) => {
-                                        setSelectedImage(file);
-                                        setPreviewImage(URL.createObjectURL(file));
-                                    }}
-                                    aspectRatio="1:1"
-                                    maxSizeMB={2}
-                                />
+                                    </div>
+                                </section>
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between py-2">
-                            <div>
-                                <Label htmlFor="is_bookable">{t('adminStaff.bookable')}</Label>
-                                <p className="text-xs text-slate-500">
-                                    {t('adminStaff.bookableHint')}
-                                </p>
+                        <SheetFooter className="border-t border-slate-200 bg-white px-5 py-3">
+                            <div className="mx-auto flex w-full max-w-2xl flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsModalOpen(false)}
+                                >
+                                    {t('common.cancel')}
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="bg-admin-brand hover:bg-admin-brand-hover"
+                                >
+                                    {submitting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            {t('adminServices.saving')}
+                                        </>
+                                    ) : editingStaff ? (
+                                        t('adminStaff.updateStaff')
+                                    ) : (
+                                        t('adminStaff.addStaff')
+                                    )}
+                                </Button>
                             </div>
-                            <Switch
-                                id="is_bookable"
-                                checked={formData.is_bookable}
-                                onCheckedChange={(checked) =>
-                                    setFormData({ ...formData, is_bookable: checked })
-                                }
-                            />
-                        </div>
-
-                        <DialogFooter className="gap-2 sm:gap-0">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsModalOpen(false)}
-                            >
-                                {t('common.cancel')}
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={submitting}
-                                className="bg-orange-500 hover:bg-orange-600"
-                            >
-                                {submitting ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        {t('adminServices.saving')}
-                                    </>
-                                ) : editingStaff ? (
-                                    t('adminStaff.updateStaff')
-                                ) : (
-                                    t('adminStaff.addStaff')
-                                )}
-                            </Button>
-                        </DialogFooter>
+                        </SheetFooter>
                     </form>
-                </DialogContent>
-            </Dialog>
+                </SheetContent>
+            </Sheet>
 
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>{t('adminStaff.deleteConfirm')}</DialogTitle>
-                        <DialogDescription>
-                            {t('adminStaff.deleteConfirm')}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setIsDeleteDialogOpen(false);
-                                setDeletingStaff(null);
-                            }}
-                        >
-                            {t('common.cancel')}
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={submitting}
-                            className="bg-rose-500 hover:bg-rose-600"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    {t('superAdminShops.removing')}
-                                </>
-                            ) : (
-                                t('adminStaff.removeStaff')
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={(open) => {
+                    setIsDeleteDialogOpen(open);
+                    if (!open) setDeletingStaff(null);
+                }}
+                title={t('adminStaff.removeStaff')}
+                description={t('adminStaff.deleteConfirm')}
+                confirmLabel={submitting ? t('superAdminShops.removing') : t('adminStaff.removeStaff')}
+                cancelLabel={t('common.cancel')}
+                variant="destructive"
+                loading={submitting}
+                onConfirm={handleDelete}
+            />
+        </AdminPageShell>
     );
 }

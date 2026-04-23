@@ -52,7 +52,12 @@ function ReviewsPageContent() {
   }, [authLoading, isAuthenticated, router, fetchData, shopSlug]);
 
   const handleDeleteReview = async (reviewId: number) => {
-    if (!confirm(t("reviewPage.confirmDelete"))) return;
+    const result = await notify.confirm(t("reviewPage.confirmDelete"), undefined, {
+      variant: "destructive",
+      confirmButtonText: t("common.delete"),
+      cancelButtonText: t("common.cancel"),
+    });
+    if (!result.isConfirmed) return;
     try {
       await api.del(`/review/${reviewId}`);
       void notify.success(t("reviewPage.deleted"));

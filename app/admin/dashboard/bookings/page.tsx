@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import { getDateLocale } from "@/lib/date-locale";
-import { format, addDays, addMonths, endOfDay, endOfMonth, startOfDay, startOfMonth, subDays, subMonths } from "date-fns";
+import { format, addDays, addMonths, endOfDay, endOfMonth, isSameDay, startOfDay, startOfMonth, subDays, subMonths } from "date-fns";
 import {
     Calendar as CalendarIcon,
+    CalendarDays,
     List as ListIcon,
     Plus,
     BellRing,
@@ -13,7 +14,9 @@ import {
     ChevronRight,
     Loader2,
     Filter,
-    X
+    X,
+    Clock3,
+    Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,6 +55,8 @@ import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
 import { appendNoShowMarker, isNoShowBooking } from "./lib/bookingStatus";
 import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { notify } from "@/lib/notify";
+import { AdminPageHeader, AdminPageShell, DataToolbar, StatusBadge } from "@/components/admin/shared";
 
 type DayCount = 1 | 3 | 7;
 
@@ -115,6 +120,16 @@ export default function BookingsPage() {
         if (statusFilter !== "ALL") count++;
         return count;
     }, [staffFilter, statusFilter]);
+
+    const selectedStaffLabel = useMemo(() => {
+        if (staffFilter === "ALL") return t("adminBookings.allStaff");
+        return staffList.find((staff) => staff.id.toString() === staffFilter)?.display_name ?? t("adminBookings.allStaff");
+    }, [staffFilter, staffList, t]);
+
+    const selectedStatusLabel = useMemo(() => {
+        const option = STATUS_OPTIONS.find((item) => item.value === statusFilter);
+        return option ? t(option.label) : t("adminBookings.allStatuses");
+    }, [statusFilter, t]);
 
     // Clear all filters
     const clearFilters = () => {
@@ -221,6 +236,7 @@ export default function BookingsPage() {
             await createBooking(data);
             await fetchBookings();
             setIsNewBookingOpen(false);
+            await notify.success(t("adminBookings.createdSuccess"), t("adminBookings.createdSuccessNext"));
         } catch (err) {
             console.error("Failed to create booking:", err);
             throw err;
@@ -232,6 +248,7 @@ export default function BookingsPage() {
             await createRecurringBookings(data);
             await fetchBookings();
             setIsNewBookingOpen(false);
+            await notify.success(t("adminBookings.recurringCreatedSuccess"), t("adminBookings.createdSuccessNext"));
         } catch (err) {
             console.error("Failed to create recurring bookings:", err);
             throw err;
@@ -384,42 +401,61 @@ export default function BookingsPage() {
         return `${format(currentDate, "MMM d", { locale: dateFnsLocale })} - ${format(endDate, "PPP", { locale: dateFnsLocale })}`;
     }, [currentDate, dayCount, viewMode, dateFnsLocale]);
 
+    const operationsSummary = useMemo(() => {
+        const today = new Date();
+        return {
+            total: bookings.length,
+            today: bookings.filter((booking) => isSameDay(new Date(booking.start_at), today)).length,
+            pending: bookings.filter((booking) => booking.status === "PENDING").length,
+            confirmed: bookings.filter((booking) => booking.status === "CONFIRMED").length,
+        };
+    }, [bookings]);
+
     if (!isAuthenticated) return null;
 
     return (
-        <div className="flex flex-col h-full min-h-[calc(100dvh-4rem)] space-y-4 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
-
-            {/* Header Controls */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-text-main sm:text-3xl">{t('adminBookings.title')}</h1>
-                    <p className="text-text-muted">{t('adminBookings.subtitle')}</p>
-                </div>
-
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                    {!isStaffRole && (
+        <AdminPageShell className="h-full max-w-[1600px]" contentClassName="gap-4 sm:gap-5">
+            <AdminPageHeader
+                eyebrow={t("adminBookings.operationsEyebrow")}
+                title={t("adminBookings.title")}
+                subtitle={t("adminBookings.subtitle")}
+                meta={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge tone="brand" dot>
+                            {dateRangeLabel}
+                        </StatusBadge>
+                        <StatusBadge tone={operationsSummary.pending > 0 ? "warning" : "neutral"} dot>
+                            {t("adminBookings.pendingCount", { count: operationsSummary.pending })}
+                        </StatusBadge>
+                        <StatusBadge tone="success" dot>
+                            {t("adminBookings.confirmedCount", { count: operationsSummary.confirmed })}
+                        </StatusBadge>
+                    </div>
+                }
+                actions={
+                    !isStaffRole ? (
                         <>
                             <Button
                                 variant="outline"
                                 onClick={() => void handleSendTodayReminders()}
                                 disabled={isSendingReminders || !canSendReminders}
-                                className="w-full border-brand/30 text-brand hover:bg-brand/5 sm:w-auto"
+                                className="w-full border-admin-border-strong bg-admin-surface text-admin-brand hover:bg-admin-brand-soft sm:w-auto"
                             >
                                 {isSendingReminders ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                    <BellRing className="mr-2 h-4 w-4" />
+                                    <BellRing className="h-4 w-4" />
                                 )}
-                                {t('adminBookings.sendTodayReminders')}
+                                {t("adminBookings.sendTodayReminders")}
                             </Button>
 
-                            <Button onClick={() => setIsNewBookingOpen(true)} className="w-full bg-brand text-white hover:bg-brand-hover shadow-sm sm:w-auto">
-                                <Plus className="mr-2 h-4 w-4" /> {t('adminBookings.newBooking')}
+                            <Button onClick={() => setIsNewBookingOpen(true)} className="w-full bg-admin-brand text-white shadow-sm hover:bg-admin-brand-hover sm:w-auto">
+                                <Plus className="h-4 w-4" /> {t("adminBookings.newBooking")}
                             </Button>
                         </>
-                    )}
-                </div>
-            </div>
+                    ) : null
+                }
+            />
 
             {!isStaffRole && !canSendReminders && (
                 <PlanUpgradeNotice
@@ -473,127 +509,177 @@ export default function BookingsPage() {
                 </div>
             )}
 
-            {/* Toolbar */}
-            <div className="flex flex-col gap-3 bg-surface p-3 rounded-lg border border-surface-border shadow-sm">
-                {/* Top Row: View & Day Toggles */}
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    {/* View Mode & Day Count */}
-                    <div className="flex w-full flex-wrap items-center gap-2">
-                        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "month" | "list")} className="w-full sm:w-auto">
-                            <TabsList className="grid w-full grid-cols-3 sm:flex">
-                                <TabsTrigger value="calendar" className="px-3">
-                                    <CalendarIcon className="mr-2 h-4 w-4" /> {t('adminBookings.calendar')}
-                                </TabsTrigger>
-                                <TabsTrigger value="month" className="px-3">
-                                    {t('adminBookings.month')}
-                                </TabsTrigger>
-                                <TabsTrigger value="list" className="px-3">
-                                    <ListIcon className="mr-2 h-4 w-4" /> {t('adminBookings.list')}
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-
-                        {viewMode === "calendar" && (
-                            <div className="ml-0 flex items-center gap-1 sm:ml-2">
-                                {([1, 3, 7] as DayCount[]).map((count) => (
-                                    <Button
-                                        key={count}
-                                        variant={dayCount === count ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setDayCount(count)}
-                                        className={dayCount === count ? "bg-brand hover:bg-brand-hover" : ""}
-                                    >
-                                        {count === 1 ? t('adminBookings.day') : t('adminBookings.days', { count })}
-                                    </Button>
-                                ))}
-                            </div>
-                        )}
+            <div className="grid gap-3 md:grid-cols-3">
+                <div className="admin-card flex items-center gap-3 p-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-admin-brand-soft text-admin-brand-soft-text">
+                        <CalendarDays className="h-5 w-5" />
                     </div>
-
-                    {/* Date Navigation */}
-                    <div className="w-full sm:w-auto">
-                        <div className="flex items-center justify-between gap-2 sm:justify-end">
-                            <Button variant="outline" size="icon" onClick={handlePrev} className="shrink-0">
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <div className="min-w-0 flex-1 text-center text-sm font-medium sm:hidden">
-                                {dateRangeLabel}
-                            </div>
-                            <Button variant="outline" size="icon" onClick={handleNext} className="shrink-0">
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={handleToday} className="shrink-0 text-xs text-text-muted">
-                                {t('shopBooking.today')}
-                            </Button>
-                        </div>
-                        <div className="mt-1 hidden min-w-[180px] text-center text-sm font-medium sm:block">
-                            {dateRangeLabel}
-                        </div>
+                    <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.inView")}</p>
+                        <p className="text-xl font-semibold tracking-tight text-slate-950">{operationsSummary.total}</p>
                     </div>
                 </div>
-
-                {/* Bottom Row: Filters */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center border-t border-surface-border pt-3">
-                    <div className="flex items-center gap-2 text-sm text-text-muted">
-                        <Filter className="h-4 w-4" />
-                        <span>{t('adminBookings.filters')}</span>
+                <div className="admin-card flex items-center gap-3 p-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-sky-50 text-sky-700">
+                        <Clock3 className="h-5 w-5" />
                     </div>
+                    <div>
+                        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.today")}</p>
+                        <p className="text-xl font-semibold tracking-tight text-slate-950">{operationsSummary.today}</p>
+                    </div>
+                </div>
+                <div className="admin-card flex items-center gap-3 p-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
+                        <Users className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.scope")}</p>
+                        <p className="truncate text-sm font-semibold text-slate-950">{selectedStaffLabel} · {selectedStatusLabel}</p>
+                    </div>
+                </div>
+            </div>
 
-                    <div className="flex w-full items-center gap-2 flex-wrap">
-                        {/* Staff Filter */}
+            <DataToolbar
+                className="items-stretch p-3 lg:items-center"
+                filters={
+                    <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-center">
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                {t("adminBookings.viewMode")}
+                            </span>
+                            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "month" | "list")} className="w-full sm:w-auto">
+                                <TabsList className="grid w-full grid-cols-3 rounded-lg bg-admin-surface-subtle sm:w-auto">
+                                    <TabsTrigger value="calendar" className="min-h-9 rounded-md px-3">
+                                        <CalendarIcon className="h-4 w-4" /> {t("adminBookings.calendar")}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="month" className="min-h-9 rounded-md px-3">
+                                        <CalendarDays className="h-4 w-4" /> {t("adminBookings.month")}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="list" className="min-h-9 rounded-md px-3">
+                                        <ListIcon className="h-4 w-4" /> {t("adminBookings.list")}
+                                    </TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        </div>
+
+                        {viewMode === "calendar" && (
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                    {t("adminBookings.rangeControl")}
+                                </span>
+                                <div className="grid grid-cols-3 gap-1 rounded-lg border border-admin-border bg-admin-surface-subtle p-1 sm:flex">
+                                    {([1, 3, 7] as DayCount[]).map((count) => (
+                                        <Button
+                                            key={count}
+                                            variant={dayCount === count ? "default" : "ghost"}
+                                            size="sm"
+                                            onClick={() => setDayCount(count)}
+                                            className={dayCount === count ? "bg-admin-brand text-white hover:bg-admin-brand-hover" : "text-slate-600 hover:bg-white hover:text-slate-950"}
+                                        >
+                                            {count === 1 ? t("adminBookings.day") : t("adminBookings.days", { count })}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                }
+                actions={
+                    <div className="flex w-full flex-col gap-1.5 sm:w-auto">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                            {t("adminBookings.dateNavigation")}
+                        </span>
+                        <div className="grid grid-cols-[2.25rem_1fr_2.25rem] items-center gap-2 sm:flex">
+                            <Button variant="outline" size="icon" onClick={handlePrev} className="border-admin-border-strong bg-admin-surface">
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <div className="min-w-0 rounded-md border border-admin-border bg-white px-3 py-2 text-center">
+                                <p className="truncate text-sm font-semibold text-slate-950">{dateRangeLabel}</p>
+                            </div>
+                            <Button variant="outline" size="icon" onClick={handleNext} className="border-admin-border-strong bg-admin-surface">
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={handleToday} className="col-span-3 text-slate-600 hover:text-slate-950 sm:col-span-1">
+                                {t("shopBooking.today")}
+                            </Button>
+                        </div>
+                    </div>
+                }
+            />
+
+            <DataToolbar
+                className="p-3"
+                summary={
+                    <span className="inline-flex items-center gap-2">
+                        <Filter className="h-4 w-4 text-admin-brand" />
+                        {activeFilterCount > 0
+                            ? t("adminBookings.activeFilters", { count: activeFilterCount })
+                            : t("adminBookings.allOperationalFilters")}
+                    </span>
+                }
+                filters={
+                    <>
                         {!isStaffRole && (
-                            <Select value={staffFilter} onValueChange={setStaffFilter}>
-                                <SelectTrigger className="h-9 w-full sm:w-[160px]">
-                                    <SelectValue placeholder={t('adminBookings.allStaff')} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">{t('adminBookings.allStaff')}</SelectItem>
-                                    {staffList
-                                        .filter(s => s.is_bookable)
-                                        .map(staff => (
-                                            <SelectItem key={staff.id} value={staff.id.toString()}>
-                                                {staff.display_name}
-                                            </SelectItem>
-                                        ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="flex w-full flex-col gap-1 sm:w-auto">
+                                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                    {t("adminBookings.teamFilter")}
+                                </span>
+                                <Select value={staffFilter} onValueChange={setStaffFilter}>
+                                    <SelectTrigger className="h-9 w-full bg-white sm:w-[190px]">
+                                        <SelectValue placeholder={t("adminBookings.allStaff")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">{t("adminBookings.allStaff")}</SelectItem>
+                                        {staffList
+                                            .filter(s => s.is_bookable)
+                                            .map(staff => (
+                                                <SelectItem key={staff.id} value={staff.id.toString()}>
+                                                    {staff.display_name}
+                                                </SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         )}
 
-                        {/* Status Filter */}
-                        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as BookingStatus | "ALL")}>
-                            <SelectTrigger className="h-9 w-full sm:w-[150px]">
-                                <SelectValue placeholder={t('adminBookings.allStatuses')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {STATUS_OPTIONS.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value}>
-                                        {t(opt.label)}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex w-full flex-col gap-1 sm:w-auto">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                {t("adminBookings.statusFilter")}
+                            </span>
+                            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as BookingStatus | "ALL")}>
+                                <SelectTrigger className="h-9 w-full bg-white sm:w-[180px]">
+                                    <SelectValue placeholder={t("adminBookings.allStatuses")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {STATUS_OPTIONS.map(opt => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            {t(opt.label)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                        {/* Clear Filters */}
                         {activeFilterCount > 0 && (
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={clearFilters}
-                                className="text-xs text-text-muted hover:text-text-main"
+                                className="mt-auto text-slate-500 hover:text-slate-950"
                             >
-                                <X className="h-3 w-3 mr-1" />
-                                {t('adminBookings.clear', { count: activeFilterCount })}
+                                <X className="h-3 w-3" />
+                                {t("adminBookings.clear", { count: activeFilterCount })}
                             </Button>
                         )}
-                    </div>
-                </div>
-            </div>
+                    </>
+                }
+            />
 
             {/* Main Content Area */}
-            <div className="flex-1 min-h-[500px] relative">
+            <div className="relative min-h-[500px] flex-1">
                 {loading ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-10">
-                        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/60 backdrop-blur-[1px]">
+                        <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
                     </div>
                 ) : null}
 
@@ -646,6 +732,6 @@ export default function BookingsPage() {
                 noShowNotificationUpgradeMessage={t("planEnforcement.availableOnBusiness")}
                 onRefresh={fetchBookings}
             />
-        </div>
+        </AdminPageShell>
     );
 }

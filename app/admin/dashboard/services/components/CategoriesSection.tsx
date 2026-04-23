@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
+import { ConfirmDialog } from "@/components/admin/shared";
 
 interface GlobalServiceType {
     id: number;
@@ -186,13 +187,13 @@ export function CategoriesSection({
 
     return (
         <>
-            <Card>
+            <Card className="admin-card">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                     <div>
                         <CardTitle className="text-lg font-semibold">{t('adminServices.categoriesTitle')}</CardTitle>
                         <p className="text-sm text-slate-500 mt-1">{t('adminServices.categoriesSubtitle')}</p>
                     </div>
-                    <Button onClick={openAddModal} size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
+                    <Button onClick={openAddModal} size="sm" className="bg-admin-brand hover:bg-admin-brand-hover text-white">
                         <Plus className="h-4 w-4 mr-1" />
                         {t('adminServices.addCategory')}
                     </Button>
@@ -211,13 +212,13 @@ export function CategoriesSection({
                             {sortedCategories.map((category) => (
                                 <div
                                     key={category.id}
-                                    className="group relative rounded-xl border border-slate-200 bg-white p-4 hover:border-orange-200 hover:shadow-sm transition-all"
+                                    className="group relative rounded-lg border border-admin-border bg-admin-surface p-4 transition-all hover:border-admin-border-strong hover:shadow-admin"
                                 >
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <div className="h-8 w-8 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
-                                                    <Tag className="h-4 w-4 text-orange-500" />
+                                                <div className="h-8 w-8 flex-shrink-0 rounded-lg bg-admin-brand-soft flex items-center justify-center">
+                                                    <Tag className="h-4 w-4 text-admin-brand" />
                                                 </div>
                                                 <h3 className="font-semibold text-slate-900 truncate">
                                                     {category.name}
@@ -324,7 +325,7 @@ export function CategoriesSection({
                             <Button
                                 type="submit"
                                 disabled={submitting}
-                                className="bg-orange-500 hover:bg-orange-600"
+                                className="bg-admin-brand hover:bg-admin-brand-hover"
                             >
                                 {submitting ? (
                                     <>
@@ -342,51 +343,24 @@ export function CategoriesSection({
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => {
-                setIsDeleteDialogOpen(open);
-                if (!open) setError(null);
-            }}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>{t('adminServices.deleteCategory')}</DialogTitle>
-                        <DialogDescription>
-                            {t('adminServices.deleteCategoryConfirm', { name: deletingCategory?.name || "" })}
-                        </DialogDescription>
-                    </DialogHeader>
-                    {error && (
-                        <div className="px-1 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm px-3">
-                            {error}
-                        </div>
-                    )}
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setIsDeleteDialogOpen(false);
-                                setDeletingCategory(null);
-                            }}
-                        >
-                            {t('common.cancel')}
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={submitting}
-                            className="bg-rose-500 hover:bg-rose-600"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    {t('superAdminServiceTypes.deleting')}
-                                </>
-                            ) : (
-                                t('adminServices.deleteCategory')
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={(open) => {
+                    setIsDeleteDialogOpen(open);
+                    if (!open) {
+                        setDeletingCategory(null);
+                        setError(null);
+                    }
+                }}
+                title={t('adminServices.deleteCategory')}
+                description={t('adminServices.deleteCategoryConfirm', { name: deletingCategory?.name || "" })}
+                error={error}
+                confirmLabel={submitting ? t('superAdminServiceTypes.deleting') : t('adminServices.deleteCategory')}
+                cancelLabel={t('common.cancel')}
+                variant="destructive"
+                loading={submitting}
+                onConfirm={handleDelete}
+            />
         </>
     );
 }

@@ -182,7 +182,7 @@ export default function AdminResetPasswordPage() {
                                         className="bg-white/10 text-white placeholder:text-white/60 border-white/20"
                                     />
                                 </div>
-                                <Button type="submit" className="w-full bg-brand text-white hover:bg-brand-hover" disabled={submitting}>
+                                <Button type="submit" className="w-full bg-admin-brand text-white hover:bg-admin-brand-hover" disabled={submitting}>
                                     {submitting ? t("adminResetPassword.sendingCode") : t("adminResetPassword.sendCode")}
                                 </Button>
                             </form>
@@ -229,7 +229,7 @@ export default function AdminResetPasswordPage() {
 
                                 <Button
                                     type="submit"
-                                    className="w-full bg-brand text-white hover:bg-brand-hover"
+                                    className="w-full bg-admin-brand text-white hover:bg-admin-brand-hover"
                                     disabled={submitting || !code || !newPassword || !confirmPassword}
                                 >
                                     {submitting ? t("adminResetPassword.updatingPassword") : t("adminResetPassword.updatePassword")}

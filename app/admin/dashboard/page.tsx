@@ -22,6 +22,7 @@ import { notify } from "@/lib/notify";
 import { canUsePlanFeature, getRequiredPlanForFeature, resolveShopPlan } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { AdminPageHeader, AdminPageShell } from "@/components/admin/shared";
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
@@ -101,7 +102,7 @@ export default function DashboardHomePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
             </div>
         );
     }
@@ -109,8 +110,8 @@ export default function DashboardHomePage() {
     if (!canAccessDashboard) {
         const requiredPlan = getRequiredPlanForFeature(dashboardFeature);
         return (
-            <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-slate-900">{t("adminNav.dashboard")}</h2>
+            <AdminPageShell>
+                <AdminPageHeader title={t("adminNav.dashboard")} />
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={
@@ -123,20 +124,16 @@ export default function DashboardHomePage() {
                     requiredPlan={requiredPlan}
                     fullPage
                 />
-            </div>
+            </AdminPageShell>
         );
     }
 
     if (loadFailed || !metrics) {
         return (
-            <div className="space-y-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-900">
-                        {t("adminHome.welcome", { name: companyName || "" })}
-                    </h2>
-                </div>
+            <AdminPageShell>
+                <AdminPageHeader title={t("adminHome.welcome", { name: companyName || "" })} />
                 <p className="text-sm text-slate-500">{t("adminHome.loadMetricsError")}</p>
-            </div>
+            </AdminPageShell>
         );
     }
 
@@ -146,7 +143,7 @@ export default function DashboardHomePage() {
             value: metrics.bookings.total.toLocaleString(),
             sub: t("adminHome.thisMonthCount", { count: metrics.bookings.thisMonth }),
             icon: <Calendar className="h-5 w-5 shrink-0" />,
-            color: "text-blue-600 bg-blue-50",
+            color: "text-admin-brand-soft-text bg-admin-brand-soft",
         },
         {
             label: t("adminHome.revenueThisMonth"),
@@ -160,7 +157,7 @@ export default function DashboardHomePage() {
             value: metrics.bookings.today.toLocaleString(),
             sub: t("adminHome.todayRevenue", { amount: formatCurrency(metrics.revenue.today) }),
             icon: <TrendingUp className="h-5 w-5 shrink-0" />,
-            color: "text-purple-600 bg-purple-50",
+            color: "text-slate-700 bg-slate-100",
         },
         {
             label: t("adminHome.upcoming7Days"),
@@ -179,7 +176,7 @@ export default function DashboardHomePage() {
                 count: metrics.customerInsights.newCustomersThisMonth,
             }),
             icon: <Users className="h-5 w-5 shrink-0" />,
-            color: "text-cyan-700 bg-cyan-50",
+            color: "text-admin-brand-soft-text bg-admin-brand-soft",
         },
         {
             label: t("adminHome.returningCustomers"),
@@ -204,24 +201,20 @@ export default function DashboardHomePage() {
             value: metrics.bookingsByStatus.reduce((sum, item) => sum + item.count, 0).toLocaleString(),
             sub: t("adminHome.statusGroups", { count: metrics.bookingsByStatus.length }),
             icon: <BarChart3 className="h-5 w-5 shrink-0" />,
-            color: "text-indigo-700 bg-indigo-50",
+            color: "text-slate-700 bg-slate-100",
         },
     ];
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold text-slate-900">
-                    {t("adminHome.welcome", { name: companyName || "" })}
-                </h2>
-                <p className="text-slate-600">
-                    {t("adminHome.role", { role: role?.toLowerCase() || "" })}
-                </p>
-            </div>
+        <AdminPageShell>
+            <AdminPageHeader
+                title={t("adminHome.welcome", { name: companyName || "" })}
+                subtitle={t("adminHome.role", { role: role?.toLowerCase() || "" })}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {primaryStatCards.map((stat) => (
-                    <Card key={stat.label} className="border-slate-200">
+                    <Card key={stat.label} className="admin-card">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium text-slate-600">
                                 {stat.label}
@@ -238,7 +231,7 @@ export default function DashboardHomePage() {
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {customerStatCards.map((stat) => (
-                    <Card key={stat.label} className="border-slate-200">
+                    <Card key={stat.label} className="admin-card">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium text-slate-600">
                                 {stat.label}
@@ -254,7 +247,7 @@ export default function DashboardHomePage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-                <Card className="border-slate-200">
+                <Card className="admin-card">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
                             <Trophy className="h-4 w-4 text-amber-500" />
@@ -275,7 +268,7 @@ export default function DashboardHomePage() {
                                                 <span className="text-xs text-slate-500 ml-2 shrink-0">{t("adminHome.bookingsCount", { count: service.count })}</span>
                                             </div>
                                             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                                <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${service.percentage}%` }} />
+                                                <div className="h-full rounded-full bg-admin-brand transition-all" style={{ width: `${service.percentage}%` }} />
                                             </div>
                                         </div>
                                     </div>
@@ -285,10 +278,10 @@ export default function DashboardHomePage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-slate-200">
+                <Card className="admin-card">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
-                            <Users className="h-4 w-4 text-blue-500" />
+                            <Users className="h-4 w-4 text-admin-brand" />
                             {t("adminHome.topStaffMembers")}
                         </CardTitle>
                     </CardHeader>
@@ -318,7 +311,7 @@ export default function DashboardHomePage() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-                <Card className="border-slate-200 lg:col-span-1">
+                <Card className="admin-card lg:col-span-1">
                     <CardHeader>
                         <CardTitle className="text-base">{t("adminHome.bookingsByStatus")}</CardTitle>
                     </CardHeader>
@@ -336,7 +329,7 @@ export default function DashboardHomePage() {
                                                 <span className="font-medium text-slate-800">{item.count}</span>
                                             </div>
                                             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                                <div className="h-full rounded-full bg-indigo-500" style={{ width: `${width}%` }} />
+                                                <div className="h-full rounded-full bg-admin-brand" style={{ width: `${width}%` }} />
                                             </div>
                                         </div>
                                     );
@@ -346,7 +339,7 @@ export default function DashboardHomePage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-slate-200 lg:col-span-1">
+                <Card className="admin-card lg:col-span-1">
                     <CardHeader>
                         <CardTitle className="text-base">{t("adminHome.bookingsByCategory")}</CardTitle>
                     </CardHeader>
@@ -374,7 +367,7 @@ export default function DashboardHomePage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-slate-200 lg:col-span-1">
+                <Card className="admin-card lg:col-span-1">
                     <CardHeader>
                         <CardTitle className="text-base">{t("adminHome.busiestMoments")}</CardTitle>
                     </CardHeader>
@@ -415,7 +408,7 @@ export default function DashboardHomePage() {
                 </Card>
             </div>
 
-            <Card className="border-slate-200">
+            <Card className="admin-card">
                 <CardHeader>
                     <CardTitle className="text-base">{t("adminHome.customerGrowthTrend")}</CardTitle>
                 </CardHeader>
@@ -427,10 +420,10 @@ export default function DashboardHomePage() {
                             {metrics.customerGrowthTrend.map((point) => {
                                 const height = maxTrendCount > 0 ? Math.max(8, Math.round((point.newCustomers / maxTrendCount) * 48)) : 8;
                                 return (
-                                    <div key={point.month} className="rounded-md border border-slate-200 p-3">
+                                    <div key={point.month} className="rounded-md border border-admin-border bg-admin-surface-subtle p-3">
                                         <p className="text-xs text-slate-500">{getMonthLabel(point.month)}</p>
                                         <div className="mt-2 flex items-end gap-2">
-                                            <div className="w-2 rounded-full bg-cyan-500" style={{ height: `${height}px` }} />
+                                            <div className="w-2 rounded-full bg-admin-brand" style={{ height: `${height}px` }} />
                                             <p className="text-sm font-semibold text-slate-800">
                                                 {point.newCustomers}
                                             </p>
@@ -444,20 +437,20 @@ export default function DashboardHomePage() {
             </Card>
 
             {companySlug && (
-                <Card className="border-slate-200">
+                <Card className="admin-card">
                     <CardHeader>
                         <CardTitle>{t("adminHome.quickLinks")}</CardTitle>
                     </CardHeader>
                     <CardContent className="text-slate-600">
                         <p>
                             {t("adminHome.publicShopPage")}{" "}
-                            <a href={`/shop/${companySlug}`} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">
+                            <a href={`/shop/${companySlug}`} target="_blank" rel="noopener noreferrer" className="text-admin-brand hover:underline">
                                 /shop/{companySlug}
                             </a>
                         </p>
                     </CardContent>
                 </Card>
             )}
-        </div>
+        </AdminPageShell>
     );
 }

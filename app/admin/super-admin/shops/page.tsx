@@ -7,7 +7,6 @@ import {
     Pencil,
     Trash2,
     Loader2,
-    Search,
     Users,
     ExternalLink,
     ChevronLeft,
@@ -16,25 +15,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { ActionMenu, ConfirmDialog, DataTable, DataToolbar, EmptyState, StatusBadge } from "@/components/admin/shared";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
@@ -179,7 +160,7 @@ export default function ShopsPage() {
     if (authLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
                 <span className="ml-2 text-slate-600">{t("superAdminShops.loadingShops")}</span>
             </div>
         );
@@ -194,130 +175,193 @@ export default function ShopsPage() {
                     <p className="text-slate-500">{t("superAdminShops.subtitle")}</p>
                 </div>
                 <Link href="/admin/super-admin/shops/new">
-                    <Button className="bg-brand hover:bg-brand-hover text-white">
+                    <Button className="bg-admin-brand hover:bg-admin-brand-hover text-white">
                         <Plus className="h-4 w-4 mr-2" />
                         {t("superAdminShops.createShop")}
                     </Button>
                 </Link>
             </div>
 
-            {/* Search */}
-            <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                    placeholder={t("superAdminShops.searchPlaceholder")}
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="pl-10"
-                />
-            </div>
+            <DataToolbar
+                searchValue={searchQuery}
+                searchPlaceholder={t("superAdminShops.searchPlaceholder")}
+                onSearchChange={handleSearchChange}
+                summary={t("superAdminShops.showing", {
+                    from: total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1,
+                    to: Math.min(page * PAGE_SIZE, total),
+                    total,
+                })}
+            />
 
-            {/* Table */}
-            <Card>
-                <div className="relative">
+            <div className="relative">
                     {loading && (
                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-lg">
-                            <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                            <Loader2 className="h-6 w-6 animate-spin text-admin-brand" />
                         </div>
                     )}
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>{t("superAdminShops.shop")}</TableHead>
-                                <TableHead>{t("superAdminShops.location")}</TableHead>
-                                <TableHead>{t("superAdminShops.type")}</TableHead>
-                                <TableHead>{t("superAdminShops.users")}</TableHead>
-                                <TableHead>{t("adminBookings.status")}</TableHead>
-                                <TableHead className="text-right">{t("adminCustomers.actions")}</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {shops.length === 0 && !loading ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                                        {searchQuery ? t("superAdminShops.noSearchResults") : t("superAdminShops.noShops")}
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                shops.map((shop) => (
-                                    <TableRow key={shop.id}>
-                                        <TableCell>
-                                            <div>
-                                                <p className="font-medium">{shop.name}</p>
-                                                <p className="text-sm text-slate-500">{shop.slug}</p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-slate-600">
-                                            {shop.city || shop.state || t("superAdminShops.notSet")}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary">
-                                                {getCompanyTypeName(shop) || t("superAdminShops.unknown")}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">
-                                                {t("superAdminShops.usersCount", { count: shop.user_count || 0 })}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge className={shop.is_active
-                                                ? "bg-emerald-100 text-emerald-700"
-                                                : "bg-slate-100 text-slate-600"
-                                            }>
-                                                {shop.is_active ? t("adminServices.active") : t("adminServices.inactive")}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleImpersonate(shop.id)}
-                                                    className="text-brand hover:text-brand hover:bg-brand-soft-bg"
-                                                    title={t("superAdminShops.enterShop")}
-                                                >
-                                                    <LogIn className="h-4 w-4" />
-                                                </Button>
-                                                <Link href={`/admin/super-admin/shops/${shop.id}/users`}>
-                                                    <Button variant="ghost" size="sm" title={t("superAdminShops.manageUsers")}>
-                                                        <Users className="h-4 w-4" />
-                                                    </Button>
-                                                </Link>
-                                                <Link href={`/admin/super-admin/shops/${shop.id}`}>
-                                                    <Button variant="ghost" size="sm" title={t("superAdminShops.editShop")}>
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                </Link>
-                                                <Link href={`/shop/${shop.slug}`} target="_blank">
-                                                    <Button variant="ghost" size="sm" title={t("superAdminShops.viewPublicPage")}>
-                                                        <ExternalLink className="h-4 w-4" />
-                                                    </Button>
-                                                </Link>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => {
+                    <DataTable
+                        data={shops}
+                        getRowKey={(shop) => shop.id}
+                        empty={
+                            <EmptyState
+                                title={searchQuery ? t("superAdminShops.noSearchResults") : t("superAdminShops.noShops")}
+                            />
+                        }
+                        columns={[
+                            {
+                                key: "shop",
+                                header: t("superAdminShops.shop"),
+                                cell: (shop) => (
+                                    <div>
+                                        <p className="font-medium text-slate-900">{shop.name}</p>
+                                        <p className="text-sm text-slate-500">{shop.slug}</p>
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: "location",
+                                header: t("superAdminShops.location"),
+                                className: "text-slate-600",
+                                cell: (shop) => shop.city || shop.state || t("superAdminShops.notSet"),
+                            },
+                            {
+                                key: "type",
+                                header: t("superAdminShops.type"),
+                                cell: (shop) => (
+                                    <StatusBadge tone="neutral">
+                                        {getCompanyTypeName(shop) || t("superAdminShops.unknown")}
+                                    </StatusBadge>
+                                ),
+                            },
+                            {
+                                key: "users",
+                                header: t("superAdminShops.users"),
+                                cell: (shop) => (
+                                    <StatusBadge tone="neutral">
+                                        {t("superAdminShops.usersCount", { count: shop.user_count || 0 })}
+                                    </StatusBadge>
+                                ),
+                            },
+                            {
+                                key: "status",
+                                header: t("adminBookings.status"),
+                                cell: (shop) => (
+                                    <StatusBadge tone={shop.is_active ? "success" : "neutral"}>
+                                        {shop.is_active ? t("adminServices.active") : t("adminServices.inactive")}
+                                    </StatusBadge>
+                                ),
+                            },
+                            {
+                                key: "actions",
+                                header: t("adminCustomers.actions"),
+                                headerClassName: "text-right",
+                                className: "text-right",
+                                cell: (shop) => (
+                                    <div className="flex justify-end">
+                                        <ActionMenu
+                                            label={t("adminCustomers.actions")}
+                                            items={[
+                                                {
+                                                    label: t("superAdminShops.enterShop"),
+                                                    icon: <LogIn className="h-4 w-4" />,
+                                                    onSelect: () => void handleImpersonate(shop.id),
+                                                },
+                                                {
+                                                    label: t("superAdminShops.manageUsers"),
+                                                    icon: <Users className="h-4 w-4" />,
+                                                    href: `/admin/super-admin/shops/${shop.id}/users`,
+                                                },
+                                                {
+                                                    label: t("superAdminShops.editShop"),
+                                                    icon: <Pencil className="h-4 w-4" />,
+                                                    href: `/admin/super-admin/shops/${shop.id}`,
+                                                },
+                                                {
+                                                    label: t("superAdminShops.viewPublicPage"),
+                                                    icon: <ExternalLink className="h-4 w-4" />,
+                                                    onSelect: () => window.open(`/shop/${shop.slug}`, "_blank", "noopener,noreferrer"),
+                                                },
+                                                {
+                                                    label: t("superAdminShops.deleteShop"),
+                                                    icon: <Trash2 className="h-4 w-4" />,
+                                                    destructive: true,
+                                                    separatorBefore: true,
+                                                    onSelect: () => {
                                                         setDeletingShop(shop);
                                                         setIsDeleteDialogOpen(true);
-                                                    }}
-                                                    className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                                                    title={t("superAdminShops.deleteShop")}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                                                    },
+                                                },
+                                            ]}
+                                        />
+                                    </div>
+                                ),
+                            },
+                        ]}
+                        renderMobileItem={(shop) => (
+                            <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <h3 className="font-semibold text-slate-950">{shop.name}</h3>
+                                        <p className="text-xs text-slate-500">{shop.slug}</p>
+                                    </div>
+                                    <ActionMenu
+                                        label={t("adminCustomers.actions")}
+                                        showLabel
+                                        items={[
+                                            {
+                                                label: t("superAdminShops.enterShop"),
+                                                icon: <LogIn className="h-4 w-4" />,
+                                                onSelect: () => void handleImpersonate(shop.id),
+                                            },
+                                            {
+                                                label: t("superAdminShops.manageUsers"),
+                                                icon: <Users className="h-4 w-4" />,
+                                                href: `/admin/super-admin/shops/${shop.id}/users`,
+                                            },
+                                            {
+                                                label: t("superAdminShops.editShop"),
+                                                icon: <Pencil className="h-4 w-4" />,
+                                                href: `/admin/super-admin/shops/${shop.id}`,
+                                            },
+                                            {
+                                                label: t("superAdminShops.viewPublicPage"),
+                                                icon: <ExternalLink className="h-4 w-4" />,
+                                                onSelect: () => window.open(`/shop/${shop.slug}`, "_blank", "noopener,noreferrer"),
+                                            },
+                                            {
+                                                label: t("superAdminShops.deleteShop"),
+                                                icon: <Trash2 className="h-4 w-4" />,
+                                                destructive: true,
+                                                separatorBefore: true,
+                                                onSelect: () => {
+                                                    setDeletingShop(shop);
+                                                    setIsDeleteDialogOpen(true);
+                                                },
+                                            },
+                                        ]}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <StatusBadge tone={shop.is_active ? "success" : "neutral"}>
+                                        {shop.is_active ? t("adminServices.active") : t("adminServices.inactive")}
+                                    </StatusBadge>
+                                    <StatusBadge tone="neutral">
+                                        {getCompanyTypeName(shop) || t("superAdminShops.unknown")}
+                                    </StatusBadge>
+                                    <StatusBadge tone="neutral">
+                                        {t("superAdminShops.usersCount", { count: shop.user_count || 0 })}
+                                    </StatusBadge>
+                                </div>
+                                <p className="text-sm text-slate-600">
+                                    {t("superAdminShops.location")}: {shop.city || shop.state || t("superAdminShops.notSet")}
+                                </p>
+                            </div>
+                        )}
+                    />
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t">
+                    <div className="mt-3 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-slate-500">
                             {t("superAdminShops.showing", {
                                 from: (page - 1) * PAGE_SIZE + 1,
@@ -350,45 +394,22 @@ export default function ShopsPage() {
                         </div>
                     </div>
                 )}
-            </Card>
+            </div>
 
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>{t("superAdminShops.deleteShop")}</DialogTitle>
-                        <DialogDescription>
-                            {t("superAdminShops.deleteConfirm", { name: deletingShop?.name || "" })}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setIsDeleteDialogOpen(false);
-                                setDeletingShop(null);
-                            }}
-                        >
-                            {t("common.cancel")}
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={submitting}
-                            className="bg-rose-500 hover:bg-rose-600"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    {t("superAdminShops.deleting")}
-                                </>
-                            ) : (
-                                t("common.delete")
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={(open) => {
+                    setIsDeleteDialogOpen(open);
+                    if (!open) setDeletingShop(null);
+                }}
+                title={t("superAdminShops.deleteShop")}
+                description={t("superAdminShops.deleteConfirm", { name: deletingShop?.name || "" })}
+                confirmLabel={submitting ? t("superAdminShops.deleting") : t("common.delete")}
+                cancelLabel={t("common.cancel")}
+                variant="destructive"
+                loading={submitting}
+                onConfirm={handleDelete}
+            />
         </div>
     );
 }

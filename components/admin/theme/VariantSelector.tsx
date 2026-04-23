@@ -29,22 +29,22 @@ export function VariantSelector({ options, selected, onChange }: VariantSelector
                         className={cn(
                             "relative flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all",
                             isSelected
-                                ? "border-brand bg-brand/5 shadow-sm"
-                                : "border-surface-border hover:border-brand/40"
+                                ? "border-admin-brand bg-admin-brand-soft shadow-sm"
+                                : "border-surface-border hover:border-admin-brand/40"
                         )}
                     >
                         {isSelected && (
-                            <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white">
+                            <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-admin-brand text-white">
                                 <Check className="h-3 w-3" />
                             </div>
                         )}
                         {option.icon && (
-                            <div className="text-brand">{option.icon}</div>
+                            <div className="text-admin-brand">{option.icon}</div>
                         )}
                         <div>
                             <p className={cn(
                                 "text-sm font-semibold",
-                                isSelected ? "text-brand" : "text-text-main"
+                                isSelected ? "text-admin-brand" : "text-text-main"
                             )}>
                                 {option.label}
                             </p>

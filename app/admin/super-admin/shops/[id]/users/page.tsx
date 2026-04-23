@@ -47,6 +47,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import type { SuperAdminShop, ShopUser } from "@/types/super-admin";
 import { notify } from "@/lib/notify";
+import { ConfirmDialog } from "@/components/admin/shared";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -79,7 +80,7 @@ const initialAddUserFormData: AddUserFormData = {
 };
 
 const roleColors: Record<string, string> = {
-    OWNER: "bg-brand-soft-bg text-brand",
+    OWNER: "bg-admin-brand-soft text-admin-brand",
     ADMIN: "bg-blue-100 text-blue-700",
     STAFF: "bg-emerald-100 text-emerald-700",
     CUSTOMER: "bg-slate-100 text-slate-600",
@@ -310,7 +311,7 @@ export default function ShopUsersPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
                 <span className="ml-2 text-slate-600">{t("superAdminShops.loadingUsers")}</span>
             </div>
         );
@@ -341,7 +342,7 @@ export default function ShopUsersPage() {
                         </Button>
                     </Link>
                 </div>
-                <Button onClick={openAddModal} className="bg-brand hover:bg-brand-hover text-white">
+                <Button onClick={openAddModal} className="bg-admin-brand hover:bg-admin-brand-hover text-white">
                     <UserPlus className="h-4 w-4 mr-2" />
                     {t("superAdminShops.addUser")}
                 </Button>
@@ -596,7 +597,7 @@ export default function ShopUsersPage() {
                             <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
                                 {t("common.cancel")}
                             </Button>
-                            <Button type="submit" disabled={submitting} className="bg-brand hover:bg-brand-hover">
+                            <Button type="submit" disabled={submitting} className="bg-admin-brand hover:bg-admin-brand-hover">
                                 {submitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -647,7 +648,7 @@ export default function ShopUsersPage() {
                         <Button
                             onClick={handleUpdateRole}
                             disabled={submitting}
-                            className="bg-brand hover:bg-brand-hover"
+                            className="bg-admin-brand hover:bg-admin-brand-hover"
                         >
                             {submitting ? (
                                 <>
@@ -662,43 +663,20 @@ export default function ShopUsersPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>{t("superAdminShops.removeUser")}</DialogTitle>
-                        <DialogDescription>
-                            {t("superAdminShops.removeUserConfirm", { email: deletingUser?.user.email || "" })}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setIsDeleteDialogOpen(false);
-                                setDeletingUser(null);
-                            }}
-                        >
-                            {t("common.cancel")}
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDeleteUser}
-                            disabled={submitting}
-                            className="bg-rose-500 hover:bg-rose-600"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    {t("superAdminShops.removing")}
-                                </>
-                            ) : (
-                                t("superAdminShops.removeUser")
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={(open) => {
+                    setIsDeleteDialogOpen(open);
+                    if (!open) setDeletingUser(null);
+                }}
+                title={t("superAdminShops.removeUser")}
+                description={t("superAdminShops.removeUserConfirm", { email: deletingUser?.user.email || "" })}
+                confirmLabel={submitting ? t("superAdminShops.removing") : t("superAdminShops.removeUser")}
+                cancelLabel={t("common.cancel")}
+                variant="destructive"
+                loading={submitting}
+                onConfirm={handleDeleteUser}
+            />
         </div>
     );
 }

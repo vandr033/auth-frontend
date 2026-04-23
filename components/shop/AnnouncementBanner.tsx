@@ -5,20 +5,27 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import type { AnnouncementBanner } from "@/types/shop";
 
-function getActiveBanner(banners: AnnouncementBanner[]): AnnouncementBanner | null {
-    const now = new Date();
+export function getBannerEndAt(banner: AnnouncementBanner): string | null {
+    return banner.ends_at ?? banner.expires_at ?? null;
+}
+
+export function getActiveAnnouncementBanner(banners: AnnouncementBanner[], now = new Date()): AnnouncementBanner | null {
     return (
         banners
             .filter((b) => {
                 if (!b.enabled) return false;
-                if (b.expires_at && new Date(b.expires_at) < now) return false;
+                if (b.starts_at && new Date(b.starts_at) > now) return false;
+                const endsAt = getBannerEndAt(b);
+                if (endsAt && new Date(endsAt) < now) return false;
                 return true;
             })
             // Show the one expiring soonest first (most urgent)
             .sort((a, b) => {
-                if (!a.expires_at) return 1;
-                if (!b.expires_at) return -1;
-                return new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime();
+                const aEndsAt = getBannerEndAt(a);
+                const bEndsAt = getBannerEndAt(b);
+                if (!aEndsAt) return 1;
+                if (!bEndsAt) return -1;
+                return new Date(aEndsAt).getTime() - new Date(bEndsAt).getTime();
             })[0] ?? null
     );
 }
@@ -69,7 +76,7 @@ export function AnnouncementBannerStrip({ banners }: AnnouncementBannerStripProp
     }, []);
 
     const active = React.useMemo(
-        () => (banners && banners.length > 0 ? getActiveBanner(banners) : null),
+        () => (banners && banners.length > 0 ? getActiveAnnouncementBanner(banners) : null),
         [banners],
     );
 

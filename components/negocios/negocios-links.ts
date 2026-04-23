@@ -10,7 +10,7 @@ export const negociosSectionLinks: NegociosSectionLink[] = [
   { id: "beneficios", label: "Beneficios" },
   { id: "funcionalidades", label: "Funciones" },
   { id: "clientes", label: "Clientes" },
-  { id: "staff", label: "Staff" },
+  { id: "staff", label: "Equipo" },
   { id: "branding", label: "Branding" },
   { id: "empezar", label: "Empezar" },
   { id: "precios", label: "Precios" },
@@ -28,7 +28,7 @@ export const negociosHeaderLinks: NegociosSectionLink[] = [
 export const negociosPlatformLinks: NegociosSectionLink[] = [
   { id: "funcionalidades", label: "Funciones" },
   { id: "precios", label: "Precios" },
-  { id: "staff", label: "Staff" },
+  { id: "staff", label: "Equipo" },
   { id: "branding", label: "Branding" },
 ];
 

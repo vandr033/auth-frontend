@@ -29,6 +29,7 @@ export type RawShopData = Omit<ShopData, "staff" | "hours" | "services"> & {
         hero_home_url?: string | null;
         about_hero_image_url?: string | null;
         hero_about_url?: string | null;
+        about_us_hero_text?: string | null;
     };
     staff: RawShopStaff[];
     services: RawShopService[];
@@ -60,6 +61,10 @@ export function normalizeShopData(rawData: RawShopData): ShopData {
         hero_about_url:
             rawData.company.hero_about_url ??
             rawData.company.about_hero_image_url ??
+            undefined,
+        hero_overlay_text:
+            rawData.company.hero_overlay_text ??
+            rawData.company.about_us_hero_text ??
             undefined,
     };
 

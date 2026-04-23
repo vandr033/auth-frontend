@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StickyActionBar } from "@/components/ui/sticky-form-actions";
 import { Switch } from "@/components/ui/switch";
 import { useT } from "@/lib/i18n";
 import { getImageUrl } from "@/utils/image-url";
@@ -523,7 +524,11 @@ export function GroupClassEditorForm({
                 </AdminSectionCard>
             </div>
 
-            {footer ? <div className="flex justify-end gap-2">{footer}</div> : null}
+            {footer ? (
+                <StickyActionBar actionsClassName="sm:min-w-0">
+                    {footer}
+                </StickyActionBar>
+            ) : null}
         </div>
     );
 }

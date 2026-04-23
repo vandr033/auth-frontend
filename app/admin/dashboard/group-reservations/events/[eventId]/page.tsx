@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { GroupLocationPicker } from "@/components/maps/GroupLocationPicker";
+import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import {
     Table,
     TableBody,
@@ -881,7 +882,7 @@ export default function GroupEventDetailPage() {
     if (loading || !event || !form) {
         return (
             <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-7 w-7 animate-spin text-brand" />
+                <Loader2 className="h-7 w-7 animate-spin text-admin-brand" />
             </div>
         );
     }
@@ -1244,12 +1245,15 @@ export default function GroupEventDetailPage() {
                         <p>{t("adminGroup.events.autoConfirmState", { value: settings?.auto_confirm_bookings ? t("adminGroup.values.on") : t("adminGroup.values.off") })}</p>
                     </div>
 
-                    <div className="flex justify-end">
-                        <Button onClick={() => void handleUpdateEvent()} disabled={saving}>
-                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            {t("adminGroup.actions.save")}
-                        </Button>
-                    </div>
+                    <StickyFormActions
+                        onSave={handleUpdateEvent}
+                        loading={saving}
+                        saveLabel={t("adminGroup.actions.save")}
+                        loadingLabel={t("adminServices.saving")}
+                        saveClassName="bg-admin-brand text-white hover:bg-admin-brand-hover"
+                        onCancel={() => void loadData()}
+                        cancelLabel={t("common.cancel")}
+                    />
                 </CardContent>
             </Card>
 
@@ -1712,7 +1716,7 @@ export default function GroupEventDetailPage() {
                                     onChange={(e) => setWaMsgText(e.target.value)}
                                     rows={4}
                                     placeholder="Escribe tu mensaje..."
-                                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-admin-brand focus:ring-1 focus:ring-admin-brand"
                                 />
                             </div>
                             <DialogFooter>
@@ -1877,7 +1881,7 @@ export default function GroupEventDetailPage() {
                                         })}
                                     </p>
                                     {sendingMassMessage && massMessageProgress ? (
-                                        <p className="text-xs font-medium text-brand">
+                                        <p className="text-xs font-medium text-admin-brand">
                                             {t("adminGroup.events.massMessageLiveCounter", {
                                                 sent: massMessageProgress.sent_total,
                                                 processed: massMessageProgress.processed,

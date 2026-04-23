@@ -107,7 +107,9 @@ export interface AnnouncementBanner {
     text_color: string;
     enabled: boolean;
     sticky?: boolean;
-    expires_at?: string | null; // ISO date string
+    starts_at?: string | null;  // ISO date string
+    ends_at?: string | null;    // ISO date string
+    expires_at?: string | null; // Legacy end date alias
 }
 
 export interface FooterConfig {

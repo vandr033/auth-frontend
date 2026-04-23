@@ -259,8 +259,8 @@ export function ImageUpload({
                 className={cn(
                     "relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
                     isDragging
-                        ? "border-orange-400 bg-orange-50"
-                        : "border-slate-300 hover:border-orange-300 hover:bg-slate-50",
+                        ? "border-admin-brand bg-admin-brand-soft"
+                        : "border-slate-300 hover:border-admin-border-strong hover:bg-slate-50",
                     isUploading && "pointer-events-none opacity-50"
                 )}
             >
@@ -275,13 +275,13 @@ export function ImageUpload({
                 <div className="flex flex-col items-center gap-2">
                     {isUploading ? (
                         <>
-                            <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
+                            <Loader2 className="h-10 w-10 text-admin-brand animate-spin" />
                             <p className="text-sm font-medium text-slate-700">{t('imageUpload.uploading', { progress: uploadProgress })}</p>
                         </>
                     ) : (
                         <>
-                            <div className="h-12 w-12 rounded-full bg-orange-50 flex items-center justify-center">
-                                <Upload className="h-6 w-6 text-orange-500" />
+                            <div className="h-12 w-12 rounded-full bg-admin-brand-soft flex items-center justify-center">
+                                <Upload className="h-6 w-6 text-admin-brand" />
                             </div>
                             <div>
                                 <p className="text-sm font-medium text-slate-700">

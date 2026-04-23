@@ -130,7 +130,7 @@ export default function AdminLoginPage() {
 
                             <Button
                                 type="submit"
-                                className="w-full bg-brand text-white hover:bg-brand-hover"
+                                className="w-full bg-admin-brand text-white hover:bg-admin-brand-hover"
                                 disabled={loading || !email || !password}
                             >
                                 {loading ? t("adminLogin.signingIn") : t("adminLogin.signIn")}

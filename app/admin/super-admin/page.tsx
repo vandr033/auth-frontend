@@ -3,6 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    AdminPageHeader,
+    AdminPageShell,
+    DataTable,
+    ErrorState,
+    LoadingSkeleton,
+    StatCard,
+} from "@/components/admin/shared";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -10,7 +18,6 @@ import {
     DollarSign,
     TrendingUp,
     Clock,
-    Loader2,
     Trophy,
     Store,
     Users,
@@ -114,22 +121,19 @@ export default function SuperAdminDashboard() {
     }, [rangePreset, t]);
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
-            </div>
-        );
+        return <LoadingSkeleton variant="page" rows={5} />;
     }
 
     if (loadFailed || !metrics) {
         return (
-            <div className="space-y-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t("superAdminDashboard.title")}</h1>
-                    <p className="text-slate-500">{t("superAdminDashboard.subtitle")}</p>
-                </div>
-                <p className="text-sm text-slate-500">{t("superAdminDashboard.loadError")}</p>
-            </div>
+            <AdminPageShell>
+                <AdminPageHeader
+                    title={t("superAdminDashboard.title")}
+                    subtitle={t("superAdminDashboard.subtitle")}
+                    eyebrow={t("adminNav.superAdmin")}
+                />
+                <ErrorState title={t("superAdminDashboard.loadError")} />
+            </AdminPageShell>
         );
     }
 
@@ -139,7 +143,7 @@ export default function SuperAdminDashboard() {
             value: metrics.bookings.total.toLocaleString(),
             sub: t("superAdminDashboard.thisMonthCount", { count: metrics.bookings.thisMonth }),
             icon: <Calendar className="h-5 w-5" />,
-            color: "text-brand bg-brand-soft-bg",
+            color: "text-admin-brand bg-admin-brand-soft",
         },
         {
             label: t("superAdminDashboard.revenueThisMonth"),
@@ -153,7 +157,7 @@ export default function SuperAdminDashboard() {
             value: metrics.bookings.today.toLocaleString(),
             sub: t("superAdminDashboard.todayRevenue", { amount: formatCurrency(metrics.revenue.today) }),
             icon: <TrendingUp className="h-5 w-5" />,
-            color: "text-blue-600 bg-blue-50",
+            color: "text-slate-700 bg-slate-100",
         },
         {
             label: t("superAdminDashboard.upcoming7Days"),
@@ -169,19 +173,19 @@ export default function SuperAdminDashboard() {
             label: t("superAdminDashboard.activeShops"),
             value: metrics.entityCounts.activeShops,
             icon: <Store className="h-5 w-5" />,
-            color: "text-brand bg-brand-soft-bg",
+            color: "text-admin-brand bg-admin-brand-soft",
         },
         {
             label: t("superAdminDashboard.totalStaff"),
             value: metrics.entityCounts.totalStaff,
             icon: <UserCheck className="h-5 w-5" />,
-            color: "text-sky-600 bg-sky-50",
+            color: "text-slate-700 bg-slate-100",
         },
         {
             label: t("superAdminDashboard.totalCustomers"),
             value: metrics.entityCounts.totalCustomers,
             icon: <Users className="h-5 w-5" />,
-            color: "text-pink-600 bg-pink-50",
+            color: "text-admin-brand bg-admin-brand-soft",
         },
     ];
 
@@ -197,33 +201,33 @@ export default function SuperAdminDashboard() {
     );
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t("superAdminDashboard.title")}</h1>
-                    <p className="text-slate-500">{t("superAdminDashboard.subtitle")}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-1">
-                    <div className="flex items-center gap-1">
-                        {rangeOptions.map((option) => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                onClick={() => setRangePreset(option.value)}
-                                className={cn(
-                                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                                    rangePreset === option.value
-                                        ? "bg-brand text-white"
-                                        : "text-slate-600 hover:bg-slate-100",
-                                )}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
+        <AdminPageShell>
+            <AdminPageHeader
+                title={t("superAdminDashboard.title")}
+                subtitle={t("superAdminDashboard.subtitle")}
+                eyebrow={t("adminNav.superAdmin")}
+                actions={
+                    <div className="rounded-lg border border-slate-200 bg-white p-1">
+                        <div className="flex items-center gap-1">
+                            {rangeOptions.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setRangePreset(option.value)}
+                                    className={cn(
+                                        "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                                        rangePreset === option.value
+                                            ? "bg-admin-brand text-white"
+                                            : "text-slate-600 hover:bg-slate-100",
+                                    )}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </div>
+                }
+            />
 
             {marketplace && (
                 <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -244,33 +248,27 @@ export default function SuperAdminDashboard() {
             {/* Primary Stat Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {statCards.map((stat) => (
-                    <Card key={stat.label} className="border-slate-200">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">{stat.label}</CardTitle>
-                            <div className={cn("p-2 rounded-lg", stat.color)}>{stat.icon}</div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                            <p className="text-xs text-slate-500 mt-1">{stat.sub}</p>
-                        </CardContent>
-                    </Card>
+                    <StatCard
+                        key={stat.label}
+                        label={stat.label}
+                        value={stat.value}
+                        hint={stat.sub}
+                        icon={stat.icon}
+                        iconClassName={stat.color}
+                    />
                 ))}
             </div>
 
             {/* Secondary Stat Cards */}
             <div className="grid gap-4 sm:grid-cols-3">
                 {secondaryCards.map((stat) => (
-                    <Card key={stat.label} className="border-slate-200">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-3">
-                                <div className={cn("p-2 rounded-lg", stat.color)}>{stat.icon}</div>
-                                <div>
-                                    <p className="text-sm text-slate-500">{stat.label}</p>
-                                    <p className="text-xl font-bold text-slate-900">{stat.value.toLocaleString()}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <StatCard
+                        key={stat.label}
+                        label={stat.label}
+                        value={stat.value.toLocaleString()}
+                        icon={stat.icon}
+                        iconClassName={stat.color}
+                    />
                 ))}
             </div>
 
@@ -280,7 +278,7 @@ export default function SuperAdminDashboard() {
                         <Card className="border-slate-200">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
-                                    <Compass className="h-4 w-4 text-brand" />
+                                    <Compass className="h-4 w-4 text-admin-brand" />
                                     {t("superAdminDashboard.bookingsBySource")}
                                 </CardTitle>
                             </CardHeader>
@@ -299,7 +297,7 @@ export default function SuperAdminDashboard() {
                                         {marketplace.bookingsBySource.admin + marketplace.bookingsBySource.manual}
                                     </span>
                                 </div>
-                                <div className="mt-3 rounded-lg bg-brand-soft-bg px-3 py-2 text-xs text-brand">
+                                <div className="mt-3 rounded-lg bg-admin-brand-soft px-3 py-2 text-xs text-admin-brand">
                                     {t("superAdminDashboard.marketplaceShare", {
                                         percent: formatPercent(marketplace.bookingsBySource.marketplaceShare),
                                     })}
@@ -310,7 +308,7 @@ export default function SuperAdminDashboard() {
                         <Card className="border-slate-200 lg:col-span-2">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
-                                    <BarChart3 className="h-4 w-4 text-blue-500" />
+                                    <BarChart3 className="h-4 w-4 text-admin-brand" />
                                     {t("superAdminDashboard.marketplaceFunnel")}
                                 </CardTitle>
                             </CardHeader>
@@ -351,7 +349,7 @@ export default function SuperAdminDashboard() {
                         <Card className="border-slate-200">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
-                                    <Search className="h-4 w-4 text-brand" />
+                                    <Search className="h-4 w-4 text-admin-brand" />
                                     {t("superAdminDashboard.topSearchedServiceTypes")}
                                 </CardTitle>
                             </CardHeader>
@@ -422,7 +420,7 @@ export default function SuperAdminDashboard() {
                         <Card className="border-slate-200">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
-                                    <Calendar className="h-4 w-4 text-indigo-500" />
+                                    <Calendar className="h-4 w-4 text-admin-brand" />
                                     {t("superAdminDashboard.topSearchedDates")}
                                 </CardTitle>
                             </CardHeader>
@@ -487,28 +485,51 @@ export default function SuperAdminDashboard() {
                         {metrics.topShopsByRevenue.length === 0 ? (
                             <p className="text-sm text-slate-500">{t("superAdminDashboard.noDataYet")}</p>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b border-slate-100">
-                                            <th className="text-left font-medium text-slate-500 pb-2">#</th>
-                                            <th className="text-left font-medium text-slate-500 pb-2">{t("superAdminDashboard.shopName")}</th>
-                                            <th className="text-right font-medium text-slate-500 pb-2">{t("superAdminDashboard.revenue")}</th>
-                                            <th className="text-right font-medium text-slate-500 pb-2">{t("superAdminDashboard.bookings")}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {metrics.topShopsByRevenue.map((shop, i) => (
-                                            <tr key={shop.id} className="border-b border-slate-50 last:border-0">
-                                                <td className="py-2 text-slate-400 font-bold">{i + 1}</td>
-                                                <td className="py-2 font-medium text-slate-700">{shop.name}</td>
-                                                <td className="py-2 text-right text-emerald-600 font-medium">{formatCurrency(shop.revenue)}</td>
-                                                <td className="py-2 text-right text-slate-500">{shop.bookingCount}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <DataTable
+                                className="border-0 shadow-none"
+                                data={metrics.topShopsByRevenue}
+                                getRowKey={(shop) => shop.id}
+                                columns={[
+                                    {
+                                        key: "rank",
+                                        header: "#",
+                                        className: "font-bold text-slate-400",
+                                        cell: (_shop, i) => i + 1,
+                                    },
+                                    {
+                                        key: "shop",
+                                        header: t("superAdminDashboard.shopName"),
+                                        className: "font-medium text-slate-700",
+                                        cell: (shop) => shop.name,
+                                    },
+                                    {
+                                        key: "revenue",
+                                        header: t("superAdminDashboard.revenue"),
+                                        headerClassName: "text-right",
+                                        className: "text-right font-medium text-emerald-600",
+                                        cell: (shop) => formatCurrency(shop.revenue),
+                                    },
+                                    {
+                                        key: "bookings",
+                                        header: t("superAdminDashboard.bookings"),
+                                        headerClassName: "text-right",
+                                        className: "text-right text-slate-500",
+                                        cell: (shop) => shop.bookingCount,
+                                    },
+                                ]}
+                                renderMobileItem={(shop, i) => (
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-bold text-slate-400">#{i + 1}</p>
+                                            <p className="truncate font-medium text-slate-900">{shop.name}</p>
+                                            <p className="text-sm text-slate-500">
+                                                {t("superAdminDashboard.bookings")}: {shop.bookingCount}
+                                            </p>
+                                        </div>
+                                        <p className="shrink-0 font-semibold text-emerald-600">{formatCurrency(shop.revenue)}</p>
+                                    </div>
+                                )}
+                            />
                         )}
                     </CardContent>
                 </Card>
@@ -517,7 +538,7 @@ export default function SuperAdminDashboard() {
                 <Card className="border-slate-200">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
-                            <Calendar className="h-4 w-4 text-blue-500" />
+                            <Calendar className="h-4 w-4 text-admin-brand" />
                             {t("superAdminDashboard.topShopsByBookings")}
                         </CardTitle>
                     </CardHeader>
@@ -525,28 +546,49 @@ export default function SuperAdminDashboard() {
                         {metrics.topShopsByBookings.length === 0 ? (
                             <p className="text-sm text-slate-500">{t("superAdminDashboard.noDataYet")}</p>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b border-slate-100">
-                                            <th className="text-left font-medium text-slate-500 pb-2">#</th>
-                                            <th className="text-left font-medium text-slate-500 pb-2">{t("superAdminDashboard.shopName")}</th>
-                                            <th className="text-right font-medium text-slate-500 pb-2">{t("superAdminDashboard.bookings")}</th>
-                                            <th className="text-right font-medium text-slate-500 pb-2">{t("superAdminDashboard.revenue")}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {metrics.topShopsByBookings.map((shop, i) => (
-                                            <tr key={shop.id} className="border-b border-slate-50 last:border-0">
-                                                <td className="py-2 text-slate-400 font-bold">{i + 1}</td>
-                                                <td className="py-2 font-medium text-slate-700">{shop.name}</td>
-                                                <td className="py-2 text-right text-blue-600 font-medium">{shop.bookingCount}</td>
-                                                <td className="py-2 text-right text-slate-500">{formatCurrency(shop.revenue)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <DataTable
+                                className="border-0 shadow-none"
+                                data={metrics.topShopsByBookings}
+                                getRowKey={(shop) => shop.id}
+                                columns={[
+                                    {
+                                        key: "rank",
+                                        header: "#",
+                                        className: "font-bold text-slate-400",
+                                        cell: (_shop, i) => i + 1,
+                                    },
+                                    {
+                                        key: "shop",
+                                        header: t("superAdminDashboard.shopName"),
+                                        className: "font-medium text-slate-700",
+                                        cell: (shop) => shop.name,
+                                    },
+                                    {
+                                        key: "bookings",
+                                        header: t("superAdminDashboard.bookings"),
+                                        headerClassName: "text-right",
+                                        className: "text-right font-medium text-admin-brand",
+                                        cell: (shop) => shop.bookingCount,
+                                    },
+                                    {
+                                        key: "revenue",
+                                        header: t("superAdminDashboard.revenue"),
+                                        headerClassName: "text-right",
+                                        className: "text-right text-slate-500",
+                                        cell: (shop) => formatCurrency(shop.revenue),
+                                    },
+                                ]}
+                                renderMobileItem={(shop, i) => (
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-bold text-slate-400">#{i + 1}</p>
+                                            <p className="truncate font-medium text-slate-900">{shop.name}</p>
+                                            <p className="text-sm text-slate-500">{formatCurrency(shop.revenue)}</p>
+                                        </div>
+                                        <p className="shrink-0 font-semibold text-admin-brand">{shop.bookingCount}</p>
+                                    </div>
+                                )}
+                            />
                         )}
                     </CardContent>
                 </Card>
@@ -556,7 +598,7 @@ export default function SuperAdminDashboard() {
             <Card className="border-slate-200">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
-                        <Trophy className="h-4 w-4 text-brand" />
+                        <Trophy className="h-4 w-4 text-admin-brand" />
                         {t("superAdminDashboard.topServices")}
                     </CardTitle>
                 </CardHeader>
@@ -580,7 +622,7 @@ export default function SuperAdminDashboard() {
                                         </div>
                                         <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                                             <div
-                                                className="h-full rounded-full bg-brand-soft-bg0 transition-all"
+                                                className="h-full rounded-full bg-admin-brand transition-all"
                                                 style={{ width: `${service.percentage}%` }}
                                             />
                                         </div>
@@ -598,8 +640,8 @@ export default function SuperAdminDashboard() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <Store className="h-5 w-5 text-brand" />
+                                <div className="h-10 w-10 rounded-lg bg-admin-brand-soft flex items-center justify-center">
+                                    <Store className="h-5 w-5 text-admin-brand" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">{t("superAdminDashboard.manageShops")}</p>
@@ -614,8 +656,8 @@ export default function SuperAdminDashboard() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <Tags className="h-5 w-5 text-brand" />
+                                <div className="h-10 w-10 rounded-lg bg-admin-brand-soft flex items-center justify-center">
+                                    <Tags className="h-5 w-5 text-admin-brand" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">{t("superAdminDashboard.manageServiceTypes")}</p>
@@ -630,8 +672,8 @@ export default function SuperAdminDashboard() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <Building2 className="h-5 w-5 text-brand" />
+                                <div className="h-10 w-10 rounded-lg bg-admin-brand-soft flex items-center justify-center">
+                                    <Building2 className="h-5 w-5 text-admin-brand" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">{t("superAdminDashboard.manageCompanyTypes")}</p>
@@ -646,8 +688,8 @@ export default function SuperAdminDashboard() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <MessageSquare className="h-5 w-5 text-brand" />
+                                <div className="h-10 w-10 rounded-lg bg-admin-brand-soft flex items-center justify-center">
+                                    <MessageSquare className="h-5 w-5 text-admin-brand" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">
@@ -664,8 +706,8 @@ export default function SuperAdminDashboard() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-brand-soft-bg flex items-center justify-center">
-                                    <Users className="h-5 w-5 text-brand" />
+                                <div className="h-10 w-10 rounded-lg bg-admin-brand-soft flex items-center justify-center">
+                                    <Users className="h-5 w-5 text-admin-brand" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">
@@ -678,6 +720,6 @@ export default function SuperAdminDashboard() {
                     </Card>
                 </Link>
             </div>
-        </div>
+        </AdminPageShell>
     );
 }

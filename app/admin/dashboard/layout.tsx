@@ -12,15 +12,15 @@ import {
     UserCheck,
     UserCircle,
     Clock,
-    Palette,
     Settings,
     LogOut,
     Menu,
     X,
     ChevronRight,
-    FileText,
+    ChevronDown,
     Star,
     Ticket,
+    Store,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,52 +44,62 @@ import {
 } from "@/lib/plans/capabilities";
 
 type NavItem = {
+    id: string;
     label: string;
     href: string;
     icon: React.ReactNode;
     roles?: string[];
     feature?: PlanFeatureKey;
+    exact?: boolean;
 };
 
 const navItems: NavItem[] = [
     {
-        label: "adminNav.dashboard",
+        id: "dashboard",
+        label: "adminNav.dashboardMetrics",
         href: "/admin/dashboard",
         icon: <LayoutDashboard className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
         feature: "OPERATIONAL_DASHBOARD",
+        exact: true,
     },
     {
+        id: "bookings",
         label: "adminNav.bookings",
         href: "/admin/dashboard/bookings",
         icon: <Calendar className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
     },
     {
-        label: "adminNav.groupReservations",
+        id: "events-classes",
+        label: "adminNav.eventsAndClasses",
         href: "/admin/dashboard/group-reservations",
         icon: <Ticket className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
+        id: "services",
         label: "adminNav.services",
         href: "/admin/dashboard/services",
         icon: <Scissors className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
+        id: "staff",
         label: "adminNav.staff",
         href: "/admin/dashboard/staff",
         icon: <Users className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
+        id: "customers",
         label: "adminNav.customers",
         href: "/admin/dashboard/customers",
         icon: <UserCheck className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
+        id: "reviews",
         label: "adminNav.reviews",
         href: "/admin/dashboard/reviews",
         icon: <Star className="h-5 w-5 shrink-0" />,
@@ -97,6 +107,7 @@ const navItems: NavItem[] = [
         feature: "REVIEW_MANAGEMENT",
     },
     {
+        id: "availability",
         label: "adminNav.availability",
         href: "/admin/dashboard/availability",
         icon: <Calendar className="h-5 w-5 shrink-0" />,
@@ -104,36 +115,92 @@ const navItems: NavItem[] = [
         feature: "STAFF_AVAILABILITY",
     },
     {
+        id: "permissions",
+        label: "adminNav.permissions",
+        href: "/admin/dashboard/permissions",
+        icon: <UserCheck className="h-5 w-5 shrink-0" />,
+        roles: ["OWNER", "ADMIN", "STAFF"],
+        feature: "STAFF_AVAILABILITY",
+    },
+    {
+        id: "hours",
         label: "adminNav.hours",
         href: "/admin/dashboard/hours",
         icon: <Clock className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        label: "adminNav.theme",
-        href: "/admin/dashboard/theme",
-        icon: <Palette className="h-5 w-5 shrink-0" />,
+        id: "storefront-builder",
+        label: "adminNav.storefrontBuilder",
+        href: "/admin/dashboard/storefront-builder",
+        icon: <Store className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        label: "adminNav.pages",
-        href: "/admin/dashboard/page-management",
-        icon: <FileText className="h-5 w-5 shrink-0" />,
-        roles: ["OWNER", "ADMIN"],
-    },
-    {
+        id: "settings",
         label: "adminNav.settings",
         href: "/admin/dashboard/settings",
         icon: <Settings className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
+        exact: true,
     },
     {
-        label: "adminNav.profile",
+        id: "personal-profile",
+        label: "adminNav.personalProfile",
         href: "/admin/dashboard/profile",
         icon: <UserCircle className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
     },
 ];
+
+type NavGroup = {
+    id: string;
+    label: string;
+    itemIds: string[];
+};
+
+const navGroups: NavGroup[] = [
+    {
+        id: "operations",
+        label: "adminNav.groups.operations",
+        itemIds: ["bookings", "events-classes", "reviews"],
+    },
+    {
+        id: "catalog",
+        label: "adminNav.groups.catalog",
+        itemIds: ["services"],
+    },
+    {
+        id: "customers",
+        label: "adminNav.groups.customers",
+        itemIds: ["customers"],
+    },
+    {
+        id: "team-schedule",
+        label: "adminNav.groups.teamSchedule",
+        itemIds: ["staff", "hours", "availability", "permissions"],
+    },
+    {
+        id: "storefront",
+        label: "adminNav.groups.storefront",
+        itemIds: ["storefront-builder"],
+    },
+    {
+        id: "reports",
+        label: "adminNav.groups.reports",
+        itemIds: ["dashboard"],
+    },
+    {
+        id: "settings",
+        label: "adminNav.groups.settings",
+        itemIds: ["settings", "personal-profile"],
+    },
+];
+
+function isNavItemActive(item: NavItem, currentPath: string) {
+    if (item.exact) return currentPath === item.href;
+    return currentPath === item.href || currentPath.startsWith(`${item.href}/`);
+}
 
 export default function DashboardLayout({
     children,
@@ -181,7 +248,7 @@ export default function DashboardLayout({
         return (
             <div className="flex min-h-[100dvh] items-center justify-center bg-slate-950 text-white">
                 <div className="text-center">
-                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent mx-auto" />
+                    <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-admin-brand border-t-transparent mx-auto" />
                 </div>
             </div>
         );
@@ -283,7 +350,7 @@ function ExpiredAdminState({
                 ) : null}
                 <div className="mt-7 flex items-center justify-center">
                     <Link href="/">
-                        <Button className="bg-brand text-white hover:bg-brand-hover">
+                        <Button className="bg-admin-brand text-white hover:bg-admin-brand-hover">
                             {t("shopHome.goHome")}
                         </Button>
                     </Link>
@@ -314,10 +381,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     const activeMembership = companyUsers.find((membership) => membership.company_id === companyId) ?? null;
     const activePlan = resolveShopPlan(activeMembership?.company?.plan);
 
-    useEffect(() => {
-        console.info(`[reservas-admin] APP_VERSION=${APP_VERSION}`);
-    }, []);
-
     const hasMultipleShops = !user?.is_super_admin && companyUsers.length > 1;
 
     const handleSignOut = async () => {
@@ -337,6 +400,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         if (user?.is_super_admin) return true;
         return canUsePlanFeature(activePlan, item.feature);
     });
+    const filteredNavItemsById = new Map(filteredNavItems.map((item) => [item.id, item]));
+    const filteredNavGroups = navGroups
+        .map((group) => ({
+            ...group,
+            items: group.itemIds
+                .map((id) => filteredNavItemsById.get(id))
+                .filter((item): item is NavItem => Boolean(item)),
+        }))
+        .filter((group) => group.items.length > 0);
+    const activeGroupId =
+        filteredNavGroups.find((group) => group.items.some((item) => isNavItemActive(item, currentPath)))?.id ?? null;
 
     const getInitials = () => {
         if (user?.name) return user.name.charAt(0).toUpperCase();
@@ -357,7 +431,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             // user never sees a "feature locked" dead-end after switching.
             const nextMembership = companyUsers.find((m) => m.company_id === nextCompanyId);
             const nextPlan = resolveShopPlan(nextMembership?.company?.plan);
-            const currentNavItem = navItems.find((item) => item.href === currentPath || currentPath.startsWith(`${item.href}/`));
+            const currentNavItem = navItems.find((item) => isNavItemActive(item, currentPath));
 
             const isCurrentPageLocked =
                 currentNavItem?.feature &&
@@ -371,8 +445,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() =>
+        Object.fromEntries(navGroups.map((group) => [group.id, true])),
+    );
+
+    useEffect(() => {
+        if (!activeGroupId) return;
+        setExpandedGroups((current) => ({
+            ...current,
+            [activeGroupId]: true,
+        }));
+    }, [activeGroupId]);
+
     return (
-        <div className="flex h-[100dvh] bg-slate-100 overflow-hidden">
+        <div className="flex h-[100dvh] overflow-hidden bg-admin-page">
             {/* Mobile sidebar overlay */}
             {sidebarOpen && (
                 <div
@@ -384,38 +470,38 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             {/* Sidebar - fixed height viewport */}
             <aside
                 className={cn(
-                    "fixed inset-y-0 left-0 z-50 w-64 transform bg-slate-900 text-white transition-transform duration-200 lg:relative lg:translate-x-0 lg:flex-shrink-0",
+                    "fixed inset-y-0 left-0 z-50 w-72 transform bg-admin-sidebar text-white shadow-2xl shadow-black/30 transition-transform duration-200 lg:relative lg:translate-x-0 lg:flex-shrink-0 lg:shadow-none",
                     sidebarOpen ? "translate-x-0" : "-translate-x-full",
                 )}
             >
                 <div className="flex h-[100dvh] flex-col">
                     {/* Logo / Company Name */}
-                    <div className="flex h-16 items-center justify-between border-b border-slate-800 px-4">
+                    <div className="flex min-h-20 items-center justify-between border-b border-white/10 px-4">
                         <div className="min-w-0">
                             <Image
                                 src="/assets/priconpri/logo-horizontal-pink-outline.webp"
                                 alt="PriConPri"
                                 width={600}
                                 height={370}
-                                className="h-4 w-auto"
+                                className="h-4 w-auto opacity-95"
                                 priority
                             />
-                            <div className="mt-1 flex items-center gap-2">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-[11px] font-bold text-white">
+                            <div className="mt-3 flex items-center gap-2.5">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-admin-brand text-[11px] font-bold text-white shadow-sm shadow-black/20">
                                     {companyName?.charAt(0) || "S"}
                                 </div>
                                 <div className="flex min-w-0 flex-col">
-                                    <span className="truncate text-sm font-semibold">
+                                    <span className="truncate text-sm font-semibold text-white">
                                         {companyName || t("adminNav.shopAdmin")}
                                     </span>
-                                    <span className="text-xs text-slate-400 capitalize">
+                                    <span className="text-xs capitalize text-white/[0.52]">
                                         {role?.toLowerCase()}
                                     </span>
                                 </div>
                             </div>
                         </div>
                         <button
-                            className="lg:hidden p-1 hover:bg-slate-800 rounded"
+                            className="rounded-md p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
                             onClick={() => setSidebarOpen(false)}
                         >
                             <X className="h-5 w-5 shrink-0" />
@@ -423,13 +509,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                     </div>
 
                     {hasMultipleShops && companyId ? (
-                        <div className="border-b border-slate-800 px-4 py-3 lg:hidden">
+                        <div className="border-b border-white/10 px-4 py-3 lg:hidden">
                             <Select
                                 value={companyId.toString()}
                                 onValueChange={handleShopSwitch}
                                 disabled={isSwitchingShop}
                             >
-                                <SelectTrigger className="h-9 border-slate-700 bg-slate-800 text-white">
+                                <SelectTrigger className="h-9 border-white/10 bg-white/[0.08] text-white">
                                     <SelectValue placeholder={t("adminNav.currentShop")} />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -447,35 +533,81 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                     ) : null}
 
                     {/* Navigation */}
-                    <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-                        {filteredNavItems.map((item) => {
-                                    const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className={cn(
-                                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                                        isActive
-                                            ? "bg-brand text-white"
-                                            : "text-slate-300 hover:bg-slate-800 hover:text-white",
-                                    )}
-                                    onClick={() => setSidebarOpen(false)}
-                                >
-                                    {item.icon}
-                                    {t(item.label)}
-                                </Link>
-                            );
-                        })}
+                    <nav className="admin-sidebar-scrollbar flex-1 overflow-y-auto px-3 py-4">
+                        <div className="space-y-4">
+                            {filteredNavGroups.map((group) => {
+                                const isExpanded = expandedGroups[group.id] ?? true;
+                                const isGroupActive = group.id === activeGroupId;
+
+                                return (
+                                    <section key={group.id} className="space-y-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setExpandedGroups((current) => ({
+                                                    ...current,
+                                                    [group.id]: !(current[group.id] ?? true),
+                                                }))
+                                            }
+                                            className={cn(
+                                                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors",
+                                                isGroupActive
+                                                    ? "text-white"
+                                                    : "text-white/[0.42] hover:bg-white/[0.06] hover:text-white/70",
+                                            )}
+                                            aria-expanded={isExpanded}
+                                        >
+                                            <span>{t(group.label)}</span>
+                                            <ChevronDown
+                                                className={cn(
+                                                    "h-3.5 w-3.5 transition-transform duration-200",
+                                                    !isExpanded && "-rotate-90",
+                                                )}
+                                            />
+                                        </button>
+                                        {isExpanded ? (
+                                            <div className="space-y-1">
+                                                {group.items.map((item) => {
+                                                    const isActive = isNavItemActive(item, currentPath);
+                                                    return (
+                                                        <Link
+                                                            key={item.id}
+                                                            href={item.href}
+                                                            className={cn(
+                                                                "group flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+                                                                isActive
+                                                                    ? "bg-admin-sidebar-active text-white shadow-sm ring-1 ring-admin-brand/25"
+                                                                    : "text-white/[0.68] hover:bg-admin-sidebar-hover hover:text-white",
+                                                            )}
+                                                            onClick={() => setSidebarOpen(false)}
+                                                        >
+                                                            <span
+                                                                className={cn(
+                                                                    "text-white/[0.36] transition-colors group-hover:text-white/[0.72]",
+                                                                    isActive && "text-admin-brand",
+                                                                )}
+                                                            >
+                                                                {item.icon}
+                                                            </span>
+                                                            <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>
+                                                        </Link>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : null}
+                                    </section>
+                                );
+                            })}
+                        </div>
                     </nav>
 
                     {/* Super admin back link + View Shop Link */}
                     {(user?.is_super_admin || companySlug) && (
-                        <div className="border-t border-slate-800 p-4 space-y-2">
+                        <div className="space-y-2 border-t border-white/10 p-4">
                             {user?.is_super_admin && (
                                 <Link
                                     href="/admin/super-admin"
-                                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+                                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white/[0.56] transition-colors hover:bg-white/[0.08] hover:text-white"
                                 >
                                     {`← ${t('adminNav.backToSuperAdmin')}`}
                                 </Link>
@@ -484,7 +616,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                                 <Link
                                     href={`/shop/${companySlug}`}
                                     target="_blank"
-                                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+                                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-white/[0.56] transition-colors hover:bg-white/[0.08] hover:text-white"
                                 >
                                     <ChevronRight className="h-4 w-4 shrink-0" />
                                     {t('adminNav.backToShop')}
@@ -494,29 +626,29 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                     )}
 
                     {/* User Section */}
-                    <div className="border-t border-slate-800 p-4">
-                        <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9 border border-slate-700">
+                    <div className="border-t border-white/10 bg-black/10 p-4">
+                        <div className="flex items-center gap-3 rounded-lg border border-white/[0.08] bg-white/[0.035] p-2">
+                            <Avatar className="h-9 w-9 border border-white/10">
                                 <AvatarImage src={user?.image ?? undefined} />
-                                <AvatarFallback className="bg-slate-700 text-white">
+                                <AvatarFallback className="bg-admin-sidebar-hover text-white">
                                     {getInitials()}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
+                                <p className="truncate text-sm font-medium text-white">
                                     {user?.name || user?.email}
                                 </p>
-                                <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+                                <p className="truncate text-xs text-white/[0.48]">{user?.email}</p>
                             </div>
                             <button
                                 onClick={handleSignOut}
-                                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                                className="rounded-lg p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
                                 title={t('adminNav.signOut')}
                             >
-                                <LogOut className="h-4 w-4 shrink-0 text-slate-400" />
+                                <LogOut className="h-4 w-4 shrink-0" />
                             </button>
                         </div>
-                        <p className="mt-3 text-[11px] text-slate-500">
+                        <p className="mt-3 px-2 text-[11px] text-white/[0.34]">
                             Version: {APP_VERSION}
                         </p>
                     </div>
@@ -526,9 +658,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden">
                 {/* Top Header */}
-                <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-6 shadow-sm">
+                <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-admin-border bg-admin-surface px-4 shadow-sm lg:px-6">
                     <button
-                        className="lg:hidden p-2 hover:bg-slate-100 rounded-lg"
+                        className="rounded-lg p-2 transition-colors hover:bg-admin-brand-soft lg:hidden"
                         onClick={() => setSidebarOpen(true)}
                     >
                         <Menu className="h-5 w-5 shrink-0" />
@@ -538,7 +670,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                             {t(
                                 [...filteredNavItems]
                                     .sort((a, b) => b.href.length - a.href.length)
-                                    .find((item) => currentPath === item.href || currentPath.startsWith(`${item.href}/`))
+                                    .find((item) => isNavItemActive(item, currentPath))
                                     ?.label || "adminNav.dashboard",
                             )}
                         </h1>
@@ -570,7 +702,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 </header>
 
                 {/* Page Content - scrollable */}
-                <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+                <main className="admin-scrollbar flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
             </div>
         </div>
     );

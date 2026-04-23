@@ -439,7 +439,7 @@ export default function NewShopPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
                 <span className="ml-2 text-slate-600">{t("common.loading")}</span>
             </div>
         );
@@ -778,7 +778,7 @@ export default function NewShopPage() {
                                     type="button"
                                     variant={ownerMode === "existing" ? "default" : "outline"}
                                     onClick={() => setOwnerMode("existing")}
-                                    className={ownerMode === "existing" ? "bg-brand hover:bg-brand-hover text-white" : ""}
+                                    className={ownerMode === "existing" ? "bg-admin-brand hover:bg-admin-brand-hover text-white" : ""}
                                 >
                                     {t("superAdminShops.ownerUseExisting")}
                                 </Button>
@@ -786,7 +786,7 @@ export default function NewShopPage() {
                                     type="button"
                                     variant={ownerMode === "new" ? "default" : "outline"}
                                     onClick={() => setOwnerMode("new")}
-                                    className={ownerMode === "new" ? "bg-brand hover:bg-brand-hover text-white" : ""}
+                                    className={ownerMode === "new" ? "bg-admin-brand hover:bg-admin-brand-hover text-white" : ""}
                                 >
                                     {t("superAdminShops.ownerCreateNew")}
                                 </Button>
@@ -842,7 +842,7 @@ export default function NewShopPage() {
                                                                     </p>
                                                                 ) : null}
                                                             </div>
-                                                            <span className="text-xs text-brand">{t("superAdminShops.ownerSelectThisUser")}</span>
+                                                            <span className="text-xs text-admin-brand">{t("superAdminShops.ownerSelectThisUser")}</span>
                                                         </button>
                                                     ))}
                                                 </div>
@@ -965,7 +965,7 @@ export default function NewShopPage() {
                             loadingLabel={t("superAdminShops.creating")}
                             onCancel={() => router.push("/admin/super-admin/shops")}
                             cancelLabel={t("common.cancel")}
-                            saveClassName="bg-brand hover:bg-brand-hover text-white"
+                            saveClassName="bg-admin-brand hover:bg-admin-brand-hover text-white"
                         />
                     </form>
                 </CardContent>

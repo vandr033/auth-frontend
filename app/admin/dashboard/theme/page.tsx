@@ -31,9 +31,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemePreview } from "@/components/ThemePreview";
 import { VariantSelector } from "@/components/admin/theme/VariantSelector";
 import { FontPairingSelector } from "@/components/admin/theme/FontPairingSelector";
+import {
+    OutcomeHint,
+    PreviewAccessCard,
+    StylePresetGrid,
+    type StorefrontStylePreset,
+} from "@/components/admin/theme/ThemeEditorUX";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
-import { AdminPageHeader } from "@/app/admin/dashboard/components/AdminPageHeader";
+import { AdminPageHeader, AdminPageShell } from "@/components/admin/shared";
 import { AdminStatCard } from "@/app/admin/dashboard/components/AdminStatCard";
 import { useT } from "@/lib/i18n";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
@@ -63,6 +69,7 @@ interface ExtendedThemeConfig extends ThemeConfig {
 }
 
 const DEFAULT_CTA_BUTTONS: HomeCTAButton[] = [
+    // Product terminology decision pending: these persisted theme defaults are Spanish until CTA defaults become locale-aware.
     { destination: "booking", label: "Reservar Ahora", color: "#ffffff", opacity: 100, enabled: true, order: 0 },
     { destination: "services", label: "Servicios", color: "#ffffff", opacity: 20, enabled: true, order: 1 },
     { destination: "free-events", label: "Eventos Gratuitos", color: "#ffffff", opacity: 20, enabled: false, order: 2 },
@@ -222,6 +229,21 @@ export default function ThemePage() {
         setConfig(prev => ({ ...prev, [key]: value }));
     };
 
+    const applyStylePreset = (preset: StorefrontStylePreset) => {
+        setConfig((prev) => ({
+            ...prev,
+            brandColor: preset.brandColor,
+            pageBackgroundColor: preset.pageBackgroundColor,
+            pageBackgroundPreset: preset.pageBackgroundPreset,
+            cardsElevated: preset.cardsElevated,
+            cornerRadius: preset.cornerRadius,
+            fontPairing: preset.fontPairing,
+            heroVariant: preset.heroVariant,
+            servicesVariant: preset.servicesVariant,
+            teamVariant: preset.teamVariant,
+        }));
+    };
+
     const normalizeAnnouncementBanner = (banner: AnnouncementBanner): AnnouncementBanner => ({
         ...banner,
         sticky: banner.sticky === true,
@@ -230,14 +252,16 @@ export default function ThemePage() {
     if (authLoading || loading) {
         return (
             <div className="flex bg-page h-[50vh] flex-col items-center justify-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
                 <p className="text-text-muted">{t('adminTheme.loading')}</p>
             </div>
         );
     }
 
+    const storefrontHref = companyUser?.company?.slug ? `/shop/${companyUser.company.slug}` : "/admin/dashboard/settings";
+
     return (
-        <div className="mx-auto max-w-[1600px] space-y-4 p-4 sm:p-6 lg:p-8">
+        <AdminPageShell className="max-w-[1600px] pb-24 md:pb-0">
             <AdminPageHeader
                 title={t('adminTheme.title')}
                 subtitle={t('adminTheme.subtitle')}
@@ -288,16 +312,16 @@ export default function ThemePage() {
                         <CardContent className="p-2">
                             <TabsList className="h-auto w-full justify-start overflow-x-auto bg-transparent shadow-none">
                                 <TabsTrigger value="appearance" className="flex-none">
-                                    {t('adminTheme.appearance')}
+                                    {t('adminTheme.visualStyle')}
                                 </TabsTrigger>
                                 <TabsTrigger value="home" className="flex-none">
-                                    {t('adminTheme.ctaButtons')}
+                                    {t('adminTheme.buttonsCtas')}
                                 </TabsTrigger>
                                 <TabsTrigger value="footer" className="flex-none">
-                                    {t('adminTheme.footerCustomization')}
+                                    {t('adminTheme.sectionAppearance')}
                                 </TabsTrigger>
                                 <TabsTrigger value="banners" className="flex-none">
-                                    {t('adminTheme.announcementBanners')}
+                                    {t('adminTheme.bannersHeroTreatment')}
                                 </TabsTrigger>
                             </TabsList>
                         </CardContent>
@@ -307,11 +331,25 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Palette className="h-5 w-5 text-brand" />
-                                    {t('adminTheme.appearance')}
+                                    <LayoutTemplate className="h-5 w-5 text-admin-brand" />
+                                    {t('adminTheme.visualStyle')}
+                                </CardTitle>
+                                <CardDescription>{t('adminTheme.visualStyleDesc')}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <StylePresetGrid config={config} onApply={applyStylePreset} />
+                                <OutcomeHint>{t("adminTheme.previewPanelDesc")}</OutcomeHint>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border-surface-border bg-surface shadow-card">
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Palette className="h-5 w-5 text-admin-brand" />
+                                    {t('adminTheme.colors')}
                                 </CardTitle>
                                 <CardDescription>
-                                    {t('adminTheme.appearanceDescription')}
+                                    {t('adminTheme.colorsDesc')}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -415,11 +453,11 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Type className="h-5 w-5 text-brand" />
-                                    {t('adminTheme.fontPairing')}
+                                    <Type className="h-5 w-5 text-admin-brand" />
+                                    {t('adminTheme.typography')}
                                 </CardTitle>
                                 <CardDescription>
-                                    {t('adminTheme.fontPairingLongDesc')}
+                                    {t('adminTheme.typographyDesc')}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -433,14 +471,15 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <ImageIcon className="h-5 w-5 text-brand" />
+                                    <ImageIcon className="h-5 w-5 text-admin-brand" />
                                     {t('adminTheme.heroStyle')}
                                 </CardTitle>
                                 <CardDescription>
                                     {t('adminTheme.heroStyleDesc')}
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-4">
+                                <OutcomeHint>{t("adminTheme.heroOutcomeHint")}</OutcomeHint>
                                 <VariantSelector
                                     options={[
                                         {
@@ -468,7 +507,7 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Columns3 className="h-5 w-5 text-brand" />
+                                    <Columns3 className="h-5 w-5 text-admin-brand" />
                                     {t('adminTheme.servicesLayout')}
                                 </CardTitle>
                                 <CardDescription>
@@ -498,7 +537,7 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Users className="h-5 w-5 text-brand" />
+                                    <Users className="h-5 w-5 text-admin-brand" />
                                     {t('adminTheme.teamLayout')}
                                 </CardTitle>
                                 <CardDescription>
@@ -530,7 +569,7 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <MousePointerClick className="h-5 w-5 text-brand" />
+                                    <MousePointerClick className="h-5 w-5 text-admin-brand" />
                                     {t("adminTheme.ctaButtons")}
                                 </CardTitle>
                                 <CardDescription>{t("adminTheme.ctaButtonsDesc")}</CardDescription>
@@ -546,6 +585,7 @@ export default function ThemePage() {
                                     />
                                 ) : (
                                     <div className="space-y-3">
+                                        <OutcomeHint>{t("adminTheme.ctaOutcomeHint")}</OutcomeHint>
                                         {config.homeCTAButtons.map((btn, idx) => {
                                             const needsEventsWarn = (btn.destination === "events" || btn.destination === "free-events") && !canUsePlanFeature(plan, "GROUP_EVENTS");
                                             const needsClassesWarn = btn.destination === "classes" && !canUsePlanFeature(plan, "GROUP_CLASSES");
@@ -563,7 +603,7 @@ export default function ThemePage() {
                                                         <span className="flex-1 text-sm font-semibold text-text-main">
                                                             {getDestinationLabel(btn.destination)}
                                                             {idx === 0 && (
-                                                                <span className="ml-2 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-brand">
+                                                                <span className="ml-2 rounded bg-admin-brand-soft px-1.5 py-0.5 text-[10px] font-bold uppercase text-admin-brand">
                                                                     primario
                                                                 </span>
                                                             )}
@@ -599,7 +639,7 @@ export default function ThemePage() {
                                                                 value={btn.label}
                                                                 onChange={(e) => updateCTAButton(idx, "label", e.target.value)}
                                                                 className="h-8 text-sm"
-                                                                placeholder="Texto del botón"
+                                                                placeholder={t("adminTheme.ctaLabelPlaceholder")}
                                                             />
                                                         </div>
                                                         <div className="space-y-1.5">
@@ -657,7 +697,7 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <GripVertical className="h-5 w-5 text-brand" />
+                                    <GripVertical className="h-5 w-5 text-admin-brand" />
                                     {t("adminTheme.sectionOrder")}
                                 </CardTitle>
                                 <CardDescription>{t("adminTheme.sectionOrderDesc")}</CardDescription>
@@ -673,6 +713,7 @@ export default function ThemePage() {
                                     />
                                 ) : (
                                     <div className="space-y-2">
+                                        <OutcomeHint>{t("adminTheme.sectionOutcomeHint")}</OutcomeHint>
                                         {config.homeSectionOrder.map((key, idx) => {
                                             const labels: Record<HomeSectionKey, string> = {
                                                 about: t("adminTheme.sectionAbout"),
@@ -730,7 +771,7 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <PanelBottom className="h-5 w-5 text-brand" />
+                                    <PanelBottom className="h-5 w-5 text-admin-brand" />
                                     {t("adminTheme.footerCustomization")}
                                 </CardTitle>
                                 <CardDescription>{t("adminTheme.footerCustomizationDesc")}</CardDescription>
@@ -823,7 +864,7 @@ export default function ThemePage() {
                         <Card className="border-surface-border bg-surface shadow-card">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <Megaphone className="h-5 w-5 text-brand" />
+                                    <Megaphone className="h-5 w-5 text-admin-brand" />
                                     {t("adminTheme.announcementBanners")}
                                 </CardTitle>
                                 <CardDescription>{t("adminTheme.announcementBannersDesc")}</CardDescription>
@@ -839,6 +880,7 @@ export default function ThemePage() {
                                     />
                                 ) : (
                                     <div className="space-y-4">
+                                        <OutcomeHint>{t("adminTheme.bannerOutcomeHint")}</OutcomeHint>
                                         {config.announcementBanners.map((banner, idx) => (
                                             <div key={banner.id} className="space-y-4 rounded-lg border border-surface-border bg-page p-4">
                                                 <div className="flex items-center justify-between gap-3">
@@ -1008,7 +1050,7 @@ export default function ThemePage() {
                                                 >
                                                     {banner.message || "…"}
                                                     {banner.link_url && (
-                                                        <span className="underline underline-offset-2">{banner.link_label || "Ver más"}</span>
+                                                        <span className="underline underline-offset-2">{banner.link_label || t("adminTheme.announcementBannerDefaultLink")}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -1047,10 +1089,15 @@ export default function ThemePage() {
                 </Tabs>
 
                 <div className="space-y-4 xl:sticky xl:top-20 xl:self-start">
+                    <PreviewAccessCard
+                        href={storefrontHref}
+                        title={t("adminTheme.previewOpenStorefront")}
+                        description={t("adminTheme.previewPanelDesc")}
+                    />
                     <Card className="border-surface-border bg-surface shadow-card">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <LayoutTemplate className="h-5 w-5 text-brand" />
+                                <LayoutTemplate className="h-5 w-5 text-admin-brand" />
                                 {t('adminTheme.preview')}
                             </CardTitle>
                             <CardDescription>{t('adminTheme.savedLive')}</CardDescription>
@@ -1076,8 +1123,8 @@ export default function ThemePage() {
                 saveLabel={t('common.save')}
                 loadingLabel={t('adminTheme.saving')}
                 saveIcon={<Save className="h-4 w-4" />}
-                saveClassName="bg-brand text-white hover:bg-brand-hover"
+                saveClassName="bg-admin-brand text-white hover:bg-admin-brand-hover"
             />
-        </div>
+        </AdminPageShell>
     );
 }

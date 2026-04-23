@@ -18,6 +18,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
+import { AdminPageHeader, AdminPageShell } from "@/components/admin/shared";
 import { notify } from "@/lib/notify";
 
 // Types
@@ -319,29 +320,27 @@ export default function HoursPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
                 <span className="ml-2 text-slate-600">{t('common.loading')}</span>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 overflow-x-hidden">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t('adminHours.title')}</h1>
-                    <p className="text-slate-500">{t('adminHours.subtitle')}</p>
-                </div>
-            </div>
+        <AdminPageShell className="pb-24 md:pb-0">
+            <AdminPageHeader
+                title={t('adminHours.title')}
+                subtitle={t('adminHours.subtitle')}
+            />
 
             {/* Schedule Form */}
-            <Card className="overflow-x-hidden">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-orange-500" />
-                        {t('adminHours.title')}
+            <Card className="admin-card">
+                <CardHeader className="gap-1 pb-4">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Clock className="h-5 w-5 text-admin-brand" />
+                        {t('adminHours.sectionTitle')}
                     </CardTitle>
+                    <p className="max-w-3xl text-sm text-slate-600">{t('adminHours.sectionDescription')}</p>
                 </CardHeader>
                 <CardContent className="space-y-1">
                     {schedule.map((day, dayIndex) => {
@@ -352,7 +351,7 @@ export default function HoursPage() {
                             <div
                                 key={day.day}
                                 className={cn(
-                                    "py-4 border-b border-slate-100 last:border-0 overflow-x-hidden",
+                                    "py-3 border-b border-slate-100 last:border-0",
                                     hasError && "bg-rose-50/50 -mx-4 px-4 rounded-lg"
                                 )}
                             >
@@ -385,7 +384,7 @@ export default function HoursPage() {
                                         {day.slots.map((slot, slotIndex) => (
                                             <div
                                                 key={slotIndex}
-                                                className="rounded-md border border-slate-200 p-3"
+                                                className="rounded-md border border-admin-border bg-admin-surface-subtle p-2.5"
                                             >
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <Input
@@ -428,7 +427,7 @@ export default function HoursPage() {
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => addSlot(dayIndex)}
-                                            className="w-full text-orange-500 hover:text-orange-600 hover:bg-orange-50 sm:w-auto"
+                                            className="w-full text-admin-brand hover:bg-admin-brand-soft hover:text-admin-brand-hover sm:w-auto"
                                         >
                                             <Plus className="h-4 w-4 mr-1" />
                                             {t('adminHours.addSlot')}
@@ -454,8 +453,8 @@ export default function HoursPage() {
                 saveLabel={t('common.save')}
                 loadingLabel={t('adminHours.saving')}
                 saveIcon={<Check className="h-4 w-4" />}
-                saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
+                saveClassName="bg-admin-brand hover:bg-admin-brand-hover text-white"
             />
-        </div>
+        </AdminPageShell>
     );
 }

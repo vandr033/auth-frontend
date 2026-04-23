@@ -283,7 +283,11 @@ function AppointmentsPageContent() {
   }, [authLoading, isAuthenticated, router, fetchAppointments, shopSlug]);
 
   const handleCancel = async (bookingId: number) => {
-    const result = await notify.confirm(t("meAppointments.cancelConfirm"));
+    const result = await notify.confirm(t("meAppointments.cancelConfirm"), undefined, {
+      variant: "destructive",
+      confirmButtonText: t("common.confirm"),
+      cancelButtonText: t("common.cancel"),
+    });
     if (!result.isConfirmed) return;
 
     setCancellingId(bookingId);

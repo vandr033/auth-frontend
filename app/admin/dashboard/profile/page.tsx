@@ -192,7 +192,7 @@ export default function AdminProfilePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                <Loader2 className="h-6 w-6 animate-spin text-admin-brand" />
             </div>
         );
     }
@@ -338,7 +338,7 @@ export default function AdminProfilePage() {
                         <Button
                             type="submit"
                             disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
-                            className="bg-brand hover:bg-brand-hover text-white"
+                            className="bg-admin-brand hover:bg-admin-brand-hover text-white"
                         >
                             {changingPassword ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                             {changingPassword ? t("staffProfile.updatingPassword") : t("staffProfile.updatePassword")}
@@ -353,7 +353,7 @@ export default function AdminProfilePage() {
                 disabled={firstName.trim().length === 0}
                 saveLabel={t("staffProfile.save")}
                 loadingLabel={t("staffProfile.saving")}
-                saveClassName="bg-brand hover:bg-brand-hover text-white"
+                saveClassName="bg-admin-brand hover:bg-admin-brand-hover text-white"
             />
         </div>
     );

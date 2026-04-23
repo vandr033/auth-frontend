@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { getDateLocale } from "@/lib/date-locale";
 import { getBookingDisplayStatus } from "../lib/bookingStatus";
+import { StatusBadge } from "@/components/admin/shared";
 
 interface BookingMonthViewProps {
     bookings: AdminBooking[];
@@ -91,67 +92,88 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
     }, [bookingsByDay, selectedDay]);
 
     return (
-        <div className="rounded-xl border border-surface-border bg-surface p-3 sm:p-4">
-            <div className="mb-3 grid grid-cols-7 text-center text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                {weekdayLabels.map((label) => (
-                    <div key={label} className="py-2">
-                        {label}
-                    </div>
-                ))}
-            </div>
+        <div className="admin-card grid gap-4 p-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:p-4">
+            <div className="min-w-0">
+                <div className="mb-3 grid grid-cols-7 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    {weekdayLabels.map((label) => (
+                        <div key={label} className="py-2">
+                            {label}
+                        </div>
+                    ))}
+                </div>
 
-            <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                {days.map((day) => {
-                    const key = dateKey(day);
-                    const dayBookings = bookingsByDay.get(key) ?? [];
-                    const dotStatuses = dayBookings
-                        .slice(0, 3)
-                        .map((booking) => getBookingDisplayStatus(booking));
-                    const isOutsideMonth = !isSameMonth(day, monthStart);
-                    const isSelected = isSameDay(day, selectedDay);
-                    const isToday = isSameDay(day, today);
+                <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                    {days.map((day) => {
+                        const key = dateKey(day);
+                        const dayBookings = bookingsByDay.get(key) ?? [];
+                        const dotStatuses = dayBookings
+                            .slice(0, 3)
+                            .map((booking) => getBookingDisplayStatus(booking));
+                        const isOutsideMonth = !isSameMonth(day, monthStart);
+                        const isSelected = isSameDay(day, selectedDay);
+                        const isToday = isSameDay(day, today);
 
-                    return (
-                        <button
-                            key={key}
-                            type="button"
-                            onClick={() => setSelectedDay(day)}
-                            className={cn(
-                                "relative min-h-[66px] rounded-lg border px-1.5 py-1.5 text-left transition-colors",
-                                isOutsideMonth
-                                    ? "border-transparent bg-transparent text-text-muted/50"
-                                    : "border-surface-border bg-page hover:border-brand/50",
-                                isSelected && "border-brand bg-brand/10",
-                                isToday && !isSelected && "ring-1 ring-brand/50",
-                            )}
-                        >
-                            <div className="text-sm font-semibold">{format(day, "d")}</div>
-                            {dayBookings.length > 0 && (
-                                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
-                                    {dotStatuses.map((status, index) => (
-                                        <span
-                                            key={`${key}-${status}-${index}`}
-                                            className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[status])}
-                                        />
-                                    ))}
-                                    {dayBookings.length > 3 && (
-                                        <span className="text-[10px] font-semibold text-text-muted">
-                                            +{dayBookings.length - 3}
-                                        </span>
-                                    )}
+                        return (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setSelectedDay(day)}
+                                className={cn(
+                                    "relative min-h-[72px] rounded-lg border px-1.5 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand sm:min-h-[88px] sm:px-2 sm:py-2",
+                                    isOutsideMonth
+                                        ? "border-transparent bg-transparent text-slate-400"
+                                        : "border-admin-border bg-white hover:border-admin-border-strong",
+                                    isSelected && "border-admin-brand bg-admin-brand-soft",
+                                    isToday && !isSelected && "ring-1 ring-admin-brand/60",
+                                )}
+                            >
+                                <div className={cn("text-sm font-semibold", isToday && "text-admin-brand-soft-text")}>
+                                    {format(day, "d")}
                                 </div>
-                            )}
-                        </button>
-                    );
-                })}
+                                {dayBookings.length > 0 ? (
+                                    <>
+                                        <div className="mt-1 hidden text-[11px] font-medium text-slate-500 sm:block">
+                                            {dayBookings.length} {t("adminBookings.bookingsShort")}
+                                        </div>
+                                        <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
+                                            {dotStatuses.map((status, index) => (
+                                                <span
+                                                    key={`${key}-${status}-${index}`}
+                                                    className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[status])}
+                                                />
+                                            ))}
+                                            {dayBookings.length > 3 && (
+                                                <span className="text-[10px] font-semibold text-slate-500">
+                                                    +{dayBookings.length - 3}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </>
+                                ) : (
+                                    !isOutsideMonth && <div className="mt-3 hidden h-px w-8 bg-admin-border sm:block" />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
-            <div className="mt-4 rounded-lg border border-surface-border bg-page p-3">
-                <div className="mb-2 text-sm font-semibold text-text-main">
-                    {format(selectedDay, "EEEE, MMM d", { locale: dateFnsLocale })}
+            <div className="rounded-lg border border-admin-border bg-admin-surface-subtle p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-950">
+                            {format(selectedDay, "EEEE, MMM d", { locale: dateFnsLocale })}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                            {selectedDayBookings.length} {t("adminBookings.bookingsShort")}
+                        </p>
+                    </div>
+                    {isSameDay(selectedDay, today) ? <StatusBadge tone="brand">{t("adminBookings.today")}</StatusBadge> : null}
                 </div>
                 {selectedDayBookings.length === 0 ? (
-                    <p className="text-sm text-text-muted">{t("adminBookings.noBookingsForDay")}</p>
+                    <p className="rounded-md border border-dashed border-admin-border bg-white/70 px-3 py-6 text-center text-sm text-slate-500">
+                        {t("adminBookings.noBookingsForDay")}
+                    </p>
                 ) : (
                     <div className="space-y-2">
                         {selectedDayBookings.map((booking) => {
@@ -161,21 +183,21 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
                                     key={booking.id}
                                     type="button"
                                     onClick={() => onBookingClick(booking)}
-                                    className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-left hover:border-brand/50"
+                                    className="w-full rounded-lg border border-admin-border bg-white px-3 py-2 text-left transition hover:border-admin-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand"
                                 >
                                     <div className="flex items-center justify-between gap-2">
-                                        <p className="truncate text-sm font-semibold text-text-main">
+                                        <p className="truncate text-sm font-semibold text-slate-950">
                                             {booking.customer.full_name}
                                         </p>
                                         <span
                                             className={cn(
-                                                "h-2 w-2 rounded-full",
+                                                "h-2 w-2 shrink-0 rounded-full",
                                                 STATUS_DOT[displayStatus],
                                             )}
                                             title={displayStatus}
                                         />
                                     </div>
-                                    <p className="text-xs text-text-muted">
+                                    <p className="truncate text-xs text-slate-500">
                                         {format(parseISO(booking.start_at), "h:mm a", { locale: dateFnsLocale })} · {booking.staff.name}
                                     </p>
                                 </button>

@@ -36,6 +36,7 @@ import {
     type LocationAutofillUpdate,
 } from "@/components/admin/location/LocationPicker";
 import { formatCurrencyAmount } from "@/lib/currency";
+import { AdminPageHeader, AdminPageShell, ErrorBanner } from "@/components/admin/shared";
 
 // Combined interface
 interface CompanySettings {
@@ -117,7 +118,8 @@ const initialSettings: CompanySettings = {
     social_links: {},
     default_language: "es",
     custom_tos: "",
-    staff_label: "Staff",
+    // Product terminology decision pending: staff_label is persisted as a merchant-customizable resource label.
+    staff_label: "Equipo",
 };
 
 function formatDateTime(value: string | null | undefined): string {
@@ -239,7 +241,7 @@ export default function SettingsPage() {
 
         } catch (err) {
             console.error("Failed to fetch settings:", err);
-            void notify.error('Failed to load settings');
+            void notify.error(t("adminSettings.failedToLoad"));
             setSubscriptionError(t("adminSettings.historyLoadFailed"));
         } finally {
             setLoading(false);
@@ -379,7 +381,7 @@ export default function SettingsPage() {
                 social_links: settings.social_links,
                 default_language: settings.default_language,
                 custom_tos: settings.custom_tos || "",
-                staff_label: settings.staff_label || "Staff",
+                staff_label: settings.staff_label || t("adminSettings.staffLabelPlaceholder"),
             };
 
             const [companyRes, settingsRes] = await Promise.all([
@@ -409,7 +411,7 @@ export default function SettingsPage() {
             // Update state with new URL if uploaded
             setSettings(prev => ({ ...prev, qr_image_url: qrUrl }));
             setSelectedQR(null); // Clear selection after upload
-            await notify.success(t('common.success'));
+            await notify.success(t("adminSettings.savedTitle"), t("adminSettings.savedMessage"));
         } catch (err) {
             console.error("Save error:", err);
             await notify.error(err instanceof Error ? err.message : t('adminSettings.saveSettingsFailed'));
@@ -421,68 +423,65 @@ export default function SettingsPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6 pb-12">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t('adminSettings.title')}</h1>
-                    <p className="text-slate-500">{t('adminSettings.subtitle')}</p>
-                </div>
-            </div>
+        <AdminPageShell className="max-w-4xl pb-12">
+            <AdminPageHeader
+                title={t('adminSettings.title')}
+                subtitle={t('adminSettings.subtitle')}
+            />
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 min-w-0">
-                <TabsList className="config-tabs w-full justify-start gap-1 overflow-x-auto whitespace-nowrap rounded-md border bg-white p-1 text-slate-600 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <TabsList className="config-tabs w-full justify-start gap-1 overflow-x-auto whitespace-nowrap rounded-md border border-admin-border bg-admin-surface p-1 text-slate-600 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                     <TabsTrigger
                         value="general"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
                     >
                         <Building2 className="h-4 w-4 mr-2" />
                         {t('adminSettings.general')}
                     </TabsTrigger>
                     <TabsTrigger
                         value="booking"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
                     >
                         <CalendarClock className="h-4 w-4 mr-2" />
                         {t('adminSettings.bookingRules')}
                     </TabsTrigger>
                     <TabsTrigger
                         value="payments"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
                     >
                         <CreditCard className="h-4 w-4 mr-2" />
                         {t('adminSettings.payments')}
                     </TabsTrigger>
                     <TabsTrigger
                         value="social"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
                     >
                         <Share2 className="h-4 w-4 mr-2" />
                         {t('adminSettings.socialMedia')}
                     </TabsTrigger>
                     <TabsTrigger
                         value="language"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
                     >
                         <Languages className="h-4 w-4 mr-2" />
                         {t('adminSettings.language')}
                     </TabsTrigger>
                     <TabsTrigger
                         value="tos"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
                     >
                         <Globe className="h-4 w-4 mr-2" />
                         {t('adminSettings.tosTab')}
                     </TabsTrigger>
                     <TabsTrigger
                         value="subscription"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-600 data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-orange-200"
+                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
                     >
                         <CreditCard className="h-4 w-4 mr-2" />
                         {t('adminSettings.subscription')}
@@ -848,7 +847,7 @@ export default function SettingsPage() {
                                 <div className="space-y-0.5">
                                     <Label className="text-base">{t('adminSettings.allowCash')}</Label>
                                     <p className="text-sm text-slate-500">
-                                        Allow customers to pay in person with cash
+                                        {t('adminSettings.allowCashDesc')}
                                     </p>
                                 </div>
                                 <Switch
@@ -863,7 +862,7 @@ export default function SettingsPage() {
                                     <div className="space-y-0.5">
                                         <Label className="text-base">{t('adminSettings.allowQR')}</Label>
                                         <p className="text-sm text-slate-500">
-                                            Allow customers to upload a payment proof
+                                            {t('adminSettings.allowQRDesc')}
                                         </p>
                                     </div>
                                     <Switch
@@ -876,7 +875,7 @@ export default function SettingsPage() {
                                     <div className="mt-4 border-t pt-4">
                                         <Label className="mb-2 block">{t('adminSettings.qrImage')}</Label>
                                         <p className="text-sm text-slate-500 mb-4">
-                                            Upload the QR code image your customers will scan to pay.
+                                            {t('adminSettings.qrImageDesc')}
                                         </p>
                                         <div className="flex justify-start">
                                             <ImageUpload
@@ -954,7 +953,7 @@ export default function SettingsPage() {
                                 <div className="space-y-0.5">
                                     <Label className="text-base">{t('adminSettings.emailNotifications')}</Label>
                                     <p className="text-sm text-slate-500">
-                                        Send booking confirmations via email
+                                        {t('adminSettings.emailNotificationsDesc')}
                                     </p>
                                 </div>
                                 <Switch
@@ -967,7 +966,7 @@ export default function SettingsPage() {
                                 <div className="space-y-0.5">
                                     <Label className="text-base">{t('adminSettings.whatsappNotifications')}</Label>
                                     <p className="text-sm text-slate-500">
-                                        Send booking updates via WhatsApp (requires integration)
+                                        {t('adminSettings.whatsappNotificationsDesc')}
                                     </p>
                                 </div>
                                 <Switch
@@ -989,7 +988,7 @@ export default function SettingsPage() {
                                 <CardTitle>{t('adminSettings.socialMediaLinks')}</CardTitle>
                             </div>
                             <CardDescription>
-                                Add your social media profiles. These will appear in your shop&apos;s navbar and footer.
+                                {t('adminSettings.socialMediaLinksDesc')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -1064,7 +1063,7 @@ export default function SettingsPage() {
                                 value={settings.custom_tos}
                                 onChange={(e) => handleChange('custom_tos', e.target.value)}
                                 placeholder={t('adminSettings.tosPlaceholder')}
-                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200 resize-y"
+                                className="admin-textarea resize-y"
                             />
                             <p className="text-xs text-slate-500">{t('adminSettings.tosHelp')}</p>
                         </CardContent>
@@ -1121,7 +1120,7 @@ export default function SettingsPage() {
                         </CardHeader>
                         <CardContent>
                             {subscriptionError ? (
-                                <p className="text-sm text-rose-600">{subscriptionError}</p>
+                                <ErrorBanner description={subscriptionError} />
                             ) : (
                                 <div className="overflow-x-auto rounded-lg border">
                                     <Table>
@@ -1192,8 +1191,8 @@ export default function SettingsPage() {
                 saveLabel={t('common.save')}
                 loadingLabel={t('adminSettings.saving')}
                 saveIcon={<Save className="h-4 w-4" />}
-                saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
+                saveClassName="bg-admin-brand hover:bg-admin-brand-hover text-white"
             />
-        </div>
+        </AdminPageShell>
     );
 }

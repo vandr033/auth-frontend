@@ -186,7 +186,7 @@ export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved 
 
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                        <Loader2 className="h-6 w-6 animate-spin text-admin-brand" />
                     </div>
                 ) : (
                     <div className="space-y-5">

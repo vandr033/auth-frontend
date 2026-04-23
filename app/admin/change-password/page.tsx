@@ -180,7 +180,7 @@ export default function AdminChangePasswordPage() {
                             <Button
                                 type="submit"
                                 disabled={submitting || !currentPassword || !newPassword || !confirmPassword}
-                                className="w-full bg-brand text-white hover:bg-brand-hover"
+                                className="w-full bg-admin-brand text-white hover:bg-admin-brand-hover"
                             >
                                 {submitting ? t("adminChangePassword.updating") : t("adminChangePassword.updateButton")}
                             </Button>

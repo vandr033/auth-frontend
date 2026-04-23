@@ -682,7 +682,7 @@ export default function GroupClassDetailPage() {
     if (loading || !groupClass || !form) {
         return (
             <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-7 w-7 animate-spin text-brand" />
+                <Loader2 className="h-7 w-7 animate-spin text-admin-brand" />
             </div>
         );
     }
@@ -1339,7 +1339,7 @@ export default function GroupClassDetailPage() {
                                 </label>
                                 <input
                                     type="text"
-                                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand"
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-admin-brand"
                                     placeholder={t("adminBookings.searchCustomer")}
                                     value={addMemberSearch}
                                     onChange={(e) => void handleAddMemberSearchChange(e.target.value)}
@@ -1355,7 +1355,7 @@ export default function GroupClassDetailPage() {
                                             <li key={customer.id}>
                                                 <button
                                                     type="button"
-                                                    className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${addMemberSelected?.id === customer.id ? "bg-brand/10 font-medium text-brand" : "text-slate-800"}`}
+                                                    className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${addMemberSelected?.id === customer.id ? "bg-admin-brand-soft font-medium text-admin-brand" : "text-slate-800"}`}
                                                     onClick={() => {
                                                         setAddMemberSelected(customer);
                                                         setAddMemberSearch(customer.name || customer.email || "");
@@ -1454,7 +1454,7 @@ export default function GroupClassDetailPage() {
                                 {addMemberQrProofUrl ? (
                                     <button
                                         type="button"
-                                        className="text-xs font-medium text-brand underline-offset-4 hover:underline"
+                                        className="text-xs font-medium text-admin-brand underline-offset-4 hover:underline"
                                         onClick={() => setQrProofDialog(addMemberQrProofUrl)}
                                     >
                                         {t("adminBookings.viewUploadedQrProof")}

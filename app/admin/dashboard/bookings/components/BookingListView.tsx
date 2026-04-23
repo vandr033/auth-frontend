@@ -10,22 +10,13 @@ import {
     TableHeader,
     TableRow
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal } from "lucide-react";
+import { CalendarDays, CheckCircle2, Eye, XCircle } from "lucide-react";
 import { AdminBooking } from "@/types/admin-booking";
 import { useI18n } from "@/lib/i18n";
 import { getDateLocale } from "@/lib/date-locale";
 import { getBookingDisplayStatus } from "../lib/bookingStatus";
 import { formatCurrencyFromCents } from "@/lib/currency";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ActionMenu, DataTable, EmptyState, StatusBadge } from "@/components/admin/shared";
 
 interface BookingListViewProps {
     bookings: AdminBooking[];
@@ -39,30 +30,124 @@ export function BookingListView({ bookings, currency, onBookingClick, onStatusUp
     const dateFnsLocale = getDateLocale(locale);
     if (bookings.length === 0) {
         return (
-            <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-surface-border bg-surface text-center">
-                <p className="text-text-muted">{t('adminBookings.noBookingsForPeriod')}</p>
-            </div>
+            <EmptyState
+                icon={CalendarDays}
+                title={t("adminBookings.noBookingsForPeriod")}
+                description={t("adminBookings.noBookingsForPeriodHint")}
+                className="min-h-[360px]"
+            />
         );
     }
 
     const getStatusBadge = (status: AdminBooking['status']) => {
-        const styles = {
-            CONFIRMED: "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
-            COMPLETED: "bg-blue-100 text-blue-800 hover:bg-blue-200",
-            CANCELLED: "bg-rose-100 text-rose-800 hover:bg-rose-200",
-            NO_SHOW: "bg-gray-100 text-gray-800 hover:bg-gray-200",
-            PENDING: "bg-amber-100 text-amber-800 hover:bg-amber-200",
+        const tones = {
+            CONFIRMED: "success",
+            COMPLETED: "info",
+            CANCELLED: "danger",
+            NO_SHOW: "neutral",
+            PENDING: "warning",
         };
 
         return (
-            <Badge variant="outline" className={`border-0 ${styles[status]}`}>
+            <StatusBadge tone={tones[status] as React.ComponentProps<typeof StatusBadge>["tone"]} dot>
                 {t(`adminBookings.${status === "NO_SHOW" ? "noShow" : status.toLowerCase()}`)}
-            </Badge>
+            </StatusBadge>
+        );
+    };
+
+    const bookingActions = (booking: AdminBooking) => {
+        const displayStatus = getBookingDisplayStatus(booking);
+
+        return (
+            <ActionMenu
+                label={t('adminCustomers.actions')}
+                items={[
+                    {
+                        label: t('adminBookings.details'),
+                        icon: <Eye className="h-4 w-4" />,
+                        onSelect: () => onBookingClick(booking),
+                    },
+                    ...(displayStatus === "PENDING"
+                        ? [{
+                            label: t('adminBookings.confirmBooking'),
+                            icon: <CheckCircle2 className="h-4 w-4" />,
+                            separatorBefore: true,
+                            onSelect: () => void onStatusUpdate(booking.id, "CONFIRMED"),
+                        }]
+                        : []),
+                    ...(displayStatus === "CONFIRMED"
+                        ? [{
+                            label: t('adminBookings.markCompleted'),
+                            icon: <CheckCircle2 className="h-4 w-4" />,
+                            separatorBefore: true,
+                            onSelect: () => void onStatusUpdate(booking.id, "COMPLETED"),
+                        }]
+                        : []),
+                    ...(displayStatus === "PENDING" || displayStatus === "CONFIRMED"
+                        ? [{
+                            label: t('adminBookings.cancelBooking'),
+                            icon: <XCircle className="h-4 w-4" />,
+                            destructive: true,
+                            separatorBefore: displayStatus === "PENDING" ? false : true,
+                            onSelect: () => void onStatusUpdate(booking.id, "CANCELLED"),
+                        }]
+                        : []),
+                ]}
+            />
         );
     };
 
     return (
-        <div className="rounded-md border border-surface-border bg-surface">
+        <DataTable
+            mobileBreakpoint="md"
+            mobileList={
+                <div className="grid gap-3">
+                    {bookings.map((booking) => {
+                        const displayStatus = getBookingDisplayStatus(booking);
+                        const serviceSummary = booking.services.map((service) => service.name).join(", ");
+                        return (
+                            <div
+                                key={booking.id}
+                                className="rounded-lg border border-admin-border bg-admin-surface p-4 shadow-sm transition hover:border-admin-border-strong"
+                                onClick={() => onBookingClick(booking)}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-slate-950">
+                                            {format(parseISO(booking.start_at), "PPP", { locale: dateFnsLocale })}
+                                        </p>
+                                        <p className="text-sm text-slate-500">
+                                            {format(parseISO(booking.start_at), "h:mm a", { locale: dateFnsLocale })} - {format(parseISO(booking.end_at), "h:mm a", { locale: dateFnsLocale })}
+                                        </p>
+                                    </div>
+                                    <div onClick={(event) => event.stopPropagation()}>
+                                        {bookingActions(booking)}
+                                    </div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                    {getStatusBadge(displayStatus)}
+                                    <StatusBadge tone="neutral">
+                                        {formatCurrencyFromCents(booking.total_price, currency)}
+                                    </StatusBadge>
+                                </div>
+                                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('adminBookings.client')}</p>
+                                        <p className="font-medium text-slate-900">{booking.customer.full_name}</p>
+                                        <p className="text-xs text-slate-500">{booking.customer.phone || booking.customer.email}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('adminBookings.staff')}</p>
+                                        <p className="text-slate-700">{booking.staff.name}</p>
+                                    </div>
+                                </div>
+                                <p className="mt-3 line-clamp-2 text-sm text-slate-600">{serviceSummary}</p>
+                            </div>
+                        );
+                    })}
+                </div>
+            }
+        >
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -112,51 +197,13 @@ export function BookingListView({ bookings, currency, onBookingClick, onStatusUp
                                 {formatCurrencyFromCents(booking.total_price, currency)}
                             </TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">{t('header.openMenu')}</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>{t('adminCustomers.actions')}</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => onBookingClick(booking)}>
-                                            {t('adminBookings.details')}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        {displayStatus === "PENDING" && (
-                                            <DropdownMenuItem
-                                                className="text-emerald-600"
-                                                onClick={() => void onStatusUpdate(booking.id, "CONFIRMED")}
-                                            >
-                                                {t('adminBookings.confirmBooking')}
-                                            </DropdownMenuItem>
-                                        )}
-                                        {displayStatus === "CONFIRMED" && (
-                                            <DropdownMenuItem
-                                                className="text-blue-600"
-                                                onClick={() => void onStatusUpdate(booking.id, "COMPLETED")}
-                                            >
-                                                {t('adminBookings.markCompleted')}
-                                            </DropdownMenuItem>
-                                        )}
-                                        {(displayStatus === "PENDING" || displayStatus === "CONFIRMED") && (
-                                            <DropdownMenuItem
-                                                className="text-rose-600"
-                                                onClick={() => void onStatusUpdate(booking.id, "CANCELLED")}
-                                            >
-                                                {t('adminBookings.cancelBooking')}
-                                            </DropdownMenuItem>
-                                        )}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                {bookingActions(booking)}
                             </TableCell>
                         </TableRow>
                         );
                     })}
                 </TableBody>
             </Table>
-        </div>
+        </DataTable>
     );
 }

@@ -34,6 +34,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import { notify } from "@/lib/notify";
+import { AdminPageHeader, AdminPageShell, ConfirmDialog } from "@/components/admin/shared";
 
 interface GlobalServiceType {
     id: number;
@@ -286,25 +287,24 @@ export default function ServiceTypesPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-brand" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
                 <span className="ml-2 text-slate-600">{t("superAdminServiceTypes.loading")}</span>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t("superAdminServiceTypes.title")}</h1>
-                    <p className="text-slate-500">{t("superAdminServiceTypes.subtitle")}</p>
-                </div>
-                <Button onClick={openAddModal} className="bg-brand hover:bg-brand-hover text-white">
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t("superAdminServiceTypes.add")}
-                </Button>
-            </div>
+        <AdminPageShell>
+            <AdminPageHeader
+                title={t("superAdminServiceTypes.title")}
+                subtitle={t("superAdminServiceTypes.subtitle")}
+                actions={
+                    <Button onClick={openAddModal} className="bg-admin-brand hover:bg-admin-brand-hover text-white">
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t("superAdminServiceTypes.add")}
+                    </Button>
+                }
+            />
 
             {/* Search */}
             <div className="relative max-w-md">
@@ -464,7 +464,7 @@ export default function ServiceTypesPage() {
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 placeholder={t("superAdminServiceTypes.descriptionPlaceholder")}
-                                className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand"
+                                className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-admin-brand"
                             />
                         </div>
 
@@ -476,7 +476,7 @@ export default function ServiceTypesPage() {
                                     value={formData.description_es}
                                     onChange={(e) => setFormData({ ...formData, description_es: e.target.value })}
                                     placeholder={t("superAdminServiceTypes.descriptionEsPlaceholder")}
-                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand"
+                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-admin-brand"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -486,7 +486,7 @@ export default function ServiceTypesPage() {
                                     value={formData.description_en}
                                     onChange={(e) => setFormData({ ...formData, description_en: e.target.value })}
                                     placeholder={t("superAdminServiceTypes.descriptionEnPlaceholder")}
-                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand"
+                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-admin-brand"
                                 />
                             </div>
                         </div>
@@ -502,7 +502,7 @@ export default function ServiceTypesPage() {
                             <Button
                                 type="submit"
                                 disabled={submitting}
-                                className="bg-brand hover:bg-brand-hover"
+                                className="bg-admin-brand hover:bg-admin-brand-hover"
                             >
                                 {submitting ? (
                                     <>
@@ -520,45 +520,22 @@ export default function ServiceTypesPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>{t("superAdminServiceTypes.deleteTitle")}</DialogTitle>
-                        <DialogDescription>
-                            {t("superAdminServiceTypes.deleteConfirm", {
-                                name: deletingType ? getTypeName(deletingType) : "",
-                            })}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setIsDeleteDialogOpen(false);
-                                setDeletingType(null);
-                            }}
-                        >
-                            {t("common.cancel")}
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={submitting}
-                            className="bg-rose-500 hover:bg-rose-600"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    {t("superAdminServiceTypes.deleting")}
-                                </>
-                            ) : (
-                                t("common.delete")
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={(open) => {
+                    setIsDeleteDialogOpen(open);
+                    if (!open) setDeletingType(null);
+                }}
+                title={t("superAdminServiceTypes.deleteTitle")}
+                description={t("superAdminServiceTypes.deleteConfirm", {
+                    name: deletingType ? getTypeName(deletingType) : "",
+                })}
+                confirmLabel={submitting ? t("superAdminServiceTypes.deleting") : t("common.delete")}
+                cancelLabel={t("common.cancel")}
+                variant="destructive"
+                loading={submitting}
+                onConfirm={handleDelete}
+            />
+        </AdminPageShell>
     );
 }

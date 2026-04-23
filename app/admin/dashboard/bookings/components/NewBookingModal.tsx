@@ -659,7 +659,7 @@ export function NewBookingModal({
                                                             onClick={() => setSelectedCustomer(customer)}
                                                             className={`w-full rounded-md border px-3 py-2 text-left transition ${
                                                                 isSelected
-                                                                    ? "border-brand bg-brand/5"
+                                                                    ? "border-admin-brand bg-admin-brand-soft"
                                                                     : "border-slate-200 bg-white hover:border-slate-300"
                                                             }`}
                                                         >
@@ -820,7 +820,7 @@ export function NewBookingModal({
                                                                             href={getImageUrl(singleQrProofUrl) || singleQrProofUrl}
                                                                             target="_blank"
                                                                             rel="noreferrer"
-                                                                            className="mt-3 block text-sm text-brand underline"
+                                                                            className="mt-3 block text-sm text-admin-brand underline"
                                                                         >
                                                                             {t("adminBookings.viewUploadedQrProof")}
                                                                         </a>
@@ -1056,7 +1056,7 @@ export function NewBookingModal({
                                                                                         href={getImageUrl(session.payment.qrProofUrl) || session.payment.qrProofUrl}
                                                                                         target="_blank"
                                                                                         rel="noreferrer"
-                                                                                        className="mt-3 block text-sm text-brand underline"
+                                                                                        className="mt-3 block text-sm text-admin-brand underline"
                                                                                     >
                                                                                         {t("adminBookings.viewUploadedQrProof")}
                                                                                     </a>

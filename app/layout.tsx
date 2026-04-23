@@ -18,6 +18,7 @@ import { ThemeProvider } from "@/theme/ThemeContext";
 import { AuthProvider } from "@/lib/useAuth";
 import { I18nProvider } from "@/lib/i18n";
 import { DevServiceWorkerCleanup } from "@/components/DevServiceWorkerCleanup";
+import { FeedbackProvider } from "@/components/ui/feedback-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -151,7 +152,7 @@ export default function RootLayout({
         <ThemeProvider>
           <I18nProvider>
             <AuthProvider>
-              {children}
+              <FeedbackProvider>{children}</FeedbackProvider>
             </AuthProvider>
           </I18nProvider>
         </ThemeProvider>

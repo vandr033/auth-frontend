@@ -828,6 +828,20 @@ export async function saveStaffAvailability(
     return response.data;
 }
 
+export async function assignStaffAvailabilityFromStoreHours(
+    staffId: number,
+    overwrite = false,
+): Promise<StaffAvailabilityData> {
+    const response = await apiFetch<{ data: StaffAvailabilityData }>(
+        `/api/admin/staff/${staffId}/availability/from-company-hours`,
+        {
+            method: "POST",
+            body: JSON.stringify({ overwrite }),
+        },
+    );
+    return response.data;
+}
+
 export async function listTimeOffRequests(params?: {
     status?: StaffTimeOffStatus;
     staff_id?: number;

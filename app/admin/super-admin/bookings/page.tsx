@@ -260,7 +260,7 @@ export default function SuperAdminBookingsPage() {
                 <div className="relative">
                     {loading && (
                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-lg">
-                            <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                            <Loader2 className="h-6 w-6 animate-spin text-admin-brand" />
                         </div>
                     )}
                     <div className="overflow-x-auto">
@@ -479,7 +479,7 @@ export default function SuperAdminBookingsPage() {
                                                     href={getImageUrl(selectedBooking.qrProofImageUrl) || "#"}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="inline-block rounded-lg overflow-hidden border hover:ring-2 ring-brand/50 transition-all group"
+                                                    className="inline-block rounded-lg overflow-hidden border hover:ring-2 ring-admin-brand/50 transition-all group"
                                                 >
                                                     <img
                                                         src={getImageUrl(selectedBooking.qrProofImageUrl) || ""}

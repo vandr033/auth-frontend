@@ -1,48 +1,30 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
     Plus,
     Pencil,
     Trash2,
-    Loader2,
-    Search,
     Clock,
     DollarSign,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Label } from "@/components/ui/label";
+    ActionMenu,
+    AdminPageHeader,
+    AdminPageShell,
+    ConfirmDialog,
+    DataTable,
+    DataToolbar,
+    EmptyState,
+    LoadingSkeleton,
+    StatusBadge,
+} from "@/components/admin/shared";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
-import { useI18n, useT } from "@/lib/i18n";
-import { getLocalizedText } from "@/lib/i18n/localized";
-import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { CategoriesSection } from "./components/CategoriesSection";
 import { notify } from "@/lib/notify";
 import { formatCurrencyFromCents } from "@/lib/currency";
@@ -78,32 +60,6 @@ interface Service {
     required_resources?: { staff_profile_id: number }[];
 }
 
-interface StaffOption {
-    id: number;
-    display_name: string;
-    resource_type?: 'PERSON' | 'ROOM' | 'EQUIPMENT';
-}
-
-interface ServiceFormData {
-    name: string;
-    description: string;
-    category_id: number | null;
-    price: string; // String for input handling
-    duration_minutes: number;
-    is_active: boolean;
-    required_resource_ids: number[];
-}
-
-const initialFormData: ServiceFormData = {
-    name: "",
-    description: "",
-    category_id: null,
-    price: "",
-    duration_minutes: 30,
-    is_active: true,
-    required_resource_ids: [],
-};
-
 // Helper functions
 function formatPrice(cents: number, currency?: string | null): string {
     return formatCurrencyFromCents(cents, currency);
@@ -126,7 +82,6 @@ function getApiUrl(path: string): string {
 export default function ServicesPage() {
     const { companyId, companyUser, isAuthenticated, loading: authLoading } = useAdminAuth();
     const t = useT();
-    const { locale } = useI18n();
     const currency = companyUser?.company?.currency;
 
     // State
@@ -135,42 +90,22 @@ export default function ServicesPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Modal state
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    // Delete confirmation remains a small destructive confirmation modal.
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [editingService, setEditingService] = useState<Service | null>(null);
     const [deletingService, setDeletingService] = useState<Service | null>(null);
-    const [formData, setFormData] = useState<ServiceFormData>(initialFormData);
     const [submitting, setSubmitting] = useState(false);
-    const [formError, setFormError] = useState<string | null>(null);
-
-    // Category modal state
-    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState("");
-    const [newCategoryServiceTypeId, setNewCategoryServiceTypeId] = useState<number | null>(null);
-    const [creatingCategory, setCreatingCategory] = useState(false);
 
     // Global service types
     const [globalServiceTypes, setGlobalServiceTypes] = useState<GlobalServiceType[]>([]);
 
-    // Staff/room/equipment options for required resources
-    const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
-
-    const getServiceTypeName = (type: GlobalServiceType): string =>
-        getLocalizedText({
-            text: type.name,
-            translations: type.name_i18n,
-            locale,
-        });
-
-    // Fetch services, categories, and staff
+    // Fetch services and categories
     const fetchData = useCallback(async () => {
         if (!companyId) return;
 
         setLoading(true);
 
         try {
-            const [servicesRes, categoriesRes, serviceTypesRes, staffRes] = await Promise.all([
+            const [servicesRes, categoriesRes, serviceTypesRes] = await Promise.all([
                 fetch(getApiUrl(`/api/admin/services?company_id=${companyId}`), {
                     credentials: "include",
                 }),
@@ -178,9 +113,6 @@ export default function ServicesPage() {
                     credentials: "include",
                 }),
                 fetch(getApiUrl(`/api/admin/categories/global-service-types`), {
-                    credentials: "include",
-                }),
-                fetch(getApiUrl(`/api/admin/staff?company_id=${companyId}`), {
                     credentials: "include",
                 }),
             ]);
@@ -196,11 +128,6 @@ export default function ServicesPage() {
             setServices(servicesData.data || servicesData || []);
             setCategories(categoriesData.data || categoriesData || []);
             setGlobalServiceTypes(serviceTypesData.data || serviceTypesData || []);
-
-            if (staffRes.ok) {
-                const staffData = await staffRes.json();
-                setStaffOptions(staffData.data || staffData || []);
-            }
         } catch (err) {
             void notify.error(err instanceof Error ? err.message : t('adminServices.loadDataError'));
         } finally {
@@ -218,89 +145,6 @@ export default function ServicesPage() {
     const filteredServices = services.filter((service) =>
         service.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
-    // Open modal for add/edit
-    const openAddModal = () => {
-        setEditingService(null);
-        setFormData(initialFormData);
-        setFormError(null);
-        setIsModalOpen(true);
-    };
-
-    const openEditModal = (service: Service) => {
-        setEditingService(service);
-        setFormData({
-            name: service.name,
-            description: service.description || "",
-            category_id: service.category_id,
-            price: (service.price_cents / 100).toFixed(2),
-            duration_minutes: service.duration_minutes,
-            is_active: service.is_active,
-            required_resource_ids: service.required_resources?.map((r) => r.staff_profile_id) ?? [],
-        });
-        setFormError(null);
-        setIsModalOpen(true);
-    };
-
-    // Handle form submission
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!companyId) return;
-
-        // Validation
-        if (!formData.name.trim()) {
-            setFormError(t('adminServices.serviceNameRequired'));
-            return;
-        }
-        if (!formData.category_id) {
-            setFormError(t('adminServices.selectCategoryRequired'));
-            return;
-        }
-        const priceValue = parseFloat(formData.price);
-        if (isNaN(priceValue) || priceValue < 0) {
-            setFormError(t('adminServices.validPriceRequired'));
-            return;
-        }
-
-        setSubmitting(true);
-        setFormError(null);
-
-        try {
-            const payload = {
-                name: formData.name.trim(),
-                description: formData.description.trim() || null,
-                category_id: formData.category_id,
-                price_cents: Math.round(priceValue * 100),
-                duration_minutes: formData.duration_minutes,
-                is_active: formData.is_active,
-                company_id: companyId,
-                required_resource_ids: formData.required_resource_ids,
-            };
-
-            const url = editingService
-                ? getApiUrl(`/api/admin/services/${editingService.id}`)
-                : getApiUrl("/api/admin/services");
-
-            const response = await fetch(url, {
-                method: editingService ? "PUT" : "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(data.message || t('adminServices.saveServiceError'));
-            }
-
-            setIsModalOpen(false);
-            await fetchData();
-        } catch (err) {
-            setFormError(err instanceof Error ? err.message : t('adminServices.saveServiceError'));
-        } finally {
-            setSubmitting(false);
-        }
-    };
 
     // Handle delete
     const handleDelete = async () => {
@@ -347,66 +191,82 @@ export default function ServicesPage() {
         }
     };
 
-    // Create category
-    const handleCreateCategory = async () => {
-        if (!newCategoryName.trim() || !companyId) return;
-
-        setCreatingCategory(true);
-        try {
-            const response = await fetch(getApiUrl("/api/admin/categories"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    name: newCategoryName.trim(),
-                    company_id: companyId,
-                    global_service_type_id: newCategoryServiceTypeId || undefined,
-                }),
-            });
-
-            if (!response.ok) throw new Error(t('adminServices.createCategoryFailed'));
-
-            const newCategory = await response.json();
-            setCategories((prev) => [...prev, newCategory.data || newCategory]);
-            setFormData((prev) => ({
-                ...prev,
-                category_id: (newCategory.data || newCategory).id,
-            }));
-            setNewCategoryName("");
-            setNewCategoryServiceTypeId(null);
-            setIsCategoryModalOpen(false);
-        } catch (err) {
-            setFormError(err instanceof Error ? err.message : t('adminServices.createCategoryFailed'));
-        } finally {
-            setCreatingCategory(false);
-        }
-    };
-
     // Loading state
     if (authLoading || loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                <span className="ml-2 text-slate-600">{t('common.loading')}</span>
-            </div>
-        );
+        return <LoadingSkeleton variant="page" rows={5} />;
     }
 
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t('adminServices.title')}</h1>
-                    <p className="text-slate-500">{t('adminServices.subtitle')}</p>
-                </div>
-                <Button onClick={openAddModal} className="bg-orange-500 hover:bg-orange-600 text-white">
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('adminServices.addService')}
-                </Button>
-            </div>
+    const emptyServicesState = (
+        <EmptyState
+            title={t('adminServices.noServices')}
+            description={searchQuery ? t('adminServices.searchPlaceholder') : t('adminServices.subtitle')}
+            action={
+                !searchQuery ? (
+                    <Button asChild>
+                        <Link href="/admin/dashboard/services/new">
+                            <Plus className="h-4 w-4" />
+                            {t('adminServices.addService')}
+                        </Link>
+                    </Button>
+                ) : null
+            }
+        />
+    );
 
-            {/* Categories Section */}
+    const serviceActions = (service: Service) => (
+        <ActionMenu
+            label={t('adminServices.actions')}
+            items={[
+                {
+                    label: t('adminServices.editService'),
+                    icon: <Pencil className="h-4 w-4" />,
+                    href: `/admin/dashboard/services/${service.id}/edit`,
+                },
+                {
+                    label: t('common.delete'),
+                    icon: <Trash2 className="h-4 w-4" />,
+                    destructive: true,
+                    separatorBefore: true,
+                    onSelect: () => {
+                        setDeletingService(service);
+                        setIsDeleteDialogOpen(true);
+                    },
+                },
+            ]}
+        />
+    );
+
+    return (
+        <AdminPageShell>
+            <AdminPageHeader
+                title={t('adminServices.title')}
+                subtitle={t('adminServices.subtitle')}
+                actions={
+                    <Button asChild>
+                        <Link href="/admin/dashboard/services/new">
+                            <Plus className="h-4 w-4" />
+                            {t('adminServices.addService')}
+                        </Link>
+                    </Button>
+                }
+            />
+
+            <DataToolbar
+                searchValue={searchQuery}
+                searchPlaceholder={t('adminServices.searchPlaceholder')}
+                onSearchChange={setSearchQuery}
+                summary={`${filteredServices.length} / ${services.length}`}
+                actions={
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/admin/dashboard/services/new">
+                            <Plus className="h-4 w-4" />
+                            {t('adminServices.addService')}
+                        </Link>
+                    </Button>
+                }
+            />
+
+            {/* Categories are kept in their current component to preserve category behavior during this foundational pass. */}
             <CategoriesSection
                 categories={categories}
                 globalServiceTypes={globalServiceTypes}
@@ -415,476 +275,122 @@ export default function ServicesPage() {
                 getApiUrl={getApiUrl}
             />
 
-            {/* Search */}
-            <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                    placeholder={t('adminServices.searchPlaceholder')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                />
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden md:block">
-                <Card>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>{t('adminBookings.service')}</TableHead>
-                                <TableHead>{t('adminServices.category')}</TableHead>
-                                <TableHead>{t('adminServices.price')}</TableHead>
-                                <TableHead>{t('adminServices.duration')}</TableHead>
-                                <TableHead>{t('adminBookings.status')}</TableHead>
-                                <TableHead className="text-right">{t('adminServices.actions')}</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredServices.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                                        {searchQuery ? t('adminServices.noServices') : t('adminServices.noServices')}
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredServices.map((service) => (
-                                    <TableRow key={service.id}>
-                                        <TableCell>
-                                            <div>
-                                                <p className="font-medium text-slate-900">{service.name}</p>
-                                                {service.description && (
-                                                    <p className="text-sm text-slate-500 line-clamp-1">
-                                                        {service.description}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                                                {service.category?.name || t('adminServices.uncategorized')}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {formatPrice(service.price_cents, currency)}
-                                        </TableCell>
-                                        <TableCell className="text-slate-600">
-                                            {formatDuration(service.duration_minutes)}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Switch
-                                                    checked={service.is_active}
-                                                    onCheckedChange={() => toggleActiveStatus(service)}
-                                                />
-                                                <span
-                                                    className={cn(
-                                                        "text-sm",
-                                                        service.is_active ? "text-emerald-600" : "text-slate-400"
-                                                    )}
-                                                >
-                                                    {service.is_active ? t('adminServices.active') : t('adminServices.inactive')}
-                                                </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openEditModal(service)}
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        setDeletingService(service);
-                                                        setIsDeleteDialogOpen(true);
-                                                    }}
-                                                    className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </Card>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-4">
-                {filteredServices.length === 0 ? (
-                    <Card>
-                        <CardContent className="py-8 text-center text-slate-500">
-                            {searchQuery ? t('adminServices.noServices') : t('adminServices.noServices')}
-                        </CardContent>
-                    </Card>
-                ) : (
-                    filteredServices.map((service) => (
-                        <Card key={service.id}>
-                            <CardContent className="p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-semibold text-slate-900">{service.name}</h3>
-                                            <span
-                                                className={cn(
-                                                    "text-xs px-2 py-0.5 rounded-full",
-                                                    service.is_active
-                                                        ? "bg-emerald-100 text-emerald-700"
-                                                        : "bg-slate-100 text-slate-500"
-                                                )}
-                                            >
-                                                {service.is_active ? t('adminServices.active') : t('adminServices.inactive')}
-                                            </span>
-                                        </div>
-                                        {service.description && (
-                                            <p className="text-sm text-slate-500 line-clamp-2 mb-2">
-                                                {service.description}
-                                            </p>
-                                        )}
-                                        <div className="flex items-center gap-4 text-sm">
-                                            <span className="flex items-center gap-1 text-orange-600 font-medium">
-                                                <DollarSign className="h-3 w-3" />
-                                                {formatPrice(service.price_cents, currency)}
-                                            </span>
-                                            <span className="flex items-center gap-1 text-slate-500">
-                                                <Clock className="h-3 w-3" />
-                                                {formatDuration(service.duration_minutes)}
-                                            </span>
-                                            <span className="text-slate-400">
-                                                {service.category?.name}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => openEditModal(service)}
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setDeletingService(service);
-                                                setIsDeleteDialogOpen(true);
-                                            }}
-                                            className="text-rose-500 hover:text-rose-600"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <span className="text-sm text-slate-500">{t('adminBookings.status')}</span>
-                                    <Switch
-                                        checked={service.is_active}
-                                        onCheckedChange={() => toggleActiveStatus(service)}
-                                    />
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))
-                )}
-            </div>
-
-            {/* Add/Edit Service Modal */}
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {editingService ? t('adminServices.editService') : t('adminServices.addService')}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {editingService
-                                ? t('adminServices.updateServiceDescription')
-                                : t('adminServices.createServiceDescription')}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {formError && (
-                            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
-                                {formError}
-                            </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <Label htmlFor="name">{t('adminServices.name')} *</Label>
-                            <Input
-                                id="name"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                placeholder={t('adminServices.namePlaceholder')}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="description">{t('adminServices.description')}</Label>
-                            <textarea
-                                id="description"
-                                value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                placeholder={t('adminServices.descriptionPlaceholder')}
-                                className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="category">{t('adminServices.category')} *</Label>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setIsCategoryModalOpen(true)}
-                                    className="text-orange-500 hover:text-orange-600 text-xs"
-                                >
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    {t('adminServices.addCategory')}
-                                </Button>
-                            </div>
-                            <Select
-                                value={formData.category_id?.toString() || ""}
-                                onValueChange={(val) => setFormData({ ...formData, category_id: parseInt(val) })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder={t('adminServices.selectCategory')} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map((cat) => (
-                                        <SelectItem key={cat.id} value={cat.id.toString()}>
-                                            {cat.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="price">{t('adminServices.price')} *</Label>
-                                <Input
-                                    id="price"
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={formData.price}
-                                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                    placeholder={t('adminServices.pricePlaceholder')}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="duration">{t('adminServices.duration')} *</Label>
-                                <Input
-                                    id="duration"
-                                    type="number"
-                                    min={1}
-                                    max={480}
-                                    value={formData.duration_minutes}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, duration_minutes: parseInt(e.target.value) || 1 })
-                                    }
-                                    placeholder={t('adminServices.durationPlaceholder')}
-                                />
-                                <p className="text-xs text-slate-500">{t('adminServices.durationHint')}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between py-2">
+            <DataTable
+                data={filteredServices}
+                getRowKey={(service) => service.id}
+                empty={emptyServicesState}
+                columns={[
+                    {
+                        key: "service",
+                        header: t('adminBookings.service'),
+                        cell: (service) => (
                             <div>
-                                <Label htmlFor="is_active">{t('adminServices.active')}</Label>
-                                <p className="text-xs text-slate-500">
-                                    {t('adminServices.visibilityHint')}
-                                </p>
+                                <p className="font-medium text-slate-900">{service.name}</p>
+                                {service.description ? (
+                                    <p className="line-clamp-1 text-sm text-slate-500">{service.description}</p>
+                                ) : null}
                             </div>
+                        ),
+                    },
+                    {
+                        key: "category",
+                        header: t('adminServices.category'),
+                        cell: (service) => (
+                            <StatusBadge tone="neutral">
+                                {service.category?.name || t('adminServices.uncategorized')}
+                            </StatusBadge>
+                        ),
+                    },
+                    {
+                        key: "price",
+                        header: t('adminServices.price'),
+                        className: "font-medium",
+                        cell: (service) => formatPrice(service.price_cents, currency),
+                    },
+                    {
+                        key: "duration",
+                        header: t('adminServices.duration'),
+                        className: "text-slate-600",
+                        cell: (service) => formatDuration(service.duration_minutes),
+                    },
+                    {
+                        key: "status",
+                        header: t('adminBookings.status'),
+                        cell: (service) => (
+                            <div className="flex items-center gap-2">
+                                <Switch
+                                    checked={service.is_active}
+                                    onCheckedChange={() => toggleActiveStatus(service)}
+                                />
+                                <StatusBadge tone={service.is_active ? "success" : "neutral"} dot>
+                                    {service.is_active ? t('adminServices.active') : t('adminServices.inactive')}
+                                </StatusBadge>
+                            </div>
+                        ),
+                    },
+                    {
+                        key: "actions",
+                        header: t('adminServices.actions'),
+                        headerClassName: "text-right",
+                        className: "text-right",
+                        cell: (service) => <div className="flex justify-end">{serviceActions(service)}</div>,
+                    },
+                ]}
+                renderMobileItem={(service) => (
+                    <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="font-semibold text-slate-950">{service.name}</h3>
+                                    <StatusBadge tone={service.is_active ? "success" : "neutral"} dot>
+                                        {service.is_active ? t('adminServices.active') : t('adminServices.inactive')}
+                                    </StatusBadge>
+                                </div>
+                                {service.description ? (
+                                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">{service.description}</p>
+                                ) : null}
+                            </div>
+                            {serviceActions(service)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                            <span className="flex items-center gap-1 font-medium text-slate-900">
+                                <DollarSign className="h-3 w-3" />
+                                {formatPrice(service.price_cents, currency)}
+                            </span>
+                            <span className="flex items-center gap-1 text-slate-500">
+                                <Clock className="h-3 w-3" />
+                                {formatDuration(service.duration_minutes)}
+                            </span>
+                            <StatusBadge tone="neutral">
+                                {service.category?.name || t('adminServices.uncategorized')}
+                            </StatusBadge>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                            <span className="text-sm text-slate-500">{t('adminBookings.status')}</span>
                             <Switch
-                                id="is_active"
-                                checked={formData.is_active}
-                                onCheckedChange={(checked) =>
-                                    setFormData({ ...formData, is_active: checked })
-                                }
+                                checked={service.is_active}
+                                onCheckedChange={() => toggleActiveStatus(service)}
                             />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>{t('adminServices.requiredResources')}</Label>
-                            <p className="text-xs text-slate-500">{t('adminServices.requiredResourcesHint')}</p>
-                            <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
-                                {staffOptions.length === 0 ? (
-                                    <p className="text-sm text-slate-400">{t('adminServices.noResourcesAvailable')}</p>
-                                ) : (
-                                    staffOptions.map((staff) => (
-                                        <label key={staff.id} className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.required_resource_ids.includes(staff.id)}
-                                                onChange={(e) => {
-                                                    setFormData((prev) => ({
-                                                        ...prev,
-                                                        required_resource_ids: e.target.checked
-                                                            ? [...prev.required_resource_ids, staff.id]
-                                                            : prev.required_resource_ids.filter((id) => id !== staff.id),
-                                                    }));
-                                                }}
-                                                className="rounded"
-                                            />
-                                            <span className="text-sm">{staff.display_name}</span>
-                                            <span className="text-xs text-slate-400">
-                                                {staff.resource_type === 'ROOM'
-                                                    ? '(Sala)'
-                                                    : staff.resource_type === 'EQUIPMENT'
-                                                    ? '(Equipo)'
-                                                    : '(Persona)'}
-                                            </span>
-                                        </label>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-
-                        <DialogFooter className="gap-2 sm:gap-0">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setIsModalOpen(false)}
-                            >
-                                {t('common.cancel')}
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={submitting}
-                                className="bg-orange-500 hover:bg-orange-600"
-                            >
-                                {submitting ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        {t('adminServices.saving')}
-                                    </>
-                                ) : editingService ? (
-                                    t('adminServices.updateService')
-                                ) : (
-                                    t('adminServices.createService')
-                                )}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>{t('common.delete')}</DialogTitle>
-                        <DialogDescription>
-                            {t('adminServices.deleteConfirm')}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setIsDeleteDialogOpen(false);
-                                setDeletingService(null);
-                            }}
-                        >
-                            {t('common.cancel')}
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={submitting}
-                            className="bg-rose-500 hover:bg-rose-600"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    {t('adminServices.deleting')}
-                                </>
-                            ) : (
-                                t('common.delete')
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Create Category Modal */}
-            <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>{t('adminServices.addCategory')}</DialogTitle>
-                        <DialogDescription>
-                            {t('adminServices.createCategoryDescription')}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="category-name">{t('adminServices.categoryNameRequiredLabel')}</Label>
-                            <Input
-                                id="category-name"
-                                value={newCategoryName}
-                                onChange={(e) => setNewCategoryName(e.target.value)}
-                                placeholder={t('adminServices.categoryNamePlaceholder')}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="service-type">{t('adminServices.serviceTypeOptional')}</Label>
-                            <Select
-                                value={newCategoryServiceTypeId?.toString() || "none"}
-                                onValueChange={(val) => setNewCategoryServiceTypeId(val === "none" ? null : parseInt(val))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder={t('adminServices.selectServiceType')} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">{t('adminServices.noSpecificType')}</SelectItem>
-                                    {globalServiceTypes.map((type) => (
-                                        <SelectItem key={type.id} value={type.id.toString()}>
-                                            {getServiceTypeName(type)}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-xs text-slate-500">
-                                {t('adminServices.serviceTypeHint')}
-                            </p>
                         </div>
                     </div>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" onClick={() => {
-                            setIsCategoryModalOpen(false);
-                            setNewCategoryServiceTypeId(null);
-                        }}>
-                            {t('common.cancel')}
-                        </Button>
-                        <Button
-                            onClick={handleCreateCategory}
-                            disabled={creatingCategory || !newCategoryName.trim()}
-                            className="bg-orange-500 hover:bg-orange-600"
-                        >
-                            {creatingCategory ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    {t('adminServices.creating')}
-                                </>
-                            ) : (
-                                t('adminServices.addCategory')
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                )}
+            />
+
+            <ConfirmDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={(open) => {
+                    setIsDeleteDialogOpen(open);
+                    if (!open) setDeletingService(null);
+                }}
+                title={t('common.delete')}
+                description={t('adminServices.deleteConfirm')}
+                confirmLabel={submitting ? t('adminServices.deleting') : t('common.delete')}
+                cancelLabel={t('common.cancel')}
+                variant="destructive"
+                loading={submitting}
+                onConfirm={handleDelete}
+            />
+
+        </AdminPageShell>
     );
 }

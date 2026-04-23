@@ -501,7 +501,7 @@ export function BookingDetailSheet({
                                         href={getImageUrl(booking.qr_proof_image_url) || "#"}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="group relative inline-block overflow-hidden rounded-lg border border-slate-200 transition-all hover:ring-2 ring-brand/50"
+                                        className="group relative inline-block overflow-hidden rounded-lg border border-slate-200 transition-all hover:ring-2 ring-admin-brand/50"
                                     >
                                         <img
                                             src={getImageUrl(booking.qr_proof_image_url) || ""}

@@ -48,6 +48,14 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { notify } from "@/lib/notify";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
@@ -56,6 +64,7 @@ import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ActionMenu, AdminPageHeader, AdminPageShell, DataToolbar } from "@/components/admin/shared";
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -401,18 +410,71 @@ export default function CustomersPage() {
 
     const notAvailable = t("adminCustomers.notAvailable");
 
+    const customerActions = (customer: CustomerRecord, showLabel = false) => {
+        const waUrl = buildWhatsAppUrl(customer);
+        return (
+            <ActionMenu
+                label={t("adminCustomers.actions")}
+                showLabel={showLabel}
+                items={[
+                    {
+                        label: t("adminCustomers.viewFullHistory"),
+                        icon: <Eye className="h-4 w-4" />,
+                        onSelect: () => void handleOpenHistory(customer),
+                    },
+                    ...(customer.email
+                        ? [{
+                            label: t("adminCustomers.sendEmail"),
+                            icon: <Mail className="h-4 w-4" />,
+                            onSelect: () => {
+                                window.location.href = `mailto:${customer.email}`;
+                            },
+                        }]
+                        : []),
+                    ...(waUrl
+                        ? [{
+                            label: t("adminCustomers.whatsapp"),
+                            icon: <MessageCircle className="h-4 w-4" />,
+                            onSelect: () => window.open(waUrl, "_blank", "noopener,noreferrer"),
+                        }]
+                        : []),
+                ]}
+            />
+        );
+    };
+
+    const leadActions = (lead: InterestCaptureLead, showLabel = false) => {
+        const waUrl = buildLeadWhatsAppUrl(lead);
+        const items = [
+            ...(lead.email
+                ? [{
+                    label: t("adminCustomers.sendEmail"),
+                    icon: <Mail className="h-4 w-4" />,
+                    onSelect: () => {
+                        window.location.href = `mailto:${lead.email}`;
+                    },
+                }]
+                : []),
+            ...(waUrl
+                ? [{
+                    label: t("adminCustomers.whatsapp"),
+                    icon: <MessageCircle className="h-4 w-4" />,
+                    onSelect: () => window.open(waUrl, "_blank", "noopener,noreferrer"),
+                }]
+                : []),
+        ];
+
+        if (items.length === 0) return null;
+        return <ActionMenu label={t("adminCustomers.actions")} showLabel={showLabel} items={items} />;
+    };
+
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-900">
-                        {t("adminNav.customers")}
-                    </h2>
-                    <p className="text-sm text-slate-500 mt-1">
-                        {t("adminCustomers.count", { count: customers.length })}
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+        <AdminPageShell>
+            <AdminPageHeader
+                title={t("adminNav.customers")}
+                subtitle={t("adminCustomers.count", { count: customers.length })}
+                actions={
+                    <div className="flex flex-wrap items-center gap-2">
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -453,7 +515,7 @@ export default function CustomersPage() {
                     </Button>
                     <Button
                         type="button"
-                        className="bg-orange-500 hover:bg-orange-600"
+                        className="bg-admin-brand hover:bg-admin-brand-hover"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={importing || !canImportExport}
                     >
@@ -464,8 +526,9 @@ export default function CustomersPage() {
                         )}
                         {importing ? t("adminCustomers.importing") : t("adminCustomers.importClients")}
                     </Button>
-                </div>
-            </div>
+                    </div>
+                }
+            />
 
             {!canImportExport && (
                 <PlanUpgradeNotice
@@ -489,21 +552,18 @@ export default function CustomersPage() {
                 </TabsList>
 
                 <TabsContent value="customers" className="space-y-4">
-                    <div className="relative max-w-sm">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                            placeholder={t("adminCustomers.searchPlaceholder")}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9"
-                        />
-                    </div>
+                    <DataToolbar
+                        searchValue={searchQuery}
+                        searchPlaceholder={t("adminCustomers.searchPlaceholder")}
+                        onSearchChange={setSearchQuery}
+                        summary={t("adminCustomers.count", { count: customers.length })}
+                    />
 
             <Card className="border-slate-200">
                 <CardContent className="p-0">
                     {loading ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                            <Loader2 className="h-6 w-6 animate-spin text-admin-brand" />
                         </div>
                     ) : customers.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
@@ -518,7 +578,6 @@ export default function CustomersPage() {
                         <>
                             <div className="space-y-3 p-4 md:hidden">
                                 {customers.map((customer) => {
-                                    const waUrl = buildWhatsAppUrl(customer);
                                     const rowKey =
                                         customer.userId ||
                                         customer.email ||
@@ -550,29 +609,8 @@ export default function CustomersPage() {
                                             <p className="mt-1 text-xs text-slate-500">
                                                 {t("adminCustomers.nextBooking")}: {formatDate(customer.nextBookingAt, notAvailable)}
                                             </p>
-                                            <div className="mt-3 grid grid-cols-2 gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => void handleOpenHistory(customer)}
-                                                >
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    {t("adminCustomers.viewFullHistory")}
-                                                </Button>
-                                                {waUrl ? (
-                                                    <a
-                                                        href={waUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-sm text-emerald-700"
-                                                    >
-                                                        <MessageCircle className="h-4 w-4" />
-                                                        {t("adminCustomers.whatsapp")}
-                                                    </a>
-                                                ) : (
-                                                    <div />
-                                                )}
+                                            <div className="mt-3 flex justify-end">
+                                                {customerActions(customer, true)}
                                             </div>
                                         </div>
                                     );
@@ -594,7 +632,6 @@ export default function CustomersPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {customers.map((customer) => {
-                                            const waUrl = buildWhatsAppUrl(customer);
                                             const rowKey =
                                                 customer.userId ||
                                                 customer.email ||
@@ -636,37 +673,7 @@ export default function CustomersPage() {
                                                         {customer.favoriteStaffName || notAvailable}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex items-center justify-end gap-1">
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => void handleOpenHistory(customer)}
-                                                                title={t("adminCustomers.viewFullHistory")}
-                                                            >
-                                                                <Eye className="h-4 w-4" />
-                                                            </Button>
-                                                            {customer.email && (
-                                                                <a
-                                                                    href={`mailto:${customer.email}`}
-                                                                    className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-                                                                    title={t("adminCustomers.sendEmail")}
-                                                                >
-                                                                    <Mail className="h-4 w-4" />
-                                                                </a>
-                                                            )}
-                                                            {waUrl && (
-                                                                <a
-                                                                    href={waUrl}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-500 hover:text-emerald-700 transition-colors"
-                                                                    title={t("adminCustomers.whatsapp")}
-                                                                >
-                                                                    <MessageCircle className="h-4 w-4" />
-                                                                </a>
-                                                            )}
-                                                        </div>
+                                                        <div className="flex justify-end">{customerActions(customer)}</div>
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -735,7 +742,7 @@ export default function CustomersPage() {
                         <CardContent className="p-0">
                             {interestLoading ? (
                                 <div className="flex items-center justify-center py-20">
-                                    <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                                    <Loader2 className="h-6 w-6 animate-spin text-admin-brand" />
                                 </div>
                             ) : filteredInterestLeads.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
@@ -743,7 +750,32 @@ export default function CustomersPage() {
                                     <p className="text-sm">No hay interesados para estos filtros.</p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
+                                <>
+                                <div className="grid gap-3 p-4 md:hidden">
+                                    {filteredInterestLeads.map((lead) => (
+                                        <div key={lead.id} className="rounded-lg border border-slate-200 p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <h3 className="font-semibold text-slate-950">{lead.personName || notAvailable}</h3>
+                                                    <p className="text-xs text-slate-500">{lead.email || notAvailable}</p>
+                                                </div>
+                                                {leadActions(lead, true)}
+                                            </div>
+                                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                                <Badge variant="outline">{lead.status}</Badge>
+                                                <Badge variant="secondary">{lead.sourceLabel}</Badge>
+                                            </div>
+                                            <div className="mt-3 grid gap-2 text-sm">
+                                                <p className="font-medium text-slate-900">{lead.itemTitle}</p>
+                                                <p className="text-slate-600">
+                                                    {lead.phonePrefix && lead.phoneNumber ? `+${lead.phonePrefix} ${lead.phoneNumber}` : notAvailable}
+                                                </p>
+                                                <p className="text-xs text-slate-500">{formatDateTime(lead.createdAt, notAvailable)}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="hidden overflow-x-auto md:block">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
@@ -757,7 +789,6 @@ export default function CustomersPage() {
                                         </TableHeader>
                                         <TableBody>
                                             {filteredInterestLeads.map((lead) => {
-                                                const waUrl = buildLeadWhatsAppUrl(lead);
                                                 return (
                                                     <TableRow key={lead.id}>
                                                         <TableCell>
@@ -776,18 +807,7 @@ export default function CustomersPage() {
                                                         </TableCell>
                                                         <TableCell className="text-sm text-slate-600">{formatDateTime(lead.createdAt, notAvailable)}</TableCell>
                                                         <TableCell className="text-right">
-                                                            <div className="flex items-center justify-end gap-1">
-                                                                {lead.email ? (
-                                                                    <a href={`mailto:${lead.email}`} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
-                                                                        <Mail className="h-4 w-4" />
-                                                                    </a>
-                                                                ) : null}
-                                                                {waUrl ? (
-                                                                    <a href={waUrl} target="_blank" rel="noopener noreferrer" className="rounded-md p-1.5 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
-                                                                        <MessageCircle className="h-4 w-4" />
-                                                                    </a>
-                                                                ) : null}
-                                                            </div>
+                                                            <div className="flex justify-end">{leadActions(lead)}</div>
                                                         </TableCell>
                                                     </TableRow>
                                                 );
@@ -795,6 +815,7 @@ export default function CustomersPage() {
                                         </TableBody>
                                     </Table>
                                 </div>
+                                </>
                             )}
                         </CardContent>
                     </Card>
@@ -820,7 +841,7 @@ export default function CustomersPage() {
                             placeholder={t("adminCustomers.massMessageBodyPlaceholder")}
                             rows={7}
                             maxLength={1500}
-                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                            className="admin-textarea min-h-36 resize-y"
                         />
                         <p className="text-xs text-slate-500">
                             {t("adminCustomers.massMessageAudienceHint", { count: customers.length })}
@@ -840,7 +861,7 @@ export default function CustomersPage() {
                             type="button"
                             onClick={() => void handleSendMassMessage()}
                             disabled={sendingMassMessage || !massMessageBody.trim()}
-                            className="bg-brand text-white hover:bg-brand-hover"
+                            className="bg-admin-brand text-white hover:bg-admin-brand-hover"
                         >
                             {sendingMassMessage ? (
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -853,28 +874,29 @@ export default function CustomersPage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={Boolean(historyCustomer)} onOpenChange={(open) => !open && setHistoryCustomer(null)}>
-                <DialogContent className="max-w-3xl">
-                    <DialogHeader>
-                        <DialogTitle>
+            <Sheet open={Boolean(historyCustomer)} onOpenChange={(open) => !open && setHistoryCustomer(null)}>
+                <SheetContent className="w-full gap-0 overflow-hidden bg-slate-50 p-0 sm:max-w-2xl lg:max-w-4xl">
+                    <SheetHeader className="border-b border-slate-200 bg-white px-5 py-4 pr-14 text-left">
+                        <SheetTitle>
                             {t("adminCustomers.fullHistoryTitle", { name: historyCustomer?.name || "" })}
-                        </DialogTitle>
-                        <DialogDescription>
+                        </SheetTitle>
+                        <SheetDescription>
                             {t("adminCustomers.fullHistoryDescription", { total: historyTotal })}
-                        </DialogDescription>
-                    </DialogHeader>
+                        </SheetDescription>
+                    </SheetHeader>
 
-                    <Tabs value={historyTab} onValueChange={(value) => setHistoryTab(value as "bookings" | "group-payments")}>
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="bookings">{t("adminCustomers.historyTabs.bookings")}</TabsTrigger>
-                            <TabsTrigger value="group-payments">{t("adminCustomers.historyTabs.groupPayments")}</TabsTrigger>
-                        </TabsList>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                        <Tabs value={historyTab} onValueChange={(value) => setHistoryTab(value as "bookings" | "group-payments")}>
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="bookings">{t("adminCustomers.historyTabs.bookings")}</TabsTrigger>
+                                <TabsTrigger value="group-payments">{t("adminCustomers.historyTabs.groupPayments")}</TabsTrigger>
+                            </TabsList>
 
                         <TabsContent value="bookings" className="mt-4">
                             <div className="max-h-[60vh] overflow-y-auto pr-1">
                                 {historyLoading && historyItems.length === 0 ? (
                                     <div className="flex items-center justify-center py-10">
-                                        <Loader2 className="h-5 w-5 animate-spin text-brand" />
+                                        <Loader2 className="h-5 w-5 animate-spin text-admin-brand" />
                                     </div>
                                 ) : historyError ? (
                                     <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -934,7 +956,7 @@ export default function CustomersPage() {
                             <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
                                 {groupPaymentsLoading && !groupPaymentsData ? (
                                     <div className="flex items-center justify-center py-10">
-                                        <Loader2 className="h-5 w-5 animate-spin text-brand" />
+                                        <Loader2 className="h-5 w-5 animate-spin text-admin-brand" />
                                     </div>
                                 ) : groupPaymentsError ? (
                                     <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -1002,27 +1024,30 @@ export default function CustomersPage() {
                                 )}
                             </div>
                         </TabsContent>
-                    </Tabs>
+                        </Tabs>
+                    </div>
 
-                    <DialogFooter className="flex items-center justify-between">
-                        <Button type="button" variant="outline" onClick={() => setHistoryCustomer(null)}>
-                            {t("common.close")}
-                        </Button>
-                        {historyTab === "bookings" && historyHasNextPage && (
-                            <Button
-                                type="button"
-                                onClick={() => void handleLoadMoreHistory()}
-                                disabled={historyLoading}
-                            >
-                                {historyLoading ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : null}
-                                {t("adminCustomers.loadMoreHistory")}
+                    <SheetFooter className="border-t border-slate-200 bg-white px-5 py-3">
+                        <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <Button type="button" variant="outline" onClick={() => setHistoryCustomer(null)}>
+                                {t("common.close")}
                             </Button>
-                        )}
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                            {historyTab === "bookings" && historyHasNextPage && (
+                                <Button
+                                    type="button"
+                                    onClick={() => void handleLoadMoreHistory()}
+                                    disabled={historyLoading}
+                                >
+                                    {historyLoading ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : null}
+                                    {t("adminCustomers.loadMoreHistory")}
+                                </Button>
+                            )}
+                        </div>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+        </AdminPageShell>
     );
 }

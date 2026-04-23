@@ -5,14 +5,12 @@ import {
     ChevronLeft,
     ChevronRight,
     Loader2,
-    Search,
     Users,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { DataTable, DataToolbar, EmptyState } from "@/components/admin/shared";
 import {
     Select,
     SelectContent,
@@ -20,14 +18,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 
@@ -170,18 +160,17 @@ export default function SuperAdminUsersPage() {
                 <p className="text-slate-500">{t("superAdminUsers.subtitle")}</p>
             </div>
 
-            <div className="flex flex-wrap items-end gap-3">
-                <div className="relative min-w-[220px] max-w-sm flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                        className="pl-9"
-                        placeholder={t("superAdminUsers.searchPlaceholder")}
-                        value={searchQuery}
-                        onChange={(event) => handleSearchChange(event.target.value)}
-                    />
-                </div>
-
-                <div className="w-56">
+            <DataToolbar
+                searchValue={searchQuery}
+                searchPlaceholder={t("superAdminUsers.searchPlaceholder")}
+                onSearchChange={handleSearchChange}
+                summary={t("superAdminShops.showing", {
+                    from: total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1,
+                    to: Math.min(page * PAGE_SIZE, total),
+                    total,
+                })}
+                filters={
+                    <div className="w-full sm:w-56">
                     <Select value={sourceFilter} onValueChange={setSourceFilter}>
                         <SelectTrigger>
                             <SelectValue />
@@ -194,107 +183,154 @@ export default function SuperAdminUsersPage() {
                         </SelectContent>
                     </Select>
                 </div>
-            </div>
+                }
+            />
 
-            <Card>
-                <div className="relative">
+            <div className="relative">
                     {loading && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/60">
-                            <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                            <Loader2 className="h-6 w-6 animate-spin text-admin-brand" />
                         </div>
                     )}
 
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{t("superAdminUsers.user")}</TableHead>
-                                    <TableHead>{t("superAdminUsers.phone")}</TableHead>
-                                    <TableHead>{t("superAdminUsers.sources")}</TableHead>
-                                    <TableHead>{t("superAdminUsers.sourceMetrics")}</TableHead>
-                                    <TableHead>{t("superAdminUsers.shops")}</TableHead>
-                                    <TableHead>{t("superAdminUsers.joinedAt")}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-
-                            <TableBody>
-                                {users.length === 0 && !loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="py-12 text-center">
-                                            <div className="flex flex-col items-center text-slate-400">
-                                                <Users className="mb-3 h-10 w-10" />
-                                                <p className="text-sm">
-                                                    {searchQuery
-                                                        ? t("superAdminUsers.noSearchResults")
-                                                        : t("superAdminUsers.noUsers")}
-                                                </p>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    users.map((user) => (
-                                        <TableRow key={user.id}>
-                                            <TableCell>
-                                                <div>
-                                                    <p className="font-medium text-slate-900">{user.name}</p>
-                                                    <p className="text-xs text-slate-500">{user.email}</p>
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell className="text-slate-600">
-                                                {formatPhone(user.phone_prefix, user.phone)}
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {user.signup_sources.map((source) => (
-                                                        <Badge
-                                                            key={`${user.id}-${source}`}
-                                                            variant="outline"
-                                                            className={`text-xs ${SOURCE_BADGE_STYLES[source]}`}
-                                                        >
-                                                            {getSourceLabel(source)}
-                                                        </Badge>
-                                                    ))}
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell className="text-xs text-slate-600">
-                                                <p>{t("superAdminUsers.freeEventsCount", { count: user.free_events_count })}</p>
-                                                <p>{t("superAdminUsers.bookingFlowCount", { count: user.booking_flow_count })}</p>
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {user.shops.slice(0, 3).map((shop) => (
-                                                        <Badge key={`${user.id}-shop-${shop.id}`} variant="secondary" className="text-xs">
-                                                            {shop.name}
-                                                        </Badge>
-                                                    ))}
-                                                    {user.shops.length > 3 && (
-                                                        <Badge variant="outline" className="text-xs">
-                                                            +{user.shops.length - 3}
-                                                        </Badge>
-                                                    )}
-                                                    {user.shops.length === 0 && (
-                                                        <span className="text-xs text-slate-400">—</span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell className="text-sm text-slate-500">
-                                                {formatDate(user.created_at)}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </div>
+                    <DataTable
+                        data={users}
+                        getRowKey={(user) => user.id}
+                        empty={
+                            <EmptyState
+                                icon={Users}
+                                title={searchQuery ? t("superAdminUsers.noSearchResults") : t("superAdminUsers.noUsers")}
+                            />
+                        }
+                        columns={[
+                            {
+                                key: "user",
+                                header: t("superAdminUsers.user"),
+                                cell: (user) => (
+                                    <div>
+                                        <p className="font-medium text-slate-900">{user.name}</p>
+                                        <p className="text-xs text-slate-500">{user.email}</p>
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: "phone",
+                                header: t("superAdminUsers.phone"),
+                                className: "text-slate-600",
+                                cell: (user) => formatPhone(user.phone_prefix, user.phone),
+                            },
+                            {
+                                key: "sources",
+                                header: t("superAdminUsers.sources"),
+                                cell: (user) => (
+                                    <div className="flex flex-wrap gap-1">
+                                        {user.signup_sources.map((source) => (
+                                            <Badge
+                                                key={`${user.id}-${source}`}
+                                                variant="outline"
+                                                className={`text-xs ${SOURCE_BADGE_STYLES[source]}`}
+                                            >
+                                                {getSourceLabel(source)}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: "metrics",
+                                header: t("superAdminUsers.sourceMetrics"),
+                                className: "text-xs text-slate-600",
+                                cell: (user) => (
+                                    <>
+                                        <p>{t("superAdminUsers.freeEventsCount", { count: user.free_events_count })}</p>
+                                        <p>{t("superAdminUsers.bookingFlowCount", { count: user.booking_flow_count })}</p>
+                                    </>
+                                ),
+                            },
+                            {
+                                key: "shops",
+                                header: t("superAdminUsers.shops"),
+                                cell: (user) => (
+                                    <div className="flex flex-wrap gap-1">
+                                        {user.shops.slice(0, 3).map((shop) => (
+                                            <Badge key={`${user.id}-shop-${shop.id}`} variant="secondary" className="text-xs">
+                                                {shop.name}
+                                            </Badge>
+                                        ))}
+                                        {user.shops.length > 3 && (
+                                            <Badge variant="outline" className="text-xs">
+                                                +{user.shops.length - 3}
+                                            </Badge>
+                                        )}
+                                        {user.shops.length === 0 && (
+                                            <span className="text-xs text-slate-400">—</span>
+                                        )}
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: "joined",
+                                header: t("superAdminUsers.joinedAt"),
+                                className: "text-sm text-slate-500",
+                                cell: (user) => formatDate(user.created_at),
+                            },
+                        ]}
+                        renderMobileItem={(user) => (
+                            <div className="space-y-3">
+                                <div>
+                                    <h3 className="font-semibold text-slate-950">{user.name}</h3>
+                                    <p className="text-xs text-slate-500">{user.email}</p>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    {user.signup_sources.map((source) => (
+                                        <Badge
+                                            key={`${user.id}-mobile-${source}`}
+                                            variant="outline"
+                                            className={`text-xs ${SOURCE_BADGE_STYLES[source]}`}
+                                        >
+                                            {getSourceLabel(source)}
+                                        </Badge>
+                                    ))}
+                                </div>
+                                <div className="grid gap-2 text-sm sm:grid-cols-2">
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("superAdminUsers.phone")}</p>
+                                        <p className="text-slate-700">{formatPhone(user.phone_prefix, user.phone)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("superAdminUsers.joinedAt")}</p>
+                                        <p className="text-slate-700">{formatDate(user.created_at)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("superAdminUsers.sourceMetrics")}</p>
+                                        <p className="text-slate-700">{t("superAdminUsers.freeEventsCount", { count: user.free_events_count })}</p>
+                                        <p className="text-slate-700">{t("superAdminUsers.bookingFlowCount", { count: user.booking_flow_count })}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("superAdminUsers.shops")}</p>
+                                        <div className="mt-1 flex flex-wrap gap-1">
+                                            {user.shops.slice(0, 3).map((shop) => (
+                                                <Badge key={`${user.id}-mobile-shop-${shop.id}`} variant="secondary" className="text-xs">
+                                                    {shop.name}
+                                                </Badge>
+                                            ))}
+                                            {user.shops.length > 3 && (
+                                                <Badge variant="outline" className="text-xs">
+                                                    +{user.shops.length - 3}
+                                                </Badge>
+                                            )}
+                                            {user.shops.length === 0 && (
+                                                <span className="text-xs text-slate-400">—</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    />
 
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between border-t px-4 py-3">
+                    <div className="mt-3 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-slate-500">
                             {t("superAdminShops.showing", {
                                 from: (page - 1) * PAGE_SIZE + 1,
@@ -327,7 +363,7 @@ export default function SuperAdminUsersPage() {
                         </div>
                     </div>
                 )}
-            </Card>
+            </div>
         </div>
     );
 }

@@ -10,7 +10,6 @@ import {
     Users,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -18,6 +17,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { ImageUpload } from "@/components/admin/ImageUpload";
+import { AdminPageHeader, AdminPageShell } from "@/components/admin/shared";
 import { notify } from "@/lib/notify";
 
 interface StaffMember {
@@ -293,21 +293,18 @@ export default function PageManagementPage() {
     if (authLoading || loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
                 <span className="ml-2 text-slate-600">{t('adminPages.loading')}</span>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{t('adminPages.title')}</h1>
-                    <p className="text-slate-500">{t('adminPages.subtitle')}</p>
-                </div>
-            </div>
+        <AdminPageShell>
+            <AdminPageHeader
+                title={t('adminPages.title')}
+                subtitle={t('adminPages.subtitle')}
+            />
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -394,7 +391,7 @@ export default function PageManagementPage() {
                                     value={aboutUsText}
                                     onChange={handleTextChange(setAboutUsText)}
                                     placeholder={t('adminPages.aboutUsPlaceholder')}
-                                    className="w-full h-32 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    className="admin-textarea h-32 resize-none"
                                 />
                                 <p className="text-xs text-slate-500">
                                     {t('adminPages.aboutUsHelpText')}
@@ -432,7 +429,7 @@ export default function PageManagementPage() {
                                     value={heroOverlayText}
                                     onChange={handleTextChange(setHeroOverlayText)}
                                     placeholder={t('adminPages.overlayPlaceholder')}
-                                    className="w-full h-20 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    className="admin-textarea h-20 resize-none"
                                 />
                             </div>
                         </CardContent>
@@ -453,7 +450,7 @@ export default function PageManagementPage() {
                                     value={ourStoryText}
                                     onChange={handleTextChange(setOurStoryText)}
                                     placeholder={t('adminPages.ourStoryPlaceholder')}
-                                    className="w-full h-48 px-3 py-2 rounded-md border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    className="admin-textarea h-48 resize-none"
                                 />
                             </div>
                         </CardContent>
@@ -569,8 +566,10 @@ export default function PageManagementPage() {
                 saveLabel={t('common.save')}
                 loadingLabel={t('adminPages.saving')}
                 saveIcon={<Save className="h-4 w-4" />}
-                saveClassName="bg-orange-500 hover:bg-orange-600 text-white"
+                saveClassName="bg-admin-brand hover:bg-admin-brand-hover text-white"
+                statusLabel={t('common.unsavedChanges')}
+                statusTone="dirty"
             />
-        </div>
+        </AdminPageShell>
     );
 }
