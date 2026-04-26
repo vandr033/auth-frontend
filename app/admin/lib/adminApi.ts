@@ -1,21 +1,12 @@
 import { AdminBooking, BookingStatus } from "@/types/admin-booking";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-// Helper to build full API URL
-const resolveUrl = (path: string) => {
-    const base = API_BASE_URL.endsWith("/api")
-        ? API_BASE_URL.replace(/\/api$/, "")
-        : API_BASE_URL;
-    return `${base}${path}`;
-};
+import { resolveBackendUrl } from "@/lib/api-url";
 
 // Generic fetch wrapper with auth
 async function apiFetch<T>(
     path: string,
     options: RequestInit = {}
 ): Promise<T> {
-    const response = await fetch(resolveUrl(path), {
+    const response = await fetch(resolveBackendUrl(path), {
         ...options,
         headers: {
             "Content-Type": "application/json",
@@ -64,7 +55,7 @@ export async function uploadAdminImage(params: {
         formData.append("entity_id", String(params.entityId));
     }
 
-    const response = await fetch(resolveUrl("/api/admin/uploads/image"), {
+    const response = await fetch(resolveBackendUrl("/api/admin/uploads/image"), {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -312,7 +303,7 @@ export async function importCustomersFile(file: File): Promise<CustomerImportRes
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(resolveUrl("/api/admin/customers/import"), {
+    const response = await fetch(resolveBackendUrl("/api/admin/customers/import"), {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -339,7 +330,7 @@ export async function sendMassCustomerMessage(payload: {
 }
 
 export async function downloadCustomerImportTemplate(): Promise<Blob> {
-    const response = await fetch(resolveUrl("/api/admin/customers/import/template"), {
+    const response = await fetch(resolveBackendUrl("/api/admin/customers/import/template"), {
         credentials: "include",
     });
     if (!response.ok) {
@@ -350,7 +341,7 @@ export async function downloadCustomerImportTemplate(): Promise<Blob> {
 
 export async function downloadCustomersExport(search?: string): Promise<{ blob: Blob; fileName: string | null }> {
     const query = search ? `?search=${encodeURIComponent(search)}` : "";
-    const response = await fetch(resolveUrl(`/api/admin/customers/export${query}`), {
+    const response = await fetch(resolveBackendUrl(`/api/admin/customers/export${query}`), {
         credentials: "include",
     });
 
@@ -461,7 +452,7 @@ export async function uploadAdminQrProof(file: File, companyId: number): Promise
     formData.append("image", file);
     formData.append("company_id", String(companyId));
 
-    const response = await fetch(resolveUrl("/api/upload/qr"), {
+    const response = await fetch(resolveBackendUrl("/api/upload/qr"), {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -571,17 +562,20 @@ export interface StaffMember {
     bio?: string;
     image_url?: string;
     is_bookable: boolean;
+    resource_type?: "PERSON" | "ROOM" | "EQUIPMENT";
     status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
     start_date?: string | null;
     end_date?: string | null;
-    company_id: number;
-    user_id: string;
+    company_id?: number;
+    user_id?: string;
     user?: {
         id: string;
-        email: string;
-        name: string;
-        first_name?: string;
-        last_name?: string;
+        email: string | null;
+        name: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+        phoneNumber?: string | null;
+        phone_prefix?: string | null;
     };
     services?: number[]; // Array of service IDs this staff can perform
     created_at: string;
@@ -666,6 +660,62 @@ export async function updateMyStaffProfile(payload: {
 export async function getStaff(): Promise<StaffMember[]> {
     const response = await apiFetch<GetStaffResponse>("/api/admin/staff");
     return response.data;
+}
+
+export async function getStaffById(staffId: number): Promise<StaffMember> {
+    const response = await apiFetch<{ data: StaffMember }>(`/api/admin/staff/${staffId}`);
+    return response.data;
+}
+
+export interface SaveStaffPayload {
+    email?: string;
+    role?: "OWNER" | "ADMIN" | "STAFF";
+    phone_prefix?: string;
+    phone?: string;
+    display_name: string;
+    bio?: string;
+    image_url?: string;
+    is_bookable?: boolean;
+    resource_type?: "PERSON" | "ROOM" | "EQUIPMENT";
+    service_ids?: number[];
+    start_date?: string;
+    end_date?: string;
+    company_id?: number;
+}
+
+export async function createStaffMember(payload: SaveStaffPayload): Promise<StaffMember> {
+    const response = await apiFetch<{ data: StaffMember }>("/api/admin/staff", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function updateStaffMember(staffId: number, payload: Partial<SaveStaffPayload>): Promise<StaffMember> {
+    const response = await apiFetch<{ data: StaffMember }>(`/api/admin/staff/${staffId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function updateStaffMemberServices(staffId: number, serviceIds: number[]): Promise<void> {
+    await apiFetch(`/api/admin/staff/${staffId}/services`, {
+        method: "PUT",
+        body: JSON.stringify({ service_ids: serviceIds }),
+    });
+}
+
+export async function resendStaffInvite(staffId: number): Promise<void> {
+    await apiFetch(`/api/admin/staff/${staffId}/resend-invite`, {
+        method: "POST",
+    });
+}
+
+export async function deleteStaffMember(staffId: number): Promise<void> {
+    await apiFetch(`/api/admin/staff/${staffId}`, {
+        method: "DELETE",
+    });
 }
 
 // ============ SERVICES ============
@@ -1687,7 +1737,7 @@ export async function streamGroupEventMassMessage(
         onProgress?: (progress: MassCustomerMessageProgress) => void;
     },
 ): Promise<MassCustomerMessageResult> {
-    const response = await fetch(resolveUrl(`/api/admin/group/events/${eventId}/mass-message/stream`), {
+    const response = await fetch(resolveBackendUrl(`/api/admin/group/events/${eventId}/mass-message/stream`), {
         method: "POST",
         credentials: "include",
         headers: {

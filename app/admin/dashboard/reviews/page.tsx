@@ -16,7 +16,7 @@ import { useAdminAuth } from "../../contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import {
     getAdminReviews,
@@ -83,10 +83,9 @@ const ReadOnlyStars = ({ value, size = 14 }: { value: number; size?: number }) =
 export default function AdminReviewsPage() {
     const { role, companyUser, user } = useAdminAuth();
     const t = useT();
-    const plan = resolveShopPlan(companyUser?.company?.plan);
     const isSuperAdmin = Boolean(user?.is_super_admin);
-    const canManageReviews = isSuperAdmin || canUsePlanFeature(plan, "REVIEW_MANAGEMENT");
-    const canViewAnalytics = isSuperAdmin || canUsePlanFeature(plan, "REVIEW_ANALYTICS");
+    const canManageReviews = isSuperAdmin || canUsePlanFeature(companyUser?.company, "REVIEW_MANAGEMENT");
+    const canViewAnalytics = isSuperAdmin || canUsePlanFeature(companyUser?.company, "REVIEW_ANALYTICS");
 
     // Data
     const [reviewsData, setReviewsData] = useState<AdminReviewsResponse | null>(null);

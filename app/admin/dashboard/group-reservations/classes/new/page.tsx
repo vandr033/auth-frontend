@@ -38,7 +38,7 @@ export default function NewGroupClassPage() {
     const router = useRouter();
     const { companyId, companyUser } = useAdminAuth();
     const currency = companyUser?.company?.currency;
-    const { canUseClasses } = useGroupReservationsAccess();
+    const { canUseClasses, getRequiredPlan } = useGroupReservationsAccess();
 
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
@@ -229,12 +229,13 @@ export default function NewGroupClassPage() {
     };
 
     if (!canUseClasses) {
+        const requiredPlan = getRequiredPlan("GROUP_CLASSES");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
-                message={t("planEnforcement.availableOnPro")}
+                message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                 feature="GROUP_CLASSES"
-                requiredPlan="PRO"
+                requiredPlan={requiredPlan}
                 fullPage
             />
         );

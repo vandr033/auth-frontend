@@ -33,7 +33,7 @@ type SessionRow = {
 
 export default function GroupClassesUpcomingPage() {
     const t = useT();
-    const { canUseClasses } = useGroupReservationsAccess();
+    const { canUseClasses, getRequiredPlan } = useGroupReservationsAccess();
     const [loading, setLoading] = useState(true);
     const [rows, setRows] = useState<SessionRow[]>([]);
 
@@ -67,12 +67,13 @@ export default function GroupClassesUpcomingPage() {
     }, [canUseClasses, loadData]);
 
     if (!canUseClasses) {
+        const requiredPlan = getRequiredPlan("GROUP_CLASSES");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
-                message={t("planEnforcement.availableOnPro")}
+                message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                 feature="GROUP_CLASSES"
-                requiredPlan="PRO"
+                requiredPlan={requiredPlan}
                 fullPage
             />
         );

@@ -1,9 +1,5 @@
+import { resolveApiUrl } from "@/lib/api-url";
 import type { ShopCompany, ShopData, ShopHours, ShopService, ShopStaff } from "@/types/shop";
-
-const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    "http://localhost:3001/api";
 
 type StaffServiceRelation = {
     service_id: number;
@@ -42,10 +38,7 @@ export type ShopApiResponse = {
     error?: boolean;
 };
 
-export const resolvePublicApiUrl = (url: string) => {
-    if (url.startsWith("http")) return url;
-    return `${API_BASE_URL}${url}`;
-};
+export const resolvePublicApiUrl = (url: string) => resolveApiUrl(url);
 
 export function normalizeShopData(rawData: RawShopData): ShopData {
     const normalizedCompany: ShopCompany = {

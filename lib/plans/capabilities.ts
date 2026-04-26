@@ -24,119 +24,18 @@ export type PlanFeatureKey =
     | "GROUP_CLASSES"
     | "GROUP_ADVANCED";
 
-export type PlanCapabilities = {
+export type CompanyCapabilities = {
+    version: 1;
+    currentPlan: ShopPlan;
     maxStaffMembers: number | null;
     features: Record<PlanFeatureKey, boolean>;
+    requiredPlans: Record<PlanFeatureKey, ShopPlan>;
 };
 
-export const PLAN_CAPABILITIES: Record<ShopPlan, PlanCapabilities> = {
-    STARTER: {
-        maxStaffMembers: 3,
-        features: {
-            ROLES_PERMISSIONS: false,
-            STAFF_AVAILABILITY: false,
-            TRANSACTIONAL_BOOKING_NOTIFICATIONS: false,
-            BOOKING_REMINDERS: false,
-            CUSTOMER_IMPORT_EXPORT: false,
-            OPERATIONAL_DASHBOARD: false,
-            REVIEW_MANAGEMENT: false,
-            REVIEW_ANALYTICS: false,
-            BOOKING_FLOW_CUSTOMIZATION: false,
-            HOME_CTA_CUSTOMIZATION: false,
-            HOME_SECTION_ORDER: false,
-            FOOTER_CUSTOMIZATION: false,
-            ANNOUNCEMENT_BANNERS: false,
-            REVIEW_REQUEST_REMINDERS: false,
-            REVIEW_REQUEST_EMAIL: false,
-            REVIEW_REQUEST_WHATSAPP: false,
-            BULK_WHATSAPP_MESSAGING: false,
-            BULK_EMAIL_CAMPAIGNS: false,
-            OUTREACH_REACTIVATION_TOOLS: false,
-            GROUP_EVENTS: false,
-            GROUP_CLASSES: false,
-            GROUP_ADVANCED: false,
-        },
-    },
-    BUSINESS: {
-        maxStaffMembers: 10,
-        features: {
-            ROLES_PERMISSIONS: true,
-            STAFF_AVAILABILITY: true,
-            TRANSACTIONAL_BOOKING_NOTIFICATIONS: true,
-            BOOKING_REMINDERS: true,
-            CUSTOMER_IMPORT_EXPORT: true,
-            OPERATIONAL_DASHBOARD: true,
-            REVIEW_MANAGEMENT: true,
-            REVIEW_ANALYTICS: true,
-            BOOKING_FLOW_CUSTOMIZATION: true,
-            HOME_CTA_CUSTOMIZATION: false,
-            HOME_SECTION_ORDER: true,
-            FOOTER_CUSTOMIZATION: true,
-            ANNOUNCEMENT_BANNERS: false,
-            REVIEW_REQUEST_REMINDERS: false,
-            REVIEW_REQUEST_EMAIL: false,
-            REVIEW_REQUEST_WHATSAPP: false,
-            BULK_WHATSAPP_MESSAGING: false,
-            BULK_EMAIL_CAMPAIGNS: false,
-            OUTREACH_REACTIVATION_TOOLS: false,
-            GROUP_EVENTS: true,
-            GROUP_CLASSES: false,
-            GROUP_ADVANCED: false,
-        },
-    },
-    PRO: {
-        maxStaffMembers: null,
-        features: {
-            ROLES_PERMISSIONS: true,
-            STAFF_AVAILABILITY: true,
-            TRANSACTIONAL_BOOKING_NOTIFICATIONS: true,
-            BOOKING_REMINDERS: true,
-            CUSTOMER_IMPORT_EXPORT: true,
-            OPERATIONAL_DASHBOARD: true,
-            REVIEW_MANAGEMENT: true,
-            REVIEW_ANALYTICS: true,
-            BOOKING_FLOW_CUSTOMIZATION: true,
-            HOME_CTA_CUSTOMIZATION: true,
-            HOME_SECTION_ORDER: true,
-            FOOTER_CUSTOMIZATION: true,
-            ANNOUNCEMENT_BANNERS: true,
-            REVIEW_REQUEST_REMINDERS: true,
-            REVIEW_REQUEST_EMAIL: true,
-            REVIEW_REQUEST_WHATSAPP: true,
-            BULK_WHATSAPP_MESSAGING: true,
-            BULK_EMAIL_CAMPAIGNS: true,
-            OUTREACH_REACTIVATION_TOOLS: true,
-            GROUP_EVENTS: true,
-            GROUP_CLASSES: true,
-            GROUP_ADVANCED: true,
-        },
-    },
-};
-
-export const FEATURE_REQUIRED_PLAN: Record<PlanFeatureKey, ShopPlan> = {
-    ROLES_PERMISSIONS: "BUSINESS",
-    STAFF_AVAILABILITY: "BUSINESS",
-    TRANSACTIONAL_BOOKING_NOTIFICATIONS: "BUSINESS",
-    BOOKING_REMINDERS: "BUSINESS",
-    CUSTOMER_IMPORT_EXPORT: "BUSINESS",
-    OPERATIONAL_DASHBOARD: "BUSINESS",
-    REVIEW_MANAGEMENT: "BUSINESS",
-    REVIEW_ANALYTICS: "BUSINESS",
-    BOOKING_FLOW_CUSTOMIZATION: "BUSINESS",
-    HOME_CTA_CUSTOMIZATION: "PRO",
-    HOME_SECTION_ORDER: "BUSINESS",
-    FOOTER_CUSTOMIZATION: "BUSINESS",
-    ANNOUNCEMENT_BANNERS: "PRO",
-    REVIEW_REQUEST_REMINDERS: "PRO",
-    REVIEW_REQUEST_EMAIL: "PRO",
-    REVIEW_REQUEST_WHATSAPP: "PRO",
-    BULK_WHATSAPP_MESSAGING: "PRO",
-    BULK_EMAIL_CAMPAIGNS: "PRO",
-    OUTREACH_REACTIVATION_TOOLS: "PRO",
-    GROUP_EVENTS: "BUSINESS",
-    GROUP_CLASSES: "PRO",
-    GROUP_ADVANCED: "PRO",
-};
+type CapabilityCarrier = {
+    capabilities?: CompanyCapabilities | null;
+    plan?: string | null;
+} | null | undefined;
 
 export function resolveShopPlan(plan?: string | null): ShopPlan {
     if (plan === "STARTER" || plan === "BUSINESS" || plan === "PRO") {
@@ -146,20 +45,45 @@ export function resolveShopPlan(plan?: string | null): ShopPlan {
     return "BUSINESS";
 }
 
-export function getPlanCapabilities(plan: ShopPlan): PlanCapabilities {
-    return PLAN_CAPABILITIES[plan];
+export function getCompanyCapabilities(source: CapabilityCarrier | CompanyCapabilities): CompanyCapabilities | null {
+    if (!source) return null;
+
+    if ("currentPlan" in source && "features" in source && "requiredPlans" in source) {
+        return source;
+    }
+
+    return source.capabilities ?? null;
 }
 
-export function canUsePlanFeature(plan: ShopPlan, feature: PlanFeatureKey): boolean {
-    return PLAN_CAPABILITIES[plan].features[feature] === true;
+export function getCurrentPlan(source?: CapabilityCarrier | CompanyCapabilities): ShopPlan {
+    const capabilities = getCompanyCapabilities(source ?? null);
+    if (capabilities?.currentPlan) {
+        return capabilities.currentPlan;
+    }
+
+    if (source && "plan" in source) {
+        return resolveShopPlan(source.plan);
+    }
+
+    return "BUSINESS";
 }
 
-export function getRequiredPlanForFeature(feature: PlanFeatureKey): ShopPlan {
-    return FEATURE_REQUIRED_PLAN[feature];
+export function canUsePlanFeature(
+    source: CapabilityCarrier | CompanyCapabilities,
+    feature: PlanFeatureKey,
+): boolean {
+    return getCompanyCapabilities(source)?.features?.[feature] === true;
 }
 
-export function getStaffLimitForPlan(plan: ShopPlan): number | null {
-    return PLAN_CAPABILITIES[plan].maxStaffMembers;
+export function getRequiredPlanForFeature(
+    source: CapabilityCarrier | CompanyCapabilities,
+    feature: PlanFeatureKey,
+): ShopPlan {
+    return getCompanyCapabilities(source)?.requiredPlans?.[feature] ?? "BUSINESS";
+}
+
+export function getStaffLimitForPlan(source: CapabilityCarrier | CompanyCapabilities): number | null {
+    return getCompanyCapabilities(source)?.maxStaffMembers ?? null;
 }
 
 /**

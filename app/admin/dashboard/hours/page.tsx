@@ -329,6 +329,7 @@ export default function HoursPage() {
     return (
         <AdminPageShell className="pb-24 md:pb-0">
             <AdminPageHeader
+                eyebrow={t("adminNav.schedule")}
                 title={t('adminHours.title')}
                 subtitle={t('adminHours.subtitle')}
             />

@@ -41,7 +41,7 @@ import {
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 import { useGroupReservationsAccess } from "../../lib/useGroupReservationsAccess";
 import { formatDateTime, formatMoneyFromCents } from "../../lib/format";
 import {
@@ -213,9 +213,8 @@ export default function GroupEventDetailPage() {
     const eventId = Number.parseInt(eventIdRaw, 10);
     const { companyId, companyUser } = useAdminAuth();
     const currency = companyUser?.company?.currency;
-    const plan = resolveShopPlan(companyUser?.company?.plan);
-    const { canUseAdvanced, canUseEvents } = useGroupReservationsAccess();
-    const canBulkMessaging = canUsePlanFeature(plan, "BULK_WHATSAPP_MESSAGING");
+    const { canUseAdvanced, canUseEvents, getRequiredPlan } = useGroupReservationsAccess();
+    const canBulkMessaging = canUsePlanFeature(companyUser?.company, "BULK_WHATSAPP_MESSAGING");
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -864,12 +863,13 @@ export default function GroupEventDetailPage() {
     };
 
     if (!canUseEvents) {
+        const requiredPlan = getRequiredPlan("GROUP_EVENTS");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
-                message={t("planEnforcement.availableOnBusiness")}
+                message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                 feature="GROUP_EVENTS"
-                requiredPlan="BUSINESS"
+                requiredPlan={requiredPlan}
                 fullPage
             />
         );
@@ -903,11 +903,17 @@ export default function GroupEventDetailPage() {
             </div>
 
             {!canBulkMessaging ? (
+                (() => {
+                    const requiredPlan = getRequiredPlan("BULK_WHATSAPP_MESSAGING");
+                    return (
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
-                    message={t("planEnforcement.availableOnPro")}
+                    message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                     feature="BULK_WHATSAPP_MESSAGING"
+                    requiredPlan={requiredPlan}
                 />
+                    );
+                })()
             ) : null}
 
             <Card className="border-slate-200">
@@ -1806,7 +1812,7 @@ export default function GroupEventDetailPage() {
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent
                                                 align="start"
-                                                className="w-[360px]"
+                                                className="w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)]"
                                                 onCloseAutoFocus={(event) => event.preventDefault()}
                                             >
                                                 <DropdownMenuLabel>{t("adminGroup.events.massMessageRecipientsLabel")}</DropdownMenuLabel>

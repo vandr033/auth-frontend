@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Clock, User, Calendar, CreditCard, Loader2, Upload, X, DoorOpen, Wrench } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clock, User, Calendar, CreditCard, Loader2, Upload, DoorOpen, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useShop } from "../../contexts/ShopContext";
@@ -33,6 +33,7 @@ import { ShopSettings } from "@/types/shop";
 import { appendShopParam, buildSignInRedirectPath } from "@/app/lib/shop-context";
 import { parseMarketplaceBookingHandoff } from "@/lib/marketplace/handoff";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
+import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
 
 // Helper to resolve API URL (duplicate of logic in ShopContext, consider exported helper)
 const resolveApiUrl = (url: string) => {
@@ -1087,16 +1088,12 @@ function ConfirmStep({
                                                     }}
                                                 />
                                                 {qrProofFile && (
-                                                    <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
-                                                        <Check className="h-3 w-3" />
-                                                        <span className="truncate max-w-[150px]">{qrProofFile.name}</span>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); onChangeProof(null); }}
-                                                            className="text-text-muted hover:text-rose-500 ml-1"
-                                                        >
-                                                            <X className="h-3 w-3" />
-                                                        </button>
-                                                    </div>
+                                                    <QrProofPreview
+                                                        file={qrProofFile}
+                                                        alt={t('shopBooking.uploadProofLabel')}
+                                                        removeLabel={t('shopBooking.removeProof')}
+                                                        onRemove={() => onChangeProof(null)}
+                                                    />
                                                 )}
                                             </div>
                                             {!qrProofFile && (

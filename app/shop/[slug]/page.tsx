@@ -14,7 +14,7 @@ import { LocationHours } from "@/components/shop/LocationHours";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { PublicReviewList } from "@/components/shop/PublicReviewList";
 import { ShopUnavailableState } from "../components/ShopUnavailableState";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 import { DEFAULT_SECTION_ORDER, type HomeSectionKey } from "@/types/shop";
 import { useAuth } from "@/lib/useAuth";
 import {
@@ -44,9 +44,8 @@ export default function ShopPage() {
     const sectionOrder: HomeSectionKey[] = homeSectionOrder ?? DEFAULT_SECTION_ORDER;
     const t = useT();
     const { user } = useAuth();
-    const plan = resolveShopPlan(company?.plan);
-    const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
-    const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
+    const canSeeEvents = canUsePlanFeature(company, "GROUP_EVENTS");
+    const canSeeClasses = canUsePlanFeature(company, "GROUP_CLASSES");
     const [events, setEvents] = React.useState<PublicGroupEvent[]>([]);
     const [classes, setClasses] = React.useState<PublicGroupClass[]>([]);
     const [classSessionsById, setClassSessionsById] = React.useState<Record<number, PublicGroupClassSession[]>>({});

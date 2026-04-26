@@ -2,19 +2,14 @@
  * All images are served through the backend API.
  * This helper constructs the correct URL for any image type.
  */
+import { getApiBaseUrl, getApiOriginUrl } from "@/lib/api-url";
 
-// Get base URL without /api suffix (handle both formats)
-function getBaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '';
-  // Remove trailing /api if present to avoid double /api/api
-  return url.replace(/\/api\/?$/, '');
-}
-
-const API_BASE = getBaseUrl();
+const API_BASE = getApiOriginUrl();
 const API_ORIGIN = (() => {
-  if (!API_BASE) return '';
+  const originBase = API_BASE || getApiBaseUrl();
+  if (!originBase) return '';
   try {
-    return new URL(API_BASE).origin;
+    return new URL(originBase).origin;
   } catch {
     return '';
   }

@@ -19,7 +19,7 @@ import { useOtpResendTimer } from "@/lib/auth/otpResend";
 import { useShop } from "../../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 import { appendShopParam, buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
 import {
   capturePublicEventInterest,
@@ -80,9 +80,8 @@ export default function ShopEventDetailPage() {
     verifyPhoneOtp,
   } = useAuth();
   const { company, settings, slug, isShopActive, loading, error } = useShop();
-  const plan = resolveShopPlan(company?.plan);
-  const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
-  const canUseAdvanced = canUsePlanFeature(plan, "GROUP_ADVANCED");
+  const canSeeEvents = canUsePlanFeature(company, "GROUP_EVENTS");
+  const canUseAdvanced = canUsePlanFeature(company, "GROUP_ADVANCED");
 
   const [eventLoading, setEventLoading] = React.useState(true);
   const [event, setEvent] = React.useState<PublicGroupEvent | null>(null);

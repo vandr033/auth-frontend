@@ -14,7 +14,7 @@ import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUsePlanFeature, getRequiredPlanForFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature, getCurrentPlan, getRequiredPlanForFeature } from "@/lib/plans/capabilities";
 import {
     StaffAvailabilitySlot,
     StaffMember,
@@ -31,8 +31,8 @@ export default function AvailabilityPage() {
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
     const isStaff = role === "STAFF";
     const availabilityFeature = "STAFF_AVAILABILITY" as const;
-    const plan = resolveShopPlan(companyUser?.company?.plan);
-    const canUseAvailability = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, availabilityFeature);
+    const plan = getCurrentPlan(companyUser?.company);
+    const canUseAvailability = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, availabilityFeature);
 
     const [loading, setLoading] = useState(true);
     const [savingSchedule, setSavingSchedule] = useState(false);
@@ -190,10 +190,10 @@ export default function AvailabilityPage() {
     }
 
     if (!canUseAvailability) {
-        const requiredPlan = getRequiredPlanForFeature(availabilityFeature);
+        const requiredPlan = getRequiredPlanForFeature(companyUser?.company, availabilityFeature);
         return (
             <AdminPageShell>
-                <AdminPageHeader title={t("adminNav.availability")} />
+                <AdminPageHeader eyebrow={t("adminNav.schedule")} title={t("adminAvailability.title")} />
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={
@@ -221,6 +221,7 @@ export default function AvailabilityPage() {
     return (
         <AdminPageShell className="pb-24 md:pb-0">
             <AdminPageHeader
+                eyebrow={t("adminNav.schedule")}
                 title={t("adminAvailability.title")}
                 subtitle={isOwnerOrAdmin ? t("adminAvailability.subtitleOwnerAdmin") : t("adminAvailability.subtitleStaff")}
                 actions={

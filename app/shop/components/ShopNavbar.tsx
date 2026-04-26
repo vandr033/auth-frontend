@@ -17,7 +17,7 @@ import { getImageUrl } from "@/utils/image-url";
 import { SocialIcons } from "@/components/shop/SocialIcons";
 import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 import {
     appendShopParam,
     buildSignInRedirectFromCurrentLocation,
@@ -47,9 +47,8 @@ export function ShopNavbar() {
     const profileHref = appendShopParam("/me/profile", slug);
     const appointmentsHref = appendShopParam("/me/appointments", slug);
     const groupReservationsHref = appendShopParam("/me/group-reservations", slug);
-    const plan = resolveShopPlan(company?.plan);
-    const canSeeEvents = canUsePlanFeature(plan, "GROUP_EVENTS");
-    const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
+    const canSeeEvents = canUsePlanFeature(company, "GROUP_EVENTS");
+    const canSeeClasses = canUsePlanFeature(company, "GROUP_CLASSES");
 
     const navLinks = [
         { href: basePath, label: t('shopNav.home') },

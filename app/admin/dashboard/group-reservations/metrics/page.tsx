@@ -82,20 +82,20 @@ export default function GroupMetricsPage() {
                     <h2 className="text-xl font-semibold text-slate-900">{t("adminGroup.metrics.title")}</h2>
                     <p className="text-sm text-slate-600">{t("adminGroup.metrics.subtitle")}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                     <Input
                         type="date"
                         value={dateFrom}
                         onChange={(event) => setDateFrom(event.target.value)}
-                        className="w-[170px]"
+                        className="w-full sm:w-[170px]"
                     />
                     <Input
                         type="date"
                         value={dateTo}
                         onChange={(event) => setDateTo(event.target.value)}
-                        className="w-[170px]"
+                        className="w-full sm:w-[170px]"
                     />
-                    <Button variant="outline" onClick={() => void loadData()}>
+                    <Button variant="outline" onClick={() => void loadData()} className="w-full sm:w-auto">
                         <RefreshCcw className="mr-2 h-4 w-4" />
                         {t("adminGroup.actions.refresh")}
                     </Button>

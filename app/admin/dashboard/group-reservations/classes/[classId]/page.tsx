@@ -149,7 +149,7 @@ export default function GroupClassDetailPage() {
     const params = useParams<{ classId: string }>();
     const classIdRaw = typeof params?.classId === "string" ? params.classId : "";
     const classId = Number.parseInt(classIdRaw, 10);
-    const { canUseAdvanced, canUseClasses } = useGroupReservationsAccess();
+    const { canUseAdvanced, canUseClasses, getRequiredPlan } = useGroupReservationsAccess();
     const { companyId, companyUser } = useAdminAuth();
     const currency = companyUser?.company?.currency;
 
@@ -664,12 +664,13 @@ export default function GroupClassDetailPage() {
     };
 
     if (!canUseClasses) {
+        const requiredPlan = getRequiredPlan("GROUP_CLASSES");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
-                message={t("planEnforcement.availableOnPro")}
+                message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                 feature="GROUP_CLASSES"
-                requiredPlan="PRO"
+                requiredPlan={requiredPlan}
                 fullPage
             />
         );

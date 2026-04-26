@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ImageIcon,
+  Lock,
   Loader2,
   MoreHorizontal,
   Search,
@@ -54,7 +55,7 @@ type AdminPageShellProps = {
 
 export function AdminPageShell({ children, className, contentClassName }: AdminPageShellProps) {
   return (
-    <div className={cn("mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6", className)}>
+    <div className={cn("mx-auto flex min-w-0 w-full max-w-7xl flex-col gap-5 sm:gap-6", className)}>
       <div className={cn("flex flex-col gap-5 sm:gap-6", contentClassName)}>{children}</div>
     </div>
   );
@@ -102,7 +103,7 @@ export function AdminPageHeader({
           {subtitle ? <p className="max-w-3xl text-sm text-slate-600">{subtitle}</p> : null}
           {meta ? <div className="pt-1 text-sm text-slate-500">{meta}</div> : null}
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+        {actions ? <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">{actions}</div> : null}
       </div>
     </section>
   );
@@ -130,11 +131,11 @@ export function DataToolbar({
   return (
     <div
       className={cn(
-        "admin-card flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:justify-between",
+        "admin-card flex min-w-0 flex-col gap-3 overflow-hidden p-3 lg:flex-row lg:items-center lg:justify-between",
         className,
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         {onSearchChange ? (
           <div className="relative w-full sm:max-w-xs">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -146,12 +147,21 @@ export function DataToolbar({
             />
           </div>
         ) : null}
-        {filters ? <div className="flex flex-wrap items-center gap-2">{filters}</div> : null}
-        {summary ? <div className="text-sm text-slate-500">{summary}</div> : null}
+        {filters ? <div className="flex min-w-0 flex-wrap items-center gap-2">{filters}</div> : null}
+        {summary ? <div className="min-w-0 text-sm text-slate-500">{summary}</div> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">{actions}</div> : null}
     </div>
   );
+}
+
+type AdminMetricGridProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+export function AdminMetricGrid({ children, className }: AdminMetricGridProps) {
+  return <div className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-4", className)}>{children}</div>;
 }
 
 type ResponsiveEntityListProps<T> = {
@@ -308,6 +318,68 @@ export function StatCard({ label, value, hint, icon, trend, className, iconClass
   );
 }
 
+type ProgressPanelMetric = {
+  label: ReactNode;
+  value: ReactNode;
+  tone?: StatusTone;
+};
+
+type ProgressPanelProps = {
+  title: ReactNode;
+  description?: ReactNode;
+  progress: number;
+  progressLabel?: ReactNode;
+  metrics?: ProgressPanelMetric[];
+  className?: string;
+};
+
+export function ProgressPanel({
+  title,
+  description,
+  progress,
+  progressLabel,
+  metrics,
+  className,
+}: ProgressPanelProps) {
+  const safeProgress = Math.max(0, Math.min(100, progress));
+
+  return (
+    <section className={cn("admin-card p-4", className)}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
+          {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
+        </div>
+        {progressLabel ? <div className="text-sm font-medium text-slate-500">{progressLabel}</div> : null}
+      </div>
+
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-admin-surface-subtle">
+        <div
+          className="h-full rounded-full bg-admin-brand transition-[width] duration-300 ease-out"
+          style={{ width: `${safeProgress}%` }}
+        />
+      </div>
+
+      {metrics?.length ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          {metrics.map((metric, index) => (
+            <div
+              key={index}
+              className={cn(
+                "rounded-lg border px-3 py-2 text-sm",
+                statusToneClass[metric.tone ?? "neutral"],
+              )}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] opacity-80">{metric.label}</p>
+              <p className="mt-1 font-semibold">{metric.value}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 type StatusTone = "neutral" | "success" | "warning" | "danger" | "info" | "brand";
 
 const statusToneClass: Record<StatusTone, string> = {
@@ -450,14 +522,14 @@ export function LoadingSkeleton({ rows = 4, variant = "page", className }: Loadi
   if (variant === "table") {
     return (
       <div className={cn("admin-card p-4", className)}>
-        <div className="mb-4 h-5 w-40 animate-pulse rounded bg-slate-200" />
+        <div className="mb-4 h-5 w-40 animate-pulse rounded bg-slate-200/80" />
         <div className="space-y-3">
           {Array.from({ length: rows }).map((_, index) => (
             <div key={index} className="grid grid-cols-4 gap-3">
-              <div className="h-4 animate-pulse rounded bg-slate-200" />
-              <div className="h-4 animate-pulse rounded bg-slate-100" />
-              <div className="h-4 animate-pulse rounded bg-slate-100" />
-              <div className="h-4 animate-pulse rounded bg-slate-200" />
+              <div className="h-4 animate-pulse rounded bg-slate-200/80" />
+              <div className="h-4 animate-pulse rounded bg-admin-surface-subtle" />
+              <div className="h-4 animate-pulse rounded bg-admin-surface-subtle" />
+              <div className="h-4 animate-pulse rounded bg-slate-200/80" />
             </div>
           ))}
         </div>
@@ -470,9 +542,9 @@ export function LoadingSkeleton({ rows = 4, variant = "page", className }: Loadi
       <div className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-4", className)}>
         {Array.from({ length: rows }).map((_, index) => (
           <div key={index} className="admin-card p-4">
-            <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
-            <div className="mt-3 h-7 w-16 animate-pulse rounded bg-slate-200" />
-            <div className="mt-3 h-3 w-32 animate-pulse rounded bg-slate-100" />
+            <div className="h-4 w-24 animate-pulse rounded bg-slate-200/80" />
+            <div className="mt-3 h-7 w-16 animate-pulse rounded bg-slate-200/80" />
+            <div className="mt-3 h-3 w-32 animate-pulse rounded bg-admin-surface-subtle" />
           </div>
         ))}
       </div>
@@ -482,8 +554,8 @@ export function LoadingSkeleton({ rows = 4, variant = "page", className }: Loadi
   return (
     <div className={cn("space-y-4", className)}>
       <div className="admin-card p-5">
-        <div className="h-6 w-56 animate-pulse rounded bg-slate-200" />
-        <div className="mt-3 h-4 w-full max-w-xl animate-pulse rounded bg-slate-100" />
+        <div className="h-6 w-56 animate-pulse rounded bg-slate-200/80" />
+        <div className="mt-3 h-4 w-full max-w-xl animate-pulse rounded bg-admin-surface-subtle" />
       </div>
       <LoadingSkeleton rows={rows} variant="table" />
     </div>
@@ -598,8 +670,8 @@ export function FormSection({
   contentClassName,
 }: FormSectionProps) {
   return (
-    <section className={cn("rounded-lg border border-slate-200 bg-white shadow-sm", className)}>
-      <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+    <section className={cn("admin-card", className)}>
+      <div className="flex flex-col gap-3 border-b border-admin-border px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-slate-950">{title}</h2>
           {description ? <p className="text-sm text-slate-600">{description}</p> : null}
@@ -620,8 +692,8 @@ export function AdminSectionCard({
   contentClassName,
 }: FormSectionProps) {
   return (
-    <section className={cn("rounded-lg border border-slate-200 bg-white shadow-sm", className)}>
-      <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+    <section className={cn("admin-card", className)}>
+      <div className="flex flex-col gap-3 border-b border-admin-border px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-slate-950">{title}</h2>
           {description ? <p className="text-sm text-slate-600">{description}</p> : null}
@@ -644,7 +716,7 @@ type SettingsFieldProps = {
 
 export function SettingsField({ label, description, children, htmlFor, required, className }: SettingsFieldProps) {
   return (
-    <div className={cn("grid gap-2 md:grid-cols-[minmax(180px,260px)_1fr] md:gap-5", className)}>
+    <div className={cn("grid gap-2 lg:grid-cols-[minmax(180px,260px)_1fr] lg:gap-5", className)}>
       <div className="space-y-1">
         <Label htmlFor={htmlFor} className="text-sm font-medium text-slate-800">
           {label}
@@ -674,6 +746,69 @@ export function StickyActions({ children, primary, secondary, className }: Stick
         </>
       )}
     </StickyActionBar>
+  );
+}
+
+type AdminTabNavItem = {
+  key: string;
+  label: ReactNode;
+  href?: string;
+  active?: boolean;
+  disabled?: boolean;
+};
+
+type AdminTabNavProps = {
+  items: AdminTabNavItem[];
+  className?: string;
+};
+
+export function AdminTabNav({ items, className }: AdminTabNavProps) {
+  return (
+    <div className={cn("overflow-x-auto pb-1", className)}>
+      <div className="inline-flex min-w-full items-center gap-1 rounded-2xl border border-admin-border bg-admin-surface p-1.5 shadow-admin">
+        {items.map((item) => {
+          const content = (
+            <>
+              {item.disabled ? <Lock className="h-3.5 w-3.5 shrink-0" /> : null}
+              {item.label}
+            </>
+          );
+
+          if (item.disabled || !item.href) {
+            return (
+              <span
+                key={item.key}
+                className={cn(
+                  "inline-flex min-h-10 items-center gap-1 rounded-xl border px-3 py-2 text-sm font-medium whitespace-nowrap",
+                  item.disabled
+                    ? "border-dashed border-admin-border bg-admin-surface-subtle text-slate-400"
+                    : item.active
+                      ? "border-admin-brand bg-admin-brand text-white shadow-sm"
+                      : "border-transparent bg-transparent text-slate-600",
+                )}
+              >
+                {content}
+              </span>
+            );
+          }
+
+          return (
+            <Link
+              key={item.key}
+              href={item.href}
+              className={cn(
+                "inline-flex min-h-10 items-center gap-1 rounded-xl border px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
+                item.active
+                  ? "border-admin-brand bg-admin-brand text-white shadow-sm"
+                  : "border-transparent bg-transparent text-slate-600 hover:border-admin-border hover:bg-admin-brand-soft hover:text-slate-950",
+              )}
+            >
+              {content}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -791,8 +926,8 @@ export function PreviewPanel({
   contentClassName,
 }: PreviewPanelProps) {
   return (
-    <aside className={cn("rounded-lg border border-slate-200 bg-white shadow-sm", className)}>
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+    <aside className={cn("admin-card", className)}>
+      <div className="flex items-start justify-between gap-3 border-b border-admin-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
           {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}

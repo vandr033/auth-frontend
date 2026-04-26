@@ -4,7 +4,7 @@
 import React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CalendarDays, Clock, Loader2, MapPin, MessageCircle, Upload, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Loader2, MapPin, MessageCircle, Upload } from "lucide-react";
 import { ShareButton } from "@/components/shop/ShareButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,7 @@ import { InstallmentPlanCard } from "@/app/shop/components/group/InstallmentPlan
 import { useShop } from "../../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 import { appendShopParam } from "@/app/lib/shop-context";
 import {
   createPublicClassEnrollment,
@@ -54,6 +54,7 @@ import {
   getVisibleStaffAssignments,
 } from "@/app/shop/lib/groupReservationsFormat";
 import { getImageUrl } from "@/utils/image-url";
+import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
 
 function hasUpcomingSession(sessions: PublicGroupClassSession[]): boolean {
   const now = Date.now();
@@ -74,8 +75,7 @@ export default function ShopClassDetailPage() {
 
   const { user, loading: authLoading, refreshSession } = useAuth();
   const { company, settings, slug, isShopActive, loading, error } = useShop();
-  const plan = resolveShopPlan(company?.plan);
-  const canSeeClasses = canUsePlanFeature(plan, "GROUP_CLASSES");
+  const canSeeClasses = canUsePlanFeature(company, "GROUP_CLASSES");
 
   const [classLoading, setClassLoading] = React.useState(true);
   const [groupClass, setGroupClass] = React.useState<PublicGroupClass | null>(null);
@@ -697,12 +697,12 @@ export default function ShopClassDetailPage() {
                   onChange={(event) => setQrProofFile(event.target.files?.[0] || null)}
                 />
                 {qrProofFile ? (
-                  <div className="flex items-center justify-between gap-2 rounded-md border border-surface-border bg-white px-3 py-2 text-xs">
-                    <span className="truncate">{qrProofFile.name}</span>
-                    <button type="button" className="rounded p-1 hover:bg-slate-100" onClick={() => setQrProofFile(null)}>
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <QrProofPreview
+                    file={qrProofFile}
+                    alt={t("shopGroup.payment.uploadProof")}
+                    removeLabel={t("shopGroup.payment.removeProof")}
+                    onRemove={() => setQrProofFile(null)}
+                  />
                 ) : null}
               </div>
 

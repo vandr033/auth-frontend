@@ -13,11 +13,3 @@ export function isNoShowBooking(booking: Pick<AdminBooking, "status" | "notes">)
 export function getBookingDisplayStatus(booking: Pick<AdminBooking, "status" | "notes">): BookingStatus {
     return isNoShowBooking(booking) ? "NO_SHOW" : booking.status;
 }
-
-export function appendNoShowMarker(notes?: string | null): string {
-    const base = (notes || "").trim();
-    if (base.includes(NO_SHOW_NOTE_MARKER)) {
-        return base;
-    }
-    return base ? `${base}\n${NO_SHOW_NOTE_MARKER}` : NO_SHOW_NOTE_MARKER;
-}

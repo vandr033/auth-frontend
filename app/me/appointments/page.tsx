@@ -192,7 +192,8 @@ function AppointmentCard({
                   </Link>
                 ) : (
                   appointment.status !== "CANCELLED" &&
-                  appointment.status !== "COMPLETED" && (
+                  appointment.status !== "COMPLETED" &&
+                  appointment.status !== "NO_SHOW" && (
                     <span className="text-xs italic text-text-muted">
                       {t("meAppointments.withinRescheduleWindow", { minutes: appointment.rescheduleLimitMinutes })}
                     </span>

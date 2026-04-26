@@ -12,6 +12,7 @@ import {
     UserCheck,
     UserCircle,
     Clock,
+    CreditCard as CreditCardIcon,
     Settings,
     LogOut,
     Menu,
@@ -39,7 +40,6 @@ import {
 } from "@/components/ui/select";
 import {
     canUsePlanFeature,
-    resolveShopPlan,
     type PlanFeatureKey,
 } from "@/lib/plans/capabilities";
 
@@ -48,6 +48,7 @@ type NavItem = {
     label: string;
     href: string;
     icon: React.ReactNode;
+    activePrefixes?: string[];
     roles?: string[];
     feature?: PlanFeatureKey;
     exact?: boolean;
@@ -56,7 +57,7 @@ type NavItem = {
 const navItems: NavItem[] = [
     {
         id: "dashboard",
-        label: "adminNav.dashboardMetrics",
+        label: "adminNav.dashboard",
         href: "/admin/dashboard",
         icon: <LayoutDashboard className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN", "STAFF"],
@@ -78,20 +79,6 @@ const navItems: NavItem[] = [
         roles: ["OWNER", "ADMIN"],
     },
     {
-        id: "services",
-        label: "adminNav.services",
-        href: "/admin/dashboard/services",
-        icon: <Scissors className="h-5 w-5 shrink-0" />,
-        roles: ["OWNER", "ADMIN"],
-    },
-    {
-        id: "staff",
-        label: "adminNav.staff",
-        href: "/admin/dashboard/staff",
-        icon: <Users className="h-5 w-5 shrink-0" />,
-        roles: ["OWNER", "ADMIN"],
-    },
-    {
         id: "customers",
         label: "adminNav.customers",
         href: "/admin/dashboard/customers",
@@ -107,40 +94,58 @@ const navItems: NavItem[] = [
         feature: "REVIEW_MANAGEMENT",
     },
     {
-        id: "availability",
-        label: "adminNav.availability",
-        href: "/admin/dashboard/availability",
-        icon: <Calendar className="h-5 w-5 shrink-0" />,
-        roles: ["OWNER", "ADMIN", "STAFF"],
-        feature: "STAFF_AVAILABILITY",
-    },
-    {
-        id: "permissions",
-        label: "adminNav.permissions",
-        href: "/admin/dashboard/permissions",
-        icon: <UserCheck className="h-5 w-5 shrink-0" />,
-        roles: ["OWNER", "ADMIN", "STAFF"],
-        feature: "STAFF_AVAILABILITY",
-    },
-    {
-        id: "hours",
-        label: "adminNav.hours",
-        href: "/admin/dashboard/hours",
-        icon: <Clock className="h-5 w-5 shrink-0" />,
+        id: "staff",
+        label: "adminNav.staff",
+        href: "/admin/dashboard/staff",
+        icon: <Users className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        id: "storefront-builder",
+        id: "schedule",
+        label: "adminNav.schedule",
+        href: "/admin/dashboard/schedule",
+        activePrefixes: [
+            "/admin/dashboard/availability",
+            "/admin/dashboard/hours",
+            "/admin/dashboard/time-off",
+            "/admin/dashboard/permissions",
+        ],
+        icon: <Clock className="h-5 w-5 shrink-0" />,
+        roles: ["OWNER", "ADMIN", "STAFF"],
+    },
+    {
+        id: "services",
+        label: "adminNav.services",
+        href: "/admin/dashboard/services",
+        icon: <Scissors className="h-5 w-5 shrink-0" />,
+        roles: ["OWNER", "ADMIN"],
+    },
+    {
+        id: "storefront",
         label: "adminNav.storefrontBuilder",
-        href: "/admin/dashboard/storefront-builder",
+        href: "/admin/dashboard/storefront",
+        activePrefixes: [
+            "/admin/dashboard/storefront-builder",
+            "/admin/dashboard/theme",
+            "/admin/dashboard/page-management",
+        ],
         icon: <Store className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
     },
     {
-        id: "settings",
+        id: "business-settings",
         label: "adminNav.settings",
-        href: "/admin/dashboard/settings",
+        href: "/admin/dashboard/business-settings",
+        activePrefixes: ["/admin/dashboard/settings"],
         icon: <Settings className="h-5 w-5 shrink-0" />,
+        roles: ["OWNER", "ADMIN"],
+        exact: true,
+    },
+    {
+        id: "billing",
+        label: "adminNav.planBilling",
+        href: "/admin/dashboard/billing",
+        icon: <CreditCardIcon className="h-5 w-5 shrink-0" />,
         roles: ["OWNER", "ADMIN"],
         exact: true,
     },
@@ -161,45 +166,58 @@ type NavGroup = {
 
 const navGroups: NavGroup[] = [
     {
-        id: "operations",
-        label: "adminNav.groups.operations",
-        itemIds: ["bookings", "events-classes", "reviews"],
-    },
-    {
-        id: "catalog",
-        label: "adminNav.groups.catalog",
-        itemIds: ["services"],
-    },
-    {
-        id: "customers",
-        label: "adminNav.groups.customers",
-        itemIds: ["customers"],
-    },
-    {
-        id: "team-schedule",
-        label: "adminNav.groups.teamSchedule",
-        itemIds: ["staff", "hours", "availability", "permissions"],
-    },
-    {
-        id: "storefront",
-        label: "adminNav.groups.storefront",
-        itemIds: ["storefront-builder"],
-    },
-    {
-        id: "reports",
-        label: "adminNav.groups.reports",
+        id: "overview",
+        label: "adminNav.groups.overview",
         itemIds: ["dashboard"],
     },
     {
-        id: "settings",
-        label: "adminNav.groups.settings",
-        itemIds: ["settings", "personal-profile"],
+        id: "operations",
+        label: "adminNav.groups.operations",
+        itemIds: ["bookings", "customers", "events-classes", "reviews"],
+    },
+    {
+        id: "team",
+        label: "adminNav.groups.team",
+        itemIds: ["staff", "schedule"],
+    },
+    {
+        id: "business",
+        label: "adminNav.groups.business",
+        itemIds: ["services", "storefront", "business-settings", "billing", "personal-profile"],
     },
 ];
 
+const routeTitleOverrides: Array<{
+    prefix: string;
+    label: string;
+    exact?: boolean;
+}> = [
+    { prefix: "/admin/dashboard/business-settings", label: "adminNav.settings", exact: true },
+    { prefix: "/admin/dashboard/settings", label: "adminNav.settings", exact: true },
+    { prefix: "/admin/dashboard/billing", label: "adminNav.planBilling", exact: true },
+    { prefix: "/admin/dashboard/time-off", label: "adminNav.timeOff", exact: true },
+    { prefix: "/admin/dashboard/permissions", label: "adminNav.timeOff", exact: true },
+    { prefix: "/admin/dashboard/availability", label: "adminNav.availability" },
+    { prefix: "/admin/dashboard/hours", label: "adminNav.hours" },
+];
+
+function routeMatches(prefix: string, currentPath: string, exact = false) {
+    return exact ? currentPath === prefix : currentPath === prefix || currentPath.startsWith(`${prefix}/`);
+}
+
 function isNavItemActive(item: NavItem, currentPath: string) {
-    if (item.exact) return currentPath === item.href;
-    return currentPath === item.href || currentPath.startsWith(`${item.href}/`);
+    const prefixes = [item.href, ...(item.activePrefixes ?? [])];
+    return prefixes.some((prefix) => routeMatches(prefix, currentPath, item.exact));
+}
+
+function resolveHeaderTitleKey(currentPath: string, items: NavItem[]) {
+    const routeOverride = routeTitleOverrides.find((route) => routeMatches(route.prefix, currentPath, route.exact));
+    if (routeOverride) return routeOverride.label;
+
+    return [...items]
+        .sort((a, b) => b.href.length - a.href.length)
+        .find((item) => isNavItemActive(item, currentPath))
+        ?.label || "adminNav.dashboard";
 }
 
 export default function DashboardLayout({
@@ -379,7 +397,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const activeMembership = companyUsers.find((membership) => membership.company_id === companyId) ?? null;
-    const activePlan = resolveShopPlan(activeMembership?.company?.plan);
 
     const hasMultipleShops = !user?.is_super_admin && companyUsers.length > 1;
 
@@ -398,7 +415,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         if (!role || !item.roles.includes(role)) return false;
         if (!item.feature) return true;
         if (user?.is_super_admin) return true;
-        return canUsePlanFeature(activePlan, item.feature);
+        return canUsePlanFeature(activeMembership?.company, item.feature);
     });
     const filteredNavItemsById = new Map(filteredNavItems.map((item) => [item.id, item]));
     const filteredNavGroups = navGroups
@@ -430,13 +447,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             // shop's plan supports it. If not, redirect to bookings so the
             // user never sees a "feature locked" dead-end after switching.
             const nextMembership = companyUsers.find((m) => m.company_id === nextCompanyId);
-            const nextPlan = resolveShopPlan(nextMembership?.company?.plan);
             const currentNavItem = navItems.find((item) => isNavItemActive(item, currentPath));
 
             const isCurrentPageLocked =
                 currentNavItem?.feature &&
                 !user?.is_super_admin &&
-                !canUsePlanFeature(nextPlan, currentNavItem.feature);
+                !canUsePlanFeature(nextMembership?.company, currentNavItem.feature);
 
             router.replace(isCurrentPageLocked ? "/admin/dashboard/bookings" : "/admin/dashboard");
             router.refresh();
@@ -656,23 +672,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden">
+            <div className="flex-1 flex min-w-0 flex-col h-[100dvh] overflow-hidden">
                 {/* Top Header */}
-                <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-admin-border bg-admin-surface px-4 shadow-sm lg:px-6">
+                <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center gap-3 border-b border-admin-border bg-admin-surface px-4 py-2 shadow-sm lg:px-6">
                     <button
                         className="rounded-lg p-2 transition-colors hover:bg-admin-brand-soft lg:hidden"
                         onClick={() => setSidebarOpen(true)}
                     >
                         <Menu className="h-5 w-5 shrink-0" />
                     </button>
-                    <div className="flex-1">
-                        <h1 className="text-lg font-semibold text-slate-900">
-                            {t(
-                                [...filteredNavItems]
-                                    .sort((a, b) => b.href.length - a.href.length)
-                                    .find((item) => isNavItemActive(item, currentPath))
-                                    ?.label || "adminNav.dashboard",
-                            )}
+                    <div className="min-w-0 flex-1">
+                        <h1 className="truncate text-lg font-semibold text-slate-900">
+                            {t(resolveHeaderTitleKey(currentPath, filteredNavItems))}
                         </h1>
                     </div>
                     {hasMultipleShops && companyId ? (
@@ -702,7 +713,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 </header>
 
                 {/* Page Content - scrollable */}
-                <main className="admin-scrollbar flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+                <main className="admin-scrollbar flex-1 overflow-x-clip overflow-y-auto p-3 sm:p-4 lg:p-6">{children}</main>
             </div>
         </div>
     );

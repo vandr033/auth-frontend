@@ -223,6 +223,7 @@ export default function SuperAdminBookingsPage() {
                                 <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                                 <SelectItem value="COMPLETED">Completed</SelectItem>
                                 <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                                <SelectItem value="NO_SHOW">No Show</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

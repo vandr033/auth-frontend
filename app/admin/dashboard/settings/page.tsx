@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { Loader2, Save, Building2, MapPin, Globe, CreditCard, CalendarClock, Bell, Share2, Languages } from "lucide-react";
+import Link from "next/link";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Loader2, Save, MapPin, Globe, CreditCard, CalendarClock, Bell, Share2, Languages } from "lucide-react";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import { ImageUpload } from "@/components/admin/ImageUpload";
 import { SocialLinksForm } from "@/components/admin/settings/SocialLinksForm";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT, SUPPORTED_LOCALES } from "@/lib/i18n";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import type { SocialLinks } from "@/types/shop";
 import type {
@@ -31,12 +32,22 @@ import type {
 } from "@/types/subscription-history";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { notify } from "@/lib/notify";
+import { resolveApiUrl } from "@/lib/api-url";
 import {
     LocationPicker,
     type LocationAutofillUpdate,
 } from "@/components/admin/location/LocationPicker";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { AdminPageHeader, AdminPageShell, ErrorBanner } from "@/components/admin/shared";
+
+type SettingsTab = "booking" | "payments" | "subscription";
+
+type SettingsPageProps = {
+    initialTab?: SettingsTab;
+    visibleTabs?: SettingsTab[];
+    titleKey?: string;
+    subtitleKey?: string;
+};
 
 // Combined interface
 interface CompanySettings {
@@ -76,12 +87,6 @@ interface CompanySettings {
     default_language: string;
     custom_tos: string;
     staff_label: string;
-}
-
-function getApiUrl(path: string): string {
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
-    const cleanPath = path.startsWith("/api/") ? path.slice(4) : path;
-    return `${base}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
 }
 
 const initialSettings: CompanySettings = {
@@ -151,13 +156,19 @@ const BILLING_LABEL_KEY: Record<string, string> = {
     YEARLY: "adminSettings.billingYearly",
 };
 
-export default function SettingsPage() {
+export default function SettingsPage({
+    initialTab = "booking",
+    visibleTabs = ["booking", "payments", "subscription"],
+    titleKey = "adminSettings.title",
+    subtitleKey = "adminSettings.subtitle",
+}: SettingsPageProps) {
     const { companyId, companyUser, user, isAuthenticated, loading: authLoading } = useAdminAuth();
     const t = useT();
-    const plan = resolveShopPlan(companyUser?.company?.plan);
-    const canUseNotifications = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
-    const canUseReminders = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BOOKING_REMINDERS");
-    const canCustomizeBookingFlow = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BOOKING_FLOW_CUSTOMIZATION");
+    const canUseNotifications = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
+    const canCustomizeBookingFlow = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
+    const visibleTabSet = useMemo(() => new Set<SettingsTab>(visibleTabs), [visibleTabs]);
+    const showStorefrontHandoff = visibleTabs.some((tab) => tab !== "subscription");
+    const showSaveActions = visibleTabs.some((tab) => tab !== "subscription");
 
     const [settings, setSettings] = useState<CompanySettings>(initialSettings);
     const [subscriptionSummary, setSubscriptionSummary] = useState<ShopSubscriptionSnapshot | null>(null);
@@ -166,8 +177,18 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [selectedQR, setSelectedQR] = useState<File | null>(null);
-    const [activeTab, setActiveTab] = useState("general");
+    const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
     const [timezoneManuallyEdited, setTimezoneManuallyEdited] = useState(false);
+
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
+
+    useEffect(() => {
+        if (!visibleTabSet.has(activeTab)) {
+            setActiveTab(visibleTabs[0] ?? "booking");
+        }
+    }, [activeTab, visibleTabSet, visibleTabs]);
 
     // Fetch company settings
     const fetchData = useCallback(async () => {
@@ -177,9 +198,9 @@ export default function SettingsPage() {
         try {
             // Fetch both Company Config and General Details
             const [companyRes, settingsRes, historyRes] = await Promise.all([
-                fetch(getApiUrl(`/api/company/id/${companyId}`), { credentials: "include" }),
-                fetch(getApiUrl(`/api/admin/settings`), { credentials: "include" }),
-                fetch(getApiUrl(`/api/admin/settings/subscription-history`), { credentials: "include" }),
+                fetch(resolveApiUrl(`/api/company/id/${companyId}`), { credentials: "include" }),
+                fetch(resolveApiUrl(`/api/admin/settings`), { credentials: "include" }),
+                fetch(resolveApiUrl(`/api/admin/settings/subscription-history`), { credentials: "include" }),
             ]);
 
             const companyData = companyRes.ok ? (await companyRes.json()) : {};
@@ -329,7 +350,7 @@ export default function SettingsPage() {
                 const formData = new FormData();
                 formData.append('image', selectedQR);
                 formData.append('company_id', companyId.toString());
-                const uploadRes = await fetch(getApiUrl('/api/upload/qr'), {
+                const uploadRes = await fetch(resolveApiUrl('/api/upload/qr'), {
                     method: 'POST',
                     body: formData,
                     credentials: "include",
@@ -385,13 +406,13 @@ export default function SettingsPage() {
             };
 
             const [companyRes, settingsRes] = await Promise.all([
-                fetch(getApiUrl(`/api/company/id/${companyId}`), {
+                fetch(resolveApiUrl(`/api/company/id/${companyId}`), {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     credentials: "include",
                     body: JSON.stringify(payloadCompany),
                 }),
-                fetch(getApiUrl(`/api/admin/settings`), {
+                fetch(resolveApiUrl(`/api/admin/settings`), {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     credentials: "include",
@@ -431,61 +452,69 @@ export default function SettingsPage() {
     return (
         <AdminPageShell className="max-w-4xl pb-12">
             <AdminPageHeader
-                title={t('adminSettings.title')}
-                subtitle={t('adminSettings.subtitle')}
+                title={t(titleKey)}
+                subtitle={t(subtitleKey)}
+                actions={showStorefrontHandoff ? (
+                    <Link href="/admin/dashboard/storefront/business">
+                        <Button variant="outline">{t("adminNav.groups.storefront")}</Button>
+                    </Link>
+                ) : undefined}
             />
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 min-w-0">
+            {showStorefrontHandoff ? (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t("adminNav.groups.storefront")}</CardTitle>
+                        <CardDescription>{t("storefrontBuilder.subtitle")}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-slate-600">
+                            {t("storefrontBuilder.legacyToolsBody")}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            <Link href="/admin/dashboard/storefront/content">
+                                <Button variant="outline" size="sm">{t("storefrontBuilder.content")}</Button>
+                            </Link>
+                            <Link href="/admin/dashboard/storefront/appearance">
+                                <Button variant="outline" size="sm">{t("adminTheme.visualStyle")}</Button>
+                            </Link>
+                            <Link href="/admin/dashboard/storefront/business">
+                                <Button variant="outline" size="sm">{t("storefrontBuilder.businessInfo")}</Button>
+                            </Link>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : null}
+
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as SettingsTab)} className="space-y-6 min-w-0">
                 <TabsList className="config-tabs w-full justify-start gap-1 overflow-x-auto whitespace-nowrap rounded-md border border-admin-border bg-admin-surface p-1 text-slate-600 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                    <TabsTrigger
-                        value="general"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
-                    >
-                        <Building2 className="h-4 w-4 mr-2" />
-                        {t('adminSettings.general')}
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="booking"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
-                    >
-                        <CalendarClock className="h-4 w-4 mr-2" />
-                        {t('adminSettings.bookingRules')}
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="payments"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
-                    >
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        {t('adminSettings.payments')}
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="social"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
-                    >
-                        <Share2 className="h-4 w-4 mr-2" />
-                        {t('adminSettings.socialMedia')}
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="language"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
-                    >
-                        <Languages className="h-4 w-4 mr-2" />
-                        {t('adminSettings.language')}
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="tos"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
-                    >
-                        <Globe className="h-4 w-4 mr-2" />
-                        {t('adminSettings.tosTab')}
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="subscription"
-                        className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
-                    >
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        {t('adminSettings.subscription')}
-                    </TabsTrigger>
+                    {visibleTabSet.has("booking") ? (
+                        <TabsTrigger
+                            value="booking"
+                            className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
+                        >
+                            <CalendarClock className="h-4 w-4 mr-2" />
+                            {t('adminSettings.bookingRules')}
+                        </TabsTrigger>
+                    ) : null}
+                    {visibleTabSet.has("payments") ? (
+                        <TabsTrigger
+                            value="payments"
+                            className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
+                        >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            {t('adminSettings.payments')}
+                        </TabsTrigger>
+                    ) : null}
+                    {visibleTabSet.has("subscription") ? (
+                        <TabsTrigger
+                            value="subscription"
+                            className="config-tab h-11 shrink-0 rounded-md px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:bg-admin-brand-soft data-[state=active]:text-admin-brand-hover data-[state=active]:font-semibold data-[state=active]:ring-1 data-[state=active]:ring-admin-border-strong"
+                        >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            {t('adminSettings.subscription')}
+                        </TabsTrigger>
+                    ) : null}
                 </TabsList>
 
                 {/* --- GENERAL TAB --- */}
@@ -544,8 +573,8 @@ export default function SettingsPage() {
                                 />
                                 <p className="text-xs text-slate-500">{t('adminSettings.currencyCodeHelp')}</p>
                             </div>
-                            <div className="grid grid-cols-4 gap-2">
-                                <div className="space-y-2 col-span-1">
+                            <div className="grid gap-2 sm:grid-cols-4">
+                                <div className="space-y-2 sm:col-span-1">
                                     <Label htmlFor="phone_prefix">{t('adminSettings.prefix')}</Label>
                                     <Input
                                         id="phone_prefix"
@@ -554,7 +583,7 @@ export default function SettingsPage() {
                                         placeholder="591"
                                     />
                                 </div>
-                                <div className="space-y-2 col-span-3">
+                                <div className="space-y-2 sm:col-span-3">
                                     <Label htmlFor="phone">{t('adminSettings.phone')}</Label>
                                     <Input
                                         id="phone"
@@ -1185,14 +1214,16 @@ export default function SettingsPage() {
                 </TabsContent>
             </Tabs>
 
-            <StickyFormActions
-                onSave={handleSave}
-                loading={saving}
-                saveLabel={t('common.save')}
-                loadingLabel={t('adminSettings.saving')}
-                saveIcon={<Save className="h-4 w-4" />}
-                saveClassName="bg-admin-brand hover:bg-admin-brand-hover text-white"
-            />
+            {showSaveActions ? (
+                <StickyFormActions
+                    onSave={handleSave}
+                    loading={saving}
+                    saveLabel={t('common.save')}
+                    loadingLabel={t('adminSettings.saving')}
+                    saveIcon={<Save className="h-4 w-4" />}
+                    saveClassName="bg-admin-brand hover:bg-admin-brand-hover text-white"
+                />
+            ) : null}
         </AdminPageShell>
     );
 }

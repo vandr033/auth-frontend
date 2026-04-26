@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveBackendUrl } from "@/lib/api-url";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,15 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useT } from "@/lib/i18n";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-const resolveUrl = (path: string) => {
-    const base = API_BASE_URL.endsWith("/api")
-        ? API_BASE_URL.replace(/\/api$/, "")
-        : API_BASE_URL;
-    return `${base}${path}`;
-};
 
 interface InviteInfo {
     display_name: string;
@@ -44,7 +36,7 @@ export default function StaffInvitePage() {
 
     // Fetch invite info
     useEffect(() => {
-        fetch(resolveUrl(`/api/staff/invite-info/${token}`))
+        fetch(resolveBackendUrl(`/api/staff/invite-info/${token}`))
             .then(async (res) => {
                 if (!res.ok) {
                     const data = await res.json().catch(() => null);
@@ -79,7 +71,7 @@ export default function StaffInvitePage() {
         setSubmitting(true);
 
         try {
-            const res = await fetch(resolveUrl("/api/staff/accept-invite"), {
+            const res = await fetch(resolveBackendUrl("/api/staff/accept-invite"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ token, code, password }),

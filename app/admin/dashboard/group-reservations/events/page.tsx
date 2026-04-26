@@ -24,7 +24,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 export default function GroupEventsAdminPage() {
     const t = useT();
     const { companyUser } = useAdminAuth();
-    const { canUseEvents } = useGroupReservationsAccess();
+    const { canUseEvents, getRequiredPlan } = useGroupReservationsAccess();
     const currency = companyUser?.company?.currency;
 
     const [events, setEvents] = useState<GroupEvent[]>([]);
@@ -59,12 +59,13 @@ export default function GroupEventsAdminPage() {
     }, [events]);
 
     if (!canUseEvents) {
+        const requiredPlan = getRequiredPlan("GROUP_EVENTS");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
-                message={t("planEnforcement.availableOnBusiness")}
+                message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                 feature="GROUP_EVENTS"
-                requiredPlan="BUSINESS"
+                requiredPlan={requiredPlan}
                 fullPage
             />
         );

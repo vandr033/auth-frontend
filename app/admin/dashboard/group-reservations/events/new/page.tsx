@@ -126,7 +126,7 @@ export default function NewGroupEventPage() {
     const t = useT();
     const router = useRouter();
     const { companyId, companyUser } = useAdminAuth();
-    const { canUseAdvanced, canUseEvents } = useGroupReservationsAccess();
+    const { canUseAdvanced, canUseEvents, getRequiredPlan } = useGroupReservationsAccess();
     const currency = companyUser?.company?.currency;
 
     const [loading, setLoading] = useState(true);
@@ -314,12 +314,13 @@ export default function NewGroupEventPage() {
     };
 
     if (!canUseEvents) {
+        const requiredPlan = getRequiredPlan("GROUP_EVENTS");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
-                message={t("planEnforcement.availableOnBusiness")}
+                message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                 feature="GROUP_EVENTS"
-                requiredPlan="BUSINESS"
+                requiredPlan={requiredPlan}
                 fullPage
             />
         );

@@ -6,7 +6,7 @@ import { SocialIcons } from "./SocialIcons";
 import { useShop } from "@/app/shop/contexts/ShopContext";
 import { useT } from "@/lib/i18n";
 import { DEFAULT_FOOTER_CONFIG } from "@/types/shop";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 
 const PRICONPRI_DEMO_HREF = "https://cal.com/priconpri/demo";
 
@@ -25,8 +25,7 @@ export function ShopFooter() {
 
     if (!company) return null;
 
-    const plan = resolveShopPlan(company.plan);
-    const canCustomizeFooter = canUsePlanFeature(plan, "FOOTER_CUSTOMIZATION");
+    const canCustomizeFooter = canUsePlanFeature(company, "FOOTER_CUSTOMIZATION");
 
     // Use footer config if plan supports it and config exists, otherwise use defaults
     const config = (canCustomizeFooter && footerConfig) ? footerConfig : DEFAULT_FOOTER_CONFIG;

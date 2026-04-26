@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveApiUrl } from "@/lib/api-url";
 import React, {
   createContext,
   useCallback,
@@ -115,15 +116,6 @@ const extractUser = (payload: unknown): AuthUser | null => {
       toStringOrUndefined(candidate.phone_number) ??
       null,
   };
-};
-
-const resolveApiUrl = (url: string) => {
-  if (url.startsWith("http")) return url;
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    "";
-  return `${base}${url}`;
 };
 
 const authT = (key: string, vars?: Record<string, string | number>) =>

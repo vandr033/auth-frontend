@@ -235,8 +235,8 @@ export default function AdminProfilePage() {
                         <Input id="profile-email" value={userProfile?.email || ""} disabled />
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2">
-                        <div className="space-y-2 col-span-1">
+                    <div className="grid gap-2 sm:grid-cols-4">
+                        <div className="space-y-2 sm:col-span-1">
                             <Label htmlFor="profile-phone-prefix">{t("adminSettings.prefix")}</Label>
                             <Input
                                 id="profile-phone-prefix"
@@ -245,7 +245,7 @@ export default function AdminProfilePage() {
                                 disabled={saving}
                             />
                         </div>
-                        <div className="space-y-2 col-span-3">
+                        <div className="space-y-2 sm:col-span-3">
                             <Label htmlFor="profile-phone">{t("staffProfile.phone")}</Label>
                             <Input
                                 id="profile-phone"

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Plus, Save } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
-import { AdminPageHeader, AdminPageShell } from "@/components/admin/shared";
+import { AdminPageHeader, AdminPageShell, ErrorState, LoadingSkeleton } from "@/components/admin/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -278,9 +278,9 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
 
     if (authLoading || loading) {
         return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="h-7 w-7 animate-spin text-admin-brand" />
-            </div>
+            <AdminPageShell>
+                <LoadingSkeleton rows={6} />
+            </AdminPageShell>
         );
     }
 
@@ -300,14 +300,12 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
             />
 
             {formError ? (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                    {formError}
-                </div>
+                <ErrorState title={t("adminServices.saveServiceError")} description={formError} className="min-h-0 py-6" />
             ) : null}
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-4">
-                    <Card className="border-slate-200">
+                    <Card className="admin-card">
                         <CardHeader>
                             <CardTitle className="text-base">{t("adminServices.name")}</CardTitle>
                             <CardDescription>{t("adminServices.createServiceDescription")}</CardDescription>
@@ -335,7 +333,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200">
+                    <Card className="admin-card">
                         <CardHeader>
                             <CardTitle className="text-base">{t("adminServices.category")}</CardTitle>
                             <CardDescription>{t("adminServices.categoriesSubtitle")}</CardDescription>
@@ -372,7 +370,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200">
+                    <Card className="admin-card">
                         <CardHeader>
                             <CardTitle className="text-base">{t("adminServices.price")} / {t("adminServices.duration")}</CardTitle>
                             <CardDescription>{t("adminServices.durationHint")}</CardDescription>
@@ -408,7 +406,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200">
+                    <Card className="admin-card">
                         <CardHeader>
                             <CardTitle className="text-base">{t("adminServices.requiredResources")}</CardTitle>
                             <CardDescription>{t("adminServices.requiredResourcesHint")}</CardDescription>
@@ -419,7 +417,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                             ) : (
                                 <div className="grid gap-2 sm:grid-cols-2">
                                     {staffOptions.map((staff) => (
-                                        <label key={staff.id} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
+                                        <label key={staff.id} className="flex items-center gap-2 rounded-md border border-admin-border px-3 py-2 text-sm">
                                             <input
                                                 type="checkbox"
                                                 checked={formData.required_resource_ids.includes(staff.id)}
@@ -433,10 +431,10 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                                             <span>{staff.display_name}</span>
                                             <span className="text-xs text-slate-400">
                                                 {staff.resource_type === "ROOM"
-                                                    ? "(Sala)"
+                                                    ? `(${t("adminStaff.resourceTypeRoom")})`
                                                     : staff.resource_type === "EQUIPMENT"
-                                                        ? "(Equipo)"
-                                                        : "(Persona)"}
+                                                        ? `(${t("adminStaff.resourceTypeEquipment")})`
+                                                        : `(${t("adminStaff.resourceTypePerson")})`}
                                             </span>
                                         </label>
                                     ))}
@@ -447,13 +445,13 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                 </div>
 
                 <aside className="space-y-4 xl:sticky xl:top-20 xl:self-start">
-                    <Card className="border-slate-200">
+                    <Card className="admin-card">
                         <CardHeader>
                             <CardTitle className="text-base">{t("adminBookings.status")}</CardTitle>
                             <CardDescription>{t("adminServices.visibilityHint")}</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+                            <div className="flex items-center justify-between rounded-md border border-admin-border px-3 py-2">
                                 <Label htmlFor="is_active">{t("adminServices.active")}</Label>
                                 <Switch
                                     id="is_active"
@@ -463,7 +461,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="border-slate-200">
+                    <Card className="admin-card">
                         <CardHeader>
                             <CardTitle className="text-base">{t("adminServices.requiredResources")}</CardTitle>
                         </CardHeader>

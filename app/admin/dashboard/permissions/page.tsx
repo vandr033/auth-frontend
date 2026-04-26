@@ -12,7 +12,7 @@ import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUsePlanFeature, getRequiredPlanForFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature, getCurrentPlan, getRequiredPlanForFeature } from "@/lib/plans/capabilities";
 import {
     StaffMember,
     StaffTimeOffRequest,
@@ -37,8 +37,8 @@ export default function PermissionsPage() {
     const t = useT();
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
     const permissionsFeature = "STAFF_AVAILABILITY" as const;
-    const plan = resolveShopPlan(companyUser?.company?.plan);
-    const canUsePermissions = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, permissionsFeature);
+    const plan = getCurrentPlan(companyUser?.company);
+    const canUsePermissions = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, permissionsFeature);
 
     const [loading, setLoading] = useState(true);
     const [submittingRequest, setSubmittingRequest] = useState(false);
@@ -173,10 +173,10 @@ export default function PermissionsPage() {
     }
 
     if (!canUsePermissions) {
-        const requiredPlan = getRequiredPlanForFeature(permissionsFeature);
+        const requiredPlan = getRequiredPlanForFeature(companyUser?.company, permissionsFeature);
         return (
             <AdminPageShell>
-                <AdminPageHeader title={t("adminNav.permissions")} />
+                <AdminPageHeader eyebrow={t("adminNav.schedule")} title={t("adminPermissions.title")} />
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={
@@ -204,6 +204,7 @@ export default function PermissionsPage() {
     return (
         <AdminPageShell>
             <AdminPageHeader
+                eyebrow={t("adminNav.schedule")}
                 title={t("adminPermissions.title")}
                 subtitle={isOwnerOrAdmin ? t("adminPermissions.subtitleOwnerAdmin") : t("adminPermissions.subtitleStaff")}
             />

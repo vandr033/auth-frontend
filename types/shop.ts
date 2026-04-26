@@ -1,4 +1,5 @@
 // Types for the shop public page data (from GET /api/company/:slug)
+import type { CompanyCapabilities } from "@/lib/plans/capabilities";
 
 export type HeroVariant = 'hero-cinematic' | 'hero-split' | 'hero-minimal';
 export type ServicesVariant = 'services-grid' | 'services-list';
@@ -30,6 +31,7 @@ export interface ShopCompany {
     slug: string;
     name: string;
     plan?: 'STARTER' | 'BUSINESS' | 'PRO' | string;
+    capabilities?: CompanyCapabilities | null;
     availableUntil: string;
     address?: string;
     phone_prefix: string;

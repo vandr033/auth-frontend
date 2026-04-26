@@ -1,12 +1,13 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { Upload, X } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/utils/image-url";
 import type { GroupPaymentMethod } from "@/app/shop/lib/groupReservationsApi";
 import type { ShopSettings } from "@/types/shop";
+import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
 
 type GroupPaymentMethodFormProps = {
   settings: ShopSettings | null;
@@ -124,16 +125,12 @@ export function GroupPaymentMethodForm({
               }}
             />
             {qrProofFile ? (
-              <div className="flex items-center justify-between gap-2 rounded-md border border-surface-border bg-white px-3 py-2 text-xs">
-                <span className="truncate">{qrProofFile.name}</span>
-                <button
-                  type="button"
-                  className="rounded p-1 hover:bg-slate-100"
-                  onClick={() => onQrProofChange(null)}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
+              <QrProofPreview
+                file={qrProofFile}
+                alt={t("shopGroup.payment.uploadProof")}
+                removeLabel={t("shopGroup.payment.removeProof")}
+                onRemove={() => onQrProofChange(null)}
+              />
             ) : null}
           </div>
         </div>

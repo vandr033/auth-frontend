@@ -75,7 +75,7 @@ function normalizeScannedTicketValue(rawValue: string): string {
 export default function GroupAttendancePage() {
     const t = useT();
     const searchParams = useSearchParams();
-    const { canUseAdvanced, canUseClasses, canUseEvents } = useGroupReservationsAccess();
+    const { canUseAdvanced, canUseClasses, canUseEvents, getRequiredPlan } = useGroupReservationsAccess();
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -290,12 +290,13 @@ export default function GroupAttendancePage() {
     const latestTickets = useMemo(() => tickets.slice(0, 15), [tickets]);
 
     if (!canUseAdvanced) {
+        const requiredPlan = getRequiredPlan("GROUP_ADVANCED");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
-                message={t("planEnforcement.availableOnPro")}
+                message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                 feature="GROUP_ADVANCED"
-                requiredPlan="PRO"
+                requiredPlan={requiredPlan}
                 fullPage
             />
         );

@@ -52,11 +52,18 @@ import {
     DaySchedule,
 } from "@/app/admin/lib/adminApi";
 import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
-import { appendNoShowMarker, isNoShowBooking } from "./lib/bookingStatus";
-import { canUsePlanFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { notify } from "@/lib/notify";
-import { AdminPageHeader, AdminPageShell, DataToolbar, StatusBadge } from "@/components/admin/shared";
+import {
+    AdminMetricGrid,
+    AdminPageHeader,
+    AdminPageShell,
+    DataToolbar,
+    ProgressPanel,
+    StatCard,
+    StatusBadge,
+} from "@/components/admin/shared";
 
 type DayCount = 1 | 3 | 7;
 
@@ -75,10 +82,9 @@ export default function BookingsPage() {
     const dateFnsLocale = getDateLocale(locale);
     const isStaffRole = role === "STAFF";
     const currency = companyUser?.company?.currency;
-    const plan = resolveShopPlan(companyUser?.company?.plan);
-    const canSendReminders = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "BOOKING_REMINDERS");
+    const canSendReminders = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "BOOKING_REMINDERS");
     const canSendTransactionalNotifications =
-        Boolean(user?.is_super_admin) || canUsePlanFeature(plan, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
+        Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
 
     // View State
     const [viewMode, setViewMode] = useState<"calendar" | "month" | "list">(isStaffRole ? "list" : "calendar");
@@ -182,26 +188,12 @@ export default function BookingsPage() {
                 params.staff_id = parseInt(staffFilter);
             }
 
-            // Backend currently persists no-shows as cancelled + marker in notes.
-            // Fetch cancelled records for both CANCELLED and NO_SHOW filters, then split locally.
-            if (statusFilter === "CANCELLED" || statusFilter === "NO_SHOW") {
-                params.status = "CANCELLED";
-            } else if (statusFilter !== "ALL") {
+            if (statusFilter !== "ALL") {
                 params.status = statusFilter;
             }
 
             const data = await getBookings(params);
-            const filteredData = data.filter((booking) => {
-                if (statusFilter === "NO_SHOW") {
-                    return isNoShowBooking(booking);
-                }
-                if (statusFilter === "CANCELLED") {
-                    return booking.status === "CANCELLED" && !isNoShowBooking(booking);
-                }
-                return true;
-            });
-
-            setBookings(filteredData);
+            setBookings(data);
         } catch (err) {
             console.error("Failed to fetch bookings:", err);
         } finally {
@@ -280,8 +272,8 @@ export default function BookingsPage() {
             (selectedBooking?.id === id ? selectedBooking : null);
 
         const updatedBooking = await updateBooking(id, {
-            status: "CANCELLED",
-            notes: appendNoShowMarker(sourceBooking?.notes),
+            status: "NO_SHOW",
+            notes: sourceBooking?.notes,
         });
 
         setBookings((prev) => prev.map((booking) => (booking.id === id ? updatedBooking : booking)));
@@ -466,78 +458,66 @@ export default function BookingsPage() {
             )}
 
             {!isStaffRole && (isSendingReminders || reminderSummary || reminderStatusText) && (
-                <div className="rounded-lg border border-surface-border bg-surface p-4 shadow-sm">
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                        <span className="font-medium text-text-main">{t("adminBookings.remindersProgress")}</span>
-                        <span className="text-text-muted">
-                            {isSendingReminders
-                                ? `${reminderCurrent}/${reminderTotal || 0}`
-                                : `${reminderProgress}%`}
-                        </span>
-                    </div>
-
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                        <div
-                            className="h-full rounded-full bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 transition-all duration-300 ease-out"
-                            style={{ width: `${Math.max(0, Math.min(100, reminderProgress))}%` }}
-                        />
-                    </div>
-
-                    {reminderStatusText && (
-                        <p className="mt-2 text-xs text-text-muted">{reminderStatusText}</p>
-                    )}
-
-                    {reminderSummary && (
-                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
-                            <div className="rounded-md bg-emerald-50 px-2 py-1 text-emerald-700">
-                                {t("adminBookings.remindersSent")}: {reminderSummary.sent}
-                            </div>
-                            <div className="rounded-md bg-amber-50 px-2 py-1 text-amber-700">
-                                {t("adminBookings.remindersSkipped")}: {reminderSummary.skipped}
-                            </div>
-                            <div className="rounded-md bg-rose-50 px-2 py-1 text-rose-700">
-                                {t("adminBookings.remindersFailedShort")}: {reminderSummary.failed}
-                            </div>
-                            <div className="rounded-md bg-cyan-50 px-2 py-1 text-cyan-700">
-                                WhatsApp: {reminderSummary.whatsapp}
-                            </div>
-                            <div className="rounded-md bg-indigo-50 px-2 py-1 text-indigo-700">
-                                Email: {reminderSummary.email}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                <ProgressPanel
+                    title={t("adminBookings.remindersProgress")}
+                    description={reminderStatusText ?? undefined}
+                    progress={reminderProgress}
+                    progressLabel={
+                        isSendingReminders
+                            ? `${reminderCurrent}/${reminderTotal || 0}`
+                            : `${reminderProgress}%`
+                    }
+                    metrics={reminderSummary ? [
+                        {
+                            label: t("adminBookings.remindersSent"),
+                            value: reminderSummary.sent,
+                            tone: "success",
+                        },
+                        {
+                            label: t("adminBookings.remindersSkipped"),
+                            value: reminderSummary.skipped,
+                            tone: "warning",
+                        },
+                        {
+                            label: t("adminBookings.remindersFailedShort"),
+                            value: reminderSummary.failed,
+                            tone: "danger",
+                        },
+                        {
+                            label: t("adminBookings.remindersWhatsapp"),
+                            value: reminderSummary.whatsapp,
+                            tone: "info",
+                        },
+                        {
+                            label: t("adminBookings.remindersEmail"),
+                            value: reminderSummary.email,
+                            tone: "brand",
+                        },
+                    ] : undefined}
+                />
             )}
 
-            <div className="grid gap-3 md:grid-cols-3">
-                <div className="admin-card flex items-center gap-3 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-admin-brand-soft text-admin-brand-soft-text">
-                        <CalendarDays className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.inView")}</p>
-                        <p className="text-xl font-semibold tracking-tight text-slate-950">{operationsSummary.total}</p>
-                    </div>
-                </div>
-                <div className="admin-card flex items-center gap-3 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-sky-50 text-sky-700">
-                        <Clock3 className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.today")}</p>
-                        <p className="text-xl font-semibold tracking-tight text-slate-950">{operationsSummary.today}</p>
-                    </div>
-                </div>
-                <div className="admin-card flex items-center gap-3 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
-                        <Users className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.scope")}</p>
-                        <p className="truncate text-sm font-semibold text-slate-950">{selectedStaffLabel} · {selectedStatusLabel}</p>
-                    </div>
-                </div>
-            </div>
+            <AdminMetricGrid className="xl:grid-cols-3">
+                <StatCard
+                    label={t("adminBookings.inView")}
+                    value={operationsSummary.total}
+                    icon={<CalendarDays className="h-5 w-5" />}
+                    iconClassName="bg-admin-brand-soft text-admin-brand-soft-text"
+                />
+                <StatCard
+                    label={t("adminBookings.today")}
+                    value={operationsSummary.today}
+                    icon={<Clock3 className="h-5 w-5" />}
+                    iconClassName="bg-sky-50 text-sky-700"
+                />
+                <StatCard
+                    label={t("adminBookings.scope")}
+                    value={<span className="block truncate text-base sm:text-2xl">{selectedStaffLabel}</span>}
+                    hint={selectedStatusLabel}
+                    icon={<Users className="h-5 w-5" />}
+                    iconClassName="bg-emerald-50 text-emerald-700"
+                />
+            </AdminMetricGrid>
 
             <DataToolbar
                 className="items-stretch p-3 lg:items-center"

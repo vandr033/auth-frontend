@@ -54,7 +54,7 @@ export default function GroupClassesPage() {
     const t = useT();
     const { companyUser } = useAdminAuth();
     const currency = companyUser?.company?.currency;
-    const { canUseClasses } = useGroupReservationsAccess();
+    const { canUseClasses, getRequiredPlan } = useGroupReservationsAccess();
 
     const [loading, setLoading] = useState(true);
     const [classes, setClasses] = useState<GroupClass[]>([]);
@@ -91,12 +91,13 @@ export default function GroupClassesPage() {
     );
 
     if (!canUseClasses) {
+        const requiredPlan = getRequiredPlan("GROUP_CLASSES");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
-                message={t("planEnforcement.availableOnPro")}
+                message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
                 feature="GROUP_CLASSES"
-                requiredPlan="PRO"
+                requiredPlan={requiredPlan}
                 fullPage
             />
         );
@@ -167,7 +168,7 @@ export default function GroupClassesPage() {
                         value={statusFilter}
                         onValueChange={(value) => setStatusFilter(value as GroupItemStatus | "ALL")}
                     >
-                        <SelectTrigger className="w-[190px]">
+                        <SelectTrigger className="w-full sm:w-[190px]">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveBackendUrl } from "@/lib/api-url";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,15 +35,6 @@ import {
 } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { formatCurrencyFromCents } from "@/lib/currency";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-const resolveUrl = (path: string) => {
-    const base = API_BASE_URL.endsWith("/api")
-        ? API_BASE_URL.replace(/\/api$/, "")
-        : API_BASE_URL;
-    return `${base}${path}`;
-};
 
 interface SuperAdminMetrics {
     bookings: { total: number; thisMonth: number; thisWeek: number; today: number; upcoming7Days: number };
@@ -107,7 +99,7 @@ export default function SuperAdminDashboard() {
     useEffect(() => {
         setLoading(true);
         setLoadFailed(false);
-        fetch(resolveUrl(`/api/super-admin/dashboard/metrics?range=${rangePreset}`), { credentials: "include" })
+        fetch(resolveBackendUrl(`/api/super-admin/dashboard/metrics?range=${rangePreset}`), { credentials: "include" })
             .then(async (res) => {
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.message || "Request failed");

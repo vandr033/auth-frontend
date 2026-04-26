@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveBackendUrl } from "@/lib/api-url";
 import { useState, useEffect, useCallback } from "react";
 import { useShop } from "@/app/shop/contexts/ShopContext";
 import { useT } from "@/lib/i18n";
@@ -56,11 +57,6 @@ export function PublicReviewList() {
     const [initialLoading, setInitialLoading] = useState(true);
 
     const LIMIT = 5;
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-    const resolveUrl = (path: string) => {
-        const base = apiBase.endsWith("/api") ? apiBase.replace(/\/api$/, "") : apiBase;
-        return `${base}${path}`;
-    };
 
     const fetchPage = useCallback(
         async (p: number) => {
@@ -68,7 +64,7 @@ export function PublicReviewList() {
             setLoading(true);
             try {
                 const res = await fetch(
-                    resolveUrl(`/api/review/company/${company.id}?page=${p}&limit=${LIMIT}`),
+                    resolveBackendUrl(`/api/review/company/${company.id}?page=${p}&limit=${LIMIT}`),
                 );
                 if (!res.ok) return;
                 const json = await res.json();
@@ -87,7 +83,6 @@ export function PublicReviewList() {
                 setInitialLoading(false);
             }
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         [company?.id],
     );
 

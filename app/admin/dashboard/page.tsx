@@ -1,28 +1,34 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
-import { useT } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { getDashboardMetrics, type DashboardMetrics } from "../lib/adminApi";
 import {
     Calendar,
     DollarSign,
     TrendingUp,
     Clock,
-    Loader2,
     Trophy,
     Users,
     Repeat,
     UserPlus,
     BarChart3,
+    CircleSlash,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { notify } from "@/lib/notify";
-import { canUsePlanFeature, getRequiredPlanForFeature, resolveShopPlan } from "@/lib/plans/capabilities";
+import { canUsePlanFeature, getCurrentPlan, getRequiredPlanForFeature } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { formatCurrencyFromCents } from "@/lib/currency";
-import { AdminPageHeader, AdminPageShell } from "@/components/admin/shared";
+import {
+    AdminMetricGrid,
+    AdminPageHeader,
+    AdminPageShell,
+    AdminSectionCard,
+    ErrorState,
+    LoadingSkeleton,
+    StatCard,
+} from "@/components/admin/shared";
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
@@ -34,19 +40,19 @@ function getBookingStatusTranslationKey(status: string) {
     return "adminBookings.cancelled";
 }
 
-function getDayLabel(dayOfWeek: number) {
+function getDayLabel(dayOfWeek: number, locale: string) {
     const base = new Date(2024, 0, 7 + dayOfWeek);
-    return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(base);
+    return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(base);
 }
 
-function getMonthLabel(monthKey: string) {
+function getMonthLabel(monthKey: string, locale: string) {
     const [yearText, monthText] = monthKey.split("-");
     const year = Number(yearText);
     const month = Number(monthText);
     if (!Number.isFinite(year) || !Number.isFinite(month)) {
         return monthKey;
     }
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(locale, {
         month: "short",
         year: "numeric",
     }).format(new Date(year, month - 1, 1));
@@ -54,15 +60,15 @@ function getMonthLabel(monthKey: string) {
 
 export default function DashboardHomePage() {
     const { companyId, companyName, role, companySlug, companyUser, user } = useAdminAuth();
-    const t = useT();
+    const { t, locale } = useI18n();
     const currency = companyUser?.company?.currency;
     const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
-    const plan = resolveShopPlan(companyUser?.company?.plan);
+    const plan = getCurrentPlan(companyUser?.company);
     const dashboardFeature = "OPERATIONAL_DASHBOARD" as const;
-    const canAccessDashboard = Boolean(user?.is_super_admin) || canUsePlanFeature(plan, dashboardFeature);
+    const canAccessDashboard = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, dashboardFeature);
 
     useEffect(() => {
         setLoading(true);
@@ -101,14 +107,14 @@ export default function DashboardHomePage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-admin-brand" />
-            </div>
+            <AdminPageShell>
+                <LoadingSkeleton rows={6} variant="page" />
+            </AdminPageShell>
         );
     }
 
     if (!canAccessDashboard) {
-        const requiredPlan = getRequiredPlanForFeature(dashboardFeature);
+        const requiredPlan = getRequiredPlanForFeature(companyUser?.company, dashboardFeature);
         return (
             <AdminPageShell>
                 <AdminPageHeader title={t("adminNav.dashboard")} />
@@ -132,7 +138,11 @@ export default function DashboardHomePage() {
         return (
             <AdminPageShell>
                 <AdminPageHeader title={t("adminHome.welcome", { name: companyName || "" })} />
-                <p className="text-sm text-slate-500">{t("adminHome.loadMetricsError")}</p>
+                <ErrorState
+                    icon={CircleSlash}
+                    title={t("adminHome.loadMetricsError")}
+                    description={t("common.error")}
+                />
             </AdminPageShell>
         );
     }
@@ -141,28 +151,28 @@ export default function DashboardHomePage() {
         {
             label: t("adminHome.totalBookings"),
             value: metrics.bookings.total.toLocaleString(),
-            sub: t("adminHome.thisMonthCount", { count: metrics.bookings.thisMonth }),
+            hint: t("adminHome.thisMonthCount", { count: metrics.bookings.thisMonth }),
             icon: <Calendar className="h-5 w-5 shrink-0" />,
             color: "text-admin-brand-soft-text bg-admin-brand-soft",
         },
         {
             label: t("adminHome.revenueThisMonth"),
             value: formatCurrency(metrics.revenue.thisMonth),
-            sub: t("adminHome.revenueAllTime", { amount: formatCurrency(metrics.revenue.total) }),
+            hint: t("adminHome.revenueAllTime", { amount: formatCurrency(metrics.revenue.total) }),
             icon: <DollarSign className="h-5 w-5 shrink-0" />,
             color: "text-emerald-600 bg-emerald-50",
         },
         {
             label: t("adminHome.today"),
             value: metrics.bookings.today.toLocaleString(),
-            sub: t("adminHome.todayRevenue", { amount: formatCurrency(metrics.revenue.today) }),
+            hint: t("adminHome.todayRevenue", { amount: formatCurrency(metrics.revenue.today) }),
             icon: <TrendingUp className="h-5 w-5 shrink-0" />,
             color: "text-slate-700 bg-slate-100",
         },
         {
             label: t("adminHome.upcoming7Days"),
             value: metrics.bookings.upcoming7Days.toLocaleString(),
-            sub: t("adminHome.avgPerBooking", { amount: formatCurrency(metrics.revenue.avgPerBooking) }),
+            hint: t("adminHome.avgPerBooking", { amount: formatCurrency(metrics.revenue.avgPerBooking) }),
             icon: <Clock className="h-5 w-5 shrink-0" />,
             color: "text-amber-600 bg-amber-50",
         },
@@ -172,7 +182,7 @@ export default function DashboardHomePage() {
         {
             label: t("adminHome.totalCustomers"),
             value: metrics.customerInsights.totalCustomers.toLocaleString(),
-            sub: t("adminHome.newCustomersThisMonth", {
+            hint: t("adminHome.newCustomersThisMonth", {
                 count: metrics.customerInsights.newCustomersThisMonth,
             }),
             icon: <Users className="h-5 w-5 shrink-0" />,
@@ -181,7 +191,7 @@ export default function DashboardHomePage() {
         {
             label: t("adminHome.returningCustomers"),
             value: metrics.customerInsights.returningCustomers.toLocaleString(),
-            sub: t("adminHome.repeatRate", {
+            hint: t("adminHome.repeatRate", {
                 rate: formatPercent(metrics.customerInsights.repeatRate),
             }),
             icon: <Repeat className="h-5 w-5 shrink-0" />,
@@ -190,7 +200,7 @@ export default function DashboardHomePage() {
         {
             label: t("adminHome.newCustomersThisWeek"),
             value: metrics.customerInsights.newCustomersThisWeek.toLocaleString(),
-            sub: t("adminHome.avgBookingsPerCustomer", {
+            hint: t("adminHome.avgBookingsPerCustomer", {
                 count: metrics.customerInsights.avgBookingsPerCustomer,
             }),
             icon: <UserPlus className="h-5 w-5 shrink-0" />,
@@ -199,7 +209,7 @@ export default function DashboardHomePage() {
         {
             label: t("adminHome.bookingsByStatus"),
             value: metrics.bookingsByStatus.reduce((sum, item) => sum + item.count, 0).toLocaleString(),
-            sub: t("adminHome.statusGroups", { count: metrics.bookingsByStatus.length }),
+            hint: t("adminHome.statusGroups", { count: metrics.bookingsByStatus.length }),
             icon: <BarChart3 className="h-5 w-5 shrink-0" />,
             color: "text-slate-700 bg-slate-100",
         },
@@ -212,49 +222,41 @@ export default function DashboardHomePage() {
                 subtitle={t("adminHome.role", { role: role?.toLowerCase() || "" })}
             />
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <AdminMetricGrid>
                 {primaryStatCards.map((stat) => (
-                    <Card key={stat.label} className="admin-card">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">
-                                {stat.label}
-                            </CardTitle>
-                            <div className={cn("p-2 rounded-lg", stat.color)}>{stat.icon}</div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                            <p className="text-xs text-slate-500 mt-1">{stat.sub}</p>
-                        </CardContent>
-                    </Card>
+                    <StatCard
+                        key={String(stat.label)}
+                        label={stat.label}
+                        value={stat.value}
+                        hint={stat.hint}
+                        icon={stat.icon}
+                        iconClassName={stat.color}
+                    />
                 ))}
-            </div>
+            </AdminMetricGrid>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <AdminMetricGrid>
                 {customerStatCards.map((stat) => (
-                    <Card key={stat.label} className="admin-card">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">
-                                {stat.label}
-                            </CardTitle>
-                            <div className={cn("p-2 rounded-lg", stat.color)}>{stat.icon}</div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                            <p className="text-xs text-slate-500 mt-1">{stat.sub}</p>
-                        </CardContent>
-                    </Card>
+                    <StatCard
+                        key={String(stat.label)}
+                        label={stat.label}
+                        value={stat.value}
+                        hint={stat.hint}
+                        icon={stat.icon}
+                        iconClassName={stat.color}
+                    />
                 ))}
-            </div>
+            </AdminMetricGrid>
 
             <div className="grid gap-6 md:grid-cols-2">
-                <Card className="admin-card">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
+                <AdminSectionCard
+                    title={(
+                        <span className="flex items-center gap-2">
                             <Trophy className="h-4 w-4 text-amber-500" />
                             {t("adminHome.topServices")}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                        </span>
+                    )}
+                >
                         {metrics.topServices.length === 0 ? (
                             <p className="text-sm text-slate-500">{t("adminHome.noBookingsYet")}</p>
                         ) : (
@@ -275,17 +277,16 @@ export default function DashboardHomePage() {
                                 ))}
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                </AdminSectionCard>
 
-                <Card className="admin-card">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
+                <AdminSectionCard
+                    title={(
+                        <span className="flex items-center gap-2">
                             <Users className="h-4 w-4 text-admin-brand" />
                             {t("adminHome.topStaffMembers")}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                        </span>
+                    )}
+                >
                         {metrics.topStaff.length === 0 ? (
                             <p className="text-sm text-slate-500">{t("adminHome.noBookingsYet")}</p>
                         ) : (
@@ -306,16 +307,11 @@ export default function DashboardHomePage() {
                                 ))}
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                </AdminSectionCard>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-                <Card className="admin-card lg:col-span-1">
-                    <CardHeader>
-                        <CardTitle className="text-base">{t("adminHome.bookingsByStatus")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                <AdminSectionCard title={t("adminHome.bookingsByStatus")} className="lg:col-span-1">
                         {metrics.bookingsByStatus.length === 0 ? (
                             <p className="text-sm text-slate-500">{t("adminHome.noBookingsYet")}</p>
                         ) : (
@@ -336,14 +332,9 @@ export default function DashboardHomePage() {
                                 })}
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                </AdminSectionCard>
 
-                <Card className="admin-card lg:col-span-1">
-                    <CardHeader>
-                        <CardTitle className="text-base">{t("adminHome.bookingsByCategory")}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                <AdminSectionCard title={t("adminHome.bookingsByCategory")} className="lg:col-span-1">
                         {metrics.bookingsByCategory.length === 0 ? (
                             <p className="text-sm text-slate-500">{t("adminHome.noBookingsYet")}</p>
                         ) : (
@@ -364,14 +355,9 @@ export default function DashboardHomePage() {
                                 })}
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                </AdminSectionCard>
 
-                <Card className="admin-card lg:col-span-1">
-                    <CardHeader>
-                        <CardTitle className="text-base">{t("adminHome.busiestMoments")}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                <AdminSectionCard title={t("adminHome.busiestMoments")} className="lg:col-span-1" contentClassName="space-y-4">
                         <div>
                             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-2">
                                 {t("adminHome.busiestDays")}
@@ -382,7 +368,7 @@ export default function DashboardHomePage() {
                                 <div className="space-y-1 text-sm text-slate-700">
                                     {metrics.busiestMoments.busiestDays.map((entry) => (
                                         <p key={`day-${entry.dayOfWeek}`}>
-                                            {getDayLabel(entry.dayOfWeek)}: {entry.count}
+                                            {getDayLabel(entry.dayOfWeek, locale)}: {entry.count}
                                         </p>
                                     ))}
                                 </div>
@@ -404,15 +390,10 @@ export default function DashboardHomePage() {
                                 </div>
                             )}
                         </div>
-                    </CardContent>
-                </Card>
+                </AdminSectionCard>
             </div>
 
-            <Card className="admin-card">
-                <CardHeader>
-                    <CardTitle className="text-base">{t("adminHome.customerGrowthTrend")}</CardTitle>
-                </CardHeader>
-                <CardContent>
+            <AdminSectionCard title={t("adminHome.customerGrowthTrend")}>
                     {metrics.customerGrowthTrend.length === 0 ? (
                         <p className="text-sm text-slate-500">{t("adminHome.noDataYet")}</p>
                     ) : (
@@ -421,7 +402,7 @@ export default function DashboardHomePage() {
                                 const height = maxTrendCount > 0 ? Math.max(8, Math.round((point.newCustomers / maxTrendCount) * 48)) : 8;
                                 return (
                                     <div key={point.month} className="rounded-md border border-admin-border bg-admin-surface-subtle p-3">
-                                        <p className="text-xs text-slate-500">{getMonthLabel(point.month)}</p>
+                                        <p className="text-xs text-slate-500">{getMonthLabel(point.month, locale)}</p>
                                         <div className="mt-2 flex items-end gap-2">
                                             <div className="w-2 rounded-full bg-admin-brand" style={{ height: `${height}px` }} />
                                             <p className="text-sm font-semibold text-slate-800">
@@ -433,23 +414,17 @@ export default function DashboardHomePage() {
                             })}
                         </div>
                     )}
-                </CardContent>
-            </Card>
+            </AdminSectionCard>
 
             {companySlug && (
-                <Card className="admin-card">
-                    <CardHeader>
-                        <CardTitle>{t("adminHome.quickLinks")}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-slate-600">
+                <AdminSectionCard title={t("adminHome.quickLinks")} contentClassName="text-slate-600">
                         <p>
                             {t("adminHome.publicShopPage")}{" "}
                             <a href={`/shop/${companySlug}`} target="_blank" rel="noopener noreferrer" className="text-admin-brand hover:underline">
                                 /shop/{companySlug}
                             </a>
                         </p>
-                    </CardContent>
-                </Card>
+                </AdminSectionCard>
             )}
         </AdminPageShell>
     );

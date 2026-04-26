@@ -1,5 +1,6 @@
 'use client';
 
+import { resolveApiUrl } from "@/lib/api-url";
 import { useMemo } from "react";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -11,15 +12,6 @@ const getErrorMessage = (data: unknown, status: number): string => {
     if (typeof payload.message === "string" && payload.message) return payload.message;
   }
   return `Request failed with status ${status}`;
-};
-
-const resolveApiUrl = (url: string) => {
-  if (url.startsWith("http")) return url;
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    "";
-  return `${base}${url}`;
 };
 
 async function request<TResponse>(

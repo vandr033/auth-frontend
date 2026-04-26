@@ -1,5 +1,7 @@
 "use client";
 
+import { resolveApiUrl } from "@/lib/api-url";
+import type { CompanyCapabilities } from "@/lib/plans/capabilities";
 import React, {
     createContext,
     useCallback,
@@ -33,6 +35,7 @@ export type CompanyUser = {
         default_language?: string;
         availableUntil?: string;
         plan?: "STARTER" | "BUSINESS" | "PRO";
+        capabilities?: CompanyCapabilities | null;
     };
 };
 
@@ -88,15 +91,6 @@ type AdminAuthContextValue = {
 };
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
-
-const resolveApiUrl = (url: string) => {
-    if (url.startsWith("http")) return url;
-    const base =
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        process.env.NEXT_PUBLIC_BACKEND_URL ||
-        "";
-    return `${base}${url}`;
-};
 
 async function apiPost<TResponse>(
     url: string,
