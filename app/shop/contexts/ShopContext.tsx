@@ -28,11 +28,13 @@ import type {
     HomeSectionKey,
     AnnouncementBanner,
     FooterConfig,
+    ShopPublicFeatureVisibility,
 } from "@/types/shop";
 import { computeTheme, type ThemeConfig } from "@/utils/themepicker";
 import { DEFAULT_LOCALE, getLocaleCookie, I18nProvider, translate } from "@/lib/i18n";
 import { applyMainSiteTheme } from "@/theme/mainSiteTheme";
 import { getShopSlugFromParams } from "@/app/lib/shop-context";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import {
     normalizeShopData,
     resolvePublicApiUrl,
@@ -59,6 +61,7 @@ type ShopContextValue = {
     homeSectionOrder: HomeSectionKey[] | null;
     announcementBanners: AnnouncementBanner[] | null;
     footerConfig: FooterConfig | null;
+    publicFeatures: ShopPublicFeatureVisibility;
     loading: boolean;
     error: string | null;
     slug: string;
@@ -203,6 +206,7 @@ export function ShopProvider({
                 ? true
                 : isAvailabilityDateValid && Date.now() <= availableUntilMs;
             const isShopActive = Boolean(data?.company?.is_active ?? true) && withinAvailabilityWindow;
+            const publicFeatures = getShopPublicFeatures(data?.company ?? null);
 
             return {
                 company: data?.company ?? null,
@@ -224,6 +228,7 @@ export function ShopProvider({
                 homeSectionOrder: data?.theme?.home_section_order ?? null,
                 announcementBanners: data?.theme?.announcement_banners ?? null,
                 footerConfig: data?.theme?.footer_config ?? null,
+                publicFeatures,
                 loading,
                 error,
                 slug,

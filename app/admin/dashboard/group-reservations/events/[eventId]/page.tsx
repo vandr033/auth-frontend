@@ -1626,7 +1626,7 @@ export default function GroupEventDetailPage() {
                     <Card className="border-slate-200">
                         <CardHeader className="flex-row items-center justify-between">
                             <CardTitle className="text-base">Grupos de WhatsApp</CardTitle>
-                            <Button size="sm" onClick={() => setWaGroupDialogOpen(true)}>
+                            <Button size="sm" onClick={() => setWaGroupDialogOpen(true)} disabled={!canBulkMessaging}>
                                 <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
                                 Crear grupo
                             </Button>
@@ -1642,7 +1642,7 @@ export default function GroupEventDetailPage() {
                                                 <p className="text-sm font-medium">{g.group_name}</p>
                                                 <p className="font-mono text-xs text-slate-400">{g.group_jid}</p>
                                             </div>
-                                            <Button size="sm" variant="outline" onClick={() => { setWaMsgDialogGroup(g); setWaMsgText(""); }}>
+                                            <Button size="sm" variant="outline" onClick={() => { setWaMsgDialogGroup(g); setWaMsgText(""); }} disabled={!canBulkMessaging}>
                                                 <Send className="mr-1.5 h-3.5 w-3.5" />
                                                 Enviar mensaje
                                             </Button>
@@ -1701,7 +1701,7 @@ export default function GroupEventDetailPage() {
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setWaGroupDialogOpen(false)}>Cancelar</Button>
-                                <Button onClick={() => void handleCreateWaGroup()} disabled={waGroupCreating}>
+                                <Button onClick={() => void handleCreateWaGroup()} disabled={waGroupCreating || !canBulkMessaging}>
                                     {waGroupCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     Crear grupo
                                 </Button>
@@ -1727,7 +1727,7 @@ export default function GroupEventDetailPage() {
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setWaMsgDialogGroup(null)}>Cancelar</Button>
-                                <Button onClick={() => void handleSendWaGroupMessage()} disabled={waMsgSending || !waMsgText.trim()}>
+                                <Button onClick={() => void handleSendWaGroupMessage()} disabled={waMsgSending || !waMsgText.trim() || !canBulkMessaging}>
                                     {waMsgSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     Enviar
                                 </Button>

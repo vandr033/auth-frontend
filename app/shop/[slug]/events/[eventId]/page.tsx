@@ -19,10 +19,9 @@ import { useOtpResendTimer } from "@/lib/auth/otpResend";
 import { useShop } from "../../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { appendShopParam, buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
 import {
-  capturePublicEventInterest,
   createPublicEventBooking,
   deleteGroupQrProof,
   getMyPublicGroupBookings,
@@ -79,9 +78,10 @@ export default function ShopEventDetailPage() {
     sendPhoneOtp,
     verifyPhoneOtp,
   } = useAuth();
-  const { company, settings, slug, isShopActive, loading, error } = useShop();
-  const canSeeEvents = canUsePlanFeature(company, "GROUP_EVENTS");
-  const canUseAdvanced = canUsePlanFeature(company, "GROUP_ADVANCED");
+  const { company, settings, slug, isShopActive, loading, error, publicFeatures } = useShop();
+  const resolvedPublicFeatures = getShopPublicFeatures(company);
+  const canSeeEvents = resolvedPublicFeatures.eventsVisible || publicFeatures.eventsVisible;
+  const canUseAdvanced = resolvedPublicFeatures.eventAdvancedEnabled || publicFeatures.eventAdvancedEnabled;
 
   const [eventLoading, setEventLoading] = React.useState(true);
   const [event, setEvent] = React.useState<PublicGroupEvent | null>(null);
@@ -684,29 +684,6 @@ export default function ShopEventDetailPage() {
       await loadData();
     } catch (err) {
       const message = err instanceof Error ? err.message : t("shopGroup.events.waitlistLeaveError");
-      setNotice({ tone: "error", text: message });
-      await notify.error(message);
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const handleInterest = async () => {
-    if (!event || !company) return;
-    if (!requireSignIn()) return;
-    setBusyAction("interest");
-    setNotice(null);
-    try {
-      const result = await capturePublicEventInterest(company.id, event.id);
-      setNotice({
-        tone: result.already_interested ? "warning" : "success",
-        text: result.already_interested
-          ? t("shopGroup.events.interestAlreadyCaptured")
-          : t("shopGroup.events.interestCaptured"),
-      });
-      await loadData();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t("shopGroup.events.interestError");
       setNotice({ tone: "error", text: message });
       await notify.error(message);
     } finally {

@@ -6,7 +6,7 @@ import { SocialIcons } from "./SocialIcons";
 import { useShop } from "@/app/shop/contexts/ShopContext";
 import { useT } from "@/lib/i18n";
 import { DEFAULT_FOOTER_CONFIG } from "@/types/shop";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 
 const PRICONPRI_DEMO_HREF = "https://cal.com/priconpri/demo";
 
@@ -25,13 +25,18 @@ export function ShopFooter() {
 
     if (!company) return null;
 
-    const canCustomizeFooter = canUsePlanFeature(company, "FOOTER_CUSTOMIZATION");
+    const publicFeatures = getShopPublicFeatures(company);
+    const canCustomizeFooter = publicFeatures.footerCustomizationVisible;
 
     // Use footer config if plan supports it and config exists, otherwise use defaults
     const config = (canCustomizeFooter && footerConfig) ? footerConfig : DEFAULT_FOOTER_CONFIG;
 
     const allLinks = ALL_NAV_LINKS(slug, t);
     const navLinks = allLinks.filter((link) => {
+        if (link.key === "services" && !publicFeatures.servicesVisible) return false;
+        if (link.key === "events" && !publicFeatures.eventsVisible) return false;
+        if (link.key === "classes" && !publicFeatures.classesVisible) return false;
+        if (link.key === "book" && !publicFeatures.bookingsEnabled) return false;
         const found = config.nav_links.find((n) => n.key === link.key);
         // If not in config, default to enabled
         return found ? found.enabled : true;

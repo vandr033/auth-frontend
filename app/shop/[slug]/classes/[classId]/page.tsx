@@ -25,7 +25,7 @@ import { InstallmentPlanCard } from "@/app/shop/components/group/InstallmentPlan
 import { useShop } from "../../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { appendShopParam } from "@/app/lib/shop-context";
 import {
   createPublicClassEnrollment,
@@ -74,8 +74,10 @@ export default function ShopClassDetailPage() {
   const classId = Number.parseInt(params?.classId || "", 10);
 
   const { user, loading: authLoading, refreshSession } = useAuth();
-  const { company, settings, slug, isShopActive, loading, error } = useShop();
-  const canSeeClasses = canUsePlanFeature(company, "GROUP_CLASSES");
+  const { company, settings, slug, isShopActive, loading, error, publicFeatures } = useShop();
+  const resolvedPublicFeatures = getShopPublicFeatures(company);
+  const canSeeClasses = resolvedPublicFeatures.classesVisible || publicFeatures.classesVisible;
+  const canUseClassAdvanced = resolvedPublicFeatures.classAdvancedEnabled || publicFeatures.classAdvancedEnabled;
 
   const [classLoading, setClassLoading] = React.useState(true);
   const [groupClass, setGroupClass] = React.useState<PublicGroupClass | null>(null);
@@ -131,7 +133,7 @@ export default function ShopClassDetailPage() {
       if (user?.id) {
         const [mine, myPaymentPlans] = await Promise.all([
           getMyPublicGroupEnrollments(),
-          getMyGroupPaymentPlans(),
+          canUseClassAdvanced ? getMyGroupPaymentPlans() : Promise.resolve([]),
         ]);
         setMyEnrollments(mine.filter((row) => row.group_class_id === classId));
         setPaymentPlans(myPaymentPlans.filter((plan) => plan.enrollment.group_class_id === classId));
@@ -147,7 +149,7 @@ export default function ShopClassDetailPage() {
     } finally {
       setClassLoading(false);
     }
-  }, [canSeeClasses, classId, company?.id, t, user?.id]);
+  }, [canSeeClasses, canUseClassAdvanced, classId, company?.id, t, user?.id]);
 
   React.useEffect(() => {
     if (authLoading) return;
@@ -546,7 +548,7 @@ export default function ShopClassDetailPage() {
                     {t("shopGroup.actions.viewMyGroupReservations")}
                   </Link>
                 </Button>
-                {activePaymentPlan ? (
+                {canUseClassAdvanced && activePaymentPlan ? (
                   <InstallmentPlanCard
                     plan={activePaymentPlan}
                     companyId={company.id}

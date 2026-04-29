@@ -1,3 +1,8 @@
+import type {
+    EffectiveCompanyProduct,
+    ProductCapability,
+} from "@/types/product-access";
+
 export type ShopPlan = "STARTER" | "BUSINESS" | "PRO";
 
 export type PlanFeatureKey =
@@ -30,6 +35,11 @@ export type CompanyCapabilities = {
     maxStaffMembers: number | null;
     features: Record<PlanFeatureKey, boolean>;
     requiredPlans: Record<PlanFeatureKey, ShopPlan>;
+    source?: "legacy_plan" | "modular";
+    productCapabilities?: Partial<Record<ProductCapability, boolean>>;
+    products?: EffectiveCompanyProduct[];
+    activeCoreProducts?: string[];
+    activeAddOns?: string[];
 };
 
 type CapabilityCarrier = {
@@ -73,6 +83,50 @@ export function canUsePlanFeature(
     feature: PlanFeatureKey,
 ): boolean {
     return getCompanyCapabilities(source)?.features?.[feature] === true;
+}
+
+const FEATURE_CAPABILITY_MAP: Partial<Record<PlanFeatureKey, ProductCapability>> = {
+    ROLES_PERMISSIONS: "RESERVAS_PRO",
+    STAFF_AVAILABILITY: "RESERVAS_PRO",
+    TRANSACTIONAL_BOOKING_NOTIFICATIONS: "MENSAJERIA_BASE",
+    BOOKING_REMINDERS: "MENSAJERIA_REMINDERS",
+    CUSTOMER_IMPORT_EXPORT: "CRM_IMPORT_EXPORT",
+    OPERATIONAL_DASHBOARD: "METRICAS_OPERATIONAL_DASHBOARD",
+    REVIEW_MANAGEMENT: "RESERVAS_BASE",
+    REVIEW_ANALYTICS: "METRICAS_REVIEW_ANALYTICS",
+    REVIEW_REQUEST_REMINDERS: "MENSAJERIA_REVIEW_REQUESTS",
+    REVIEW_REQUEST_EMAIL: "MENSAJERIA_REVIEW_REQUESTS",
+    REVIEW_REQUEST_WHATSAPP: "MENSAJERIA_REVIEW_REQUESTS",
+    BOOKING_FLOW_CUSTOMIZATION: "RESERVAS_PRO",
+    HOME_CTA_CUSTOMIZATION: "STOREFRONT_ADVANCED_CTA",
+    HOME_SECTION_ORDER: "STOREFRONT_SECTION_ORDER",
+    FOOTER_CUSTOMIZATION: "STOREFRONT_FOOTER_CUSTOMIZATION",
+    ANNOUNCEMENT_BANNERS: "STOREFRONT_ANNOUNCEMENT_BANNERS",
+    BULK_WHATSAPP_MESSAGING: "MENSAJERIA_BULK_WHATSAPP",
+    BULK_EMAIL_CAMPAIGNS: "MENSAJERIA_CAMPAIGNS",
+    OUTREACH_REACTIVATION_TOOLS: "CRM_REACTIVATION",
+    GROUP_EVENTS: "EVENTOS_BASE",
+    GROUP_CLASSES: "CLASES_BASE",
+    GROUP_ADVANCED: "EVENTOS_PRO",
+};
+
+export function canUseEntitledFeature(
+    source: CapabilityCarrier | CompanyCapabilities,
+    feature: PlanFeatureKey,
+): boolean {
+    const capabilities = getCompanyCapabilities(source);
+    const mappedCapability = FEATURE_CAPABILITY_MAP[feature];
+    const productCapabilities = capabilities?.productCapabilities;
+
+    if (
+        mappedCapability &&
+        productCapabilities &&
+        Object.keys(productCapabilities).length > 0
+    ) {
+        return productCapabilities[mappedCapability] === true;
+    }
+
+    return capabilities?.features?.[feature] === true;
 }
 
 export function getRequiredPlanForFeature(

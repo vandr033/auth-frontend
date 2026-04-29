@@ -1,5 +1,6 @@
 // Types for the shop public page data (from GET /api/company/:slug)
 import type { CompanyCapabilities } from "@/lib/plans/capabilities";
+import type { EffectiveCompanyProduct, ProductCapability, ProductTierCode } from "@/types/product-access";
 
 export type HeroVariant = 'hero-cinematic' | 'hero-split' | 'hero-minimal';
 export type ServicesVariant = 'services-grid' | 'services-list';
@@ -32,6 +33,8 @@ export interface ShopCompany {
     name: string;
     plan?: 'STARTER' | 'BUSINESS' | 'PRO' | string;
     capabilities?: CompanyCapabilities | null;
+    entitlements?: ShopPublicEntitlements | null;
+    public_features?: ShopPublicFeatureVisibility | null;
     availableUntil: string;
     address?: string;
     phone_prefix: string;
@@ -58,6 +61,40 @@ export interface ShopCompany {
     hero_overlay_text?: string;   // Hero overlay text for About page
     is_active: boolean;
     company_type_id: number;
+}
+
+export interface ShopPublicFeatureVisibility {
+    storefrontEnabled: boolean;
+    companyInfoVisible: boolean;
+    contactVisible: boolean;
+    servicesVisible: boolean;
+    bookingsEnabled: boolean;
+    eventsVisible: boolean;
+    eventRegistrationEnabled: boolean;
+    eventAdvancedEnabled: boolean;
+    eventWaitlistEnabled: boolean;
+    eventTicketsEnabled: boolean;
+    classesVisible: boolean;
+    classEnrollmentEnabled: boolean;
+    classAdvancedEnabled: boolean;
+    classPaymentPlansEnabled: boolean;
+    classAttendanceEnabled: boolean;
+    personalizationPlusEnabled: boolean;
+    customCtasVisible: boolean;
+    announcementBannersVisible: boolean;
+    advancedSectionsVisible: boolean;
+    footerCustomizationVisible: boolean;
+    marketplaceListed: boolean;
+}
+
+export interface ShopPublicEntitlements {
+    source?: "legacy_plan" | "modular";
+    currentPlan: "STARTER" | "BUSINESS" | "PRO" | string;
+    activeProducts: ProductTierCode[];
+    activeAddOns: ProductTierCode[];
+    capabilities: Partial<Record<ProductCapability, boolean>>;
+    products: EffectiveCompanyProduct[];
+    publicFeatures: ShopPublicFeatureVisibility;
 }
 
 export interface ShopCategory {

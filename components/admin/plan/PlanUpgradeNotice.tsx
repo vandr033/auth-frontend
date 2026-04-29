@@ -4,6 +4,10 @@ import { AlertTriangle, Lock, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import type { PlanFeatureKey, ShopPlan } from "@/lib/plans/capabilities";
 import { FEATURE_DESCRIPTION_KEY, FEATURE_LABEL_KEY } from "@/lib/plans/capabilities";
+import { getProductAccessRecommendationForFeature } from "@/lib/product-access";
+import { RequestProductCTA } from "@/components/admin/product/RequestProductCTA";
+import type { ProductAccessRequestSource } from "@/types/product-access";
+import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 
 interface PlanUpgradeNoticeProps {
     title: string;
@@ -17,6 +21,7 @@ interface PlanUpgradeNoticeProps {
     requiredPlan?: ShopPlan;
     /** Render as a full-page blocking state (e.g. dashboard, availability) */
     fullPage?: boolean;
+    source?: ProductAccessRequestSource;
 }
 
 export function PlanUpgradeNotice({
@@ -27,11 +32,32 @@ export function PlanUpgradeNotice({
     currentPlan,
     requiredPlan,
     fullPage,
+    source,
 }: PlanUpgradeNoticeProps) {
     const t = useT();
+    const { companyUser } = useAdminAuth();
 
     const featureLabel = feature ? t(FEATURE_LABEL_KEY[feature]) : null;
     const featureDesc = feature ? t(FEATURE_DESCRIPTION_KEY[feature]) : null;
+    const recommendation = feature
+        ? getProductAccessRecommendationForFeature(feature, companyUser?.company?.capabilities)
+        : null;
+
+    if (feature && recommendation) {
+        return (
+            <RequestProductCTA
+                productCode={recommendation.productCode}
+                tierCode={recommendation.tierCode}
+                capability={recommendation.capability}
+                title={recommendation.title}
+                description={recommendation.description}
+                ctaLabel={recommendation.ctaLabel}
+                source={source ?? (fullPage ? "ADMIN_LOCKED_PAGE" : "SETTINGS_LOCKED_CONTROL")}
+                fullPage={fullPage}
+                className={className}
+            />
+        );
+    }
 
     if (fullPage) {
         return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useShop } from "@/app/shop/contexts/ShopContext";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { HeroCinematic } from "./HeroCinematic";
 import { HeroSplit } from "./HeroSplit";
 import { HeroMinimal } from "./HeroMinimal";
@@ -10,7 +11,14 @@ export function HeroWrapper() {
 
     if (!company) return null;
 
-    const props = { company, reviewStats, socialLinks, slug, homeCTAButtons };
+    const props = {
+        company,
+        reviewStats,
+        socialLinks,
+        slug,
+        homeCTAButtons,
+        publicFeatures: getShopPublicFeatures(company),
+    };
 
     switch (heroVariant) {
         case "hero-split":

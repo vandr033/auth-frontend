@@ -5,16 +5,16 @@ import { Clock3, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { AdminPageHeader, AdminPageShell, ConfirmDialog } from "@/components/admin/shared";
-import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUsePlanFeature, getCurrentPlan, getRequiredPlanForFeature } from "@/lib/plans/capabilities";
+import { canUseEntitledFeature } from "@/lib/plans/capabilities";
 import {
     StaffAvailabilitySlot,
     StaffMember,
@@ -31,8 +31,7 @@ export default function AvailabilityPage() {
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
     const isStaff = role === "STAFF";
     const availabilityFeature = "STAFF_AVAILABILITY" as const;
-    const plan = getCurrentPlan(companyUser?.company);
-    const canUseAvailability = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, availabilityFeature);
+    const canUseAvailability = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, availabilityFeature);
 
     const [loading, setLoading] = useState(true);
     const [savingSchedule, setSavingSchedule] = useState(false);
@@ -67,7 +66,7 @@ export default function AvailabilityPage() {
     );
 
     const loadSchedule = useCallback(async () => {
-        if (!isAuthenticated || !role) return;
+        if (!isAuthenticated || !role || !canUseAvailability) return;
 
         if (isOwnerOrAdmin) {
             if (!selectedStaffNumericId) {
@@ -83,10 +82,10 @@ export default function AvailabilityPage() {
             const data = await getMyStaffAvailability();
             setSlots(data.slots || []);
         }
-    }, [isAuthenticated, role, isOwnerOrAdmin, isStaff, selectedStaffNumericId]);
+    }, [canUseAvailability, isAuthenticated, role, isOwnerOrAdmin, isStaff, selectedStaffNumericId]);
 
     const loadInitial = useCallback(async () => {
-        if (!isAuthenticated || !role) return;
+        if (!isAuthenticated || !role || !canUseAvailability) return;
 
         setLoading(true);
         try {
@@ -102,7 +101,7 @@ export default function AvailabilityPage() {
         } finally {
             setLoading(false);
         }
-    }, [isAuthenticated, role, isOwnerOrAdmin, t]);
+    }, [canUseAvailability, isAuthenticated, role, isOwnerOrAdmin, t]);
 
     useEffect(() => {
         void loadInitial();
@@ -190,22 +189,76 @@ export default function AvailabilityPage() {
     }
 
     if (!canUseAvailability) {
-        const requiredPlan = getRequiredPlanForFeature(companyUser?.company, availabilityFeature);
         return (
             <AdminPageShell>
-                <AdminPageHeader eyebrow={t("adminNav.schedule")} title={t("adminAvailability.title")} />
-                <PlanUpgradeNotice
-                    title={t("planEnforcement.featureLockedTitle")}
-                    message={
-                        requiredPlan === "PRO"
-                            ? t("planEnforcement.availableOnPro")
-                            : t("planEnforcement.availableOnBusiness")
-                    }
-                    feature={availabilityFeature}
-                    currentPlan={plan}
-                    requiredPlan={requiredPlan}
-                    fullPage
+                <AdminPageHeader
+                    eyebrow={t("adminNav.schedule")}
+                    title={t("adminAvailability.title")}
+                    subtitle={t("adminAvailability.subtitleOwnerAdmin")}
+                    actions={isOwnerOrAdmin ? (
+                        <Button type="button" variant="outline" disabled>
+                            <RefreshCw className="h-4 w-4" />
+                            {t("adminAvailability.autoAssignStoreAvailability")}
+                        </Button>
+                    ) : undefined}
                 />
+
+                <div className="space-y-6">
+                    <EntitlementLockedCard
+                        title={t("entitlements.advancedAvailabilityLockedTitle")}
+                        description={t("entitlements.advancedAvailabilityLockedDescription")}
+                        capability="RESERVAS_PRO"
+                        source="ADMIN_LOCKED_PAGE"
+                        notice={t("entitlements.reservationsProLocked")}
+                    />
+
+                    <Card className="admin-card opacity-70">
+                        <CardHeader className="gap-3 pb-4">
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                                <div className="space-y-1">
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <Clock3 className="h-4 w-4 text-admin-brand" />
+                                        {t("adminAvailability.staffWeeklySchedule")}
+                                    </CardTitle>
+                                    <CardDescription className="max-w-3xl">
+                                        {t("adminAvailability.scheduleDescription")}
+                                    </CardDescription>
+                                </div>
+                                {isOwnerOrAdmin ? (
+                                    <div className="w-full max-w-sm space-y-2">
+                                        <Label>{t("adminAvailability.staffMember")}</Label>
+                                        <Select value="LOCKED" disabled onValueChange={() => undefined}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={t("adminAvailability.selectStaff")} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="LOCKED">{t("entitlements.reservationsProLocked")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/60 p-4 text-sm leading-6 text-slate-600">
+                                {t("entitlements.advancedAvailabilityLockedDescription")}
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <Button type="button" variant="outline" disabled>
+                                    <Plus className="h-4 w-4" />
+                                    {t("adminAvailability.addSlot")}
+                                </Button>
+                                <Button type="button" variant="outline" disabled>
+                                    <RefreshCw className="h-4 w-4" />
+                                    {t("adminAvailability.autoAssignStoreAvailability")}
+                                </Button>
+                                <Button type="button" disabled>
+                                    {t("adminAvailability.saveSchedule")}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </AdminPageShell>
         );
     }

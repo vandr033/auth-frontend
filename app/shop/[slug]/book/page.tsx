@@ -34,6 +34,7 @@ import { appendShopParam, buildSignInRedirectPath } from "@/app/lib/shop-context
 import { parseMarketplaceBookingHandoff } from "@/lib/marketplace/handoff";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 
 // Helper to resolve API URL (duplicate of logic in ShopContext, consider exported helper)
 const resolveApiUrl = (url: string) => {
@@ -1154,9 +1155,10 @@ export default function BookingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, loading: authLoading } = useAuth();
-    const { company, services, staff, categories, settings, loading, error, slug, isShopActive } = useShop();
+    const { company, services, staff, categories, settings, loading, error, slug, isShopActive, publicFeatures } = useShop();
     const t = useT();
     const api = useApi();
+    const bookingEnabled = getShopPublicFeatures(company).bookingsEnabled || publicFeatures.bookingsEnabled;
     const searchParamsString = searchParams?.toString() || "";
     const marketplaceHandoff = useMemo(
         () => parseMarketplaceBookingHandoff(new URLSearchParams(searchParamsString)),
@@ -1778,6 +1780,20 @@ export default function BookingPage() {
 
     if (!isShopActive) {
         return <ShopUnavailableState slug={slug} />;
+    }
+
+    if (!bookingEnabled) {
+        return (
+            <main className="min-h-screen bg-page text-text-main">
+                <section className="mx-auto max-w-4xl px-4 py-20 text-center md:px-8">
+                    <h1 className="text-3xl font-bold text-text-main">{t('shopBooking.title')}</h1>
+                    <p className="mt-3 text-sm text-text-muted">{t('shopBooking.notAvailable')}</p>
+                    <Button className="mt-6 bg-brand text-white hover:bg-brand-hover" onClick={() => router.push(`/shop/${slug}`)}>
+                        {t('shopBooking.returnToShop')}
+                    </Button>
+                </section>
+            </main>
+        );
     }
 
     if (success) {

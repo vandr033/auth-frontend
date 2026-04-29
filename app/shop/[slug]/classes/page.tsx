@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n";
 import { useShop } from "../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import {
   listPublicClasses,
   listPublicClassSessions,
@@ -28,8 +28,8 @@ function hasUpcomingSession(sessions: PublicGroupClassSession[]): boolean {
 
 export default function ShopClassesPage() {
   const t = useT();
-  const { company, slug, isShopActive, loading, error } = useShop();
-  const canSeeClasses = canUsePlanFeature(company, "GROUP_CLASSES");
+  const { company, slug, isShopActive, loading, error, publicFeatures } = useShop();
+  const canSeeClasses = getShopPublicFeatures(company).classesVisible || publicFeatures.classesVisible;
 
   const [classesLoading, setClassesLoading] = React.useState(true);
   const [classes, setClasses] = React.useState<PublicGroupClass[]>([]);

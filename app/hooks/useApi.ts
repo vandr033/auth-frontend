@@ -1,18 +1,10 @@
 'use client';
 
 import { resolveApiUrl } from "@/lib/api-url";
+import { normalizeApiError } from "@/lib/api-error";
 import { useMemo } from "react";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-
-const getErrorMessage = (data: unknown, status: number): string => {
-  if (typeof data === "object" && data !== null) {
-    const payload = data as { error?: unknown; message?: unknown };
-    if (typeof payload.error === "string" && payload.error) return payload.error;
-    if (typeof payload.message === "string" && payload.message) return payload.message;
-  }
-  return `Request failed with status ${status}`;
-};
 
 async function request<TResponse>(
   method: HttpMethod,
@@ -39,7 +31,7 @@ async function request<TResponse>(
   }
 
   if (!response.ok) {
-    throw new Error(getErrorMessage(data, response.status));
+    throw normalizeApiError(data, response.status, `Request failed with status ${response.status}`);
   }
 
   return data as TResponse;

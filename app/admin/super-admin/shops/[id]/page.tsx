@@ -32,6 +32,8 @@ import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import type { BillingCycle, CompanyType, ShopPlan, SuperAdminShop } from "@/types/super-admin";
 import type {
+    ShopPendingProductRequestItem,
+    ShopProductHistoryItem,
     ShopSubscriptionHistoryItem,
     ShopSubscriptionSnapshot,
 } from "@/types/subscription-history";
@@ -41,6 +43,14 @@ import {
     type LocationAutofillUpdate,
 } from "@/components/admin/location/LocationPicker";
 import { formatCurrencyAmount } from "@/lib/currency";
+import { ProductConfigurationSection, formatProductHistoryValue } from "../components/ProductConfigurationSection";
+import {
+    buildCommercialPayload,
+    deriveLegacyPlanCompatibility,
+    getActiveCoreCount,
+    hydrateProductConfig,
+    type ProductConfigFormState,
+} from "../lib/product-config";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -69,6 +79,7 @@ interface FormData {
     availableUntil: string;
     pricePaid: string;
     isMarketplaceVisible: boolean;
+    note: string;
 }
 
 function parseNumberOrNull(value: string): number | null {
@@ -127,13 +138,19 @@ export default function EditShopPage() {
 
     const [shop, setShop] = useState<SuperAdminShop | null>(null);
     const [formData, setFormData] = useState<FormData | null>(null);
+    const [productConfig, setProductConfig] = useState<ProductConfigFormState | null>(null);
     const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
     const [subscriptionSummary, setSubscriptionSummary] = useState<ShopSubscriptionSnapshot | null>(null);
     const [subscriptionHistory, setSubscriptionHistory] = useState<ShopSubscriptionHistoryItem[]>([]);
+    const [productHistory, setProductHistory] = useState<ShopProductHistoryItem[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<ShopPendingProductRequestItem[]>([]);
     const [historyError, setHistoryError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [timezoneManuallyEdited, setTimezoneManuallyEdited] = useState(false);
+    const companyBillingCycle = formData?.billingCycle;
+    const companyAvailableUntil = formData?.availableUntil;
+    const companyCurrency = formData?.currency;
 
     const getCompanyTypeName = (type: CompanyType): string =>
         getLocalizedText({
@@ -186,16 +203,39 @@ export default function EditShopPage() {
                     ? ""
                     : String(shopInfo.pricePaid),
                 isMarketplaceVisible: shopInfo.isMarketplaceVisible ?? true,
+                note: "",
             });
             setCompanyTypes(typesData.data || []);
 
             if (historyData?.data) {
                 setSubscriptionSummary(historyData.data.company ?? null);
                 setSubscriptionHistory(historyData.data.history ?? []);
+                setProductHistory(historyData.data.productHistory ?? []);
+                setPendingRequests(historyData.data.pendingRequests ?? []);
+                setProductConfig(
+                    hydrateProductConfig({
+                        billingCycle: shopInfo.billingCycle || "MONTHLY",
+                        availableUntil: toDateTimeLocalInput(shopInfo.availableUntil || "2027-03-12T23:59:59.000Z"),
+                        currency: shopInfo.currency || "Bs.",
+                        activeProducts: historyData.data.company?.activeProducts ?? shopInfo.activeProducts,
+                        requestedProducts: historyData.data.company?.requestedProducts ?? shopInfo.requestedProducts,
+                    }),
+                );
                 setHistoryError(null);
             } else {
                 setSubscriptionSummary(null);
                 setSubscriptionHistory([]);
+                setProductHistory([]);
+                setPendingRequests([]);
+                setProductConfig(
+                    hydrateProductConfig({
+                        billingCycle: shopInfo.billingCycle || "MONTHLY",
+                        availableUntil: toDateTimeLocalInput(shopInfo.availableUntil || "2027-03-12T23:59:59.000Z"),
+                        currency: shopInfo.currency || "Bs.",
+                        activeProducts: shopInfo.activeProducts,
+                        requestedProducts: shopInfo.requestedProducts,
+                    }),
+                );
                 setHistoryError(t("superAdminShops.historyLoadFailed"));
             }
         } catch (err) {
@@ -237,6 +277,24 @@ export default function EditShopPage() {
         [timezoneManuallyEdited],
     );
 
+    useEffect(() => {
+        if (!companyBillingCycle || !companyAvailableUntil || !companyCurrency) return;
+
+        setProductConfig((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev };
+            for (const productCode of Object.keys(next) as Array<keyof typeof next>) {
+                next[productCode] = {
+                    ...next[productCode],
+                    billingCycle: next[productCode].billingCycle || companyBillingCycle,
+                    availableUntil: next[productCode].availableUntil || companyAvailableUntil,
+                    currency: next[productCode].currency || companyCurrency,
+                };
+            }
+            return next;
+        });
+    }, [companyAvailableUntil, companyBillingCycle, companyCurrency]);
+
     // Handle impersonate
     const handleImpersonate = async () => {
         try {
@@ -258,7 +316,7 @@ export default function EditShopPage() {
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData) return;
+        if (!formData || !productConfig) return;
 
         if (!formData.name.trim()) {
             await notify.warning(t("superAdminShops.shopNameRequired"));
@@ -266,6 +324,10 @@ export default function EditShopPage() {
         }
         if (!formData.phone.trim()) {
             await notify.warning(t("superAdminShops.phoneRequired"));
+            return;
+        }
+        if (getActiveCoreCount(productConfig) === 0) {
+            await notify.warning("Select at least one active core product.");
             return;
         }
         if (!formData.availableUntil) {
@@ -300,6 +362,8 @@ export default function EditShopPage() {
             const latitude = parseNumberOrNull(formData.latitude);
             const longitude = parseNumberOrNull(formData.longitude);
             const pricePaid = parseNonNegativeNumberOrNull(formData.pricePaid);
+            const commercialPayload = buildCommercialPayload(productConfig);
+            const legacyPlanCompatibility = deriveLegacyPlanCompatibility(productConfig);
             const payload = {
                 name: formData.name.trim(),
                 slug: formData.slug.trim(),
@@ -316,11 +380,14 @@ export default function EditShopPage() {
                 longitude,
                 company_type_id: parseInt(formData.company_type_id),
                 is_active: formData.is_active,
-                plan: formData.plan,
+                plan: legacyPlanCompatibility,
                 billingCycle: formData.billingCycle,
                 availableUntil: availableUntilIso,
                 pricePaid,
                 isMarketplaceVisible: formData.isMarketplaceVisible,
+                activeProducts: commercialPayload.activeProducts,
+                requestedProducts: commercialPayload.requestedProducts,
+                note: formData.note.trim() || undefined,
             };
             // TODO(super-admin-shops): Persist optional map metadata once backend supports it:
             // formattedAddress, mapProvider, mapboxPlaceId, locationSource.
@@ -355,7 +422,7 @@ export default function EditShopPage() {
         );
     }
 
-    if (!shop || !formData) {
+    if (!shop || !formData || !productConfig) {
         return (
             <div className="text-center py-12">
                 <p className="text-slate-500">{t("superAdminShops.shopNotFound")}</p>
@@ -369,7 +436,7 @@ export default function EditShopPage() {
     }
 
     return (
-        <div className="space-y-6 max-w-2xl">
+        <div className="space-y-6 max-w-5xl">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -469,26 +536,7 @@ export default function EditShopPage() {
                         {/* Commercial Settings */}
                         <div className="border-t pt-4">
                             <h3 className="font-medium mb-4">Commercial settings</h3>
-                            <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="plan">Plan</Label>
-                                    <Select
-                                        value={formData.plan}
-                                        onValueChange={(value) =>
-                                            setFormData({ ...formData, plan: value as ShopPlan })
-                                        }
-                                    >
-                                        <SelectTrigger id="plan">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="STARTER">STARTER</SelectItem>
-                                            <SelectItem value="BUSINESS">BUSINESS</SelectItem>
-                                            <SelectItem value="PRO">PRO</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
+                            <div className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label htmlFor="billing_cycle">Billing cycle</Label>
                                     <Select
@@ -550,7 +598,17 @@ export default function EditShopPage() {
                                     />
                                 </div>
 
-                                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">Legacy plan compatibility</p>
+                                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                                        {deriveLegacyPlanCompatibility(productConfig)}
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Compatibility only. Active products and add-ons below are the real source of truth.
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-lg border px-3 py-2 md:col-span-2">
                                     <div>
                                         <p className="text-sm font-medium">Visible in marketplace</p>
                                         <p className="text-xs text-slate-500">
@@ -566,6 +624,19 @@ export default function EditShopPage() {
                                 </div>
                             </div>
                         </div>
+
+                        <ProductConfigurationSection
+                            billingCycle={formData.billingCycle}
+                            currency={formData.currency}
+                            availableUntil={formData.availableUntil}
+                            value={productConfig}
+                            onChange={setProductConfig}
+                            priceOverride={formData.pricePaid}
+                            showLegacyMetricsBase={Boolean(
+                                subscriptionSummary?.activeProducts.some((product) => product.tierCode === "METRICAS_BASE"),
+                            )}
+                            validationError={getActiveCoreCount(productConfig) === 0 ? "At least one core product is required." : null}
+                        />
 
                         {/* Contact Info */}
                         <div className="border-t pt-4">
@@ -717,6 +788,23 @@ export default function EditShopPage() {
                             </div>
                         </div>
 
+                        <div className="border-t pt-4">
+                            <h3 className="font-medium mb-4">Internal notes</h3>
+                            <div className="space-y-2">
+                                <Label htmlFor="note">Change note</Label>
+                                <textarea
+                                    id="note"
+                                    value={formData.note}
+                                    onChange={(event) => setFormData({ ...formData, note: event.target.value.slice(0, 500) })}
+                                    placeholder="Document why this commercial change is being made"
+                                    className="min-h-28 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm outline-none transition focus:border-admin-brand focus:ring-2 focus:ring-admin-brand/20"
+                                />
+                                <p className="text-xs text-slate-500">
+                                    Saved into product and subscription history for future admin review.
+                                </p>
+                            </div>
+                        </div>
+
                         {/* Actions */}
                         <StickyFormActions
                             type="submit"
@@ -734,31 +822,147 @@ export default function EditShopPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>{t("superAdminShops.planHistory")}</CardTitle>
-                    <CardDescription>{t("superAdminShops.subscriptionChanges")}</CardDescription>
+                    <CardDescription>Vista comercial modular con compatibilidad legacy preservada.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {subscriptionSummary ? (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-lg border p-3">
-                                <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.currentPlan")}</p>
-                                <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.plan}</p>
+                        <div className="space-y-4">
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">Active products</p>
+                                    <p className="text-sm font-semibold text-slate-900">
+                                        {subscriptionSummary.activeProducts
+                                            .filter((product) => product.isCoreProduct)
+                                            .map((product) => product.tierName)
+                                            .join(", ") || "—"}
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">Active add-ons</p>
+                                    <p className="text-sm font-semibold text-slate-900">
+                                        {subscriptionSummary.activeProducts
+                                            .filter((product) => !product.isCoreProduct)
+                                            .map((product) => product.tierName)
+                                            .join(", ") || "—"}
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">Pending requests</p>
+                                    <p className="text-sm font-semibold text-slate-900">{pendingRequests.length}</p>
+                                </div>
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">Legacy compatibility</p>
+                                    <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.legacyPlanCompatibility}</p>
+                                </div>
                             </div>
-                            <div className="rounded-lg border p-3">
-                                <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.billingCycle")}</p>
-                                <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.billingCycle}</p>
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.billingCycle")}</p>
+                                    <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.billingCycle}</p>
+                                </div>
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.availableUntil")}</p>
+                                    <p className="text-sm font-semibold text-slate-900">{formatDateTime(subscriptionSummary.availableUntil)}</p>
+                                </div>
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.expirationStatus")}</p>
+                                    <Badge className={subscriptionSummary.isExpired ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}>
+                                        {subscriptionSummary.isExpired ? t("superAdminShops.expired") : t("superAdminShops.active")}
+                                    </Badge>
+                                </div>
+                                <div className="rounded-lg border p-3">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.pricePaid")}</p>
+                                    <p className="text-sm font-semibold text-slate-900">
+                                        {formatPrice(subscriptionSummary.pricePaid, formData.currency)}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="rounded-lg border p-3">
-                                <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.availableUntil")}</p>
-                                <p className="text-sm font-semibold text-slate-900">{formatDateTime(subscriptionSummary.availableUntil)}</p>
-                            </div>
-                            <div className="rounded-lg border p-3">
-                                <p className="text-xs uppercase tracking-wide text-slate-500">{t("superAdminShops.expirationStatus")}</p>
-                                <Badge className={subscriptionSummary.isExpired ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}>
-                                    {subscriptionSummary.isExpired ? t("superAdminShops.expired") : t("superAdminShops.active")}
-                                </Badge>
+
+                            <div className="overflow-x-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Product</TableHead>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>{t("superAdminShops.billingCycle")}</TableHead>
+                                            <TableHead>{t("superAdminShops.availableUntil")}</TableHead>
+                                            <TableHead>{t("superAdminShops.pricePaid")}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {subscriptionSummary.activeProducts.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="py-6 text-center text-slate-500">
+                                                    No active products yet.
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            subscriptionSummary.activeProducts.map((product) => (
+                                                <TableRow key={`${product.productCode}-${product.tierCode}`}>
+                                                    <TableCell>{product.productName}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span>{product.tierName}</span>
+                                                            <Badge variant="secondary">
+                                                                {product.isCoreProduct ? "Core" : "Add-on"}
+                                                            </Badge>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>{product.billingCycle}</TableCell>
+                                                    <TableCell>{formatDateTime(product.availableUntil)}</TableCell>
+                                                    <TableCell>{formatPrice(product.pricePaid, product.currency)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
                             </div>
                         </div>
                     ) : null}
+
+                    <div className="space-y-3">
+                        <div>
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Pending requests</h3>
+                            <p className="text-sm text-slate-500">
+                                Products the company has requested but still needs admin approval.
+                            </p>
+                        </div>
+                        <div className="overflow-x-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Requested at</TableHead>
+                                        <TableHead>Requested by</TableHead>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead>Tier</TableHead>
+                                        <TableHead>Source</TableHead>
+                                        <TableHead>Message</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {pendingRequests.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="py-6 text-center text-slate-500">
+                                                No pending requests.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        pendingRequests.map((entry) => (
+                                            <TableRow key={entry.id}>
+                                                <TableCell>{formatDateTime(entry.createdAt)}</TableCell>
+                                                <TableCell>{entry.requestedBy?.displayName || entry.requestedBy?.email || "—"}</TableCell>
+                                                <TableCell>{entry.productName}</TableCell>
+                                                <TableCell>{entry.tierName}</TableCell>
+                                                <TableCell>{entry.source}</TableCell>
+                                                <TableCell>{entry.message || "—"}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
 
                     {historyError ? (
                         <p className="text-sm text-rose-600">{historyError}</p>
@@ -822,6 +1026,49 @@ export default function EditShopPage() {
                             </Table>
                         </div>
                     )}
+
+                    <div className="space-y-3 pt-4">
+                        <div>
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Product history</h3>
+                            <p className="text-sm text-slate-500">
+                                Additions, removals, upgrades, downgrades, requests, and product-level extensions.
+                            </p>
+                        </div>
+                        <div className="overflow-x-auto rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Changed at</TableHead>
+                                        <TableHead>Changed by</TableHead>
+                                        <TableHead>Action</TableHead>
+                                        <TableHead>Previous</TableHead>
+                                        <TableHead>New</TableHead>
+                                        <TableHead>Note</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {productHistory.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="py-6 text-center text-slate-500">
+                                                No product changes yet.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        productHistory.map((entry) => (
+                                            <TableRow key={entry.id}>
+                                                <TableCell>{formatDateTime(entry.timestamp)}</TableCell>
+                                                <TableCell>{entry.actor?.displayName || entry.actor?.email || t("superAdminShops.systemActor")}</TableCell>
+                                                <TableCell>{entry.action}</TableCell>
+                                                <TableCell>{formatProductHistoryValue(entry.previousValue)}</TableCell>
+                                                <TableCell>{formatProductHistoryValue(entry.newValue)}</TableCell>
+                                                <TableCell>{entry.note || "—"}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>

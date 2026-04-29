@@ -5,8 +5,18 @@ const apiBaseUrl =
   normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL) ||
   normalizeBaseUrl(process.env.NEXT_PUBLIC_BACKEND_URL);
 
-function joinUrl(base: string, path: string): string {
+function normalizeApiPath(base: string, path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  if (base.endsWith("/api") && normalizedPath.startsWith("/api/")) {
+    return normalizedPath.slice(4);
+  }
+
+  return normalizedPath;
+}
+
+function joinUrl(base: string, path: string): string {
+  const normalizedPath = normalizeApiPath(base, path);
   return base ? `${base}${normalizedPath}` : normalizedPath;
 }
 

@@ -35,7 +35,7 @@ export default function GroupMetricsPage() {
     const [dateTo, setDateTo] = useState("");
 
     const loadData = useCallback(async () => {
-        if (!canUseEvents) return;
+        if (!canUseEvents && !canUseClasses) return;
         setLoading(true);
         try {
             const data = await getGroupMetrics({
@@ -48,7 +48,7 @@ export default function GroupMetricsPage() {
         } finally {
             setLoading(false);
         }
-    }, [canUseEvents, dateFrom, dateTo, t]);
+    }, [canUseClasses, canUseEvents, dateFrom, dateTo, t]);
 
     useEffect(() => {
         void loadData();
@@ -71,7 +71,7 @@ export default function GroupMetricsPage() {
         [canUseClasses, metrics],
     );
 
-    if (!canUseEvents) {
+    if (!canUseEvents && !canUseClasses) {
         return null;
     }
 

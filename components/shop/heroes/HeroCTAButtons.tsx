@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { HomeCTAButton, CTADestination } from "@/types/shop";
+import type { HomeCTAButton, CTADestination, ShopPublicFeatureVisibility } from "@/types/shop";
+import { isShopDestinationVisible } from "@/lib/storefront/public-features";
 
 function getCTAHref(destination: CTADestination, slug: string): string {
     switch (destination) {
@@ -34,6 +35,7 @@ interface HeroCTAButtonsProps {
     slug: string;
     /** Custom buttons from PRO config. When null/undefined, renders the default fallback. */
     buttons: HomeCTAButton[] | null | undefined;
+    publicFeatures: ShopPublicFeatureVisibility;
     /** Used only when buttons is null — renders the hero's default hardcoded CTAs */
     defaultContent: React.ReactNode;
     /** CSS class applied to the container div */
@@ -48,6 +50,7 @@ interface HeroCTAButtonsProps {
 export function HeroCTAButtons({
     slug,
     buttons,
+    publicFeatures,
     defaultContent,
     className,
 }: HeroCTAButtonsProps) {
@@ -56,7 +59,7 @@ export function HeroCTAButtons({
     }
 
     const sorted = [...buttons]
-        .filter((b) => b.enabled)
+        .filter((b) => b.enabled && isShopDestinationVisible(b.destination, publicFeatures))
         .sort((a, b) => a.order - b.order);
 
     if (sorted.length === 0) {

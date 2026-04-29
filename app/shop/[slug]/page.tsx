@@ -14,7 +14,7 @@ import { LocationHours } from "@/components/shop/LocationHours";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { PublicReviewList } from "@/components/shop/PublicReviewList";
 import { ShopUnavailableState } from "../components/ShopUnavailableState";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { DEFAULT_SECTION_ORDER, type HomeSectionKey } from "@/types/shop";
 import { useAuth } from "@/lib/useAuth";
 import {
@@ -40,12 +40,15 @@ export default function ShopPage() {
         services,
         staff,
         homeSectionOrder,
+        publicFeatures,
     } = useShop();
     const sectionOrder: HomeSectionKey[] = homeSectionOrder ?? DEFAULT_SECTION_ORDER;
     const t = useT();
     const { user } = useAuth();
-    const canSeeEvents = canUsePlanFeature(company, "GROUP_EVENTS");
-    const canSeeClasses = canUsePlanFeature(company, "GROUP_CLASSES");
+    const resolvedPublicFeatures = company ? getShopPublicFeatures(company) : publicFeatures;
+    const canSeeReservas = resolvedPublicFeatures.servicesVisible;
+    const canSeeEvents = resolvedPublicFeatures.eventsVisible;
+    const canSeeClasses = resolvedPublicFeatures.classesVisible;
     const [events, setEvents] = React.useState<PublicGroupEvent[]>([]);
     const [classes, setClasses] = React.useState<PublicGroupClass[]>([]);
     const [classSessionsById, setClassSessionsById] = React.useState<Record<number, PublicGroupClassSession[]>>({});
@@ -189,7 +192,7 @@ export default function ShopPage() {
                     );
                 }
                 if (key === 'services') {
-                    if (services.length === 0) return null;
+                    if (!canSeeReservas || services.length === 0) return null;
                     return (
                         <section key="services" className="py-10 md:py-16">
                             <div className="mx-auto max-w-6xl px-4 md:px-8">

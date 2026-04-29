@@ -55,6 +55,7 @@ import { resolveApiUrl } from "@/lib/api-url";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { canUsePlanFeature, getCurrentPlan, getRequiredPlanForFeature } from "@/lib/plans/capabilities";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { mainSiteThemeConfig } from "@/theme/mainSiteTheme";
 import type {
     AnnouncementBanner,
@@ -1719,6 +1720,7 @@ function StorefrontDraftPreview({
         socialLinks: settings.social_links,
         slug,
         homeCTAButtons: themeConfig.homeCTAButtons,
+        publicFeatures: getShopPublicFeatures(company),
     };
 
     return (

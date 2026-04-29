@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { getImageUrl } from "@/utils/image-url";
-import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
+import type {
+    ShopCompany,
+    ShopReviewStats,
+    SocialLinks,
+    HomeCTAButton,
+    ShopPublicFeatureVisibility,
+} from "@/types/shop";
 import { useT } from "@/lib/i18n";
 import { HeroCTAButtons } from "./HeroCTAButtons";
 
@@ -14,10 +21,12 @@ interface HeroSplitProps {
     socialLinks: SocialLinks;
     slug: string;
     homeCTAButtons?: HomeCTAButton[] | null;
+    publicFeatures?: ShopPublicFeatureVisibility;
 }
 
-export function HeroSplit({ company, reviewStats, slug, homeCTAButtons }: HeroSplitProps) {
+export function HeroSplit({ company, reviewStats, slug, homeCTAButtons, publicFeatures }: HeroSplitProps) {
     const t = useT();
+    const resolvedPublicFeatures = publicFeatures ?? getShopPublicFeatures(company);
     return (
         <section className="grid min-h-[60vh] grid-cols-1 md:min-h-[70vh] md:grid-cols-2">
             {/* Left: Text content */}
@@ -49,13 +58,16 @@ export function HeroSplit({ company, reviewStats, slug, homeCTAButtons }: HeroSp
                 <HeroCTAButtons
                     slug={slug}
                     buttons={homeCTAButtons}
+                    publicFeatures={resolvedPublicFeatures}
                     className="mt-8 flex flex-wrap gap-3"
                     defaultContent={
-                        <Link href={`/shop/${slug}/book`}>
-                            <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
-                                {t('common.bookNow')}
-                            </PrimaryButton>
-                        </Link>
+                        resolvedPublicFeatures.bookingsEnabled ? (
+                            <Link href={`/shop/${slug}/book`}>
+                                <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                                    {t('common.bookNow')}
+                                </PrimaryButton>
+                            </Link>
+                        ) : null
                     }
                 />
             </div>

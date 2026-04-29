@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
 import { useI18n } from "@/lib/i18n";
 import { getDashboardMetrics, type DashboardMetrics } from "../lib/adminApi";
+import { isEntitlementApiError } from "@/lib/api-error";
 import {
+    ArrowRight,
     Calendar,
     DollarSign,
     TrendingUp,
@@ -17,9 +20,10 @@ import {
     CircleSlash,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
-import { canUsePlanFeature, getCurrentPlan, getRequiredPlanForFeature } from "@/lib/plans/capabilities";
-import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { canUseEntitledFeature } from "@/lib/plans/capabilities";
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { getAdminNavigationForEntitlements } from "@/lib/admin/navigation";
+import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
 import {
     AdminMetricGrid,
     AdminPageHeader,
@@ -66,13 +70,36 @@ export default function DashboardHomePage() {
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
-    const plan = getCurrentPlan(companyUser?.company);
+    const [metricsLocked, setMetricsLocked] = useState(false);
     const dashboardFeature = "OPERATIONAL_DASHBOARD" as const;
-    const canAccessDashboard = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, dashboardFeature);
+    const canAccessDashboard = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, dashboardFeature);
+    const navigationGroups = useMemo(
+        () => getAdminNavigationForEntitlements(companyUser?.company?.capabilities),
+        [companyUser?.company?.capabilities],
+    );
+    const activeModules = useMemo(
+        () =>
+            navigationGroups
+                .flatMap((group) => group.items)
+                .filter((item) =>
+                    item.state === "active" &&
+                    !["dashboard", "hours", "staff", "business-settings", "profile"].includes(item.id),
+                )
+                .slice(0, 6),
+        [navigationGroups],
+    );
+    const requestableModules = useMemo(
+        () =>
+            navigationGroups
+                .flatMap((group) => group.items)
+                .filter((item) => item.state === "locked"),
+        [navigationGroups],
+    );
 
     useEffect(() => {
         setLoading(true);
         setLoadFailed(false);
+        setMetricsLocked(false);
 
         if (!canAccessDashboard) {
             setLoading(false);
@@ -84,11 +111,18 @@ export default function DashboardHomePage() {
         getDashboardMetrics()
             .then(setMetrics)
             .catch((err) => {
+                if (isEntitlementApiError(err)) {
+                    setMetricsLocked(true);
+                    setMetrics(null);
+                    return;
+                }
                 setLoadFailed(true);
                 void notify.error(err instanceof Error ? err.message : t("adminHome.loadMetricsError"));
             })
             .finally(() => setLoading(false));
     }, [canAccessDashboard, companyId, t]);
+
+    const shouldRenderMetricsLockedState = !canAccessDashboard || metricsLocked;
 
     const maxStatusCount = useMemo(() => {
         if (!metrics || metrics.bookingsByStatus.length === 0) return 0;
@@ -113,23 +147,68 @@ export default function DashboardHomePage() {
         );
     }
 
-    if (!canAccessDashboard) {
-        const requiredPlan = getRequiredPlanForFeature(companyUser?.company, dashboardFeature);
+    if (shouldRenderMetricsLockedState) {
         return (
             <AdminPageShell>
-                <AdminPageHeader title={t("adminNav.dashboard")} />
-                <PlanUpgradeNotice
-                    title={t("planEnforcement.featureLockedTitle")}
-                    message={
-                        requiredPlan === "PRO"
-                            ? t("planEnforcement.availableOnPro")
-                            : t("planEnforcement.availableOnBusiness")
-                    }
-                    feature={dashboardFeature}
-                    currentPlan={plan}
-                    requiredPlan={requiredPlan}
-                    fullPage
+                <AdminPageHeader
+                    title={t("adminNav.dashboard")}
+                    subtitle={t("adminHome.metricsFallbackSubtitle")}
                 />
+
+                <div className="space-y-6">
+                    <EntitlementLockedCard
+                        title={t("entitlements.metricsLockedTitle")}
+                        description={t("entitlements.metricsLockedDescription")}
+                        capability="METRICAS_OPERATIONAL_DASHBOARD"
+                        source="ADMIN_LOCKED_PAGE"
+                    />
+
+                    <AdminSectionCard
+                        title={t("adminHome.activeModules")}
+                        description={t("adminHome.activeModulesDescription")}
+                    >
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {activeModules.map((item) => (
+                                <Link
+                                    key={item.id}
+                                    href={item.href}
+                                    className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-admin-brand/30 hover:shadow-sm"
+                                >
+                                    <p className="text-sm font-semibold text-slate-900">{t(item.labelKey)}</p>
+                                    <p className="mt-1 text-sm text-slate-500">{t("adminHome.moduleEnabled")}</p>
+                                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-admin-brand">
+                                        {t("adminModules.openModuleLink")}
+                                        <ArrowRight className="h-4 w-4" />
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </AdminSectionCard>
+
+                    {requestableModules.length > 0 ? (
+                        <AdminSectionCard
+                            title={t("adminHome.availableAddOns")}
+                            description={t("adminHome.availableAddOnsDescription")}
+                        >
+                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                {requestableModules.map((item) => (
+                                    <Link
+                                        key={item.id}
+                                        href={item.href}
+                                        className="rounded-2xl border border-dashed border-amber-300 bg-amber-50/70 p-4 transition hover:bg-amber-50"
+                                    >
+                                        <p className="text-sm font-semibold text-slate-900">{t(item.labelKey)}</p>
+                                        <p className="mt-1 text-sm text-slate-600">{t("adminHome.moduleAvailable")}</p>
+                                        <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-amber-700">
+                                            {t("productAccessRequest.requires", { productName: t(item.labelKey) })}
+                                            <ArrowRight className="h-4 w-4" />
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </AdminSectionCard>
+                    ) : null}
+                </div>
             </AdminPageShell>
         );
     }

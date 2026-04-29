@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
-import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
+import type {
+    ShopCompany,
+    ShopReviewStats,
+    SocialLinks,
+    HomeCTAButton,
+    ShopPublicFeatureVisibility,
+} from "@/types/shop";
 import { useT } from "@/lib/i18n";
 import { HeroCTAButtons } from "./HeroCTAButtons";
 
@@ -13,10 +20,12 @@ interface HeroMinimalProps {
     socialLinks: SocialLinks;
     slug: string;
     homeCTAButtons?: HomeCTAButton[] | null;
+    publicFeatures?: ShopPublicFeatureVisibility;
 }
 
-export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons }: HeroMinimalProps) {
+export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons, publicFeatures }: HeroMinimalProps) {
     const t = useT();
+    const resolvedPublicFeatures = publicFeatures ?? getShopPublicFeatures(company);
     return (
         <section className="bg-page py-20 md:py-32">
             <div className="mx-auto max-w-4xl px-4 text-center md:px-8">
@@ -55,13 +64,16 @@ export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons }: Hero
                 <HeroCTAButtons
                     slug={slug}
                     buttons={homeCTAButtons}
+                    publicFeatures={resolvedPublicFeatures}
                     className="mt-10 flex flex-wrap items-center justify-center gap-3"
                     defaultContent={
-                        <Link href={`/shop/${slug}/book`}>
-                            <PrimaryButton className="px-10 py-4 text-lg">
-                                {t('common.bookNow')}
-                            </PrimaryButton>
-                        </Link>
+                        resolvedPublicFeatures.bookingsEnabled ? (
+                            <Link href={`/shop/${slug}/book`}>
+                                <PrimaryButton className="px-10 py-4 text-lg">
+                                    {t('common.bookNow')}
+                                </PrimaryButton>
+                            </Link>
+                        ) : null
                     }
                 />
             </div>

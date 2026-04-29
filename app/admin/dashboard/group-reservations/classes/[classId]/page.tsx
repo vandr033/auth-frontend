@@ -85,6 +85,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
+import { hasProductCapability } from "@/lib/product-access";
 import { formatCurrencyInputFromCents, parseCurrencyInputToCents } from "@/lib/currency";
 import { getImageUrl } from "@/utils/image-url";
 
@@ -150,8 +151,12 @@ export default function GroupClassDetailPage() {
     const classIdRaw = typeof params?.classId === "string" ? params.classId : "";
     const classId = Number.parseInt(classIdRaw, 10);
     const { canUseAdvanced, canUseClasses, getRequiredPlan } = useGroupReservationsAccess();
-    const { companyId, companyUser } = useAdminAuth();
+    const { companyId, companyUser, user } = useAdminAuth();
     const currency = companyUser?.company?.currency;
+    const capabilities = companyUser?.company?.capabilities;
+    const hasClassesPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CLASES_PRO");
+    const hasMessagingPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "MENSAJERIA_PRO");
+    const canSendInstallmentReminders = hasClassesPro && hasMessagingPro;
 
     const [activeTab, setActiveTab] = useState("overview");
     const [loading, setLoading] = useState(true);
@@ -1186,6 +1191,11 @@ export default function GroupClassDetailPage() {
                                     })}
                                 </p>
                             </div>
+                            {!canSendInstallmentReminders ? (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                                    Los recordatorios automáticos de cuotas requieren Clases Pro y Mensajería Pro.
+                                </div>
+                            ) : null}
                             {installmentPlanDialog.installments.map((installment) => (
                                 <div key={installment.id} className="space-y-3 rounded-xl border border-slate-200 p-4">
                                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1273,7 +1283,7 @@ export default function GroupClassDetailPage() {
                                                         installment.id,
                                                     )
                                                 }
-                                                disabled={installmentActionKey === `reminder:${installment.id}`}
+                                                disabled={installmentActionKey === `reminder:${installment.id}` || !canSendInstallmentReminders}
                                             >
                                                 {installmentActionKey === `reminder:${installment.id}` ? (
                                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

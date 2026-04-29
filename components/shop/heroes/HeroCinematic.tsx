@@ -5,8 +5,15 @@ import { Star } from "lucide-react";
 import { PrimaryButton } from "@/app/components/PrimaryButton";
 import { Button } from "@/components/ui/button";
 import { SocialIcons } from "@/components/shop/SocialIcons";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { getImageUrl } from "@/utils/image-url";
-import type { ShopCompany, ShopReviewStats, SocialLinks, HomeCTAButton } from "@/types/shop";
+import type {
+    ShopCompany,
+    ShopReviewStats,
+    SocialLinks,
+    HomeCTAButton,
+    ShopPublicFeatureVisibility,
+} from "@/types/shop";
 import { useT } from "@/lib/i18n";
 import { HeroCTAButtons } from "./HeroCTAButtons";
 
@@ -16,10 +23,12 @@ interface HeroCinematicProps {
     socialLinks: SocialLinks;
     slug: string;
     homeCTAButtons?: HomeCTAButton[] | null;
+    publicFeatures?: ShopPublicFeatureVisibility;
 }
 
-export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTAButtons }: HeroCinematicProps) {
+export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTAButtons, publicFeatures }: HeroCinematicProps) {
     const t = useT();
+    const resolvedPublicFeatures = publicFeatures ?? getShopPublicFeatures(company);
     return (
         <section className="relative isolate min-h-[80vh] overflow-hidden text-white md:min-h-screen">
             <div
@@ -71,19 +80,24 @@ export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTA
                 <HeroCTAButtons
                     slug={slug}
                     buttons={homeCTAButtons}
+                    publicFeatures={resolvedPublicFeatures}
                     className="mt-4 flex flex-wrap items-center justify-center gap-4"
                     defaultContent={
                         <>
-                            <Link href={`/shop/${slug}/book`}>
-                                <PrimaryButton className="min-w-[180px] px-8 py-4 text-lg">
-                                    {t('common.bookNow')}
-                                </PrimaryButton>
-                            </Link>
-                            <Link href={`/shop/${slug}/services`}>
-                                <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
-                                    {t('shopNav.services')}
-                                </Button>
-                            </Link>
+                            {resolvedPublicFeatures.bookingsEnabled ? (
+                                <Link href={`/shop/${slug}/book`}>
+                                    <PrimaryButton className="min-w-[180px] px-8 py-4 text-lg">
+                                        {t('common.bookNow')}
+                                    </PrimaryButton>
+                                </Link>
+                            ) : null}
+                            {resolvedPublicFeatures.servicesVisible ? (
+                                <Link href={`/shop/${slug}/services`}>
+                                    <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
+                                        {t('shopNav.services')}
+                                    </Button>
+                                </Link>
+                            ) : null}
                         </>
                     }
                 />

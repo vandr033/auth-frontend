@@ -75,6 +75,11 @@ export default function SuperAdminLayout({
             icon: <Store className="h-5 w-5" />,
         },
         {
+            label: t("adminNav.productRequests"),
+            href: "/admin/super-admin/product-requests",
+            icon: <Shield className="h-5 w-5" />,
+        },
+        {
             label: t("adminNav.bookings"),
             href: "/admin/super-admin/bookings",
             icon: <CalendarDays className="h-5 w-5" />,

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Search } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,14 @@ import {
     LocationPicker,
     type LocationAutofillUpdate,
 } from "@/components/admin/location/LocationPicker";
+import { ProductConfigurationSection } from "../components/ProductConfigurationSection";
+import {
+    buildCommercialPayload,
+    createEmptyProductConfig,
+    deriveLegacyPlanCompatibility,
+    getActiveCoreCount,
+    type ProductConfigFormState,
+} from "../lib/product-config";
 
 function getApiUrl(path: string): string {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api";
@@ -54,6 +63,7 @@ interface FormData {
     availableUntil: string;
     pricePaid: string;
     isMarketplaceVisible: boolean;
+    note: string;
 }
 
 interface OwnerFormData {
@@ -88,6 +98,17 @@ interface ExistingOwnerUser {
     }>;
 }
 
+interface CreateSuccessSummary {
+    name: string;
+    slug: string;
+    ownerInviteSent: boolean;
+    activeProducts: string[];
+    requestedProducts: string[];
+    availableUntil: string;
+    publicUrl: string;
+    adminUrl: string;
+}
+
 const initialFormData: FormData = {
     name: "",
     slug: "",
@@ -108,6 +129,7 @@ const initialFormData: FormData = {
     availableUntil: toDateTimeLocalInput("2027-03-12T23:59:59.000Z"),
     pricePaid: "",
     isMarketplaceVisible: true,
+    note: "",
 };
 
 function parseNumberOrUndefined(value: string): number | undefined {
@@ -171,9 +193,17 @@ export default function NewShopPage() {
     const [ownerSearchLoading, setOwnerSearchLoading] = useState(false);
     const [selectedExistingOwner, setSelectedExistingOwner] = useState<ExistingOwnerUser | null>(null);
     const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
+    const [productConfig, setProductConfig] = useState<ProductConfigFormState>(() =>
+        createEmptyProductConfig({
+            billingCycle: initialFormData.billingCycle,
+            availableUntil: initialFormData.availableUntil,
+            currency: initialFormData.currency,
+        }),
+    );
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [timezoneManuallyEdited, setTimezoneManuallyEdited] = useState(false);
+    const [createSuccess, setCreateSuccess] = useState<CreateSuccessSummary | null>(null);
 
     const getCompanyTypeName = (type: CompanyType): string =>
         getLocalizedText({
@@ -293,6 +323,21 @@ export default function NewShopPage() {
         [timezoneManuallyEdited],
     );
 
+    useEffect(() => {
+        setProductConfig((prev) => {
+            const next = { ...prev };
+            for (const productCode of Object.keys(next) as Array<keyof typeof next>) {
+                next[productCode] = {
+                    ...next[productCode],
+                    billingCycle: next[productCode].billingCycle || formData.billingCycle,
+                    availableUntil: next[productCode].availableUntil || formData.availableUntil,
+                    currency: next[productCode].currency || formData.currency,
+                };
+            }
+            return next;
+        });
+    }, [formData.availableUntil, formData.billingCycle, formData.currency]);
+
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -307,6 +352,10 @@ export default function NewShopPage() {
         }
         if (!formData.company_type_id) {
             await notify.warning(t("superAdminShops.companyTypeRequired"));
+            return;
+        }
+        if (getActiveCoreCount(productConfig) === 0) {
+            await notify.warning("Select at least one active core product.");
             return;
         }
         if (!formData.availableUntil) {
@@ -372,6 +421,8 @@ export default function NewShopPage() {
             const latitude = parseNumberOrUndefined(formData.latitude);
             const longitude = parseNumberOrUndefined(formData.longitude);
             const pricePaid = parseNonNegativeNumberOrNull(formData.pricePaid);
+            const commercialPayload = buildCommercialPayload(productConfig);
+            const legacyPlanCompatibility = deriveLegacyPlanCompatibility(productConfig);
 
             const ownerPayload =
                 ownerMode === "existing" && selectedExistingOwner
@@ -406,11 +457,14 @@ export default function NewShopPage() {
                 latitude,
                 longitude,
                 company_type_id: parseInt(formData.company_type_id),
-                plan: formData.plan,
+                plan: legacyPlanCompatibility,
                 billingCycle: formData.billingCycle,
                 availableUntil: availableUntilIso,
                 pricePaid,
                 isMarketplaceVisible: formData.isMarketplaceVisible,
+                activeProducts: commercialPayload.activeProducts,
+                requestedProducts: commercialPayload.requestedProducts,
+                note: formData.note.trim() || undefined,
                 owner: ownerPayload,
             };
             // TODO(super-admin-shops): Persist optional map metadata once backend supports it:
@@ -428,7 +482,22 @@ export default function NewShopPage() {
                 throw new Error(data.message || data.error || t("superAdminShops.createFailed"));
             }
 
-            router.push("/admin/super-admin/shops");
+            const responseData = await response.json();
+            const created = responseData?.data ?? {};
+            setCreateSuccess({
+                name: created.name ?? formData.name.trim(),
+                slug: created.slug ?? formData.slug.trim(),
+                ownerInviteSent: Boolean(created.ownerInviteSent),
+                activeProducts: Array.isArray(created.activeProducts)
+                    ? created.activeProducts.map((product: { tierName?: string; tierCode?: string }) => product.tierName || product.tierCode || "—")
+                    : [],
+                requestedProducts: Array.isArray(created.requestedProducts)
+                    ? created.requestedProducts.map((product: { tierName?: string; tierCode?: string }) => product.tierName || product.tierCode || "—")
+                    : [],
+                availableUntil: created.availableUntil ?? availableUntilIso,
+                publicUrl: created.publicUrl ?? `${window.location.origin}/shop/${created.slug ?? formData.slug}`,
+                adminUrl: created.adminUrl ?? `${window.location.origin}/admin/login`,
+            });
         } catch (err) {
             await notify.error(err instanceof Error ? err.message : t("superAdminShops.createFailed"));
         } finally {
@@ -446,7 +515,7 @@ export default function NewShopPage() {
     }
 
     return (
-        <div className="space-y-6 max-w-2xl">
+        <div className="space-y-6 max-w-5xl">
             {/* Header */}
             <div className="flex items-center gap-4">
                 <Link href="/admin/super-admin/shops">
@@ -465,6 +534,47 @@ export default function NewShopPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {createSuccess ? (
+                        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                            <div className="flex items-center gap-2">
+                                <Badge className="bg-emerald-100 text-emerald-800">Company created</Badge>
+                                <p className="text-lg font-semibold text-emerald-950">{createSuccess.name}</p>
+                            </div>
+                            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-emerald-700">Owner invited</p>
+                                    <p className="mt-1 text-sm text-emerald-950">
+                                        {createSuccess.ownerInviteSent ? "Invite sent or existing owner linked" : "Needs follow-up"}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-emerald-700">Products activated</p>
+                                    <p className="mt-1 text-sm text-emerald-950">{createSuccess.activeProducts.join(", ") || "None"}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-emerald-700">Requested products</p>
+                                    <p className="mt-1 text-sm text-emerald-950">{createSuccess.requestedProducts.join(", ") || "None"}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-emerald-700">Expiration date</p>
+                                    <p className="mt-1 text-sm text-emerald-950">{new Date(createSuccess.availableUntil).toLocaleString()}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-emerald-700">Public URL</p>
+                                    <a href={createSuccess.publicUrl} className="mt-1 block text-sm text-emerald-800 underline" target="_blank" rel="noreferrer">
+                                        {createSuccess.publicUrl}
+                                    </a>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-emerald-700">Admin URL</p>
+                                    <a href={createSuccess.adminUrl} className="mt-1 block text-sm text-emerald-800 underline" target="_blank" rel="noreferrer">
+                                        {createSuccess.adminUrl}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Basic Info */}
                         <div className="grid gap-4">
@@ -515,26 +625,7 @@ export default function NewShopPage() {
                         {/* Commercial Settings */}
                         <div className="border-t pt-4">
                             <h3 className="font-medium mb-4">Commercial settings</h3>
-                            <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="plan">Plan</Label>
-                                    <Select
-                                        value={formData.plan}
-                                        onValueChange={(value) =>
-                                            setFormData({ ...formData, plan: value as ShopPlan })
-                                        }
-                                    >
-                                        <SelectTrigger id="plan">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="STARTER">STARTER</SelectItem>
-                                            <SelectItem value="BUSINESS">BUSINESS</SelectItem>
-                                            <SelectItem value="PRO">PRO</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
+                            <div className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label htmlFor="billing_cycle">Billing cycle</Label>
                                     <Select
@@ -596,7 +687,17 @@ export default function NewShopPage() {
                                     />
                                 </div>
 
-                                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-xs uppercase tracking-wide text-slate-500">Legacy plan compatibility</p>
+                                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                                        {deriveLegacyPlanCompatibility(productConfig)}
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        This is compatibility only. Modular products are managed below.
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-lg border px-3 py-2 md:col-span-2">
                                     <div>
                                         <p className="text-sm font-medium">Visible in marketplace</p>
                                         <p className="text-xs text-slate-500">
@@ -612,6 +713,16 @@ export default function NewShopPage() {
                                 </div>
                             </div>
                         </div>
+
+                        <ProductConfigurationSection
+                            billingCycle={formData.billingCycle}
+                            currency={formData.currency}
+                            availableUntil={formData.availableUntil}
+                            value={productConfig}
+                            onChange={setProductConfig}
+                            priceOverride={formData.pricePaid}
+                            validationError={getActiveCoreCount(productConfig) === 0 ? "At least one core product is required." : null}
+                        />
 
                         {/* Contact Info */}
                         <div className="border-t pt-4">
@@ -954,6 +1065,23 @@ export default function NewShopPage() {
                                         }
                                     />
                                 </div>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-4">
+                            <h3 className="font-medium mb-4">Internal notes</h3>
+                            <div className="space-y-2">
+                                <Label htmlFor="note">Optional note</Label>
+                                <textarea
+                                    id="note"
+                                    value={formData.note}
+                                    onChange={(event) => setFormData({ ...formData, note: event.target.value.slice(0, 500) })}
+                                    placeholder="Add context for pricing, requests, onboarding, or migration notes"
+                                    className="min-h-28 w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm outline-none transition focus:border-admin-brand focus:ring-2 focus:ring-admin-brand/20"
+                                />
+                                <p className="text-xs text-slate-500">
+                                    Stored in commercial history so future admins can understand why this setup was chosen.
+                                </p>
                             </div>
                         </div>
 

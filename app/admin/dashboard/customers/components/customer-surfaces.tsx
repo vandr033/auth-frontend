@@ -19,6 +19,7 @@ import {
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
     type AdminGroupPaymentRow,
+    type CustomerSegmentKey,
     downloadCustomerImportTemplate,
     downloadCustomersExport,
     getCustomerGroupPayments,
@@ -32,7 +33,7 @@ import {
     type CustomerRecord,
     type InterestCaptureLead,
 } from "@/app/admin/lib/adminApi";
-import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { RequestProductCTA } from "@/components/admin/product/RequestProductCTA";
 import {
     ActionMenu,
     AdminMetricGrid,
@@ -64,9 +65,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import {
+    getProductAccessRecommendationForCapability,
+    hasProductCapability,
+} from "@/lib/product-access";
 
 const HISTORY_PAGE_SIZE = 10;
+const CUSTOMER_SEGMENT_OPTIONS: Array<{ value: CustomerSegmentKey; labelKey: string }> = [
+    { value: "ALL", labelKey: "adminCustomers.segments.all" },
+    { value: "RETURNING", labelKey: "adminCustomers.segments.returning" },
+    { value: "INACTIVE_90_DAYS", labelKey: "adminCustomers.segments.inactive90Days" },
+    { value: "UPCOMING", labelKey: "adminCustomers.segments.upcoming" },
+    { value: "HIGH_VALUE", labelKey: "adminCustomers.segments.highValue" },
+];
 
 function encodeCustomerPath(customerKey: string) {
     return `/admin/dashboard/customers/${encodeURIComponent(customerKey)}`;
@@ -226,12 +237,39 @@ function InterestLeadActions({ lead, showLabel = false }: { lead: InterestCaptur
     return <ActionMenu label={t("adminCustomers.actions")} showLabel={showLabel} items={items} />;
 }
 
+function CapabilityRequestCard({
+    capability,
+    title,
+    description,
+    source = "SETTINGS_LOCKED_CONTROL",
+}: {
+    capability: "CRM_PRO" | "MENSAJERIA_PRO";
+    title: string;
+    description: string;
+    source?: "SETTINGS_LOCKED_CONTROL" | "ADMIN_LOCKED_PAGE";
+}) {
+    const recommendation = getProductAccessRecommendationForCapability(capability);
+
+    return (
+        <RequestProductCTA
+            productCode={recommendation.productCode}
+            tierCode={recommendation.tierCode}
+            capability={recommendation.capability}
+            title={title}
+            description={description}
+            ctaLabel={recommendation.ctaLabel}
+            source={source}
+        />
+    );
+}
+
 export function CustomersRecordsSurface() {
     const { t, locale } = useI18n();
-    const { companyUser } = useAdminAuth();
+    const { companyUser, user } = useAdminAuth();
     const currency = companyUser?.company?.currency;
     const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
     const notAvailable = t("adminCustomers.notAvailable");
+    const hasCrmPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "CRM_PRO");
 
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -246,7 +284,7 @@ export function CustomersRecordsSurface() {
     const fetchCustomers = useCallback(async () => {
         setLoading(true);
         try {
-            const rows = await getCustomers(debouncedSearch || undefined);
+            const rows = await getCustomers({ search: debouncedSearch || undefined });
             setCustomers(rows);
         } catch (error: unknown) {
             await notify.error(error instanceof Error ? error.message : t("adminCustomers.loadCustomersFailed"));
@@ -295,8 +333,20 @@ export function CustomersRecordsSurface() {
             <AdminMetricGrid className="xl:grid-cols-3">
                 <StatCard label={t("adminCustomers.stats.records")} value={customers.length} hint={t("adminCustomers.stats.recordsHint")} icon={<Users className="h-5 w-5" />} />
                 <StatCard label={t("adminCustomers.stats.returning")} value={returningCustomers} hint={t("adminCustomers.stats.returningHint")} icon={<Clock3 className="h-5 w-5" />} />
-                <StatCard label={t("adminCustomers.stats.revenue")} value={formatCurrency(totalSpent)} hint={t("adminCustomers.stats.revenueHint", { count: upcomingCustomers })} icon={<Download className="h-5 w-5" />} />
+                {hasCrmPro ? (
+                    <StatCard label={t("adminCustomers.stats.revenue")} value={formatCurrency(totalSpent)} hint={t("adminCustomers.stats.revenueHint", { count: upcomingCustomers })} icon={<Download className="h-5 w-5" />} />
+                ) : (
+                    <StatCard label={t("adminCustomers.stats.upcoming")} value={upcomingCustomers} hint={t("adminCustomers.stats.upcomingHint")} icon={<Clock3 className="h-5 w-5" />} />
+                )}
             </AdminMetricGrid>
+
+            {!hasCrmPro ? (
+                <CapabilityRequestCard
+                    capability="CRM_PRO"
+                    title={t("adminCustomers.crmProLockedTitle")}
+                    description={t("adminCustomers.crmProLockedDescription")}
+                />
+            ) : null}
 
             <DataToolbar
                 searchValue={searchQuery}
@@ -334,18 +384,22 @@ export function CustomersRecordsSurface() {
                                     <CustomerActions customer={customer} showLabel />
                                 </div>
                                 <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-slate-500">{t("adminCustomers.preferenceLabel")}</span>
-                                        <span className="text-right font-medium text-slate-800">{preference}</span>
-                                    </div>
+                                    {hasCrmPro ? (
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-slate-500">{t("adminCustomers.preferenceLabel")}</span>
+                                            <span className="text-right font-medium text-slate-800">{preference}</span>
+                                        </div>
+                                    ) : null}
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="text-slate-500">{t("adminCustomers.bookings")}</span>
                                         <span className="font-medium text-slate-800">{customer.totalBookings}</span>
                                     </div>
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-slate-500">{t("adminCustomers.totalSpent")}</span>
-                                        <span className="font-medium text-emerald-700">{formatCurrency(customer.totalSpentCents)}</span>
-                                    </div>
+                                    {hasCrmPro ? (
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-slate-500">{t("adminCustomers.totalSpent")}</span>
+                                            <span className="font-medium text-emerald-700">{formatCurrency(customer.totalSpentCents)}</span>
+                                        </div>
+                                    ) : null}
                                 </div>
                             </div>
                         );
@@ -363,15 +417,15 @@ export function CustomersRecordsSurface() {
                                 </div>
                             ),
                         },
-                        {
+                        ...(hasCrmPro ? [{
                             key: "preference",
                             header: t("adminCustomers.preferenceLabel"),
-                            cell: (customer) => (
+                            cell: (customer: CustomerRecord) => (
                                 <span className="text-sm text-slate-700">
                                     {getCustomerPreference(customer, t("adminCustomers.noPreference"))}
                                 </span>
                             ),
-                        },
+                        }] : []),
                         {
                             key: "activity",
                             header: t("adminCustomers.bookingsSummary"),
@@ -384,12 +438,12 @@ export function CustomersRecordsSurface() {
                                 </div>
                             ),
                         },
-                        {
+                        ...(hasCrmPro ? [{
                             key: "spend",
                             header: t("adminCustomers.spendSummary"),
                             headerClassName: "text-right",
                             className: "text-right",
-                            cell: (customer) => (
+                            cell: (customer: CustomerRecord) => (
                                 <div>
                                     <p className="font-medium text-emerald-700">{formatCurrency(customer.totalSpentCents)}</p>
                                     <p className="text-xs text-slate-500">
@@ -397,7 +451,7 @@ export function CustomersRecordsSurface() {
                                     </p>
                                 </div>
                             ),
-                        },
+                        }] : []),
                         {
                             key: "schedule",
                             header: t("adminCustomers.scheduleSummary"),
@@ -405,7 +459,9 @@ export function CustomersRecordsSurface() {
                                 <div className="space-y-0.5 text-xs text-slate-600">
                                         <p>{t("adminCustomers.lastBooking")}: {formatDate(customer.lastBookingAt, notAvailable, locale)}</p>
                                         <p>{t("adminCustomers.nextBooking")}: {formatDate(customer.nextBookingAt, notAvailable, locale)}</p>
-                                        <p>{t("adminCustomers.frequencyLabel", { value: customer.bookingFrequencyPerMonth })}</p>
+                                        {hasCrmPro ? (
+                                            <p>{t("adminCustomers.frequencyLabel", { value: customer.bookingFrequencyPerMonth })}</p>
+                                        ) : null}
                                     </div>
                                 ),
                         },
@@ -425,8 +481,10 @@ export function CustomersRecordsSurface() {
 export function CustomersCommunicationsSurface() {
     const { t, locale } = useI18n();
     const { companyUser, user } = useAdminAuth();
-    const canBulkMessaging = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "BULK_WHATSAPP_MESSAGING");
     const notAvailable = t("adminCustomers.notAvailable");
+    const hasCrmPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "CRM_PRO");
+    const hasMessagingPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "MENSAJERIA_PRO");
+    const canBulkMessaging = hasCrmPro && hasMessagingPro;
 
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [customersLoading, setCustomersLoading] = useState(true);
@@ -434,6 +492,7 @@ export function CustomersCommunicationsSurface() {
     const [interestLoading, setInterestLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [segmentFilter, setSegmentFilter] = useState<CustomerSegmentKey>("ALL");
     const [interestSearchQuery, setInterestSearchQuery] = useState("");
     const [interestSourceFilter, setInterestSourceFilter] = useState<"ALL" | "EVENT" | "CLASS">("ALL");
     const [interestItemFilter, setInterestItemFilter] = useState("ALL");
@@ -449,16 +508,25 @@ export function CustomersCommunicationsSurface() {
     const fetchCustomers = useCallback(async () => {
         setCustomersLoading(true);
         try {
-            const rows = await getCustomers(debouncedSearch || undefined);
+            const rows = await getCustomers({
+                search: debouncedSearch || undefined,
+                segment: hasCrmPro ? segmentFilter : "ALL",
+            });
             setCustomers(rows);
         } catch (error: unknown) {
             await notify.error(error instanceof Error ? error.message : t("adminCustomers.loadCustomersFailed"));
         } finally {
             setCustomersLoading(false);
         }
-    }, [debouncedSearch, t]);
+    }, [debouncedSearch, hasCrmPro, segmentFilter, t]);
 
     const fetchInterestLeads = useCallback(async () => {
+        if (!hasCrmPro) {
+            setInterestLeads([]);
+            setInterestLoading(false);
+            return;
+        }
+
         setInterestLoading(true);
         try {
             const rows = await getInterestCaptureLeads();
@@ -468,7 +536,7 @@ export function CustomersCommunicationsSurface() {
         } finally {
             setInterestLoading(false);
         }
-    }, [t]);
+    }, [hasCrmPro, t]);
 
     useEffect(() => {
         void fetchCustomers();
@@ -513,8 +581,13 @@ export function CustomersCommunicationsSurface() {
     }, [interestItemFilter, interestLeads, interestSearchQuery, interestSourceFilter]);
 
     const handleSendMassMessage = async () => {
-        if (!canBulkMessaging) {
-            await notify.warning(t("planEnforcement.availableOnPro"));
+        if (!hasCrmPro) {
+            await notify.warning(t("adminCustomers.crmProRequiredToast"));
+            return;
+        }
+
+        if (!hasMessagingPro) {
+            await notify.warning(t("adminCustomers.messagingProRequiredToast"));
             return;
         }
 
@@ -529,6 +602,7 @@ export function CustomersCommunicationsSurface() {
             const result = await sendMassCustomerMessage({
                 message,
                 search: debouncedSearch || undefined,
+                segment: segmentFilter,
             });
             await notify.success(
                 t("adminCustomers.massMessageSummary", {
@@ -584,7 +658,7 @@ export function CustomersCommunicationsSurface() {
                         type="button"
                         onClick={() => setIsMassDialogOpen(true)}
                         className="bg-admin-brand text-white hover:bg-admin-brand-hover"
-                        disabled={!canBulkMessaging || customersLoading || sendingMassMessage}
+                        disabled={!canBulkMessaging || customersLoading || sendingMassMessage || customers.length === 0}
                     >
                         <Send className="mr-2 h-4 w-4" />
                         {t("adminCustomers.sendMassMessage")}
@@ -594,25 +668,45 @@ export function CustomersCommunicationsSurface() {
 
             <CustomersSectionNav />
 
-            {!canBulkMessaging ? (
-                <PlanUpgradeNotice
-                    title={t("planEnforcement.featureLockedTitle")}
-                    message={t("planEnforcement.availableOnPro")}
-                    feature="BULK_WHATSAPP_MESSAGING"
-                />
-            ) : null}
-
             <AdminMetricGrid className="xl:grid-cols-3">
                 <StatCard label={t("adminCustomers.communicationsStats.audience")} value={customers.length} hint={t("adminCustomers.communicationsStats.audienceHint")} icon={<Send className="h-5 w-5" />} />
                 <StatCard label={t("adminCustomers.communicationsStats.reachable")} value={reachableCustomers} hint={t("adminCustomers.communicationsStats.reachableHint")} icon={<Mail className="h-5 w-5" />} />
                 <StatCard label={t("adminCustomers.communicationsStats.interest")} value={filteredInterestLeads.length} hint={t("adminCustomers.communicationsStats.interestHint")} icon={<Users className="h-5 w-5" />} />
             </AdminMetricGrid>
 
+            {!hasCrmPro ? (
+                <CapabilityRequestCard
+                    capability="CRM_PRO"
+                    title={t("adminCustomers.crmProSegmentsTitle")}
+                    description={t("adminCustomers.crmProSegmentsDescription")}
+                />
+            ) : !hasMessagingPro ? (
+                <CapabilityRequestCard
+                    capability="MENSAJERIA_PRO"
+                    title={t("adminCustomers.messagingProLockedTitle")}
+                    description={t("adminCustomers.messagingProLockedDescription")}
+                />
+            ) : null}
+
             <DataToolbar
                 searchValue={searchQuery}
                 searchPlaceholder={t("adminCustomers.searchPlaceholder")}
                 onSearchChange={setSearchQuery}
                 summary={customersLoading ? t("adminCustomers.loadingAudience") : t("adminCustomers.communicationsAudienceSummary", { count: customers.length })}
+                actions={hasCrmPro ? (
+                    <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
+                        <SelectTrigger className="min-w-[220px]">
+                            <SelectValue placeholder={t("adminCustomers.segmentLabel")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {CUSTOMER_SEGMENT_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                    {t(option.labelKey)}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                ) : undefined}
             />
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -621,6 +715,41 @@ export function CustomersCommunicationsSurface() {
                     description={t("adminCustomers.communicationsAudienceDescription")}
                     contentClassName="space-y-4"
                 >
+                        {hasCrmPro ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary">
+                                    {t("adminCustomers.segmentActive", {
+                                        segment: t(CUSTOMER_SEGMENT_OPTIONS.find((option) => option.value === segmentFilter)?.labelKey || "adminCustomers.segments.all"),
+                                    })}
+                                </Badge>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSegmentFilter("INACTIVE_90_DAYS");
+                                        setIsMassDialogOpen(true);
+                                    }}
+                                    disabled={!canBulkMessaging || customersLoading}
+                                >
+                                    {t("adminCustomers.reactivationCta")}
+                                </Button>
+                            </div>
+                        ) : null}
+
+                        {!hasCrmPro ? (
+                            <CapabilityRequestCard
+                                capability="CRM_PRO"
+                                title={t("adminCustomers.crmProSegmentsTitle")}
+                                description={t("adminCustomers.crmProSegmentsDescription")}
+                            />
+                        ) : !hasMessagingPro ? (
+                            <CapabilityRequestCard
+                                capability="MENSAJERIA_PRO"
+                                title={t("adminCustomers.messagingProLockedTitle")}
+                                description={t("adminCustomers.messagingProLockedDescription")}
+                            />
+                        ) : null}
+
                         <div className="rounded-lg border border-admin-border bg-admin-surface-subtle p-4">
                             <p className="text-sm font-medium text-slate-900">{t("adminCustomers.currentAudience")}</p>
                             <p className="mt-1 text-sm text-slate-600">
@@ -661,6 +790,14 @@ export function CustomersCommunicationsSurface() {
                     description={t("adminCustomers.interestCaptureDescription")}
                     contentClassName="space-y-4"
                 >
+                        {!hasCrmPro ? (
+                            <CapabilityRequestCard
+                                capability="CRM_PRO"
+                                title={t("adminCustomers.crmProLeadsTitle")}
+                                description={t("adminCustomers.crmProLeadsDescription")}
+                            />
+                        ) : (
+                            <>
                         <div className="grid gap-2 lg:grid-cols-[200px_minmax(0,1fr)_minmax(0,1fr)]">
                             <Select
                                 value={interestSourceFilter}
@@ -795,6 +932,8 @@ export function CustomersCommunicationsSurface() {
                                 ]}
                             />
                         )}
+                            </>
+                        )}
                 </AdminSectionCard>
             </div>
 
@@ -843,13 +982,15 @@ export function CustomersCommunicationsSurface() {
 export function CustomersImportExportSurface() {
     const { t } = useI18n();
     const { companyUser, user } = useAdminAuth();
-    const canImportExport = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "CUSTOMER_IMPORT_EXPORT");
+    const hasCrmPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "CRM_PRO");
+    const canImportExport = hasCrmPro;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [segmentFilter, setSegmentFilter] = useState<CustomerSegmentKey>("ALL");
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
 
@@ -861,14 +1002,17 @@ export function CustomersImportExportSurface() {
     const fetchCustomers = useCallback(async () => {
         setLoading(true);
         try {
-            const rows = await getCustomers(debouncedSearch || undefined);
+            const rows = await getCustomers({
+                search: debouncedSearch || undefined,
+                segment: hasCrmPro ? segmentFilter : "ALL",
+            });
             setCustomers(rows);
         } catch (error: unknown) {
             await notify.error(error instanceof Error ? error.message : t("adminCustomers.loadCustomersFailed"));
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, t]);
+    }, [debouncedSearch, hasCrmPro, segmentFilter, t]);
 
     useEffect(() => {
         void fetchCustomers();
@@ -876,7 +1020,7 @@ export function CustomersImportExportSurface() {
 
     const handleDownloadTemplate = async () => {
         if (!canImportExport) {
-            await notify.warning(t("planEnforcement.availableOnBusiness"));
+            await notify.warning(t("adminCustomers.crmProRequiredToast"));
             return;
         }
 
@@ -890,13 +1034,16 @@ export function CustomersImportExportSurface() {
 
     const handleDownloadExport = async () => {
         if (!canImportExport) {
-            await notify.warning(t("planEnforcement.availableOnBusiness"));
+            await notify.warning(t("adminCustomers.crmProRequiredToast"));
             return;
         }
 
         setExporting(true);
         try {
-            const { blob, fileName } = await downloadCustomersExport(debouncedSearch || undefined);
+            const { blob, fileName } = await downloadCustomersExport({
+                search: debouncedSearch || undefined,
+                segment: segmentFilter,
+            });
             downloadBlob(blob, fileName || `customers-${Date.now()}.csv`);
             await notify.success(t("adminCustomers.exportSuccess", { count: customers.length }));
         } catch (error: unknown) {
@@ -908,7 +1055,7 @@ export function CustomersImportExportSurface() {
 
     const handleImportFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (!canImportExport) {
-            await notify.warning(t("planEnforcement.availableOnBusiness"));
+            await notify.warning(t("adminCustomers.crmProRequiredToast"));
             return;
         }
 
@@ -953,10 +1100,10 @@ export function CustomersImportExportSurface() {
             <CustomersSectionNav />
 
             {!canImportExport ? (
-                <PlanUpgradeNotice
-                    title={t("planEnforcement.featureLockedTitle")}
-                    message={t("planEnforcement.availableOnBusiness")}
-                    feature="CUSTOMER_IMPORT_EXPORT"
+                <CapabilityRequestCard
+                    capability="CRM_PRO"
+                    title={t("adminCustomers.crmProImportExportTitle")}
+                    description={t("adminCustomers.crmProImportExportDescription")}
                 />
             ) : null}
 
@@ -977,10 +1124,26 @@ export function CustomersImportExportSurface() {
                         onSearchChange={setSearchQuery}
                         summary={loading ? t("adminCustomers.loadingExportPreview") : t("adminCustomers.exportPreviewCount", { count: customers.length })}
                         actions={(
-                            <Button type="button" variant="outline" onClick={() => void handleDownloadExport()} disabled={!canImportExport || exporting || loading}>
-                                {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                {t("adminCustomers.downloadClients")}
-                            </Button>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {hasCrmPro ? (
+                                    <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
+                                        <SelectTrigger className="min-w-[220px]">
+                                            <SelectValue placeholder={t("adminCustomers.segmentLabel")} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {CUSTOMER_SEGMENT_OPTIONS.map((option) => (
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {t(option.labelKey)}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : null}
+                                <Button type="button" variant="outline" onClick={() => void handleDownloadExport()} disabled={!canImportExport || exporting || loading}>
+                                    {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                    {t("adminCustomers.downloadClients")}
+                                </Button>
+                            </div>
                         )}
                     />
             </AdminSectionCard>
@@ -1021,11 +1184,12 @@ export function CustomersImportExportSurface() {
 
 export function CustomerProfileSurface({ customerKey }: { customerKey: string }) {
     const { t, locale } = useI18n();
-    const { companyUser } = useAdminAuth();
+    const { companyUser, user } = useAdminAuth();
     const currency = companyUser?.company?.currency;
     const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
     const notAvailable = t("adminCustomers.notAvailable");
     const normalizedCustomerKey = useMemo(() => normalizeCustomerKey(customerKey), [customerKey]);
+    const hasCrmPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "CRM_PRO");
 
     const [customer, setCustomer] = useState<CustomerRecord | null>(null);
     const [loading, setLoading] = useState(true);
@@ -1173,12 +1337,20 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
 
             <CustomersSectionNav />
 
-            <div className="grid gap-3 md:grid-cols-4">
-                <StatCard label={t("adminCustomers.bookings")} value={customer.totalBookings} hint={t("adminCustomers.completedBookingsLabel", { count: customer.completedBookings })} icon={<Clock3 className="h-5 w-5" />} />
-                <StatCard label={t("adminCustomers.totalSpent")} value={formatCurrency(customer.totalSpentCents)} hint={t("adminCustomers.avgTicket", { amount: formatCurrency(customer.avgTicketCents) })} icon={<Download className="h-5 w-5" />} />
-                <StatCard label={t("adminCustomers.lastBooking")} value={formatDate(customer.lastBookingAt, notAvailable, locale)} hint={`${t("adminCustomers.nextBooking")}: ${formatDate(customer.nextBookingAt, notAvailable, locale)}`} icon={<Clock3 className="h-5 w-5" />} />
-                <StatCard label={t("adminCustomers.favoriteStaff")} value={customer.favoriteStaffName || notAvailable} hint={t("adminCustomers.frequencyLabel", { value: customer.bookingFrequencyPerMonth })} icon={<Users className="h-5 w-5" />} />
-            </div>
+            {hasCrmPro ? (
+                <div className="grid gap-3 md:grid-cols-4">
+                    <StatCard label={t("adminCustomers.bookings")} value={customer.totalBookings} hint={t("adminCustomers.completedBookingsLabel", { count: customer.completedBookings })} icon={<Clock3 className="h-5 w-5" />} />
+                    <StatCard label={t("adminCustomers.totalSpent")} value={formatCurrency(customer.totalSpentCents)} hint={t("adminCustomers.avgTicket", { amount: formatCurrency(customer.avgTicketCents) })} icon={<Download className="h-5 w-5" />} />
+                    <StatCard label={t("adminCustomers.lastBooking")} value={formatDate(customer.lastBookingAt, notAvailable, locale)} hint={`${t("adminCustomers.nextBooking")}: ${formatDate(customer.nextBookingAt, notAvailable, locale)}`} icon={<Clock3 className="h-5 w-5" />} />
+                    <StatCard label={t("adminCustomers.favoriteStaff")} value={customer.favoriteStaffName || notAvailable} hint={t("adminCustomers.frequencyLabel", { value: customer.bookingFrequencyPerMonth })} icon={<Users className="h-5 w-5" />} />
+                </div>
+            ) : (
+                <CapabilityRequestCard
+                    capability="CRM_PRO"
+                    title={t("adminCustomers.crmProInsightsTitle")}
+                    description={t("adminCustomers.crmProInsightsDescription")}
+                />
+            )}
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <AdminSectionCard
@@ -1196,14 +1368,18 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                                 {customer.phone ? `${customer.phonePrefix ? `+${customer.phonePrefix} ` : ""}${customer.phone}` : notAvailable}
                             </p>
                         </div>
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.preferenceLabel")}</p>
-                            <p className="mt-1 text-sm text-slate-800">{getCustomerPreference(customer, t("adminCustomers.noPreference"))}</p>
-                        </div>
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.favoriteStaff")}</p>
-                            <p className="mt-1 text-sm text-slate-800">{customer.favoriteStaffName || notAvailable}</p>
-                        </div>
+                        {hasCrmPro ? (
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.preferenceLabel")}</p>
+                                <p className="mt-1 text-sm text-slate-800">{getCustomerPreference(customer, t("adminCustomers.noPreference"))}</p>
+                            </div>
+                        ) : null}
+                        {hasCrmPro ? (
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.favoriteStaff")}</p>
+                                <p className="mt-1 text-sm text-slate-800">{customer.favoriteStaffName || notAvailable}</p>
+                            </div>
+                        ) : null}
                         <div className="sm:col-span-2">
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.recentActivity")}</p>
                             <div className="mt-2 rounded-lg border border-admin-border bg-admin-surface-subtle p-3 text-sm text-slate-700">

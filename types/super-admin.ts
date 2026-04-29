@@ -13,6 +13,53 @@ export interface CompanyType {
 
 export type ShopPlan = "STARTER" | "BUSINESS" | "PRO";
 export type BillingCycle = "MONTHLY" | "YEARLY";
+export type ProductCode =
+    | "RESERVAS"
+    | "EVENTOS"
+    | "CLASES"
+    | "PERSONALIZACION"
+    | "CRM"
+    | "MENSAJERIA"
+    | "METRICAS"
+    | "MARKETPLACE";
+export type ProductTierCode =
+    | "RESERVAS_BASE"
+    | "RESERVAS_PRO"
+    | "EVENTOS_BASE"
+    | "EVENTOS_PRO"
+    | "CLASES_BASE"
+    | "CLASES_PRO"
+    | "PERSONALIZACION_BASE"
+    | "PERSONALIZACION_PLUS"
+    | "CRM_BASE"
+    | "CRM_PRO"
+    | "MENSAJERIA_BASE"
+    | "MENSAJERIA_PRO"
+    | "METRICAS_BASE"
+    | "METRICAS_PRO"
+    | "MARKETPLACE_PLUS";
+
+export interface ActiveCommercialProduct {
+    productCode: ProductCode;
+    productName: string;
+    tierCode: ProductTierCode;
+    tierName: string;
+    isCoreProduct: boolean;
+    includedByDefault: boolean;
+    billingCycle: BillingCycle;
+    pricePaid: string | null;
+    currency: string;
+    availableUntil: string;
+    status: "ACTIVE" | "TRIALING" | "EXPIRED" | "CANCELLED" | "SUSPENDED";
+}
+
+export interface RequestedCommercialProduct {
+    productCode: ProductCode;
+    productName: string;
+    tierCode: ProductTierCode;
+    tierName: string;
+    isCoreProduct: boolean;
+}
 
 export interface SuperAdminShop {
     id: number;
@@ -39,9 +86,26 @@ export interface SuperAdminShop {
     is_active: boolean;
     company_type_id: number;
     company_type?: CompanyType;
+    activeProducts?: ActiveCommercialProduct[];
+    requestedProducts?: RequestedCommercialProduct[];
+    legacyPlanCompatibility?: ShopPlan;
     user_count?: number;
     created_at: string;
     updated_at: string;
+}
+
+export interface CommercialProductPayload {
+    productCode: ProductCode;
+    tierCode: ProductTierCode;
+    billingCycle?: BillingCycle | null;
+    pricePaid?: number | null;
+    currency?: string | null;
+    availableUntil?: string | null;
+}
+
+export interface RequestedProductPayload {
+    productCode: ProductCode;
+    tierCode: ProductTierCode;
 }
 
 export interface CreateShopPayload {
@@ -65,6 +129,9 @@ export interface CreateShopPayload {
     pricePaid?: number | null;
     availableUntil: string;
     isMarketplaceVisible: boolean;
+    activeProducts?: CommercialProductPayload[];
+    requestedProducts?: RequestedProductPayload[];
+    note?: string;
     owner: {
         existingUserId?: string;
         email?: string;

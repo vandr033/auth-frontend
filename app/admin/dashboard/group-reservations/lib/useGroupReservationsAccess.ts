@@ -23,6 +23,10 @@ export function useGroupReservationsAccess() {
             canUseEvents: isSuperAdmin || canUsePlanFeature(companyUser?.company, "GROUP_EVENTS"),
             canUseClasses: isSuperAdmin || canUsePlanFeature(companyUser?.company, "GROUP_CLASSES"),
             canUseAdvanced: isSuperAdmin || canUsePlanFeature(companyUser?.company, "GROUP_ADVANCED"),
+            canAccessGroupReservations:
+                isSuperAdmin ||
+                canUsePlanFeature(companyUser?.company, "GROUP_EVENTS") ||
+                canUsePlanFeature(companyUser?.company, "GROUP_CLASSES"),
             getRequiredPlan: (feature: PlanFeatureKey) => getRequiredPlanForFeature(companyUser?.company, feature),
         }),
         [companyUser?.company, isSuperAdmin, plan, isOwnerOrAdmin],

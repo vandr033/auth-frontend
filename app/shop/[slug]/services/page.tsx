@@ -12,6 +12,7 @@ import { FloatingBookCTA } from "@/components/shop/FloatingBookCTA";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 import { getImageUrl } from "@/utils/image-url";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 
 // Icon mapping for categories
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -46,8 +47,10 @@ export default function ServicesPage() {
         error,
         slug,
         isShopActive,
+        publicFeatures,
     } = useShop();
     const t = useT();
+    const canSeeServices = getShopPublicFeatures(company).servicesVisible || publicFeatures.servicesVisible;
 
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
@@ -89,6 +92,21 @@ export default function ServicesPage() {
 
     if (!isShopActive) {
         return <ShopUnavailableState slug={slug} />;
+    }
+
+    if (!canSeeServices) {
+        return (
+            <main className="min-h-screen bg-page text-text-main">
+                <section className="mx-auto max-w-4xl px-4 py-20 text-center md:px-8">
+                    <h1 className="text-3xl font-bold text-text-main">{t('shopNav.services')}</h1>
+                    <p className="mt-3 text-sm text-text-muted">{t('shopServices.notAvailable')}</p>
+                    <Button asChild className="mt-6 bg-brand text-white hover:bg-brand-hover">
+                        <Link href={`/shop/${slug}`}>{t('shopGroup.actions.backToShop')}</Link>
+                    </Button>
+                </section>
+                <ShopFooter />
+            </main>
+        );
     }
 
     const heroImage = getImageUrl(company.home_hero_image_url);

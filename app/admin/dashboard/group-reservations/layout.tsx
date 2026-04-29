@@ -14,7 +14,7 @@ export default function GroupReservationsLayout({
     children: React.ReactNode;
 }) {
     const t = useT();
-    const { plan, canUseEvents, getRequiredPlan, isOwnerOrAdmin } = useGroupReservationsAccess();
+    const { plan, canAccessGroupReservations, canUseClasses, getRequiredPlan, isOwnerOrAdmin } = useGroupReservationsAccess();
 
     if (!isOwnerOrAdmin) {
         return (
@@ -32,8 +32,8 @@ export default function GroupReservationsLayout({
         );
     }
 
-    if (!canUseEvents) {
-        const requiredPlan = getRequiredPlan("GROUP_EVENTS");
+    if (!canAccessGroupReservations) {
+        const requiredPlan = getRequiredPlan(canUseClasses ? "GROUP_CLASSES" : "GROUP_EVENTS");
         return (
             <AdminPageShell>
                 <AdminPageHeader
@@ -43,7 +43,7 @@ export default function GroupReservationsLayout({
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
-                    feature="GROUP_EVENTS"
+                    feature={canUseClasses ? "GROUP_CLASSES" : "GROUP_EVENTS"}
                     currentPlan={plan}
                     requiredPlan={requiredPlan}
                     fullPage

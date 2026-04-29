@@ -23,22 +23,31 @@ import { ImageUpload } from "@/components/admin/ImageUpload";
 import { SocialLinksForm } from "@/components/admin/settings/SocialLinksForm";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT, SUPPORTED_LOCALES } from "@/lib/i18n";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { canUseEntitledFeature } from "@/lib/plans/capabilities";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { RequestProductCTA } from "@/components/admin/product/RequestProductCTA";
+import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
 import type { SocialLinks } from "@/types/shop";
 import type {
+    ShopPendingProductRequestItem,
+    ShopProductHistoryItem,
     ShopSubscriptionHistoryItem,
     ShopSubscriptionSnapshot,
 } from "@/types/subscription-history";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { notify } from "@/lib/notify";
 import { resolveApiUrl } from "@/lib/api-url";
+import { normalizeApiError } from "@/lib/api-error";
 import {
     LocationPicker,
     type LocationAutofillUpdate,
 } from "@/components/admin/location/LocationPicker";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { AdminPageHeader, AdminPageShell, ErrorBanner } from "@/components/admin/shared";
+import {
+    getProductAccessRecommendationForCapability,
+    hasProductCapability,
+} from "@/lib/product-access";
 
 type SettingsTab = "booking" | "payments" | "subscription";
 
@@ -145,6 +154,42 @@ function formatChangePair(previousValue: string, nextValue: string): string {
     return `${previousValue} → ${nextValue}`;
 }
 
+function formatProductHistoryValue(value: unknown): string {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return "—";
+
+    const record = value as {
+        productName?: string;
+        tierName?: string;
+        tierCode?: string;
+        requestedProducts?: Array<{ tierName?: string }>;
+    };
+
+    if (record.productName && record.tierName) {
+        return `${record.productName} • ${record.tierName}`;
+    }
+
+    if (Array.isArray(record.requestedProducts)) {
+        return record.requestedProducts
+            .map((product) => product.tierName)
+            .filter(Boolean)
+            .join(", ") || "—";
+    }
+
+    if (typeof record.tierCode === "string") {
+        return record.tierCode.replaceAll("_", " ");
+    }
+
+    return "—";
+}
+
+function formatProductHistoryAction(action: string): string {
+    return action
+        .toLowerCase()
+        .split("_")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+}
+
 const PLAN_LABEL_KEY: Record<string, string> = {
     STARTER: "adminSettings.planStarter",
     BUSINESS: "adminSettings.planBusiness",
@@ -156,6 +201,26 @@ const BILLING_LABEL_KEY: Record<string, string> = {
     YEARLY: "adminSettings.billingYearly",
 };
 
+function MessagingCapabilityRow({
+    label,
+    description,
+    checked,
+}: {
+    label: string;
+    description: string;
+    checked: boolean;
+}) {
+    return (
+        <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5 pr-4">
+                <Label className="text-base">{label}</Label>
+                <p className="text-sm text-slate-500">{description}</p>
+            </div>
+            <Switch checked={checked} disabled />
+        </div>
+    );
+}
+
 export default function SettingsPage({
     initialTab = "booking",
     visibleTabs = ["booking", "payments", "subscription"],
@@ -164,8 +229,16 @@ export default function SettingsPage({
 }: SettingsPageProps) {
     const { companyId, companyUser, user, isAuthenticated, loading: authLoading } = useAdminAuth();
     const t = useT();
-    const canUseNotifications = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
-    const canCustomizeBookingFlow = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
+    const isSuperAdmin = Boolean(user?.is_super_admin);
+    const capabilities = companyUser?.company?.capabilities;
+    const canUseBasicMessaging = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_BASE");
+    const hasMessagingPro = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_PRO");
+    const hasMessagingReminders = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_REMINDERS");
+    const hasMessagingReviewRequests = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_REVIEW_REQUESTS");
+    const hasMessagingCampaigns = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_CAMPAIGNS");
+    const hasBulkMessaging = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_BULK_WHATSAPP");
+    const canCustomizeBookingFlow = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
+    const messagingBaseRecommendation = getProductAccessRecommendationForCapability("MENSAJERIA_BASE");
     const visibleTabSet = useMemo(() => new Set<SettingsTab>(visibleTabs), [visibleTabs]);
     const showStorefrontHandoff = visibleTabs.some((tab) => tab !== "subscription");
     const showSaveActions = visibleTabs.some((tab) => tab !== "subscription");
@@ -173,6 +246,8 @@ export default function SettingsPage({
     const [settings, setSettings] = useState<CompanySettings>(initialSettings);
     const [subscriptionSummary, setSubscriptionSummary] = useState<ShopSubscriptionSnapshot | null>(null);
     const [subscriptionHistory, setSubscriptionHistory] = useState<ShopSubscriptionHistoryItem[]>([]);
+    const [productHistory, setProductHistory] = useState<ShopProductHistoryItem[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<ShopPendingProductRequestItem[]>([]);
     const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -253,16 +328,22 @@ export default function SettingsPage({
             if (historyPayload.company) {
                 setSubscriptionSummary(historyPayload.company);
                 setSubscriptionHistory(Array.isArray(historyPayload.history) ? historyPayload.history : []);
+                setProductHistory(Array.isArray(historyPayload.productHistory) ? historyPayload.productHistory : []);
+                setPendingRequests(Array.isArray(historyPayload.pendingRequests) ? historyPayload.pendingRequests : []);
                 setSubscriptionError(null);
             } else {
                 setSubscriptionSummary(null);
                 setSubscriptionHistory([]);
+                setProductHistory([]);
+                setPendingRequests([]);
                 setSubscriptionError(t("adminSettings.historyLoadFailed"));
             }
 
         } catch (err) {
             console.error("Failed to fetch settings:", err);
             void notify.error(t("adminSettings.failedToLoad"));
+            setProductHistory([]);
+            setPendingRequests([]);
             setSubscriptionError(t("adminSettings.historyLoadFailed"));
         } finally {
             setLoading(false);
@@ -357,7 +438,8 @@ export default function SettingsPage({
                 });
 
                 if (!uploadRes.ok) {
-                    throw new Error(t('adminSettings.uploadQrFailed'));
+                    const uploadPayload = await uploadRes.json().catch(() => null);
+                    throw normalizeApiError(uploadPayload, uploadRes.status, t('adminSettings.uploadQrFailed'));
                 }
 
                 const uploadData = await uploadRes.json();
@@ -422,11 +504,11 @@ export default function SettingsPage({
 
             if (!companyRes.ok) {
                 const errorData = await companyRes.json().catch(() => ({}));
-                throw new Error(errorData.message || t('adminSettings.saveSettingsFailed'));
+                throw normalizeApiError(errorData, companyRes.status, t('adminSettings.saveSettingsFailed'));
             }
             if (!settingsRes.ok) {
                 const errorData = await settingsRes.json().catch(() => ({}));
-                throw new Error(errorData.message || t('adminSettings.saveConfigFailed'));
+                throw normalizeApiError(errorData, settingsRes.status, t('adminSettings.saveConfigFailed'));
             }
 
             // Update state with new URL if uploaded
@@ -966,19 +1048,23 @@ export default function SettingsPage({
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <Bell className="h-5 w-5 text-slate-500" />
-                                <CardTitle>{t('adminSettings.notifications')}</CardTitle>
+                                <CardTitle>{t('adminSettings.messagingBasic')}</CardTitle>
                             </div>
-                            <CardDescription>{t('adminSettings.notificationsDesc')}</CardDescription>
+                            <CardDescription>{t('adminSettings.messagingBasicDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {!canUseNotifications && (
-                                <PlanUpgradeNotice
-                                    title={t("planEnforcement.featureLockedTitle")}
-                                    message={t("planEnforcement.availableOnBusiness")}
-                                    feature="TRANSACTIONAL_BOOKING_NOTIFICATIONS"
+                            {!canUseBasicMessaging ? (
+                                <RequestProductCTA
+                                    productCode={messagingBaseRecommendation.productCode}
+                                    tierCode={messagingBaseRecommendation.tierCode}
+                                    capability={messagingBaseRecommendation.capability}
+                                    title={t("adminSettings.messagingBasicLockedTitle")}
+                                    description={t("adminSettings.messagingBasicLockedDescription")}
+                                    ctaLabel={messagingBaseRecommendation.ctaLabel}
+                                    source="SETTINGS_LOCKED_CONTROL"
                                 />
-                            )}
-                            <div className={`flex items-center justify-between rounded-lg border p-4 ${!canUseNotifications ? "opacity-50" : ""}`}>
+                            ) : null}
+                            <div className={`flex items-center justify-between rounded-lg border p-4 ${!canUseBasicMessaging ? "opacity-50" : ""}`}>
                                 <div className="space-y-0.5">
                                     <Label className="text-base">{t('adminSettings.emailNotifications')}</Label>
                                     <p className="text-sm text-slate-500">
@@ -988,10 +1074,10 @@ export default function SettingsPage({
                                 <Switch
                                     checked={settings.send_email_notifications}
                                     onCheckedChange={(checked) => handleChange('send_email_notifications', checked)}
-                                    disabled={!canUseNotifications}
+                                    disabled={!canUseBasicMessaging}
                                 />
                             </div>
-                            <div className={`flex items-center justify-between rounded-lg border p-4 ${!canUseNotifications ? "opacity-50" : ""}`}>
+                            <div className={`flex items-center justify-between rounded-lg border p-4 ${!canUseBasicMessaging ? "opacity-50" : ""}`}>
                                 <div className="space-y-0.5">
                                     <Label className="text-base">{t('adminSettings.whatsappNotifications')}</Label>
                                     <p className="text-sm text-slate-500">
@@ -1001,9 +1087,63 @@ export default function SettingsPage({
                                 <Switch
                                     checked={settings.send_whatsapp_notifications}
                                     onCheckedChange={(checked) => handleChange('send_whatsapp_notifications', checked)}
-                                    disabled={!canUseNotifications}
+                                    disabled={!canUseBasicMessaging}
                                 />
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-2">
+                                <Bell className="h-5 w-5 text-slate-500" />
+                                <CardTitle>{t('adminSettings.communicationAutomation')}</CardTitle>
+                            </div>
+                            <CardDescription>{t('adminSettings.communicationAutomationDesc')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {!hasMessagingPro ? (
+                                <EntitlementLockedCard
+                                    title={t("adminSettings.communicationAutomation")}
+                                    description={t("adminSettings.communicationAutomationDesc")}
+                                    capability="MENSAJERIA_PRO"
+                                    source="SETTINGS_LOCKED_CONTROL"
+                                    notice={t("entitlements.messagingProLocked")}
+                                    compact
+                                />
+                            ) : null}
+
+                            <MessagingCapabilityRow
+                                label={t("adminSettings.automaticReminders")}
+                                description={t("adminSettings.automaticRemindersDesc")}
+                                checked={hasMessagingReminders}
+                            />
+                            <MessagingCapabilityRow
+                                label={t("adminSettings.reviewRequests")}
+                                description={t("adminSettings.reviewRequestsDesc")}
+                                checked={hasMessagingReviewRequests}
+                            />
+                            <MessagingCapabilityRow
+                                label={t("adminSettings.bulkMessages")}
+                                description={t("adminSettings.bulkMessagesDesc")}
+                                checked={hasBulkMessaging}
+                            />
+                            <MessagingCapabilityRow
+                                label={t("adminSettings.campaigns")}
+                                description={t("adminSettings.campaignsDesc")}
+                                checked={hasMessagingCampaigns}
+                            />
+                            <MessagingCapabilityRow
+                                label={t("adminSettings.templates")}
+                                description={t("adminSettings.templatesDesc")}
+                                checked={hasMessagingPro}
+                            />
+
+                            {hasMessagingPro ? (
+                                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                                    {t("adminSettings.messagingProEnabledHint")}
+                                </p>
+                            ) : null}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -1103,40 +1243,103 @@ export default function SettingsPage({
                     <Card>
                         <CardHeader>
                             <CardTitle>{t('adminSettings.planHistory')}</CardTitle>
-                            <CardDescription>{t('adminSettings.subscriptionChanges')}</CardDescription>
+                            <CardDescription>{t('adminSettings.billingSubtitle')}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {subscriptionSummary ? (
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="rounded-lg border p-4">
-                                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.currentPlan')}</p>
-                                        <p className="text-sm font-semibold text-slate-900">{t(PLAN_LABEL_KEY[subscriptionSummary.plan] ?? 'adminSettings.planStarter')}</p>
+                                <div className="space-y-4">
+                                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                        <div className="rounded-lg border p-4">
+                                            <p className="text-xs uppercase tracking-wide text-slate-500">Productos activos</p>
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {subscriptionSummary.activeProducts
+                                                    .filter((product) => product.isCoreProduct)
+                                                    .map((product) => product.tierName)
+                                                    .join(", ") || "—"}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border p-4">
+                                            <p className="text-xs uppercase tracking-wide text-slate-500">Add-ons activos</p>
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {subscriptionSummary.activeProducts
+                                                    .filter((product) => !product.isCoreProduct)
+                                                    .map((product) => product.tierName)
+                                                    .join(", ") || "—"}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border p-4">
+                                            <p className="text-xs uppercase tracking-wide text-slate-500">Solicitudes pendientes</p>
+                                            <p className="text-sm font-semibold text-slate-900">{pendingRequests.length}</p>
+                                        </div>
+                                        <div className="rounded-lg border p-4">
+                                            <p className="text-xs uppercase tracking-wide text-slate-500">Compatibilidad legacy</p>
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {subscriptionSummary.legacyPlanCompatibility}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="rounded-lg border p-4">
-                                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.billingCycle')}</p>
-                                        <p className="text-sm font-semibold text-slate-900">{t(BILLING_LABEL_KEY[subscriptionSummary.billingCycle] ?? 'adminSettings.billingMonthly')}</p>
+
+                                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                        <div className="rounded-lg border p-4">
+                                            <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.billingCycle')}</p>
+                                            <p className="text-sm font-semibold text-slate-900">{t(BILLING_LABEL_KEY[subscriptionSummary.billingCycle] ?? 'adminSettings.billingMonthly')}</p>
+                                        </div>
+                                        <div className="rounded-lg border p-4">
+                                            <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.availableUntil')}</p>
+                                            <p className="text-sm font-semibold text-slate-900">{formatDateTime(subscriptionSummary.availableUntil)}</p>
+                                        </div>
+                                        <div className="rounded-lg border p-4">
+                                            <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.pricePaid')}</p>
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {formatPrice(subscriptionSummary.pricePaid, settings.currency)}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border p-4">
+                                            <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.expirationStatus')}</p>
+                                            <Badge className={subscriptionSummary.isExpired ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}>
+                                                {subscriptionSummary.isExpired ? t('adminSettings.expired') : t('adminSettings.active')}
+                                            </Badge>
+                                        </div>
                                     </div>
-                                    <div className="rounded-lg border p-4">
-                                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.availableUntil')}</p>
-                                        <p className="text-sm font-semibold text-slate-900">{formatDateTime(subscriptionSummary.availableUntil)}</p>
-                                    </div>
-                                    <div className="rounded-lg border p-4">
-                                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.expirationStatus')}</p>
-                                        <Badge className={subscriptionSummary.isExpired ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}>
-                                            {subscriptionSummary.isExpired ? t('adminSettings.expired') : t('adminSettings.active')}
-                                        </Badge>
-                                    </div>
-                                    <div className="rounded-lg border p-4">
-                                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.pricePaid')}</p>
-                                        <p className="text-sm font-semibold text-slate-900">
-                                            {formatPrice(subscriptionSummary.pricePaid, settings.currency)}
-                                        </p>
-                                    </div>
-                                    <div className="rounded-lg border p-4">
-                                        <p className="text-xs uppercase tracking-wide text-slate-500">{t('adminSettings.visibleInMarketplace')}</p>
-                                        <p className="text-sm font-semibold text-slate-900">
-                                            {subscriptionSummary.isMarketplaceVisible ? t('superAdminShops.yes') : t('superAdminShops.no')}
-                                        </p>
+
+                                    <div className="overflow-x-auto rounded-lg border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Producto</TableHead>
+                                                    <TableHead>Tipo</TableHead>
+                                                    <TableHead>{t('adminSettings.billingCycle')}</TableHead>
+                                                    <TableHead>{t('adminSettings.availableUntil')}</TableHead>
+                                                    <TableHead>{t('adminSettings.pricePaid')}</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {subscriptionSummary.activeProducts.length === 0 ? (
+                                                    <TableRow>
+                                                        <TableCell colSpan={5} className="py-6 text-center text-slate-500">
+                                                            No hay productos activos.
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ) : (
+                                                    subscriptionSummary.activeProducts.map((product) => (
+                                                        <TableRow key={`${product.productCode}-${product.tierCode}`}>
+                                                            <TableCell>{product.productName}</TableCell>
+                                                            <TableCell>
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <span>{product.tierName}</span>
+                                                                    <Badge variant="secondary">
+                                                                        {product.isCoreProduct ? "Core" : "Add-on"}
+                                                                    </Badge>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>{t(BILLING_LABEL_KEY[product.billingCycle] ?? 'adminSettings.billingMonthly')}</TableCell>
+                                                            <TableCell>{formatDateTime(product.availableUntil)}</TableCell>
+                                                            <TableCell>{formatPrice(product.pricePaid, product.currency || settings.currency)}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                )}
+                                            </TableBody>
+                                        </Table>
                                     </div>
                                 </div>
                             ) : null}
@@ -1145,7 +1348,107 @@ export default function SettingsPage({
 
                     <Card>
                         <CardHeader>
+                            <CardTitle>Solicitudes pendientes</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {subscriptionError ? (
+                                <ErrorBanner description={subscriptionError} />
+                            ) : (
+                                <div className="overflow-x-auto rounded-lg border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Solicitada</TableHead>
+                                                <TableHead>Producto</TableHead>
+                                                <TableHead>Tier</TableHead>
+                                                <TableHead>Origen</TableHead>
+                                                <TableHead>Mensaje</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {pendingRequests.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={5} className="py-6 text-center text-slate-500">
+                                                        No hay solicitudes pendientes.
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                pendingRequests.map((entry) => (
+                                                    <TableRow key={entry.id}>
+                                                        <TableCell>
+                                                            <div className="space-y-1">
+                                                                <p>{formatDateTime(entry.createdAt)}</p>
+                                                                <p className="text-xs text-slate-500">
+                                                                    {entry.requestedBy?.displayName || entry.requestedBy?.email || "—"}
+                                                                </p>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>{entry.productName}</TableCell>
+                                                        <TableCell>{entry.tierName}</TableCell>
+                                                        <TableCell>{entry.source}</TableCell>
+                                                        <TableCell>{entry.message || "—"}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Historial de productos</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {subscriptionError ? (
+                                <ErrorBanner description={subscriptionError} />
+                            ) : (
+                                <div className="overflow-x-auto rounded-lg border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>{t('adminSettings.changedAt')}</TableHead>
+                                                <TableHead>{t('adminSettings.changedBy')}</TableHead>
+                                                <TableHead>Acción</TableHead>
+                                                <TableHead>Anterior</TableHead>
+                                                <TableHead>Nuevo</TableHead>
+                                                <TableHead>Origen</TableHead>
+                                                <TableHead>{t('adminSettings.note')}</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {productHistory.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={7} className="py-6 text-center text-slate-500">
+                                                        No hay cambios de productos todavía.
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                productHistory.map((entry) => (
+                                                    <TableRow key={entry.id}>
+                                                        <TableCell>{formatDateTime(entry.timestamp)}</TableCell>
+                                                        <TableCell>{entry.actor?.displayName || entry.actor?.email || t('adminSettings.systemActor')}</TableCell>
+                                                        <TableCell>{formatProductHistoryAction(entry.action)}</TableCell>
+                                                        <TableCell>{formatProductHistoryValue(entry.previousValue)}</TableCell>
+                                                        <TableCell>{formatProductHistoryValue(entry.newValue)}</TableCell>
+                                                        <TableCell>{entry.source || "—"}</TableCell>
+                                                        <TableCell>{entry.note || "—"}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
                             <CardTitle>{t('adminSettings.subscriptionChanges')}</CardTitle>
+                            <CardDescription>Cambios legacy conservados por compatibilidad administrativa.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {subscriptionError ? (
@@ -1211,6 +1514,54 @@ export default function SettingsPage({
                             )}
                         </CardContent>
                     </Card>
+
+                    {subscriptionSummary ? (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Solicitar productos adicionales</CardTitle>
+                                <CardDescription>
+                                    Si necesitas ampliar el stack de tu negocio, puedes enviar una solicitud desde aquí.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {[
+                                    "EVENTOS",
+                                    "CLASES",
+                                    "CRM",
+                                    "MENSAJERIA",
+                                ].map((productCode) => {
+                                    const alreadyCovered =
+                                        subscriptionSummary.activeProducts.some((product) => product.productCode === productCode) ||
+                                        subscriptionSummary.requestedProducts.some((product) => product.productCode === productCode);
+
+                                    if (alreadyCovered) return null;
+
+                                    const recommendation = getProductAccessRecommendationForCapability(
+                                        productCode === "EVENTOS"
+                                            ? "EVENTOS_BASE"
+                                            : productCode === "CLASES"
+                                                ? "CLASES_PRO"
+                                                : productCode === "CRM"
+                                                    ? "CRM_PRO"
+                                                    : "MENSAJERIA_PRO",
+                                    );
+
+                                    return (
+                                        <RequestProductCTA
+                                            key={productCode}
+                                            productCode={recommendation.productCode}
+                                            tierCode={recommendation.tierCode}
+                                            capability={recommendation.capability}
+                                            title={recommendation.title}
+                                            description={recommendation.description}
+                                            ctaLabel={recommendation.ctaLabel}
+                                            source="SETTINGS_LOCKED_CONTROL"
+                                        />
+                                    );
+                                })}
+                            </CardContent>
+                        </Card>
+                    ) : null}
                 </TabsContent>
             </Tabs>
 

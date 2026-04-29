@@ -10,7 +10,7 @@ import { useSearchParams } from "next/navigation";
 import { useShop } from "../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 import { ShopFooter } from "@/components/shop/ShopFooter";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { listPublicEvents, type PublicGroupEvent } from "@/app/shop/lib/groupReservationsApi";
 import { GroupEventCard } from "@/app/shop/components/group/GroupPublicCards";
 import { isEventSoldOut } from "@/app/shop/lib/groupReservationsFormat";
@@ -22,8 +22,8 @@ export default function ShopEventsPage() {
   const t = useT();
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const { company, slug, isShopActive, loading, error } = useShop();
-  const canSeeEvents = canUsePlanFeature(company, "GROUP_EVENTS");
+  const { company, slug, isShopActive, loading, error, publicFeatures } = useShop();
+  const canSeeEvents = getShopPublicFeatures(company).eventsVisible || publicFeatures.eventsVisible;
 
   // Read initial filter from URL (?free=true)
   const [activeFilter, setActiveFilter] = React.useState<EventFilter>(

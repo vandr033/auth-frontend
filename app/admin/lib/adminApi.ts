@@ -1,5 +1,13 @@
 import { AdminBooking, BookingStatus } from "@/types/admin-booking";
 import { resolveBackendUrl } from "@/lib/api-url";
+import { normalizeApiError } from "@/lib/api-error";
+import type {
+    ProductAccessRequestRow,
+    ProductAccessRequestSource,
+    ProductCapability,
+    ProductCode,
+    ProductTierCode,
+} from "@/types/product-access";
 
 // Generic fetch wrapper with auth
 async function apiFetch<T>(
@@ -18,14 +26,56 @@ async function apiFetch<T>(
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-        const message =
-            (typeof data?.message === "string" && data.message) ||
-            (typeof data?.error === "string" && data.error) ||
-            `Request failed: ${response.status}`;
-        throw new Error(message);
+        throw normalizeApiError(data, response.status, `Request failed: ${response.status}`);
     }
 
     return data;
+}
+
+export async function getAdminProductAccessRequests(params?: {
+    productCode?: ProductCode;
+}): Promise<ProductAccessRequestRow[]> {
+    const query = new URLSearchParams();
+    if (params?.productCode) {
+        query.set("productCode", params.productCode);
+    }
+
+    const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
+    const response = await apiFetch<{ data: { rows: ProductAccessRequestRow[] } }>(
+        `/api/admin/product-requests${suffix}`,
+    );
+
+    return response.data.rows;
+}
+
+export async function createAdminProductAccessRequest(input: {
+    productCode: ProductCode;
+    tierCode: ProductTierCode;
+    capability?: ProductCapability;
+    message?: string;
+    source: ProductAccessRequestSource;
+}): Promise<{
+    request: ProductAccessRequestRow;
+    alreadyPending?: boolean;
+}> {
+    const response = await fetch(resolveBackendUrl("/api/admin/product-requests"), {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(input),
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+        throw normalizeApiError(payload, response.status, `Request failed: ${response.status}`);
+    }
+
+    return {
+        request: payload.data.request as ProductAccessRequestRow,
+        alreadyPending: payload.data.alreadyPending as boolean | undefined,
+    };
 }
 
 export type AdminUploadImageType =
@@ -63,11 +113,7 @@ export async function uploadAdminImage(params: {
 
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
-        const message =
-            (typeof payload?.message === "string" && payload.message) ||
-            (typeof payload?.error === "string" && payload.error) ||
-            `Upload failed: ${response.status}`;
-        throw new Error(message);
+        throw normalizeApiError(payload, response.status, `Upload failed: ${response.status}`);
     }
 
     const url = payload?.data?.url ?? payload?.url;
@@ -141,9 +187,32 @@ export interface CustomerRecord {
     };
 }
 
-export async function getCustomers(search?: string): Promise<CustomerRecord[]> {
-    const params = search ? `?search=${encodeURIComponent(search)}` : "";
-    const response = await apiFetch<{ data: CustomerRecord[] }>(`/api/admin/customers${params}`);
+export type CustomerSegmentKey =
+    | "ALL"
+    | "RETURNING"
+    | "INACTIVE_90_DAYS"
+    | "UPCOMING"
+    | "HIGH_VALUE";
+
+export async function getCustomers(
+    params?: string | {
+        search?: string;
+        segment?: CustomerSegmentKey;
+    },
+): Promise<CustomerRecord[]> {
+    const normalizedParams = typeof params === "string"
+        ? { search: params }
+        : (params ?? {});
+    const query = new URLSearchParams();
+    if (normalizedParams.search) {
+        query.set("search", normalizedParams.search);
+    }
+    if (normalizedParams.segment && normalizedParams.segment !== "ALL") {
+        query.set("segment", normalizedParams.segment);
+    }
+
+    const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
+    const response = await apiFetch<{ data: CustomerRecord[] }>(`/api/admin/customers${suffix}`);
     return response.data;
 }
 
@@ -321,6 +390,7 @@ export async function importCustomersFile(file: File): Promise<CustomerImportRes
 export async function sendMassCustomerMessage(payload: {
     message: string;
     search?: string;
+    segment?: CustomerSegmentKey;
 }): Promise<MassCustomerMessageResult> {
     const response = await apiFetch<{ data: MassCustomerMessageResult }>("/api/admin/customers/mass-message", {
         method: "POST",
@@ -339,9 +409,20 @@ export async function downloadCustomerImportTemplate(): Promise<Blob> {
     return response.blob();
 }
 
-export async function downloadCustomersExport(search?: string): Promise<{ blob: Blob; fileName: string | null }> {
-    const query = search ? `?search=${encodeURIComponent(search)}` : "";
-    const response = await fetch(resolveBackendUrl(`/api/admin/customers/export${query}`), {
+export async function downloadCustomersExport(params?: {
+    search?: string;
+    segment?: CustomerSegmentKey;
+}): Promise<{ blob: Blob; fileName: string | null }> {
+    const query = new URLSearchParams();
+    if (params?.search) {
+        query.set("search", params.search);
+    }
+    if (params?.segment && params.segment !== "ALL") {
+        query.set("segment", params.segment);
+    }
+
+    const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
+    const response = await fetch(resolveBackendUrl(`/api/admin/customers/export${suffix}`), {
         credentials: "include",
     });
 

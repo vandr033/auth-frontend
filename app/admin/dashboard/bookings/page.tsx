@@ -52,9 +52,10 @@ import {
     DaySchedule,
 } from "@/app/admin/lib/adminApi";
 import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
-import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
+import { canUseEntitledFeature } from "@/lib/plans/capabilities";
+import { LockedFeatureButton } from "@/components/admin/product/LockedFeatureButton";
 import { notify } from "@/lib/notify";
+import { getProductAccessRecommendationForCapability } from "@/lib/product-access";
 import {
     AdminMetricGrid,
     AdminPageHeader,
@@ -82,9 +83,11 @@ export default function BookingsPage() {
     const dateFnsLocale = getDateLocale(locale);
     const isStaffRole = role === "STAFF";
     const currency = companyUser?.company?.currency;
-    const canSendReminders = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "BOOKING_REMINDERS");
+    const canSendReminders = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_REMINDERS");
     const canSendTransactionalNotifications =
-        Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
+        Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
+    const remindersRecommendation = getProductAccessRecommendationForCapability("MENSAJERIA_REMINDERS");
+    const transactionalMessagingRecommendation = getProductAccessRecommendationForCapability("MENSAJERIA_BASE");
 
     // View State
     const [viewMode, setViewMode] = useState<"calendar" | "month" | "list">(isStaffRole ? "list" : "calendar");
@@ -288,7 +291,11 @@ export default function BookingsPage() {
         payload: { channel: NoShowNotificationChannel; message?: string }
     ) => {
         if (!canSendTransactionalNotifications) {
-            throw new Error(t("planEnforcement.availableOnBusiness"));
+            throw new Error(
+                t("entitlements.requiresProduct", {
+                    productName: transactionalMessagingRecommendation.requestLabel,
+                }),
+            );
         }
         const result = await sendNoShowNotification(id, payload);
         if (result.status !== "SENT") {
@@ -299,7 +306,6 @@ export default function BookingsPage() {
     const handleSendTodayReminders = useCallback(async () => {
         if (isSendingReminders) return;
         if (!canSendReminders) {
-            setReminderStatusText(t("planEnforcement.availableOnBusiness"));
             return;
         }
 
@@ -427,19 +433,32 @@ export default function BookingsPage() {
                 actions={
                     !isStaffRole ? (
                         <>
-                            <Button
-                                variant="outline"
-                                onClick={() => void handleSendTodayReminders()}
-                                disabled={isSendingReminders || !canSendReminders}
-                                className="w-full border-admin-border-strong bg-admin-surface text-admin-brand hover:bg-admin-brand-soft sm:w-auto"
-                            >
-                                {isSendingReminders ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <BellRing className="h-4 w-4" />
-                                )}
-                                {t("adminBookings.sendTodayReminders")}
-                            </Button>
+                            {canSendReminders ? (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => void handleSendTodayReminders()}
+                                    disabled={isSendingReminders}
+                                    className="w-full border-admin-border-strong bg-admin-surface text-admin-brand hover:bg-admin-brand-soft sm:w-auto"
+                                >
+                                    {isSendingReminders ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <BellRing className="h-4 w-4" />
+                                    )}
+                                    {t("adminBookings.sendTodayReminders")}
+                                </Button>
+                            ) : (
+                                <LockedFeatureButton
+                                    capability="MENSAJERIA_REMINDERS"
+                                    title={t("entitlements.requiresProduct", {
+                                        productName: remindersRecommendation.requestLabel,
+                                    })}
+                                    description={t("adminSettings.communicationAutomationDesc")}
+                                    buttonLabel={t("adminBookings.sendTodayReminders")}
+                                    source="ADMIN_LOCKED_PAGE"
+                                    className="border-admin-border-strong"
+                                />
+                            )}
 
                             <Button onClick={() => setIsNewBookingOpen(true)} className="w-full bg-admin-brand text-white shadow-sm hover:bg-admin-brand-hover sm:w-auto">
                                 <Plus className="h-4 w-4" /> {t("adminBookings.newBooking")}
@@ -448,14 +467,6 @@ export default function BookingsPage() {
                     ) : null
                 }
             />
-
-            {!isStaffRole && !canSendReminders && (
-                <PlanUpgradeNotice
-                    title={t("planEnforcement.featureLockedTitle")}
-                    message={t("planEnforcement.availableOnBusiness")}
-                    feature="BOOKING_REMINDERS"
-                />
-            )}
 
             {!isStaffRole && (isSendingReminders || reminderSummary || reminderStatusText) && (
                 <ProgressPanel
@@ -709,7 +720,9 @@ export default function BookingsPage() {
                 onMarkNoShow={handleMarkNoShow}
                 onSendNoShowNotification={handleSendNoShowNotification}
                 canSendNoShowNotification={canSendTransactionalNotifications}
-                noShowNotificationUpgradeMessage={t("planEnforcement.availableOnBusiness")}
+                noShowNotificationUpgradeMessage={t("entitlements.requiresProduct", {
+                    productName: transactionalMessagingRecommendation.requestLabel,
+                })}
                 onRefresh={fetchBookings}
             />
         </AdminPageShell>

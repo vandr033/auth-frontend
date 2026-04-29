@@ -32,6 +32,7 @@ import {
     MapPin,
     Search,
     MessageSquare,
+    Shield,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { formatCurrencyFromCents } from "@/lib/currency";
@@ -627,7 +628,7 @@ export default function SuperAdminDashboard() {
             </Card>
 
             {/* Quick Links */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
                 <Link href="/admin/super-admin/shops">
                     <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                         <CardContent className="pt-6">
@@ -704,6 +705,24 @@ export default function SuperAdminDashboard() {
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-900">
                                         {t("superAdminDashboard.manageAllUsers")}
+                                    </p>
+                                </div>
+                                <ArrowRight className="h-4 w-4 text-slate-400" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
+
+                <Link href="/admin/super-admin/product-requests">
+                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                        <CardContent className="pt-6">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-lg bg-admin-brand-soft flex items-center justify-center">
+                                    <Shield className="h-5 w-5 text-admin-brand" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-medium text-slate-900">
+                                        {t("superAdminProductRequests.title")}
                                     </p>
                                 </div>
                                 <ArrowRight className="h-4 w-4 text-slate-400" />
