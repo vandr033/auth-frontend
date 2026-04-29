@@ -1,5 +1,5 @@
 import type { CompanyCapabilities } from "@/lib/plans/capabilities";
-import type { ProductCapability, ProductTierCode } from "@/types/product-access";
+import type { ProductCapability, ProductCode, ProductTierCode } from "@/types/product-access";
 import { getAdminNavigationCatalog } from "./navigation";
 
 type NavigationFixture = {
@@ -39,6 +39,17 @@ const ALL_PRODUCT_CAPABILITIES: ProductCapability[] = [
     "METRICAS_REVIEW_ANALYTICS",
 ];
 
+function getProductCodeFromTier(tierCode: ProductTierCode): ProductCode {
+    if (tierCode.startsWith("RESERVAS")) return "RESERVAS";
+    if (tierCode.startsWith("EVENTOS")) return "EVENTOS";
+    if (tierCode.startsWith("CLASES")) return "CLASES";
+    if (tierCode.startsWith("CRM")) return "CRM";
+    if (tierCode.startsWith("MENSAJERIA")) return "MENSAJERIA";
+    if (tierCode.startsWith("METRICAS")) return "METRICAS";
+    if (tierCode.startsWith("MARKETPLACE")) return "MARKETPLACE";
+    return "PERSONALIZACION";
+}
+
 function buildEntitlements(
     currentPlan: CompanyCapabilities["currentPlan"],
     tierCodes: ProductTierCode[],
@@ -47,14 +58,7 @@ function buildEntitlements(
     const capabilitySet = new Set<ProductCapability>(capabilityCodes);
     const products = tierCodes.map((tierCode) => ({
         tierCode,
-        productCode:
-            tierCode.startsWith("RESERVAS") ? "RESERVAS"
-                : tierCode.startsWith("EVENTOS") ? "EVENTOS"
-                    : tierCode.startsWith("CLASES") ? "CLASES"
-                        : tierCode.startsWith("CRM") ? "CRM"
-                            : tierCode.startsWith("MENSAJERIA") ? "MENSAJERIA"
-                                : tierCode.startsWith("METRICAS") ? "METRICAS"
-                                    : "PERSONALIZACION",
+        productCode: getProductCodeFromTier(tierCode),
         status: "ACTIVE" as const,
         isCore:
             tierCode.startsWith("RESERVAS") ||

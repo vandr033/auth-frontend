@@ -20,14 +20,14 @@ const REQUEST_LABELS: Record<ProductTierCode, string> = {
     EVENTOS_PRO: "Eventos Pro",
     CLASES_BASE: "Clases",
     CLASES_PRO: "Clases Pro",
-    PERSONALIZACION_BASE: "Personalización",
-    PERSONALIZACION_PLUS: "Personalización Plus",
+    PERSONALIZACION_BASE: "Personalización Base",
+    PERSONALIZACION_PLUS: "Personalización Pro",
     CRM_BASE: "CRM",
     CRM_PRO: "CRM Pro",
-    MENSAJERIA_BASE: "Mensajería",
+    MENSAJERIA_BASE: "Mensajería Base",
     MENSAJERIA_PRO: "Mensajería Pro",
-    METRICAS_BASE: "Métricas",
-    METRICAS_PRO: "Métricas Pro",
+    METRICAS_BASE: "Métricas Base",
+    METRICAS_PRO: "Métricas",
     MARKETPLACE_PLUS: "Marketplace Plus",
 };
 
@@ -93,7 +93,13 @@ export function hasProductTier(
     capabilities: CompanyCapabilities | null | undefined,
     tierCode: ProductTierCode,
 ): boolean {
-    return capabilities?.products?.some((product) => product.tierCode === tierCode) ?? false;
+    return (
+        capabilities?.products?.some(
+            (product) =>
+                product.tierCode === tierCode &&
+                (product.status === "ACTIVE" || product.status === "TRIALING"),
+        ) ?? false
+    );
 }
 
 export function hasProductCapability(
@@ -112,7 +118,7 @@ function buildRecommendation(definition: ProductAccessDefinition): ProductAccess
         requestLabel,
         ctaLabel: `Solicitar ${requestLabel}`,
         title: "Este módulo no está activo para tu empresa.",
-        description: `Solicita activar ${requestLabel} y nuestro equipo revisará tu solicitud.`,
+        description: `Solicitá activar ${requestLabel} y nuestro equipo va a revisar tu pedido.`,
         requiresLabel: `Requiere ${requestLabel}`,
     };
 }

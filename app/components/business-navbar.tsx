@@ -25,8 +25,6 @@ import {
   getCurrentInternalPathWithQuery,
 } from "@/app/lib/shop-context";
 
-const DEMO_HREF = "https://cal.com/priconpri/demo";
-
 const getInitials = (name?: string | null, email?: string | null) => {
   if (name && name.length > 0) return name.charAt(0).toUpperCase();
   if (email && email.length > 0) return email.charAt(0).toUpperCase();
@@ -41,10 +39,11 @@ export function BusinessNavbar() {
   const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
 
   const navLinks = [
-    { href: "/#for-businesses", label: t("businessNavbar.sectors") },
-    { href: "/#how-it-works", label: t("businessNavbar.features") },
-    { href: "/negocios#precios", label: t("businessNavbar.pricing") },
-    { href: loginHref, label: t("businessNavbar.login") },
+    { href: "/negocios#productos", label: "Productos" },
+    { href: "/negocios#addons", label: "Add-ons" },
+    { href: "/negocios#pricing", label: "Precios" },
+    { href: "/negocios/crear-cuenta", label: "Crear cuenta" },
+    { href: loginHref, label: "Login" },
   ];
 
   const displayName = useMemo(() => {
@@ -160,7 +159,7 @@ export function BusinessNavbar() {
             asChild
             className="h-9 rounded-sm bg-biz-cta-primary px-4 text-[10px] font-semibold tracking-[0.06em] text-white uppercase hover:bg-biz-cta-hover"
           >
-            <Link href={DEMO_HREF}>{t("businessNavbar.scheduleDemo")}</Link>
+            <Link href="/negocios/crear-cuenta">CREÁ TU CUENTA</Link>
           </Button>
         </div>
 
@@ -171,7 +170,7 @@ export function BusinessNavbar() {
             size="sm"
             className="h-8 rounded-sm bg-biz-cta-primary px-3 text-[10px] font-semibold tracking-[0.05em] text-white uppercase hover:bg-biz-cta-hover"
           >
-            <Link href={DEMO_HREF}>{t("businessNavbar.demoShort")}</Link>
+            <Link href="/negocios/crear-cuenta">CREÁ TU CUENTA</Link>
           </Button>
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -249,8 +248,8 @@ export function BusinessNavbar() {
                     asChild
                     className="h-10 w-full rounded-sm bg-biz-cta-primary text-xs font-semibold tracking-[0.06em] text-white uppercase hover:bg-biz-cta-hover"
                   >
-                    <Link href={DEMO_HREF} onClick={() => setMobileOpen(false)}>
-                      {t("businessNavbar.scheduleDemo")}
+                    <Link href="/negocios/crear-cuenta" onClick={() => setMobileOpen(false)}>
+                      CREÁ TU CUENTA
                     </Link>
                   </Button>
                 </div>

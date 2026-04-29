@@ -641,9 +641,9 @@ const en = {
   },
 
   adminSubscription: {
-    expiredTitle: "Subscription expired",
-    expiredSubtitle: "Your shop access is temporarily restricted until it is reactivated.",
-    expiredBanner: "Your plan expired on {{date}}. Contact support or renew to reactivate the shop.",
+    expiredTitle: "Your trial or plan ended",
+    expiredSubtitle: "You can still access your account, but business features stay locked until you activate your plan.",
+    expiredBanner: "Your commercial access ended on {{date}}. Activate your plan to keep operating.",
   },
 
   planEnforcement: {

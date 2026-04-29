@@ -22,6 +22,7 @@ import { ShopFooter } from "@/components/shop/ShopFooter";
 import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { appendShopParam, buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
 import {
+  capturePublicEventInterest,
   createPublicEventBooking,
   deleteGroupQrProof,
   getMyPublicGroupBookings,

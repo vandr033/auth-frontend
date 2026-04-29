@@ -15,7 +15,7 @@ export default function NegociosLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-biz-surface">
       {isNegociosLanding ? <NegociosHeader /> : <BusinessNavbar />}
       {children}
-      {isNegociosLanding ? <NegociosFooter /> : null}
+      <NegociosFooter />
     </div>
   );
 }

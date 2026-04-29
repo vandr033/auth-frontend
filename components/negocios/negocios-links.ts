@@ -1,40 +1,26 @@
-export type NegociosSectionLink = {
-  id: string;
+export type NegociosNavLink = {
   label: string;
+  href: string;
+  id?: string;
 };
 
-// Derived from discovered /negocios sections only.
-export const negociosSectionLinks: NegociosSectionLink[] = [
-  { id: "inicio", label: "Inicio" },
-  { id: "sectores", label: "Sectores" },
-  { id: "beneficios", label: "Beneficios" },
-  { id: "funcionalidades", label: "Funciones" },
-  { id: "clientes", label: "Clientes" },
-  { id: "staff", label: "Equipo" },
-  { id: "branding", label: "Branding" },
-  { id: "empezar", label: "Empezar" },
-  { id: "precios", label: "Precios" },
-  { id: "demo", label: "Demo" },
+export const negociosHeaderLinks: NegociosNavLink[] = [
+  { id: "pricing", label: "Precios", href: "#pricing" },
+  { id: "productos", label: "Productos", href: "#productos" },
+  { id: "addons", label: "Add-ons", href: "#addons" },
+  { id: "faq", label: "FAQ", href: "#faq" },
 ];
 
-export const negociosHeaderLinks: NegociosSectionLink[] = [
-  { id: "sectores", label: "Sectores" },
-  { id: "funcionalidades", label: "Funciones" },
-  { id: "precios", label: "Precios" },
-  { id: "clientes", label: "Clientes" },
-  { id: "empezar", label: "Empezar" },
+export const negociosPlatformLinks: NegociosNavLink[] = [
+  { label: "Reservas", href: "/negocios/reservas" },
+  { label: "Eventos", href: "/negocios/eventos" },
+  { label: "Clases", href: "/negocios/clases" },
+  { label: "Tienda", href: "/negocios/tienda" },
 ];
 
-export const negociosPlatformLinks: NegociosSectionLink[] = [
-  { id: "funcionalidades", label: "Funciones" },
-  { id: "precios", label: "Precios" },
-  { id: "staff", label: "Equipo" },
-  { id: "branding", label: "Branding" },
-];
-
-export const negociosCompanyLinks: NegociosSectionLink[] = [
-  { id: "clientes", label: "Clientes" },
-  { id: "empezar", label: "Empezar" },
-  { id: "beneficios", label: "Beneficios" },
-  { id: "demo", label: "Contacto" },
+export const negociosCompanyLinks: NegociosNavLink[] = [
+  { label: "Personalización Pro", href: "/negocios/personalizacion-pro" },
+  { label: "Métricas", href: "/negocios/metricas" },
+  { label: "Mensajería Pro", href: "/negocios/mensajeria-recordatorios" },
+  { label: "CRM Pro", href: "/negocios/crm-clientes" },
 ];

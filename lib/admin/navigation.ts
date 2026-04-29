@@ -137,14 +137,26 @@ function hasProduct(
     entitlements: CompanyCapabilities | null | undefined,
     productCode: ProductCode,
 ): boolean {
-    return entitlements?.products?.some((product) => product.productCode === productCode) ?? false;
+    return (
+        entitlements?.products?.some(
+            (product) =>
+                product.productCode === productCode &&
+                (product.status === "ACTIVE" || product.status === "TRIALING"),
+        ) ?? false
+    );
 }
 
 function hasTier(
     entitlements: CompanyCapabilities | null | undefined,
     tierCode: ProductTierCode,
 ): boolean {
-    return entitlements?.products?.some((product) => product.tierCode === tierCode) ?? false;
+    return (
+        entitlements?.products?.some(
+            (product) =>
+                product.tierCode === tierCode &&
+                (product.status === "ACTIVE" || product.status === "TRIALING"),
+        ) ?? false
+    );
 }
 
 function buildVisibilityContext(

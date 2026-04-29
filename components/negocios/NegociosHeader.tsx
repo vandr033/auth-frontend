@@ -26,8 +26,6 @@ import {
   getCurrentInternalPathWithQuery,
 } from "@/app/lib/shop-context";
 
-const DEMO_HREF = "https://cal.com/priconpri/demo";
-
 const getInitials = (name?: string | null, email?: string | null) => {
   if (name && name.length > 0) return name.charAt(0).toUpperCase();
   if (email && email.length > 0) return email.charAt(0).toUpperCase();
@@ -43,10 +41,7 @@ export function NegociosHeader() {
 
   const links = useMemo(
     () =>
-      negociosHeaderLinks.map((item) => ({
-        ...item,
-        href: `#${item.id}`,
-      })),
+      negociosHeaderLinks.map((item) => ({ ...item })),
     [],
   );
 
@@ -91,7 +86,7 @@ export function NegociosHeader() {
         <div className="flex min-w-0 items-center gap-8">
           <Link href="/" className="shrink-0 inline-flex items-center" aria-label="PRICONPRI">
             <Image
-              src="/assets/priconpri/logo-horizontal-black.png"
+              src="/assets/priconpri/logo-horizontal-black.webp"
               alt="PRICONPRI"
               width={600}
               height={370}
@@ -105,7 +100,10 @@ export function NegociosHeader() {
               <a
                 key={link.id}
                 href={link.href}
-                onClick={(event) => handleAnchorClick(event, link.id)}
+                onClick={(event) => {
+                  if (!link.id) return;
+                  handleAnchorClick(event, link.id);
+                }}
                 className="text-[12px] font-medium text-slate-900 transition-colors hover:text-black"
               >
                 {link.label}
@@ -169,14 +167,12 @@ export function NegociosHeader() {
             </Link>
           )}
 
-          <a
-            href={DEMO_HREF}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/negocios/crear-cuenta"
             className="inline-flex h-9 items-center justify-center rounded-sm bg-biz-cta-primary px-4 text-[10px] font-semibold tracking-[0.06em] text-white uppercase transition-colors hover:bg-biz-cta-hover"
           >
-            AGENDAR DEMO
-          </a>
+            CREÁ TU CUENTA
+          </Link>
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
@@ -204,7 +200,13 @@ export function NegociosHeader() {
                     <a
                       key={`mobile-${link.id}`}
                       href={link.href}
-                      onClick={(event) => handleAnchorClick(event, link.id)}
+                      onClick={(event) => {
+                        if (!link.id) {
+                          setMobileOpen(false);
+                          return;
+                        }
+                        handleAnchorClick(event, link.id);
+                      }}
                       className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                     >
                       {link.label}
@@ -259,15 +261,13 @@ export function NegociosHeader() {
 
                 <div className="mt-auto space-y-3 pb-8">
                   <LanguageSwitcher variant="shop" />
-                  <a
-                    href={DEMO_HREF}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href="/negocios/crear-cuenta"
                     onClick={() => setMobileOpen(false)}
                     className="inline-flex h-10 w-full items-center justify-center rounded-sm bg-biz-cta-primary text-xs font-semibold tracking-[0.06em] text-white uppercase transition-colors hover:bg-biz-cta-hover"
                   >
-                    AGENDAR DEMO
-                  </a>
+                    CREÁ TU CUENTA
+                  </Link>
                 </div>
               </div>
             </SheetContent>

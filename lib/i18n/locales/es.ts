@@ -634,9 +634,9 @@ const es: TranslationKeys = {
   },
 
   adminSubscription: {
-    expiredTitle: "Suscripción vencida",
-    expiredSubtitle: "El acceso de tu tienda está restringido temporalmente hasta que se reactive.",
-    expiredBanner: "Tu plan venció el {{date}}. Contacta soporte o renueva para reactivar la tienda.",
+    expiredTitle: "Tu prueba o plan terminó",
+    expiredSubtitle: "Podés entrar a tu cuenta, pero las funciones del negocio quedan bloqueadas hasta que actives tu plan.",
+    expiredBanner: "Tu acceso comercial terminó el {{date}}. Activá tu plan para volver a operar.",
   },
 
   planEnforcement: {
