@@ -162,6 +162,17 @@ function getEligiblePrimaryStaffForGroup(
     });
 }
 
+function canGroupScheduleWithoutSharedStaffSelection(
+    group: BookingServiceGroup,
+    staffList: SelectedStaff[],
+) {
+    if (group.fixedStaff || group.fixedSecondaryStaff) {
+        return true;
+    }
+
+    return getEligiblePrimaryStaffForGroup(group, staffList).length > 0;
+}
+
 function resolveRequiredResourcesForService(
     service: SelectedService,
     staffList: SelectedStaff[],
@@ -1521,10 +1532,9 @@ export default function BookingPage() {
     const canScheduleGroupsIndependently = useMemo(
         () =>
             bookingGroups.length > 0 &&
-            bookingGroups.every((group) => {
-                if (group.fixedStaff) return true;
-                return getEligiblePrimaryStaffForGroup(group, selectableStaff).length > 0;
-            }),
+            bookingGroups.every((group) =>
+                canGroupScheduleWithoutSharedStaffSelection(group, selectableStaff),
+            ),
         [bookingGroups, selectableStaff],
     );
 
