@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion, useReducedMotion, type Transition, type Variants } from "framer-motion";
 
 import { SearchForm } from "./SearchForm";
@@ -85,12 +86,12 @@ export function Hero() {
           transition={getTransition(0.5)}
           className="mt-6"
         >
-          <a
+          <Link
             href="/negocios"
             className="inline-flex items-center justify-center text-[14px] leading-none font-semibold tracking-[0.12em] text-black uppercase transition-colors hover:text-biz-barbie-pink"
           >
             {t("homeRedesign.hero.businessPrompt")}
-          </a>
+          </Link>
         </motion.div>
       </div>
     </section>
