@@ -96,7 +96,7 @@ export function NegociosFooter() {
                 Crear cuenta
               </Link>
               <Link href={loginHref} className="mb-2 block text-sm text-gray-600 transition hover:text-black">
-                Login
+                Ingresar
               </Link>
             </nav>
           </div>
@@ -104,7 +104,7 @@ export function NegociosFooter() {
 
         <div className="mt-12 border-t border-gray-200 pt-5">
           <div className="flex flex-col gap-3 text-[10px] tracking-[0.14em] text-gray-400 uppercase sm:flex-row sm:items-center sm:justify-between">
-            <p>© 2026 PRICONPRI. ALL RIGHTS RESERVED.</p>
+            <p>© 2026 PRICONPRI. TODOS LOS DERECHOS RESERVADOS.</p>
             <p>HECHO PARA NEGOCIOS QUE QUIEREN VENDER MEJOR.</p>
           </div>
         </div>

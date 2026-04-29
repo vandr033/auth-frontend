@@ -364,7 +364,7 @@ const es: TranslationKeys = {
       notFoundTitle: "Evento no encontrado",
       notFoundDescription: "Este evento no está disponible o ya no está publicado.",
       capacity: "{{booked}} / {{total}} reservados",
-      registerFree: "Inicia sesión para registrarte",
+      registerFree: "Registrate aquí",
       registerPaid: "Reservar evento · {{price}}",
       autoConfirmOn: "Los registros se confirman automáticamente.",
       autoConfirmOff: "Los registros requieren confirmación del administrador.",
@@ -441,7 +441,7 @@ const es: TranslationKeys = {
 
   freeEventReg: {
     heading: "Inscripción a evento gratuito",
-    openModalCta: "Inicia sesión para registrarte",
+    openModalCta: "Regístrate aquí",
     firstName: "Nombre",
     lastName: "Apellido",
     gender: "Género",
@@ -452,7 +452,7 @@ const es: TranslationKeys = {
     phoneNumber: "Número de celular",
     tosAccept: "Acepto los términos y condiciones",
     createAccount: "Deseo guardar mis datos como usuario en PriConPri",
-    confirm: "Inicia sesión para registrarte",
+    confirm: "Regístrate aquí",
     submitError: "No se pudo completar el registro. Inténtalo de nuevo.",
     alreadyConfirmed: "Ya tienes un registro confirmado para este evento.",
     alreadyPending: "Ya tienes un registro pendiente de confirmación.",

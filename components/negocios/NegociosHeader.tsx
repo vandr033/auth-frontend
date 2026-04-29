@@ -163,7 +163,7 @@ export function NegociosHeader() {
               href={loginHref}
               className="px-2 text-[10px] font-semibold tracking-[0.08em] text-black transition-colors hover:text-slate-700"
             >
-              LOGIN
+              INGRESAR
             </Link>
           )}
 
@@ -255,7 +255,7 @@ export function NegociosHeader() {
                     onClick={() => setMobileOpen(false)}
                     className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                   >
-                    LOGIN
+                    INGRESAR
                   </Link>
                 )}
 

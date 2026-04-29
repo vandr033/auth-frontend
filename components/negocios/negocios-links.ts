@@ -7,8 +7,8 @@ export type NegociosNavLink = {
 export const negociosHeaderLinks: NegociosNavLink[] = [
   { id: "pricing", label: "Precios", href: "#pricing" },
   { id: "productos", label: "Productos", href: "#productos" },
-  { id: "addons", label: "Add-ons", href: "#addons" },
-  { id: "faq", label: "FAQ", href: "#faq" },
+  { id: "addons", label: "Extras", href: "#addons" },
+  { id: "faq", label: "Preguntas", href: "#faq" },
 ];
 
 export const negociosPlatformLinks: NegociosNavLink[] = [
