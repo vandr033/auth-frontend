@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { ComponentType, ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -18,16 +19,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  ADD_ONS,
-  CORE_PRODUCTS,
+  applyPricingConfigToCatalog,
+} from "@/lib/negocios/catalog";
+import {
+  DEFAULT_BUSINESS_PRICING_CONFIG,
+  type BusinessPricingConfig,
   type PricingBillingCycle,
   type PublicAddOnKey,
   type PublicCoreProductKey,
   type SelectableCoreProductKey,
-} from "@/lib/negocios/catalog";
+} from "@/lib/negocios/business-pricing";
 import {
   calculateBusinessPricing,
   formatBsAmount,
+  formatBsCompact,
 } from "@/lib/negocios/pricing";
 
 type PricingSelectionState = {
@@ -43,6 +48,8 @@ type BusinessPricingBuilderProps = {
   ctaLabel?: string;
   className?: string;
   compact?: boolean;
+  pricingConfig?: BusinessPricingConfig;
+  isPricingLoading?: boolean;
 };
 
 const PRODUCT_ICONS: Record<
@@ -94,7 +101,7 @@ function SelectionPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em]",
+        "inline-flex max-w-full items-center gap-2 whitespace-normal break-words px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em]",
         tone === "dark"
           ? "border border-white/[0.16] bg-white/10 text-white"
           : "border border-black/10 bg-black/[0.03] text-black",
@@ -136,7 +143,7 @@ function ProductCard({
   return (
     <article
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden border transition-all duration-300",
+        "group relative flex h-full min-w-0 flex-col border transition-all duration-300",
         isCore ? "min-h-[280px] p-5 sm:p-6" : "min-h-[220px] p-5",
         selected
           ? "border-black bg-black text-white shadow-[0_22px_48px_rgba(5,5,5,0.2)]"
@@ -157,8 +164,8 @@ function ProductCard({
         />
       </div>
 
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="space-y-3">
+      <div className="relative flex min-w-0 items-start justify-between gap-4">
+        <div className="min-w-0 space-y-3">
           {badge ? (
             <span className="inline-flex w-fit bg-biz-yellow px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-black">
               {badge}
@@ -191,19 +198,19 @@ function ProductCard({
         </span>
       </div>
 
-      <div className="relative mt-6 space-y-4">
-        <div>
+      <div className="relative mt-6 min-w-0 space-y-4">
+        <div className="min-w-0">
           <h3
             className={cn(
-              "font-business-display uppercase leading-[0.88] tracking-[-0.03em]",
-              isCore ? "text-[clamp(2rem,3.3vw,3rem)]" : "text-[clamp(1.8rem,2.5vw,2.5rem)]",
+              "max-w-full text-balance break-words font-business-display uppercase leading-[0.96] tracking-[-0.02em]",
+              isCore ? "text-[clamp(1.8rem,3vw,2.7rem)]" : "text-[clamp(1.45rem,2.1vw,2.1rem)]",
             )}
           >
             {title}
           </h3>
           <p
             className={cn(
-              "mt-3 max-w-[34ch] text-sm leading-6",
+              "mt-3 max-w-[34ch] text-sm leading-6 break-words",
               selected ? "text-white/[0.78]" : "text-slate-700",
               disabled && "text-slate-500",
             )}
@@ -212,19 +219,19 @@ function ProductCard({
           </p>
         </div>
 
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex min-w-0 items-end justify-between gap-4">
           <p
             className={cn(
-              "font-bebas text-[2.4rem] leading-none uppercase tracking-[0.04em]",
+              "min-w-0 font-bebas text-[2.2rem] leading-none uppercase tracking-[0.04em]",
               selected ? "text-biz-yellow" : "text-biz-barbie-pink",
               disabled && "text-slate-400",
             )}
           >
-            {price} Bs
+            {formatBsCompact(price)}
           </p>
           <p
             className={cn(
-              "text-[11px] font-black uppercase tracking-[0.08em]",
+              "shrink-0 text-[11px] font-black uppercase tracking-[0.08em]",
               selected ? "text-white/[0.58]" : "text-slate-500",
               disabled && "text-slate-400",
             )}
@@ -250,11 +257,11 @@ function ProductCard({
         </ul>
       </div>
 
-      <div className="relative mt-auto pt-6">
+      <div className="relative mt-auto min-w-0 pt-6">
         {note ? (
           <p
             className={cn(
-              "mb-4 max-w-[32ch] text-[11px] uppercase tracking-[0.08em]",
+              "mb-4 max-w-[32ch] text-[11px] uppercase tracking-[0.08em] break-words",
               selected ? "text-white/[0.58]" : "text-slate-500",
               disabled && "text-slate-400",
             )}
@@ -293,9 +300,9 @@ function SummaryRow({
   dimmed?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-white/10 py-3 text-sm">
-      <span className={cn("text-white/[0.72]", dimmed && "text-white/[0.54]")}>{label}</span>
-      <span className="font-black text-white">{value}</span>
+    <div className="flex items-start justify-between gap-4 border-t border-white/10 py-2.5 text-sm">
+      <span className={cn("min-w-0 text-white/[0.72]", dimmed && "text-white/[0.54]")}>{label}</span>
+      <span className="max-w-[14ch] text-right font-black text-white">{value}</span>
     </div>
   );
 }
@@ -307,9 +314,15 @@ export function BusinessPricingBuilder({
   ctaLabel = "Crear mi cuenta gratis",
   className,
   compact = false,
+  pricingConfig = DEFAULT_BUSINESS_PRICING_CONFIG,
+  isPricingLoading = false,
 }: BusinessPricingBuilderProps) {
-  const pricing = calculateBusinessPricing(value);
-  const hasCoreProducts = value.coreProducts.length > 0;
+  const { coreProducts: coreProductCards, addOns: addOnCards } = useMemo(
+    () => applyPricingConfigToCatalog(pricingConfig),
+    [pricingConfig],
+  );
+  const pricing = calculateBusinessPricing(value, pricingConfig);
+  const hasCoreProducts = pricing.selectedItemCount > 0;
 
   const toggleCoreProduct = (key: SelectableCoreProductKey) => {
     const exists = value.coreProducts.includes(key);
@@ -335,7 +348,7 @@ export function BusinessPricingBuilder({
     });
   };
 
-  const totalSelections = value.coreProducts.length + value.addOns.length;
+  const totalSelections = pricing.selectedItemCount;
   const bundleMessage =
     pricing.bundleDiscountPercent > 0
       ? `Tu combinación ya activó un ${pricing.bundleDiscountPercent}% de ahorro por combo.`
@@ -365,10 +378,10 @@ export function BusinessPricingBuilder({
               active={value.billingCycle === "annual"}
               onClick={() => onChange({ ...value, billingCycle: "annual" })}
             >
-              Anual +15%
+              Anual +{pricingConfig.discounts.annualDiscountPercent}%
             </BillingToggle>
             <span className="inline-flex min-h-11 items-center bg-biz-yellow px-4 text-[11px] font-black uppercase tracking-[0.08em] text-black">
-              Primer mes gratis
+              {pricing.firstMonthFree ? "Primer mes gratis" : `${pricing.trialLengthDays} días de prueba`}
             </span>
           </div>
         </div>
@@ -399,11 +412,11 @@ export function BusinessPricingBuilder({
             </div>
 
             <div className={cn("grid gap-4 p-4 sm:p-5", compact ? "lg:grid-cols-2" : "lg:grid-cols-2")}>
-              {CORE_PRODUCTS.map((product) => (
+              {coreProductCards.map((product) => (
                 <ProductCard
                   key={product.key}
                   productKey={product.key}
-                  title={product.title}
+                  title={product.shortTitle}
                   price={product.priceMonthly}
                   description={product.tagline}
                   bullets={product.bullets}
@@ -448,7 +461,7 @@ export function BusinessPricingBuilder({
             ) : null}
 
             <div className={cn("grid gap-4 p-4 sm:p-5", compact ? "lg:grid-cols-2" : "lg:grid-cols-2")}>
-              {ADD_ONS.map((product) => {
+              {addOnCards.map((product) => {
                 const addOnKey = product.key as PublicAddOnKey;
 
                 return (
@@ -460,7 +473,7 @@ export function BusinessPricingBuilder({
                     description={product.tagline}
                     bullets={product.bullets}
                     selected={value.addOns.includes(addOnKey)}
-                    disabled={!hasCoreProducts}
+                    disabled={!hasCoreProducts || product.disabled}
                     note={product.includedNote}
                     variant="addon"
                     onToggle={() => toggleAddOn(addOnKey)}
@@ -473,49 +486,56 @@ export function BusinessPricingBuilder({
 
         <aside
           className={cn(
-            "relative h-fit overflow-hidden border border-black bg-black p-5 text-white",
-            compact ? "xl:sticky xl:top-4" : "xl:sticky xl:top-20",
+            "relative border border-black bg-black p-4 text-white sm:p-5",
+            compact
+              ? "xl:sticky xl:top-4 xl:max-h-[calc(100vh-1.5rem)] xl:overflow-y-auto"
+              : "xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto",
           )}
         >
-          <div className="pointer-events-none absolute right-[-18px] top-5 rotate-[3deg] bg-biz-yellow px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black shadow-[0_14px_28px_rgba(0,0,0,0.18)]">
-            Primer mes gratis
+          <div className="pointer-events-none absolute right-[-18px] top-4 rotate-[3deg] bg-biz-yellow px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-black shadow-[0_14px_28px_rgba(0,0,0,0.18)]">
+            {pricing.firstMonthFree ? "Primer mes gratis" : `${pricing.trialLengthDays} días`}
           </div>
 
-          <div className="relative">
+          <div className="relative min-w-0">
             <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-yellow">
               Tu resumen
             </p>
-            <h4 className="mt-2 max-w-[10ch] font-business-display text-[clamp(2rem,4vw,3.2rem)] uppercase leading-[0.9] tracking-[-0.03em]">
+            <h4 className="mt-2 max-w-[12ch] text-balance font-business-display text-[clamp(1.7rem,3vw,2.45rem)] uppercase leading-[0.94] tracking-[-0.03em]">
               Calculá tu plan.
             </h4>
-            <p className="mt-3 max-w-[28ch] text-sm leading-6 text-white/[0.76]">
+            <p className="mt-2 max-w-[30ch] text-sm leading-6 text-white/[0.76]">
               {bundleMessage}
             </p>
+            {isPricingLoading ? (
+              <p className="mt-2 text-[11px] font-black uppercase tracking-[0.08em] text-white/45">
+                Actualizando precios...
+              </p>
+            ) : null}
           </div>
 
-          <div className="relative mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <div className="border border-white/10 bg-white/[0.06] p-4">
+          <div className="relative mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <div className="border border-white/10 bg-white/[0.06] p-3.5">
               <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
                 Hoy pagás
               </p>
-              <p className="mt-3 font-business-display text-[clamp(2.2rem,5vw,3.2rem)] uppercase leading-none text-biz-yellow">
+              <p className="mt-2 font-business-display text-[clamp(1.8rem,4vw,2.5rem)] uppercase leading-none text-biz-yellow">
                 0 Bs
               </p>
             </div>
-            <div className="border border-white/10 bg-white/[0.06] p-4">
+            <div className="border border-white/10 bg-white/[0.06] p-3.5">
               <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
-                Después del mes gratis
+                {pricing.firstMonthFree ? "Después del mes gratis" : "Después de la prueba"}
               </p>
-              <p className="mt-3 font-business-display text-[clamp(2.2rem,5vw,3.2rem)] uppercase leading-none text-white">
+              <p className="mt-2 font-business-display text-[clamp(1.8rem,4vw,2.5rem)] uppercase leading-none text-white">
                 {formatBsAmount(pricing.finalMonthly)}
               </p>
-              <p className="mt-2 text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.54]">
+              <p className="mt-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.54]">
                 {value.billingCycle === "annual" ? "Con contrato anual" : "Con pago mensual"}
               </p>
             </div>
           </div>
 
-          <div className="mt-6 border border-white/10 bg-white/[0.06] p-4">
+          <div className="mt-4 border border-white/10 bg-white/[0.06] p-3.5">
             <div className="flex flex-wrap items-center gap-2">
               <SelectionPill tone="dark">{totalSelections} selecciones</SelectionPill>
               <SelectionPill tone="dark">
@@ -523,12 +543,12 @@ export function BusinessPricingBuilder({
               </SelectionPill>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {pricing.selectedProducts.length > 0 ? (
                 pricing.selectedProducts.map((item) => (
                   <span
                     key={item}
-                    className="inline-flex items-center bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black transition-transform duration-200 hover:-translate-y-0.5"
+                    className="inline-flex max-w-full items-center whitespace-normal break-words bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-black"
                   >
                     {item}
                   </span>
@@ -542,22 +562,25 @@ export function BusinessPricingBuilder({
           </div>
 
           {pricing.validationErrors.length > 0 ? (
-            <div className="mt-6 border border-biz-yellow/30 bg-biz-yellow/[0.12] p-4 text-sm text-biz-yellow">
+            <div className="mt-4 border border-biz-yellow/30 bg-biz-yellow/[0.12] p-3.5 text-sm text-biz-yellow">
               {pricing.validationErrors.map((error) => (
                 <p key={error}>{error}</p>
               ))}
             </div>
           ) : null}
 
-          <div className="mt-6">
-            <SummaryRow label="Primer mes" value="Gratis" />
+          <div className="mt-4">
+            <SummaryRow
+              label={pricing.firstMonthFree ? "Primer mes" : "Prueba"}
+              value={pricing.firstMonthFree ? "Gratis" : `${pricing.trialLengthDays} días`}
+            />
             <SummaryRow label="Subtotal mensual" value={formatBsAmount(pricing.subtotalMonthly)} />
             <SummaryRow
               label="Descuento por bundle"
               value={
                 pricing.bundleDiscountPercent > 0
                   ? `-${formatBsAmount(pricing.bundleDiscountAmount)} (${pricing.bundleDiscountPercent}%)`
-                  : "0.00 Bs"
+                  : formatBsAmount(0)
               }
               dimmed={pricing.bundleDiscountPercent === 0}
             />
@@ -566,14 +589,14 @@ export function BusinessPricingBuilder({
               value={
                 pricing.annualDiscountPercent > 0
                   ? `-${formatBsAmount(pricing.annualDiscountAmount)} (${pricing.annualDiscountPercent}%)`
-                  : "0.00 Bs"
+                  : formatBsAmount(0)
               }
               dimmed={pricing.annualDiscountPercent === 0}
             />
             <SummaryRow label="Equivalente anual" value={formatBsAmount(pricing.finalAnnualEquivalent)} />
           </div>
 
-          <div className="mt-6 space-y-3">
+          <div className="mt-5 space-y-3">
             <Button
               asChild
               className="h-12 w-full rounded-none bg-biz-yellow text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-[#edf222]"

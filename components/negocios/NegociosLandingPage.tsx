@@ -3,7 +3,7 @@
 import type { ComponentType, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -22,17 +22,21 @@ import { Button } from "@/components/ui/button";
 import { BusinessPricingBuilder } from "@/components/negocios/BusinessPricingBuilder";
 import { cn } from "@/lib/utils";
 import {
-  ADD_ONS,
-  CORE_PRODUCTS,
   NEGOCIOS_HERO_COPY,
+  applyPricingConfigToCatalog,
+} from "@/lib/negocios/catalog";
+import {
   type PublicAddOnKey,
   type PublicCoreProductKey,
   type SelectableCoreProductKey,
-} from "@/lib/negocios/catalog";
+} from "@/lib/negocios/business-pricing";
 import {
   calculateBusinessPricing,
   formatBsAmount,
+  formatBsCompact,
+  sanitizePricingSelection,
 } from "@/lib/negocios/pricing";
+import { usePublicBusinessPricing } from "@/lib/negocios/usePublicBusinessPricing";
 
 const FAQS = [
   {
@@ -55,14 +59,6 @@ const FAQS = [
     answer:
       "Todavía no. Tienda está en camino y aparece como Próximamente.",
   },
-];
-
-const BILLBOARD_TIERS = [
-  { label: "1 producto", value: "0%" },
-  { label: "2 productos", value: "10%" },
-  { label: "3 productos", value: "15%" },
-  { label: "4+ productos", value: "20%" },
-  { label: "Contrato anual", value: "+15% adicional" },
 ];
 
 const HOW_IT_WORKS = [
@@ -163,7 +159,7 @@ function CoreProductFeature({
   product,
 }: {
   index: number;
-  product: (typeof CORE_PRODUCTS)[number];
+  product: ReturnType<typeof applyPricingConfigToCatalog>["coreProducts"][number];
 }) {
   const Icon = PRODUCT_ICONS[product.key] ?? Sparkles;
   const cardClasses = [
@@ -176,7 +172,7 @@ function CoreProductFeature({
   return (
     <article
       className={cn(
-        "group relative overflow-hidden border border-black p-5 transition-transform duration-300 hover:-translate-y-1 sm:p-6",
+        "group relative min-w-0 border border-black p-5 transition-transform duration-300 hover:-translate-y-1 sm:p-6",
         cardClasses[index],
         product.disabled && "border-black/[0.08]",
       )}
@@ -192,8 +188,8 @@ function CoreProductFeature({
         />
       </div>
 
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="space-y-3">
+      <div className="relative flex min-w-0 items-start justify-between gap-4">
+        <div className="min-w-0 space-y-3">
           <span
             className={cn(
               "inline-flex h-11 w-11 items-center justify-center border",
@@ -223,13 +219,13 @@ function CoreProductFeature({
         ) : null}
       </div>
 
-      <div className="relative mt-7 max-w-[34rem]">
-        <h3 className="font-business-display text-[clamp(2.15rem,3.6vw,3.3rem)] uppercase leading-[0.9] tracking-[-0.03em]">
+      <div className="relative mt-7 min-w-0 max-w-[34rem]">
+        <h3 className="max-w-full text-balance break-words font-business-display text-[clamp(1.95rem,3.1vw,2.9rem)] uppercase leading-[0.96] tracking-[-0.02em]">
           {product.title}
         </h3>
         <p
           className={cn(
-            "mt-3 max-w-[34ch] text-sm leading-6",
+            "mt-3 max-w-[34ch] break-words text-sm leading-6",
             index === 0 ? "text-white/[0.78]" : "text-slate-700",
             product.disabled && "text-slate-500",
           )}
@@ -255,15 +251,15 @@ function CoreProductFeature({
         ))}
       </div>
 
-      <div className="relative mt-6 flex items-center justify-between gap-4">
+      <div className="relative mt-6 flex min-w-0 items-center justify-between gap-4">
         <p
           className={cn(
-            "font-bebas text-[2.3rem] uppercase tracking-[0.04em]",
+            "min-w-0 font-bebas text-[2.15rem] uppercase tracking-[0.04em]",
             index === 0 ? "text-biz-yellow" : "text-biz-barbie-pink",
             product.disabled && "text-slate-400",
           )}
         >
-          {product.priceMonthly} Bs
+          {formatBsCompact(product.priceMonthly)}
         </p>
 
         <Link
@@ -290,7 +286,7 @@ function AddOnFeature({
   product,
 }: {
   index: number;
-  product: (typeof ADD_ONS)[number];
+  product: ReturnType<typeof applyPricingConfigToCatalog>["addOns"][number];
 }) {
   const Icon = PRODUCT_ICONS[product.key] ?? Sparkles;
   const offsets = ["", "xl:translate-y-3", "", ""];
@@ -299,11 +295,11 @@ function AddOnFeature({
   return (
     <article
       className={cn(
-        "relative flex h-full flex-col border border-black/[0.08] bg-white p-5 transition-transform duration-300 hover:-translate-y-1 sm:p-6",
+        "relative flex h-full min-w-0 flex-col border border-black/[0.08] bg-white p-5 transition-transform duration-300 hover:-translate-y-1 sm:p-6",
         offsets[index],
       )}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex min-w-0 items-start justify-between gap-4">
         <span className="inline-flex h-11 w-11 items-center justify-center border border-black/[0.08] bg-black/[0.03] text-black">
           <Icon className="h-5 w-5" />
         </span>
@@ -312,10 +308,10 @@ function AddOnFeature({
         </span>
       </div>
 
-      <h3 className="mt-5 font-business-display text-[clamp(1.8rem,2.5vw,2.35rem)] uppercase leading-[0.92] tracking-[-0.03em]">
+      <h3 className="mt-5 max-w-full text-balance break-words font-business-display text-[clamp(1.45rem,2.1vw,2.05rem)] uppercase leading-[0.96] tracking-[-0.02em]">
         {product.shortTitle}
       </h3>
-      <p className="mt-3 text-sm leading-6 text-slate-700">{product.tagline}</p>
+      <p className="mt-3 break-words text-sm leading-6 text-slate-700">{product.tagline}</p>
 
       <div className="mt-5 flex flex-wrap gap-2">
         {product.bullets.slice(0, 3).map((bullet) => (
@@ -330,14 +326,14 @@ function AddOnFeature({
 
       <div className="mt-auto pt-6">
         {product.includedNote ? (
-          <p className="mb-4 text-[11px] uppercase tracking-[0.08em] text-slate-500">
+          <p className="mb-4 break-words text-[11px] uppercase tracking-[0.08em] text-slate-500">
             {product.includedNote}
           </p>
         ) : null}
 
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center justify-between gap-4">
           <p className="font-bebas text-[2rem] uppercase tracking-[0.04em] text-biz-barbie-pink">
-            {product.priceMonthly} Bs
+            {formatBsCompact(product.priceMonthly)}
           </p>
           <Link
             href={product.href}
@@ -388,6 +384,7 @@ function SectorCard({
 }
 
 export function NegociosLandingPage() {
+  const { pricingConfig, isLoading: pricingLoading } = usePublicBusinessPricing();
   const [selection, setSelection] = useState<{
     coreProducts: SelectableCoreProductKey[];
     addOns: PublicAddOnKey[];
@@ -398,7 +395,42 @@ export function NegociosLandingPage() {
     billingCycle: "monthly",
   });
 
-  const pricing = calculateBusinessPricing(selection);
+  const sanitizedSelection = useMemo(
+    () => sanitizePricingSelection(selection, pricingConfig),
+    [pricingConfig, selection],
+  );
+  const pricing = useMemo(
+    () => calculateBusinessPricing(sanitizedSelection, pricingConfig),
+    [pricingConfig, sanitizedSelection],
+  );
+  const { coreProducts, addOns } = useMemo(
+    () => applyPricingConfigToCatalog(pricingConfig),
+    [pricingConfig],
+  );
+  const billboardTiers = useMemo(
+    () => [
+      ...pricingConfig.discounts.bundleTiers.map((tier) => ({
+        label: tier.label,
+        value: `${tier.discountPercent}%`,
+      })),
+      {
+        label: "Contrato anual",
+        value: `+${pricingConfig.discounts.annualDiscountPercent}% adicional`,
+      },
+    ],
+    [pricingConfig],
+  );
+
+  useEffect(() => {
+    setSelection((current) => {
+      const nextSelection = sanitizePricingSelection(current, pricingConfig);
+      const hasChanged =
+        nextSelection.coreProducts.join("|") !== current.coreProducts.join("|") ||
+        nextSelection.addOns.join("|") !== current.addOns.join("|");
+
+      return hasChanged ? nextSelection : current;
+    });
+  }, [pricingConfig]);
 
   return (
     <main className="bg-biz-surface text-biz-heading-dark">
@@ -416,7 +448,7 @@ export function NegociosLandingPage() {
           <div className="relative z-10 max-w-[620px]">
             <div className="flex flex-wrap gap-3">
               <span className="bg-biz-yellow px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black">
-                Primer mes gratis
+                {pricing.firstMonthFree ? "Primer mes gratis" : `${pricing.trialLengthDays} días de prueba`}
               </span>
               <span className="border border-black/[0.1] bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black">
                 Modular desde el día uno
@@ -430,7 +462,7 @@ export function NegociosLandingPage() {
               ARMÁ TU SISTEMA.
             </h1>
             <p className="mt-4 max-w-[32rem] text-[0.98rem] leading-7 text-slate-700 sm:text-[1.04rem]">
-              Elegís Reservas, Eventos, Clases y los módulos extra que te convienen. Priconpri te deja probar todo el flujo con un primer mes gratis, sin romper la lógica real de tu negocio.
+              Elegís Reservas, Eventos, Clases y los módulos extra que te convienen. Priconpri te deja probar todo el flujo con una configuración comercial viva, sin romper la lógica real de tu negocio.
             </p>
             <p className="mt-3 max-w-[34rem] text-sm leading-6 text-slate-600">
               {NEGOCIOS_HERO_COPY.description}
@@ -458,7 +490,7 @@ export function NegociosLandingPage() {
                   Base activa
                 </p>
                 <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-none">
-                  {selection.coreProducts.length}
+                  {sanitizedSelection.coreProducts.length}
                 </p>
               </div>
               <div className="border border-black bg-white p-4">
@@ -466,7 +498,7 @@ export function NegociosLandingPage() {
                   Extras
                 </p>
                 <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-none">
-                  {selection.addOns.length}
+                  {sanitizedSelection.addOns.length}
                 </p>
               </div>
               <div className="border border-black bg-black p-4 text-white">
@@ -554,10 +586,10 @@ export function NegociosLandingPage() {
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div className="border border-white/[0.12] bg-white/[0.06] p-4">
                     <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
-                      Primer mes
+                      {pricing.firstMonthFree ? "Primer mes" : "Prueba"}
                     </p>
                     <p className="mt-2 font-bebas text-[2rem] uppercase tracking-[0.04em] text-biz-yellow">
-                      Gratis
+                      {pricing.firstMonthFree ? "Gratis" : `${pricing.trialLengthDays} días`}
                     </p>
                   </div>
                   <div className="border border-white/[0.12] bg-white/[0.06] p-4">
@@ -571,12 +603,12 @@ export function NegociosLandingPage() {
                 </div>
 
                 <p className="mt-4 max-w-[24ch] text-sm leading-6 text-white/[0.76]">
-                  Bundle y anual se calculan automáticamente cuando llegás al configurador real.
+                  Bundle, anual y prueba gratis se calculan automáticamente cuando llegás al configurador real.
                 </p>
               </div>
 
               <div className="absolute right-10 top-2 z-20 rotate-[2deg] bg-biz-yellow px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black shadow-[0_18px_34px_rgba(0,0,0,0.14)]">
-                Primer mes gratis
+                {pricing.firstMonthFree ? "Primer mes gratis" : `${pricing.trialLengthDays} días`}
               </div>
 
               <div className="absolute bottom-20 left-[30%] z-0 hidden h-[160px] w-[160px] border border-black/[0.08] bg-white/[0.5] p-2 lg:block">
@@ -618,7 +650,7 @@ export function NegociosLandingPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              {CORE_PRODUCTS.map((product, index) => (
+              {coreProducts.map((product, index) => (
                 <CoreProductFeature key={product.key} index={index} product={product} />
               ))}
             </div>
@@ -645,7 +677,7 @@ export function NegociosLandingPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:items-start">
-              {ADD_ONS.map((product, index) => (
+              {addOns.map((product, index) => (
                 <AddOnFeature key={product.key} index={index} product={product} />
               ))}
             </div>
@@ -673,7 +705,12 @@ export function NegociosLandingPage() {
           </div>
 
           <div className="mt-8">
-            <BusinessPricingBuilder value={selection} onChange={setSelection} />
+            <BusinessPricingBuilder
+              value={selection}
+              onChange={setSelection}
+              pricingConfig={pricingConfig}
+              isPricingLoading={pricingLoading}
+            />
           </div>
         </div>
       </section>
@@ -694,7 +731,7 @@ export function NegociosLandingPage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {BILLBOARD_TIERS.map((tier, index) => (
+              {billboardTiers.map((tier, index) => (
                 <article
                   key={tier.label}
                   className={cn(

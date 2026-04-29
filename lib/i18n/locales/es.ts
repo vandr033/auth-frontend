@@ -607,6 +607,7 @@ const es: TranslationKeys = {
     subscription: "Suscripción",
     superAdmin: "Admin. de plataforma",
     shops: "Tiendas",
+    businessPricing: "Precios de productos",
     productRequests: "Solicitudes de productos",
     serviceTypes: "Tipos de servicio",
     testNotifications: "Pruebas de notificación",

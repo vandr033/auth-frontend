@@ -1,12 +1,10 @@
-export type PublicCoreProductKey = "RESERVAS" | "EVENTOS" | "CLASES" | "TIENDA";
-export type SelectableCoreProductKey = Exclude<PublicCoreProductKey, "TIENDA">;
-export type PublicAddOnKey =
-  | "PERSONALIZACION_PRO"
-  | "METRICAS"
-  | "MENSAJERIA_PRO"
-  | "CRM_PRO";
-
-export type PricingBillingCycle = "monthly" | "annual";
+import {
+  buildBusinessPricingProductMap,
+  DEFAULT_BUSINESS_PRICING_CONFIG,
+  type BusinessPricingConfig,
+  type PublicAddOnKey,
+  type PublicCoreProductKey,
+} from "@/lib/negocios/business-pricing";
 
 export type NegociosProductCard = {
   key: PublicCoreProductKey | PublicAddOnKey;
@@ -337,6 +335,35 @@ export const ADD_ONS: NegociosProductCard[] = [
 ];
 
 export const ALL_NEGOCIOS_PRODUCTS = [...CORE_PRODUCTS, ...ADD_ONS];
+
+export function applyPricingConfigToCatalog(
+  pricingConfig: BusinessPricingConfig = DEFAULT_BUSINESS_PRICING_CONFIG,
+) {
+  const pricingByKey = buildBusinessPricingProductMap(pricingConfig);
+
+  const applyProductPricing = (product: NegociosProductCard): NegociosProductCard => {
+    const pricingProduct = pricingByKey.get(product.key);
+    if (!pricingProduct) return product;
+
+    const isDisabled = !pricingProduct.isActive || pricingProduct.isComingSoon;
+
+    return {
+      ...product,
+      priceMonthly: pricingProduct.monthlyPriceBs,
+      disabled: isDisabled,
+      badge: pricingProduct.isComingSoon ? "Próximamente" : product.badge,
+      title: pricingProduct.displayName || product.title,
+      shortTitle: pricingProduct.displayName || product.shortTitle,
+      tagline: pricingProduct.description || product.tagline,
+    };
+  };
+
+  return {
+    coreProducts: CORE_PRODUCTS.map(applyProductPricing),
+    addOns: ADD_ONS.map(applyProductPricing),
+    allProducts: ALL_NEGOCIOS_PRODUCTS.map(applyProductPricing),
+  };
+}
 
 export function getNegociosProductBySlug(slug: string) {
   return ALL_NEGOCIOS_PRODUCTS.find((product) => product.slug === slug) ?? null;

@@ -18,6 +18,7 @@ import {
     UserCheck,
     Building2,
     MessageSquare,
+    BadgePercent,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -73,6 +74,11 @@ export default function SuperAdminLayout({
             label: t("adminNav.shops"),
             href: "/admin/super-admin/shops",
             icon: <Store className="h-5 w-5" />,
+        },
+        {
+            label: t("adminNav.businessPricing"),
+            href: "/admin/super-admin/business-pricing",
+            icon: <BadgePercent className="h-5 w-5" />,
         },
         {
             label: t("adminNav.productRequests"),

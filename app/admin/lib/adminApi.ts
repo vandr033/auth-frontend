@@ -2,6 +2,10 @@ import { AdminBooking, BookingStatus } from "@/types/admin-booking";
 import { resolveBackendUrl } from "@/lib/api-url";
 import { normalizeApiError } from "@/lib/api-error";
 import type {
+    BusinessPricingProduct,
+    BusinessPricingProductKey,
+} from "@/lib/negocios/business-pricing";
+import type {
     ProductAccessRequestRow,
     ProductAccessRequestSource,
     ProductCapability,
@@ -76,6 +80,76 @@ export async function createAdminProductAccessRequest(input: {
         request: payload.data.request as ProductAccessRequestRow,
         alreadyPending: payload.data.alreadyPending as boolean | undefined,
     };
+}
+
+export type SuperAdminBusinessPricingConfig = {
+    products: Array<
+        BusinessPricingProduct & {
+            metadata?: unknown;
+        }
+    >;
+    discounts: {
+        bundleTiers: Array<{
+            id: number;
+            minSelectedItems: number;
+            discountPercent: number;
+            label: string;
+            isActive: boolean;
+        }>;
+        annualDiscountPercent: number;
+        trialLengthDays: number;
+        firstMonthFree: boolean;
+    };
+};
+
+export async function getSuperAdminBusinessPricing(): Promise<SuperAdminBusinessPricingConfig> {
+    const response = await apiFetch<{ data: SuperAdminBusinessPricingConfig }>(
+        "/api/super-admin/business-pricing",
+    );
+    return response.data;
+}
+
+export async function updateSuperAdminBusinessPricingProduct(
+    productKey: BusinessPricingProductKey,
+    input: {
+        displayName: string;
+        monthlyPriceBs: number;
+        isActive: boolean;
+        isComingSoon: boolean;
+        sortOrder: number;
+    },
+): Promise<SuperAdminBusinessPricingConfig> {
+    const response = await apiFetch<{ data: SuperAdminBusinessPricingConfig }>(
+        `/api/super-admin/business-pricing/products/${productKey}`,
+        {
+            method: "PUT",
+            body: JSON.stringify(input),
+        },
+    );
+
+    return response.data;
+}
+
+export async function updateSuperAdminBusinessPricingDiscounts(input: {
+    bundleTiers: Array<{
+        minSelectedItems: number;
+        discountPercent: number;
+        label: string;
+        isActive: boolean;
+    }>;
+    annualDiscountPercent: number;
+    trialLengthDays: number;
+    firstMonthFree: boolean;
+}): Promise<SuperAdminBusinessPricingConfig> {
+    const response = await apiFetch<{ data: SuperAdminBusinessPricingConfig }>(
+        "/api/super-admin/business-pricing/discounts",
+        {
+            method: "PUT",
+            body: JSON.stringify(input),
+        },
+    );
+
+    return response.data;
 }
 
 export type AdminUploadImageType =

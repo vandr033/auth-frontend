@@ -1,13 +1,27 @@
+"use client";
+
+import { useMemo } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { ALL_NEGOCIOS_PRODUCTS, type NegociosProductCard } from "@/lib/negocios/catalog";
+import {
+  applyPricingConfigToCatalog,
+  type NegociosProductCard,
+} from "@/lib/negocios/catalog";
+import { usePublicBusinessPricing } from "@/lib/negocios/usePublicBusinessPricing";
 
 export function ProductMarketingPage({ product }: { product: NegociosProductCard }) {
-  const relatedProducts = ALL_NEGOCIOS_PRODUCTS.filter(
+  const { pricingConfig } = usePublicBusinessPricing();
+  const { allProducts } = useMemo(
+    () => applyPricingConfigToCatalog(pricingConfig),
+    [pricingConfig],
+  );
+  const resolvedProduct =
+    allProducts.find((item) => item.key === product.key) ?? product;
+  const relatedProducts = allProducts.filter(
     (item) =>
-      item.key !== product.key &&
-      product.recommendedCombos.some(
+      item.key !== resolvedProduct.key &&
+      resolvedProduct.recommendedCombos.some(
         (combo) => combo === item.shortTitle || combo === item.title,
       ),
   );
@@ -17,27 +31,27 @@ export function ProductMarketingPage({ product }: { product: NegociosProductCard
       <section className="border-b border-black/10 px-6 py-14 lg:px-10 lg:py-18">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.04fr_0.96fr]">
           <div>
-            {product.badge ? (
+            {resolvedProduct.badge ? (
               <span className="inline-flex bg-biz-yellow px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black">
-                {product.badge}
+                {resolvedProduct.badge}
               </span>
             ) : (
               <span className="inline-flex bg-biz-barbie-pink px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-white">
-                {product.kind === "core" ? "Core product" : "Add-on"}
+                {resolvedProduct.kind === "core" ? "Core product" : "Add-on"}
               </span>
             )}
             <h1 className="mt-4 font-business-display text-[clamp(3rem,8vw,6.5rem)] uppercase leading-[0.84] tracking-[-0.03em]">
-              {product.heroTitle}
+              {resolvedProduct.heroTitle}
             </h1>
             <p className="mt-6 max-w-2xl text-[1rem] leading-8 text-slate-700">
-              {product.heroDescription}
+              {resolvedProduct.heroDescription}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button
                 asChild
                 className="h-12 rounded-none bg-biz-cta-primary px-6 text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-cta-hover"
               >
-                <Link href="/negocios/crear-cuenta">{product.ctaLabel}</Link>
+                <Link href="/negocios/crear-cuenta">{resolvedProduct.ctaLabel}</Link>
               </Button>
               <Button
                 asChild
@@ -51,10 +65,10 @@ export function ProductMarketingPage({ product }: { product: NegociosProductCard
 
           <div className="grid gap-4 self-start lg:grid-cols-2">
             {[
-              { label: "Precio", value: `${product.priceMonthly} Bs / mes` },
-              { label: "Incluye", value: product.kind === "core" ? "Producto principal" : "Add-on activable" },
-              { label: "Ideal para", value: product.forWho },
-              { label: "Nota", value: product.includedNote ?? "Se activa dentro del mismo negocio, sin cambiar de plataforma." },
+              { label: "Precio", value: `${resolvedProduct.priceMonthly} Bs / mes` },
+              { label: "Incluye", value: resolvedProduct.kind === "core" ? "Producto principal" : "Add-on activable" },
+              { label: "Ideal para", value: resolvedProduct.forWho },
+              { label: "Nota", value: resolvedProduct.includedNote ?? "Se activa dentro del mismo negocio, sin cambiar de plataforma." },
             ].map((item) => (
               <article key={item.label} className="border border-black bg-white p-5">
                 <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
@@ -74,12 +88,12 @@ export function ProductMarketingPage({ product }: { product: NegociosProductCard
               Para quién es
             </p>
             <h2 className="mt-2 font-business-display text-[clamp(2.6rem,6vw,4.8rem)] uppercase leading-[0.86] tracking-[-0.03em]">
-              {product.tagline}
+              {resolvedProduct.tagline}
             </h2>
-            <p className="mt-4 text-sm leading-8 text-slate-700">{product.forWho}</p>
+            <p className="mt-4 text-sm leading-8 text-slate-700">{resolvedProduct.forWho}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {product.bullets.map((bullet) => (
+            {resolvedProduct.bullets.map((bullet) => (
               <article key={bullet} className="border border-black bg-white p-5">
                 <p className="font-bebas text-[1.2rem] uppercase tracking-[0.04em]">{bullet}</p>
               </article>
@@ -95,8 +109,8 @@ export function ProductMarketingPage({ product }: { product: NegociosProductCard
               Qué incluye
             </p>
             <ul className="mt-5 space-y-3 text-sm leading-7 text-slate-700">
-              {product.includedItems.map((item) => (
-                <li key={`${product.key}-included-${item}`}>{item}</li>
+              {resolvedProduct.includedItems.map((item) => (
+                <li key={`${resolvedProduct.key}-included-${item}`}>{item}</li>
               ))}
             </ul>
           </article>
@@ -106,8 +120,8 @@ export function ProductMarketingPage({ product }: { product: NegociosProductCard
               Combinaciones recomendadas
             </p>
             <ul className="mt-5 space-y-3 text-sm leading-7 text-white/80">
-              {product.recommendedCombos.map((item) => (
-                <li key={`${product.key}-combo-${item}`}>{item}</li>
+              {resolvedProduct.recommendedCombos.map((item) => (
+                <li key={`${resolvedProduct.key}-combo-${item}`}>{item}</li>
               ))}
             </ul>
           </article>
@@ -155,7 +169,7 @@ export function ProductMarketingPage({ product }: { product: NegociosProductCard
               asChild
               className="h-12 rounded-none bg-biz-yellow px-6 text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-[#edf222]"
             >
-              <Link href="/negocios/crear-cuenta">{product.ctaLabel}</Link>
+              <Link href="/negocios/crear-cuenta">{resolvedProduct.ctaLabel}</Link>
             </Button>
             <Button
               asChild

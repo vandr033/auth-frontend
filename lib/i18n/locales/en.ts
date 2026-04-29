@@ -614,6 +614,7 @@ const en = {
     subscription: "Subscription",
     superAdmin: "Platform Admin",
     shops: "Shops",
+    businessPricing: "Product pricing",
     productRequests: "Product requests",
     serviceTypes: "Service types",
     testNotifications: "Notification tests",

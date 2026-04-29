@@ -18,10 +18,12 @@ import { BusinessPricingBuilder } from "@/components/negocios/BusinessPricingBui
 import { resolveApiUrl } from "@/lib/api-url";
 import { notify } from "@/lib/notify";
 import {
-  formatBsAmount,
   calculateBusinessPricing,
+  formatBsAmount,
+  sanitizePricingSelection,
 } from "@/lib/negocios/pricing";
-import type { PublicAddOnKey, SelectableCoreProductKey } from "@/lib/negocios/catalog";
+import { usePublicBusinessPricing } from "@/lib/negocios/usePublicBusinessPricing";
+import type { PublicAddOnKey, SelectableCoreProductKey } from "@/lib/negocios/business-pricing";
 
 type CompanyTypeOption = {
   id: number;
@@ -75,6 +77,7 @@ function readErrorMessage(payload: SignupErrorPayload): string {
 }
 
 export function BusinessSignupWizard() {
+  const { pricingConfig, isLoading: pricingLoading } = usePublicBusinessPricing();
   const [step, setStep] = useState(1);
   const [companyTypes, setCompanyTypes] = useState<CompanyTypeOption[]>(FALLBACK_COMPANY_TYPES);
   const [loadingTypes, setLoadingTypes] = useState(true);
@@ -98,7 +101,14 @@ export function BusinessSignupWizard() {
     billingCycle: "monthly",
   });
 
-  const pricing = useMemo(() => calculateBusinessPricing(selection), [selection]);
+  const sanitizedSelection = useMemo(
+    () => sanitizePricingSelection(selection, pricingConfig),
+    [pricingConfig, selection],
+  );
+  const pricing = useMemo(
+    () => calculateBusinessPricing(sanitizedSelection, pricingConfig),
+    [pricingConfig, sanitizedSelection],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +144,17 @@ export function BusinessSignupWizard() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setSelection((current) => {
+      const nextSelection = sanitizePricingSelection(current, pricingConfig);
+      const hasChanged =
+        nextSelection.coreProducts.join("|") !== current.coreProducts.join("|") ||
+        nextSelection.addOns.join("|") !== current.addOns.join("|");
+
+      return hasChanged ? nextSelection : current;
+    });
+  }, [pricingConfig]);
 
   useEffect(() => {
     setForm((current) => {
@@ -176,8 +197,8 @@ export function BusinessSignupWizard() {
           phone: form.phone,
           password: form.password,
           slug: buildSlug(form.slug || form.businessName),
-          coreProducts: selection.coreProducts,
-          addOns: selection.addOns,
+          coreProducts: sanitizedSelection.coreProducts,
+          addOns: sanitizedSelection.addOns,
         }),
       });
 
@@ -369,6 +390,8 @@ export function BusinessSignupWizard() {
                     ctaHref="#review"
                     ctaLabel="Seguir a revisión"
                     compact
+                    pricingConfig={pricingConfig}
+                    isPricingLoading={pricingLoading}
                   />
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <Button
@@ -413,10 +436,12 @@ export function BusinessSignupWizard() {
                         Tu prueba gratis
                       </p>
                       <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-[0.92] text-biz-yellow">
-                        30 días
+                        {pricing.trialLengthDays} días
                       </p>
                       <p className="mt-3 text-sm leading-7 text-white/80">
-                        Empezás sin tarjeta. Después activás el plan que mejor cierre con tu operación.
+                        {pricing.firstMonthFree
+                          ? "Empezás sin tarjeta y con el primer mes gratis. Después activás el plan que mejor cierre con tu operación."
+                          : "Empezás sin tarjeta durante la prueba. Después activás el plan que mejor cierre con tu operación."}
                       </p>
                     </div>
                   </div>
@@ -516,7 +541,7 @@ export function BusinessSignupWizard() {
               ))}
             </div>
             <p className="mt-5 text-sm leading-7 text-white/78">
-              Si querés estimar con anual, podés cambiar el toggle en el paso 2. El alta sigue arrancando con tu prueba gratis y sin cobro.
+              Si querés estimar con anual, podés cambiar el toggle en el paso 2. El alta sigue arrancando sin tarjeta y respeta la configuración pública actual.
             </p>
           </div>
         </aside>
