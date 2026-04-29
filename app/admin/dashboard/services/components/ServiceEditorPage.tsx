@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Plus, Save } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
 import { AdminPageHeader, AdminPageShell, ErrorState, LoadingSkeleton } from "@/components/admin/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import { notify } from "@/lib/notify";
+import { canUseEntitledFeature } from "@/lib/plans/capabilities";
 
 interface GlobalServiceType {
     id: number;
@@ -53,6 +55,9 @@ interface Service {
     category_id: number;
     category?: Category;
     display_order: number;
+    is_multi_session?: boolean;
+    session_count?: number | null;
+    session_duration_minutes?: number | null;
     required_resources?: { staff_profile_id: number }[];
 }
 
@@ -67,7 +72,10 @@ interface ServiceFormData {
     description: string;
     category_id: number | null;
     price: string;
-    duration_minutes: number;
+    duration_minutes: string;
+    is_multi_session: boolean;
+    session_count: string;
+    session_duration_minutes: string;
     is_active: boolean;
     required_resource_ids: number[];
 }
@@ -77,7 +85,10 @@ const initialFormData: ServiceFormData = {
     description: "",
     category_id: null,
     price: "",
-    duration_minutes: 30,
+    duration_minutes: "30",
+    is_multi_session: false,
+    session_count: "4",
+    session_duration_minutes: "90",
     is_active: true,
     required_resource_ids: [],
 };
@@ -89,7 +100,7 @@ function getApiUrl(path: string): string {
 }
 
 export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
-    const { companyId, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const { companyId, companyUser, user, isAuthenticated, loading: authLoading } = useAdminAuth();
     const router = useRouter();
     const t = useT();
     const { locale } = useI18n();
@@ -106,6 +117,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
     const [newCategoryName, setNewCategoryName] = useState("");
     const [newCategoryServiceTypeId, setNewCategoryServiceTypeId] = useState<number | null>(null);
     const [creatingCategory, setCreatingCategory] = useState(false);
+    const [existingMultiSessionService, setExistingMultiSessionService] = useState(false);
 
     const getServiceTypeName = (type: GlobalServiceType): string =>
         getLocalizedText({
@@ -157,16 +169,23 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                 if (!service) {
                     throw new Error(t("adminServices.fetchServicesError"));
                 }
+                setExistingMultiSessionService(service.is_multi_session === true);
                 setFormData({
                     name: service.name,
                     description: service.description || "",
                     category_id: service.category_id,
                     price: (service.price_cents / 100).toFixed(2),
-                    duration_minutes: service.duration_minutes,
+                    duration_minutes: String(service.duration_minutes),
+                    is_multi_session: service.is_multi_session === true,
+                    session_count: service.session_count ? String(service.session_count) : "4",
+                    session_duration_minutes: service.session_duration_minutes
+                        ? String(service.session_duration_minutes)
+                        : "90",
                     is_active: service.is_active,
                     required_resource_ids: service.required_resources?.map((resource) => resource.staff_profile_id) ?? [],
                 });
             } else {
+                setExistingMultiSessionService(false);
                 setFormData(initialFormData);
             }
         } catch (error) {
@@ -186,6 +205,32 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
         () => formData.required_resource_ids.length,
         [formData.required_resource_ids.length],
     );
+    const canUseMultiSession = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
+    const shouldPreserveLockedMultiSession =
+        isEditing &&
+        existingMultiSessionService &&
+        !canUseMultiSession;
+    const sessionCountValue = Number.parseInt(formData.session_count, 10);
+    const sessionDurationValue = Number.parseInt(formData.session_duration_minutes, 10);
+    const computedMultiSessionDuration =
+        formData.is_multi_session &&
+        Number.isFinite(sessionCountValue) &&
+        sessionCountValue > 0 &&
+        Number.isFinite(sessionDurationValue) &&
+        sessionDurationValue > 0
+            ? sessionCountValue * sessionDurationValue
+            : null;
+
+    useEffect(() => {
+        if (!canUseMultiSession && !shouldPreserveLockedMultiSession && formData.is_multi_session) {
+            setFormData((prev) => ({
+                ...prev,
+                is_multi_session: false,
+                session_count: initialFormData.session_count,
+                session_duration_minutes: initialFormData.session_duration_minutes,
+            }));
+        }
+    }, [canUseMultiSession, formData.is_multi_session, shouldPreserveLockedMultiSession]);
 
     const handleSubmit = async () => {
         if (!companyId) return;
@@ -203,6 +248,24 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
             setFormError(t("adminServices.validPriceRequired"));
             return;
         }
+        const durationValue = Number.parseInt(formData.duration_minutes, 10);
+        if (Number.isNaN(durationValue) || durationValue < 1) {
+            setFormError(t("adminServices.durationRequired"));
+            return;
+        }
+        const multiSessionEnabled = canUseMultiSession
+            ? formData.is_multi_session
+            : shouldPreserveLockedMultiSession;
+        const sessionCount = Number.parseInt(formData.session_count, 10);
+        const sessionDuration = Number.parseInt(formData.session_duration_minutes, 10);
+        if (multiSessionEnabled && (Number.isNaN(sessionCount) || sessionCount <= 1)) {
+            setFormError("La cantidad de sesiones debe ser mayor a 1.");
+            return;
+        }
+        if (multiSessionEnabled && (Number.isNaN(sessionDuration) || sessionDuration <= 0)) {
+            setFormError("La duración por sesión debe ser mayor a 0.");
+            return;
+        }
 
         setSubmitting(true);
         setFormError(null);
@@ -212,7 +275,12 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                 description: formData.description.trim() || null,
                 category_id: formData.category_id,
                 price_cents: Math.round(priceValue * 100),
-                duration_minutes: formData.duration_minutes,
+                duration_minutes: multiSessionEnabled
+                    ? computedMultiSessionDuration ?? durationValue
+                    : durationValue,
+                is_multi_session: multiSessionEnabled,
+                session_count: multiSessionEnabled ? sessionCount : null,
+                session_duration_minutes: multiSessionEnabled ? sessionDuration : null,
                 is_active: formData.is_active,
                 company_id: companyId,
                 required_resource_ids: formData.required_resource_ids,
@@ -395,14 +463,105 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                                     type="number"
                                     min={1}
                                     max={480}
-                                    value={formData.duration_minutes}
+                                    value={
+                                        formData.is_multi_session && computedMultiSessionDuration
+                                            ? String(computedMultiSessionDuration)
+                                            : formData.duration_minutes
+                                    }
+                                    disabled={formData.is_multi_session}
                                     onChange={(event) => setFormData((prev) => ({
                                         ...prev,
-                                        duration_minutes: Number.parseInt(event.target.value, 10) || 1,
+                                        duration_minutes: event.target.value,
                                     }))}
                                     placeholder={t("adminServices.durationPlaceholder")}
                                 />
+                                {formData.is_multi_session ? (
+                                    <p className="text-xs text-slate-500">
+                                        La duración total se calcula automáticamente.
+                                    </p>
+                                ) : null}
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="admin-card">
+                        <CardHeader>
+                            <CardTitle className="text-base">Servicio con múltiples sesiones</CardTitle>
+                            <CardDescription>
+                                Disponible en Reservas Pro. El cliente elige fecha y hora para cada sesión.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between rounded-md border border-admin-border px-3 py-3">
+                                <div>
+                                    <p className="text-sm font-medium text-slate-900">Activar servicio con múltiples sesiones</p>
+                                    <p className="text-xs text-slate-500">
+                                        Mismo personal y recurso en todas las sesiones.
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={formData.is_multi_session}
+                                    disabled={!canUseMultiSession}
+                                    onCheckedChange={(checked) =>
+                                        setFormData((prev) => ({
+                                            ...prev,
+                                            is_multi_session: checked,
+                                        }))
+                                    }
+                                />
+                            </div>
+
+                            {!canUseMultiSession ? (
+                                <EntitlementLockedCard
+                                    title="Servicio con múltiples sesiones"
+                                    description="Configura paquetes de sesiones donde el cliente agenda cada sesión por separado."
+                                    capability="RESERVAS_PRO"
+                                    source="SETTINGS_LOCKED_CONTROL"
+                                    notice={t("entitlements.reservationsProLocked")}
+                                    compact
+                                />
+                            ) : null}
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="session_count">Cantidad de sesiones</Label>
+                                    <Input
+                                        id="session_count"
+                                        type="number"
+                                        min={2}
+                                        disabled={!formData.is_multi_session || !canUseMultiSession}
+                                        value={formData.session_count}
+                                        onChange={(event) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                session_count: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="session_duration_minutes">Duración por sesión (min)</Label>
+                                    <Input
+                                        id="session_duration_minutes"
+                                        type="number"
+                                        min={1}
+                                        disabled={!formData.is_multi_session || !canUseMultiSession}
+                                        value={formData.session_duration_minutes}
+                                        onChange={(event) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                session_duration_minutes: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            {formData.is_multi_session ? (
+                                <div className="rounded-md border border-admin-border bg-admin-soft px-3 py-3 text-sm text-slate-700">
+                                    Duración total calculada: {computedMultiSessionDuration ?? 0} minutos.
+                                </div>
+                            ) : null}
                         </CardContent>
                     </Card>
 

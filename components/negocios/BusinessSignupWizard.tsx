@@ -23,7 +23,11 @@ import {
   sanitizePricingSelection,
 } from "@/lib/negocios/pricing";
 import { usePublicBusinessPricing } from "@/lib/negocios/usePublicBusinessPricing";
-import type { PublicAddOnKey, SelectableCoreProductKey } from "@/lib/negocios/business-pricing";
+import {
+  getDefaultTierForCoreProduct,
+  type CoreTierSelection,
+  type PublicAddOnKey,
+} from "@/lib/negocios/business-pricing";
 
 type CompanyTypeOption = {
   id: number;
@@ -92,11 +96,16 @@ export function BusinessSignupWizard() {
     slug: "",
   });
   const [selection, setSelection] = useState<{
-    coreProducts: SelectableCoreProductKey[];
+    coreSelections: CoreTierSelection[];
     addOns: PublicAddOnKey[];
     billingCycle: "monthly" | "annual";
   }>({
-    coreProducts: ["RESERVAS"],
+    coreSelections: [
+      {
+        productKey: "RESERVAS",
+        tierKey: getDefaultTierForCoreProduct("RESERVAS"),
+      },
+    ],
     addOns: [],
     billingCycle: "monthly",
   });
@@ -149,7 +158,7 @@ export function BusinessSignupWizard() {
     setSelection((current) => {
       const nextSelection = sanitizePricingSelection(current, pricingConfig);
       const hasChanged =
-        nextSelection.coreProducts.join("|") !== current.coreProducts.join("|") ||
+        JSON.stringify(nextSelection.coreSelections) !== JSON.stringify(current.coreSelections) ||
         nextSelection.addOns.join("|") !== current.addOns.join("|");
 
       return hasChanged ? nextSelection : current;
@@ -197,7 +206,7 @@ export function BusinessSignupWizard() {
           phone: form.phone,
           password: form.password,
           slug: buildSlug(form.slug || form.businessName),
-          coreProducts: sanitizedSelection.coreProducts,
+          coreSelections: sanitizedSelection.coreSelections,
           addOns: sanitizedSelection.addOns,
         }),
       });

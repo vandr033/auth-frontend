@@ -13,6 +13,8 @@ import { useApi } from "@/app/hooks/useApi";
 import type {
     BookingStep,
     BookingState,
+    BookingScheduleSlot,
+    BookingServiceGroup,
     SelectedService,
     SelectedStaff,
     SelectedSlot,
@@ -62,15 +64,13 @@ const toMinutes = (time: string): number | null => {
 
 type PendingBookingIntent = {
     slug: string;
-    company_id: number;
-    staff_id: number;
-    service_ids: number[];
-    start_at: string;
-    payment_method: "CASH" | "QR" | "NONE";
-    notes?: string;
-    qr_proof_image_url?: string;
-    booking_source?: BookingRequest["booking_source"];
+} & Omit<BookingRequest, "customer_id"> & {
     created_at: string;
+};
+
+type BlockedSlotInterval = {
+    endAt: Date;
+    startAt: Date;
 };
 
 const savePendingBookingIntent = (intent: PendingBookingIntent) => {
@@ -109,6 +109,143 @@ const loadPendingBookingIntent = (): PendingBookingIntent | null => {
 };
 
 type BrowseMode = "service-first" | "staff-first";
+
+type BookingScheduleItem = {
+    key: string;
+    groupId: string;
+    title: string;
+    subtitle: string;
+    group: BookingServiceGroup;
+    sessionIndex: number | null;
+    sessionCount: number | null;
+};
+
+function buildScheduleSlotKey(groupId: string, sessionIndex: number | null) {
+    return `${groupId}::${sessionIndex ?? 1}`;
+}
+
+function buildSlotDateTime(date: string, time: string) {
+    return new Date(`${date}T${time}:00`);
+}
+
+function doIntervalsOverlap(
+    startA: Date,
+    endA: Date,
+    startB: Date,
+    endB: Date,
+) {
+    return startA < endB && endA > startB;
+}
+
+function getGroupSlotDurationMinutes(group: BookingServiceGroup) {
+    if (group.isMultiSession) {
+        return group.sessionDurationMinutes;
+    }
+
+    return group.services.reduce(
+        (total, service) => total + service.duration_minutes,
+        0,
+    );
+}
+
+function getEligiblePrimaryStaffForGroup(
+    group: BookingServiceGroup,
+    staffList: SelectedStaff[],
+) {
+    return staffList.filter((staff) => {
+        if (staff.resource_type === "ROOM" || staff.resource_type === "EQUIPMENT") {
+            return false;
+        }
+
+        const staffServices = staff.services || [];
+        return group.services.every((service) => staffServices.includes(service.id));
+    });
+}
+
+function resolveRequiredResourcesForService(
+    service: SelectedService,
+    staffList: SelectedStaff[],
+) {
+    const requiredStaff = staffList.filter(
+        (staff) =>
+            typeof staff.id === "number" &&
+            (service.required_resource_ids ?? []).includes(staff.id),
+    );
+    return {
+        primary:
+            requiredStaff.find(
+                (staff) =>
+                    staff.resource_type !== "ROOM" &&
+                    staff.resource_type !== "EQUIPMENT",
+            ) ?? null,
+        secondary:
+            requiredStaff.find(
+                (staff) =>
+                    staff.resource_type === "ROOM" ||
+                    staff.resource_type === "EQUIPMENT",
+            ) ?? null,
+    };
+}
+
+function buildBookingServiceGroups(params: {
+    services: SelectedService[];
+    selectedStaff: SelectedStaff | null;
+    staffList: SelectedStaff[];
+}): BookingServiceGroup[] {
+    const groups = new Map<string, BookingServiceGroup>();
+
+    for (const service of params.services) {
+        const required = resolveRequiredResourcesForService(service, params.staffList);
+        const fixedStaff =
+            required.primary ??
+            (params.selectedStaff && params.selectedStaff.id !== "any"
+                ? params.selectedStaff
+                : null);
+        const fixedSecondary = required.secondary ?? null;
+        const isMultiSession = service.is_multi_session === true;
+        const sessionCount = isMultiSession
+            ? Math.max(service.session_count ?? 0, 1)
+            : 1;
+        const sessionDurationMinutes = isMultiSession
+            ? Math.max(service.session_duration_minutes ?? 0, 1)
+            : service.duration_minutes;
+        const key = isMultiSession
+            ? [
+                "multi",
+                service.id,
+                fixedStaff?.id ?? "any",
+                fixedSecondary?.id ?? "none",
+              ].join(":")
+            : [
+                "single",
+                fixedStaff?.id ?? "any",
+                fixedSecondary?.id ?? "none",
+              ].join(":");
+
+        const existing = groups.get(key);
+        if (existing && !isMultiSession) {
+            existing.services.push(service);
+            existing.label = existing.services.map((item) => item.name).join(" + ");
+            continue;
+        }
+
+        groups.set(key, {
+            id: key,
+            label: service.name,
+            services: [service],
+            fixedStaff,
+            fixedSecondaryStaff: fixedSecondary,
+            isMultiSession,
+            sessionCount,
+            sessionDurationMinutes,
+        });
+    }
+
+    return Array.from(groups.values()).map((group) => ({
+        ...group,
+        label: group.services.map((service) => service.name).join(" + "),
+    }));
+}
 
 // Step indicator component — horizontal stepper with numbered circles + connecting lines
 function StepIndicator({ currentStep, browseMode }: { currentStep: BookingStep; browseMode: BrowseMode }) {
@@ -409,6 +546,11 @@ function DateTimeStep({
     marketplacePrefillEnabled,
     maxAdvanceDays,
     minAdvanceMinutes,
+    slotDurationMinutes,
+    blockedIntervals,
+    title,
+    subtitle,
+    ignoreMaxAdvanceLimit,
 }: {
     companyId: number;
     isActive: boolean;
@@ -424,6 +566,11 @@ function DateTimeStep({
     marketplacePrefillEnabled?: boolean;
     maxAdvanceDays?: number | null;
     minAdvanceMinutes?: number | null;
+    slotDurationMinutes: number;
+    blockedIntervals?: BlockedSlotInterval[];
+    title?: string;
+    subtitle?: string;
+    ignoreMaxAdvanceLimit?: boolean;
 }) {
     const t = useT();
     const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -444,6 +591,17 @@ function DateTimeStep({
         () => selectedServices.map((service) => service.id).join(","),
         [selectedServices],
     );
+    const effectiveBlockedIntervals = useMemo(
+        () => blockedIntervals ?? [],
+        [blockedIntervals],
+    );
+    const blockedIntervalsKey = useMemo(
+        () =>
+            effectiveBlockedIntervals
+                .map((interval) => `${interval.startAt.toISOString()}-${interval.endAt.toISOString()}`)
+                .join("|"),
+        [effectiveBlockedIntervals],
+    );
     const selectedStaffId = selectedStaff?.id === "any" ? "" : selectedStaff?.id ?? "";
     const selectedSecondaryStaffId = selectedSecondaryStaff?.id ?? "";
 
@@ -457,9 +615,9 @@ function DateTimeStep({
             setLoadingDates(true);
             setDatesError(null);
             try {
-                const fetchDays = maxAdvanceDays ?? 14;
+                const fetchDays = ignoreMaxAdvanceLimit ? 365 : maxAdvanceDays ?? 14;
                 const response = await api.get<{ data: { dates: AvailableDate[]; timezone: string } }>(
-                    `/booking/available-dates?company_id=${companyId}&days=${fetchDays}`
+                    `/booking/available-dates?company_id=${companyId}&days=${fetchDays}${ignoreMaxAdvanceLimit ? "&ignore_max_advance=1" : ""}`
                 );
                 const dates = response.data?.dates || [];
                 setAvailableDates(dates);
@@ -477,14 +635,14 @@ function DateTimeStep({
             } catch (err) {
                 console.error("Failed to fetch available dates:", err);
                 setAvailableDates([]);
-                setDatesError(err instanceof Error ? err.message : "Unable to load available dates. Please try again.");
+                setDatesError(err instanceof Error ? err.message : "No pudimos cargar las fechas disponibles.");
             } finally {
                 setLoadingDates(false);
             }
         };
 
         void fetchAvailableDates();
-    }, [companyId, api, isActive, maxAdvanceDays, onSelectDate, selectedDate]);
+    }, [api, companyId, ignoreMaxAdvanceLimit, isActive, maxAdvanceDays, onSelectDate, selectedDate]);
 
     const dateOptions = useMemo(() => {
         const locale = typeof navigator !== "undefined" ? navigator.language : "en-US";
@@ -535,6 +693,8 @@ function DateTimeStep({
             selectedStaffId,
             selectedSecondaryStaffId,
             minAdvanceMinutes ?? "",
+            slotDurationMinutes,
+            blockedIntervalsKey,
         ].join("|");
 
         if (
@@ -565,7 +725,7 @@ function DateTimeStep({
                     const now = new Date();
                     const minMs = minAdvanceMinutes * 60 * 1000;
                     fetchedSlots = fetchedSlots.map((slot) => {
-                        const slotDate = new Date(`${selectedDate}T${slot.time}:00`);
+                        const slotDate = buildSlotDateTime(selectedDate, slot.time);
                         if (slotDate.getTime() - now.getTime() < minMs) {
                             return { ...slot, available: false };
                         }
@@ -573,10 +733,33 @@ function DateTimeStep({
                     });
                 }
 
+                if (selectedDate && effectiveBlockedIntervals.length > 0) {
+                    fetchedSlots = fetchedSlots.map((slot) => {
+                        if (!slot.available) return slot;
+
+                        const slotStart = buildSlotDateTime(selectedDate, slot.time);
+                        const slotEnd = new Date(
+                            slotStart.getTime() + slotDurationMinutes * 60 * 1000,
+                        );
+                        const overlapsBlockedInterval = effectiveBlockedIntervals.some((interval) =>
+                            doIntervalsOverlap(
+                                slotStart,
+                                slotEnd,
+                                interval.startAt,
+                                interval.endAt,
+                            ),
+                        );
+
+                        return overlapsBlockedInterval
+                            ? { ...slot, available: false }
+                            : slot;
+                    });
+                }
+
                 setSlots(fetchedSlots);
             } catch (err) {
                 if (controller.signal.aborted) return;
-                setSlotsError(err instanceof Error ? err.message : "Unable to load available times. Please try again.");
+                setSlotsError(err instanceof Error ? err.message : "No pudimos cargar los horarios disponibles.");
             } finally {
                 if (!controller.signal.aborted) {
                     completedSlotsRequestKeyRef.current = requestKey;
@@ -596,13 +779,16 @@ function DateTimeStep({
         };
     }, [
         api,
+        blockedIntervalsKey,
         companyId,
+        effectiveBlockedIntervals,
         isActive,
         minAdvanceMinutes,
         selectedDate,
         selectedSecondaryStaffId,
         selectedServiceIds,
         selectedStaffId,
+        slotDurationMinutes,
     ]);
 
     const availableHours = useMemo(() => {
@@ -712,8 +898,9 @@ function DateTimeStep({
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-text-main">{t('shopBooking.selectDateTimeTitle')}</h2>
+                <h2 className="text-2xl font-bold text-text-main">{title ?? t('shopBooking.selectDateTimeTitle')}</h2>
                 <p className="text-text-muted">{t('shopBooking.selectDateTimeSubtitle')}</p>
+                {subtitle ? <p className="mt-1 text-sm text-text-muted">{subtitle}</p> : null}
             </div>
 
             {/* Closed Banner - shows when today is selected and currently closed */}
@@ -882,6 +1069,8 @@ function DateTimeStep({
 // Step 4: Confirmation
 function ConfirmStep({
     booking,
+    bookingGroups,
+    scheduledSlots,
     settings,
     currency,
     qrProofFile,
@@ -893,6 +1082,8 @@ function ConfirmStep({
     error,
 }: {
     booking: BookingState;
+    bookingGroups: BookingServiceGroup[];
+    scheduledSlots: BookingScheduleSlot[];
     settings: ShopSettings | null;
     currency?: string | null;
     qrProofFile: File | null;
@@ -905,6 +1096,11 @@ function ConfirmStep({
 }) {
     const t = useT();
     const { totalPrice, totalDuration } = calculateBookingTotals(booking.services);
+    const orderedSlots = [...scheduledSlots].sort((left, right) => {
+        const leftAt = new Date(`${left.date}T${left.time}:00`).getTime();
+        const rightAt = new Date(`${right.date}T${right.time}:00`).getTime();
+        return leftAt - rightAt;
+    });
 
     return (
         <div className="space-y-6">
@@ -931,34 +1127,34 @@ function ConfirmStep({
 
                 <hr className="border-surface-border" />
 
-                {/* Staff / Resources */}
-                <div className="flex justify-between">
+                <div>
                     <span className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-                        {t('shopBooking.step2')}
+                        Agenda confirmada
                     </span>
-                    <span className="text-text-main">
-                        {booking.staff?.display_name || t('shopBooking.anyAvailable')}
-                        {booking.secondaryStaff && ` + ${booking.secondaryStaff.display_name}`}
-                    </span>
-                </div>
-
-                {/* Date & Time */}
-                {booking.slot && (
-                    <div className="flex justify-between">
-                        <span className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-                            {t('shopBooking.dateAndTime')}
-                        </span>
-                        <span className="text-text-main">
-                            {new Date(booking.slot.date).toLocaleDateString("en-US", {
-                                weekday: "short",
-                                month: "short",
-                                day: "numeric",
-                            })}
-                            {" "}
-                            at {booking.slot.time}
-                        </span>
+                    <div className="mt-3 space-y-3">
+                        {orderedSlots.map((slot) => (
+                            <div key={slot.key} className="rounded-lg border border-surface-border bg-white/70 p-3">
+                                <p className="font-medium text-text-main">{slot.groupLabel}</p>
+                                <p className="mt-1 text-sm text-text-muted">
+                                    {slot.sessionIndex && slot.sessionCount
+                                        ? `Sesión ${slot.sessionIndex} de ${slot.sessionCount} · `
+                                        : ""}
+                                    {new Date(`${slot.date}T12:00:00`).toLocaleDateString("es-BO", {
+                                        weekday: "short",
+                                        month: "short",
+                                        day: "numeric",
+                                    })}{" "}
+                                    · {slot.time} · {slot.staff_name}
+                                </p>
+                            </div>
+                        ))}
                     </div>
-                )}
+                    {bookingGroups.length > 1 ? (
+                        <p className="mt-3 text-sm text-text-muted">
+                            Se crearán {bookingGroups.length} reservas vinculadas con una sola confirmación.
+                        </p>
+                    ) : null}
+                </div>
 
                 <hr className="border-surface-border" />
 
@@ -1180,15 +1376,18 @@ export default function BookingPage() {
     const staffLabel = settings?.staff_label || 'Staff';
 
     const [selectedDate, setSelectedDate] = useState<string | null>(preselectedDate);
+    const [schedulePage, setSchedulePage] = useState(0);
     const [booking, setBooking] = useState<BookingState>({
         step: 1,
         services: [],
         staff: null,
         secondaryStaff: null,
         slot: null,
+        groupSlots: {},
         paymentMethod: "NONE",
         notes: "",
     });
+    const [scheduleDates, setScheduleDates] = useState<Record<string, string | null>>({});
     const [qrProofFile, setQrProofFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -1268,6 +1467,9 @@ export default function BookingPage() {
             description: s.description,
             price_cents: s.price_cents,
             duration_minutes: s.duration_minutes,
+            is_multi_session: s.is_multi_session,
+            session_count: s.session_count,
+            session_duration_minutes: s.session_duration_minutes,
             category_id: s.category_id,
             required_resource_ids: s.required_resource_ids ?? [],
         })),
@@ -1306,35 +1508,214 @@ export default function BookingPage() {
         return selectableServices.filter((s) => staffServiceIds.has(s.id));
     }, [selectableServices, booking.staff, browseMode]);
 
+    const bookingGroups = useMemo(
+        () =>
+            buildBookingServiceGroups({
+                services: booking.services,
+                selectedStaff: booking.staff,
+                staffList: selectableStaff,
+            }),
+        [booking.services, booking.staff, selectableStaff],
+    );
+
+    const canScheduleGroupsIndependently = useMemo(
+        () =>
+            bookingGroups.length > 0 &&
+            bookingGroups.every((group) => {
+                if (group.fixedStaff) return true;
+                return getEligiblePrimaryStaffForGroup(group, selectableStaff).length > 0;
+            }),
+        [bookingGroups, selectableStaff],
+    );
+
+    const shouldSkipSharedStaffStep = useMemo(
+        () =>
+            browseMode === "service-first" &&
+            booking.services.length > 0 &&
+            filteredStaff.length === 0 &&
+            canScheduleGroupsIndependently,
+        [
+            booking.services.length,
+            browseMode,
+            canScheduleGroupsIndependently,
+            filteredStaff.length,
+        ],
+    );
+    const autoSkipsSharedStaffStep = useMemo(
+        () =>
+            browseMode === "service-first" &&
+            booking.services.length > 0 &&
+            (
+                filteredStaff.length === 1 ||
+                shouldSkipSharedStaffStep ||
+                bookingGroups.every(
+                    (group) => group.fixedStaff !== null || booking.staff !== null,
+                )
+            ),
+        [
+            booking.services.length,
+            booking.staff,
+            bookingGroups,
+            browseMode,
+            filteredStaff.length,
+            shouldSkipSharedStaffStep,
+        ],
+    );
+
+    const scheduleItems = useMemo<BookingScheduleItem[]>(
+        () =>
+            bookingGroups.flatMap((group) =>
+                Array.from({ length: group.isMultiSession ? group.sessionCount : 1 }, (_, index) => {
+                    const sessionIndex = group.isMultiSession ? index + 1 : null;
+                    return {
+                        key: buildScheduleSlotKey(group.id, sessionIndex),
+                        groupId: group.id,
+                        title:
+                            group.isMultiSession && sessionIndex
+                                ? `${group.label} · Sesión ${sessionIndex}`
+                                : group.label,
+                        subtitle: group.isMultiSession
+                            ? `${group.sessionDurationMinutes} min por sesión`
+                            : "Elegí fecha y hora para este grupo.",
+                        group,
+                        sessionIndex,
+                        sessionCount: group.isMultiSession ? group.sessionCount : null,
+                    };
+                }),
+            ),
+        [bookingGroups],
+    );
+
+    const activeScheduleItem = scheduleItems[schedulePage] ?? null;
+    const allScheduleItemsSelected = useMemo(
+        () =>
+            scheduleItems.length > 0 &&
+            scheduleItems.every((item) => booking.groupSlots[item.key] !== null),
+        [booking.groupSlots, scheduleItems],
+    );
+
+    const activeBlockedIntervals = useMemo(() => {
+        if (!activeScheduleItem) return [];
+
+        return scheduleItems.flatMap((item) => {
+            if (item.key === activeScheduleItem.key) return [];
+
+            const selectedSlot = booking.groupSlots[item.key];
+            if (!selectedSlot) return [];
+
+            const startAt = buildSlotDateTime(selectedSlot.date, selectedSlot.time);
+            return [
+                {
+                    startAt,
+                    endAt: new Date(
+                        startAt.getTime() +
+                            getGroupSlotDurationMinutes(item.group) * 60 * 1000,
+                    ),
+                },
+            ];
+        });
+    }, [activeScheduleItem, booking.groupSlots, scheduleItems]);
+
+    useEffect(() => {
+        setScheduleDates((current) => {
+            const next: Record<string, string | null> = {};
+            scheduleItems.forEach((item) => {
+                next[item.key] = current[item.key] ?? null;
+            });
+
+            if (
+                Object.keys(next).length === Object.keys(current).length &&
+                Object.keys(next).every((key) => next[key] === current[key])
+            ) {
+                return current;
+            }
+
+            return next;
+        });
+
+        setBooking((current) => {
+            const nextGroupSlots: Record<string, BookingScheduleSlot | null> = {};
+            scheduleItems.forEach((item) => {
+                nextGroupSlots[item.key] = current.groupSlots[item.key] ?? null;
+            });
+
+            const sameKeys =
+                Object.keys(nextGroupSlots).length ===
+                    Object.keys(current.groupSlots).length &&
+                Object.keys(nextGroupSlots).every(
+                    (key) => nextGroupSlots[key] === current.groupSlots[key],
+                );
+
+            if (sameKeys) {
+                return current;
+            }
+
+            const firstItem = scheduleItems[0];
+            const firstSlot = firstItem ? nextGroupSlots[firstItem.key] : null;
+            return {
+                ...current,
+                groupSlots: nextGroupSlots,
+                slot: firstSlot
+                    ? {
+                        date: firstSlot.date,
+                        time: firstSlot.time,
+                        staff_id: firstSlot.staff_id,
+                        staff_name: firstSlot.staff_name,
+                    }
+                    : null,
+            };
+        });
+    }, [scheduleItems]);
+
+    useEffect(() => {
+        setSchedulePage((current) => {
+            if (scheduleItems.length === 0) return 0;
+            return Math.min(current, scheduleItems.length - 1);
+        });
+    }, [scheduleItems.length]);
+
+    useEffect(() => {
+        if (!preselectedDate || scheduleItems.length === 0) return;
+        const firstKey = scheduleItems[0]?.key;
+        if (!firstKey) return;
+        setScheduleDates((current) =>
+            current[firstKey]
+                ? current
+                : {
+                    ...current,
+                    [firstKey]: preselectedDate,
+                },
+        );
+    }, [preselectedDate, scheduleItems]);
+
     // Auto-apply required resources from selected services (service-first mode)
     React.useEffect(() => {
         if (browseMode !== "service-first" || booking.services.length === 0) return;
 
-        // Collect all required resource IDs across selected services
-        const allRequiredIds = new Set<number>();
-        for (const svc of booking.services) {
-            for (const id of svc.required_resource_ids ?? []) {
-                allRequiredIds.add(id);
+        const primaryIds = new Set<number>();
+        const secondaryIds = new Set<number>();
+        booking.services.forEach((service) => {
+            const required = resolveRequiredResourcesForService(service, selectableStaff);
+            if (required.primary && typeof required.primary.id === "number") {
+                primaryIds.add(required.primary.id);
             }
-        }
+            if (required.secondary && typeof required.secondary.id === "number") {
+                secondaryIds.add(required.secondary.id);
+            }
+        });
 
-        if (allRequiredIds.size === 0) {
-            // No required resources — clear any previously auto-applied ones
-            setBooking((prev) => {
-                if (prev.secondaryStaff === null) return prev;
-                return { ...prev, secondaryStaff: null };
-            });
-            return;
-        }
-
-        // Find the StaffProfile entries for those IDs
-        const requiredStaff = selectableStaff.filter((s) => typeof s.id === 'number' && allRequiredIds.has(s.id as number));
-        const requiredPerson = requiredStaff.find((s) => s.resource_type !== 'ROOM' && s.resource_type !== 'EQUIPMENT');
-        const requiredRoom = requiredStaff.find((s) => s.resource_type === 'ROOM' || s.resource_type === 'EQUIPMENT');
+        const requiredPerson =
+            primaryIds.size === 1
+                ? selectableStaff.find((staff) => staff.id === Array.from(primaryIds)[0]) ?? null
+                : null;
+        const requiredRoom =
+            secondaryIds.size === 1
+                ? selectableStaff.find((staff) => staff.id === Array.from(secondaryIds)[0]) ?? null
+                : null;
 
         setBooking((prev) => {
-            const nextStaff = requiredPerson ?? requiredRoom ?? prev.staff;
-            const nextSecondary = requiredPerson && requiredRoom ? requiredRoom : null;
+            const nextStaff = requiredPerson ?? prev.staff;
+            const nextSecondary = requiredRoom;
             if (prev.staff?.id === nextStaff?.id && prev.secondaryStaff?.id === nextSecondary?.id) return prev;
             return { ...prev, staff: nextStaff ?? prev.staff, secondaryStaff: nextSecondary, slot: null };
         });
@@ -1356,9 +1737,16 @@ export default function BookingPage() {
         if (booking.step !== 2) return;
 
         // If service has required resources that fully determine the staff, auto-advance
-        const hasRequiredResources = booking.services.some((s) => (s.required_resource_ids?.length ?? 0) > 0);
-        if (hasRequiredResources && booking.staff !== null) {
+        const allGroupsHaveFixedScheduling = bookingGroups.length > 0 && bookingGroups.every(
+            (group) => group.fixedStaff !== null || booking.staff !== null,
+        );
+        if (allGroupsHaveFixedScheduling) {
             setBooking((prev) => ({ ...prev, slot: null, step: 3 }));
+            return;
+        }
+
+        if (shouldSkipSharedStaffStep) {
+            setBooking((prev) => ({ ...prev, staff: null, slot: null, step: 3 }));
             return;
         }
 
@@ -1370,7 +1758,15 @@ export default function BookingPage() {
             slot: null,
             step: 3,
         }));
-    }, [booking.step, booking.staff, booking.services, browseMode, filteredStaff]);
+    }, [
+        booking.step,
+        booking.staff,
+        booking.services,
+        bookingGroups,
+        browseMode,
+        filteredStaff,
+        shouldSkipSharedStaffStep,
+    ]);
 
     // Pre-select from marketplace handoff params.
     useEffect(() => {
@@ -1383,14 +1779,14 @@ export default function BookingPage() {
         if (preselectedServiceId) {
             serviceToSelect = selectableServices.find((s) => s.id === preselectedServiceId) || null;
             if (!serviceToSelect && isMarketplaceSource) {
-                warnings.push("The selected marketplace service is no longer available. Please pick another service.");
+                warnings.push("El servicio elegido desde Marketplace ya no está disponible. Elegí otro para continuar.");
             }
         }
 
         if (preselectedStaffId) {
             staffToSelect = selectableStaff.find((s) => s.id === preselectedStaffId) || null;
             if (!staffToSelect && isMarketplaceSource) {
-                warnings.push("Your preselected staff member is unavailable. We'll use the first available professional.");
+                warnings.push("El profesional preseleccionado ya no está disponible. Vamos a usar el primero que tenga horario.");
             }
         }
 
@@ -1459,7 +1855,7 @@ export default function BookingPage() {
             return;
         }
 
-        if (booking.step === 3 && booking.slot) {
+        if (booking.step === 3 && allScheduleItemsSelected) {
             setBooking((prev) => ({ ...prev, step: 4 }));
             setMarketplaceAutoAdvanceEnabled(false);
         }
@@ -1470,13 +1866,31 @@ export default function BookingPage() {
         booking.step,
         booking.services.length,
         booking.staff,
-        booking.slot,
+        allScheduleItemsSelected,
         browseMode,
     ]);
 
     // Handlers
+    const getEffectiveGroupStaff = React.useCallback((group: BookingServiceGroup) => {
+        if (group.fixedStaff) return group.fixedStaff;
+
+        const groupSlots = Object.values(booking.groupSlots).filter(
+            (slot): slot is BookingScheduleSlot =>
+                slot != null && slot.groupId === group.id,
+        );
+        const firstSlot = groupSlots[0];
+        if (!firstSlot) return booking.staff;
+
+        return (
+            selectableStaff.find((staff) => staff.id === firstSlot.staff_id) ??
+            booking.staff
+        );
+    }, [booking.groupSlots, booking.staff, selectableStaff]);
+
     const toggleService = React.useCallback((service: SelectedService) => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
+        setSchedulePage(0);
+        setScheduleDates({});
         setBooking((prev) => {
             const exists = prev.services.find((s) => s.id === service.id);
             return {
@@ -1484,21 +1898,68 @@ export default function BookingPage() {
                 services: exists
                     ? prev.services.filter((s) => s.id !== service.id)
                     : [...prev.services, service],
+                groupSlots: {},
+                slot: null,
             };
         });
     }, [isMarketplaceSource]);
 
     const selectStaff = React.useCallback((staff: SelectedStaff) => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
-        setBooking((prev) => ({ ...prev, staff, slot: null }));
+        setSchedulePage(0);
+        setScheduleDates({});
+        setBooking((prev) => ({ ...prev, staff, slot: null, groupSlots: {} }));
     }, [isMarketplaceSource]);
 
-    const selectSlot = React.useCallback((slot: SelectedSlot) => {
-        setBooking((prev) => ({ ...prev, slot }));
-    }, []);
+    const selectSlot = React.useCallback((item: BookingScheduleItem, slot: SelectedSlot) => {
+        setBooking((prev) => {
+            const nextSlot: BookingScheduleSlot = {
+                ...slot,
+                key: item.key,
+                groupId: item.groupId,
+                groupLabel: item.group.label,
+                sessionIndex: item.sessionIndex,
+                sessionCount: item.sessionCount,
+            };
+            const nextGroupSlots = {
+                ...prev.groupSlots,
+                [item.key]: nextSlot,
+            };
+            const firstItem = scheduleItems[0];
+            const firstSlot = firstItem ? nextGroupSlots[firstItem.key] : null;
+            return {
+                ...prev,
+                groupSlots: nextGroupSlots,
+                slot: firstSlot
+                    ? {
+                        date: firstSlot.date,
+                        time: firstSlot.time,
+                        staff_id: firstSlot.staff_id,
+                        staff_name: firstSlot.staff_name,
+                    }
+                    : null,
+            };
+        });
+        setScheduleDates((prev) => ({
+            ...prev,
+            [item.key]: slot.date,
+        }));
+    }, [scheduleItems]);
 
     const nextStep = () => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
+
+        if (booking.step === 3 && activeScheduleItem) {
+            if (!booking.groupSlots[activeScheduleItem.key]) {
+                return;
+            }
+
+            if (schedulePage < scheduleItems.length - 1) {
+                setSchedulePage((prev) => Math.min(prev + 1, scheduleItems.length - 1));
+                return;
+            }
+        }
+
         setBooking((prev) => {
             if (
                 browseMode === "service-first"
@@ -1514,18 +1975,38 @@ export default function BookingPage() {
                 };
             }
 
+            if (
+                browseMode === "service-first" &&
+                prev.step === 1 &&
+                prev.services.length > 0 &&
+                autoSkipsSharedStaffStep
+            ) {
+                return {
+                    ...prev,
+                    staff: null,
+                    slot: null,
+                    step: 3,
+                };
+            }
+
             return { ...prev, step: Math.min(prev.step + 1, 4) as BookingStep };
         });
     };
 
     const prevStep = () => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
+
+        if (booking.step === 3 && schedulePage > 0) {
+            setSchedulePage((prev) => Math.max(prev - 1, 0));
+            return;
+        }
+
         setBooking((prev) => {
             if (
                 browseMode === "service-first"
                 && prev.step === 3
                 && prev.services.length > 0
-                && filteredStaff.length === 1
+                && autoSkipsSharedStaffStep
             ) {
                 return { ...prev, step: 1 as BookingStep };
             }
@@ -1538,7 +2019,9 @@ export default function BookingPage() {
     const handleToggleBrowseMode = (mode: BrowseMode) => {
         if (booking.step !== 1) return;
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
+        setSchedulePage(0);
         setBrowseMode(mode);
+        setScheduleDates({});
         // Reset selections when switching modes
         setBooking((prev) => ({
             ...prev,
@@ -1546,6 +2029,7 @@ export default function BookingPage() {
             staff: null,
             secondaryStaff: null,
             slot: null,
+            groupSlots: {},
             step: 1 as BookingStep,
         }));
     };
@@ -1554,8 +2038,11 @@ export default function BookingPage() {
         if (browseMode === "service-first") {
             switch (booking.step) {
                 case 1: return booking.services.length > 0;
-                case 2: return filteredStaff.length > 0;
-                case 3: return booking.slot !== null;
+                case 2: return filteredStaff.length > 0 || shouldSkipSharedStaffStep;
+                case 3:
+                    return activeScheduleItem
+                        ? booking.groupSlots[activeScheduleItem.key] !== null
+                        : false;
                 case 4: return true;
                 default: return false;
             }
@@ -1564,7 +2051,10 @@ export default function BookingPage() {
             switch (booking.step) {
                 case 1: return booking.staff !== null;
                 case 2: return booking.services.length > 0;
-                case 3: return booking.slot !== null;
+                case 3:
+                    return activeScheduleItem
+                        ? booking.groupSlots[activeScheduleItem.key] !== null
+                        : false;
                 case 4: return true;
                 default: return false;
             }
@@ -1606,7 +2096,7 @@ export default function BookingPage() {
     }, []);
 
     const buildBookingPayload = async (): Promise<Omit<BookingRequest, "customer_id">> => {
-        if (!booking.slot || !company) {
+        if (!company || scheduleItems.some((item) => !booking.groupSlots[item.key])) {
             throw new Error(t('shopBooking.bookingError'));
         }
 
@@ -1621,17 +2111,56 @@ export default function BookingPage() {
             }
         }
 
-        const resolvedStaffId = booking.staff && booking.staff.id !== 'any' ? booking.staff.id : booking.slot.staff_id;
+        const bookingGroupsPayload = bookingGroups.map((group) => {
+            const groupItems = scheduleItems.filter((item) => item.groupId === group.id);
+            const firstSlot = booking.groupSlots[groupItems[0]?.key]!;
+            const effectiveStaff = getEffectiveGroupStaff(group);
+            const resolvedStaffId =
+                effectiveStaff && effectiveStaff.id !== "any"
+                    ? effectiveStaff.id
+                    : firstSlot.staff_id;
+            const secondaryStaffId =
+                group.fixedSecondaryStaff && typeof group.fixedSecondaryStaff.id === "number"
+                    ? group.fixedSecondaryStaff.id
+                    : undefined;
+
+            if (group.isMultiSession) {
+                return {
+                    client_group_id: group.id,
+                    staff_id: resolvedStaffId,
+                    secondary_staff_id: secondaryStaffId,
+                    service_ids: group.services.map((service) => service.id),
+                    session_slots: groupItems.map((item) => {
+                        const selectedSlot = booking.groupSlots[item.key]!;
+                        return {
+                            start_at: `${selectedSlot.date}T${selectedSlot.time}:00`,
+                        };
+                    }),
+                };
+            }
+
+            return {
+                client_group_id: group.id,
+                staff_id: resolvedStaffId,
+                secondary_staff_id: secondaryStaffId,
+                service_ids: group.services.map((service) => service.id),
+                start_at: `${firstSlot.date}T${firstSlot.time}:00`,
+            };
+        });
+
         return {
             company_id: company.id,
-            staff_id: resolvedStaffId,
-            secondary_staff_id: booking.secondaryStaff && typeof booking.secondaryStaff.id === 'number' ? booking.secondaryStaff.id : undefined,
-            service_ids: booking.services.map((s) => s.id),
-            start_at: `${booking.slot.date}T${booking.slot.time}:00`,
+            staff_id: bookingGroupsPayload[0]?.staff_id,
+            secondary_staff_id: bookingGroupsPayload[0]?.secondary_staff_id,
+            service_ids: bookingGroupsPayload.length === 1 ? booking.services.map((s) => s.id) : undefined,
+            start_at: bookingGroupsPayload.length === 1 && "start_at" in bookingGroupsPayload[0]
+                ? bookingGroupsPayload[0].start_at
+                : undefined,
             payment_method: booking.paymentMethod,
             notes: booking.notes,
             qr_proof_image_url: qrProofUrl,
             booking_source: bookingSource,
+            booking_groups: bookingGroupsPayload,
         };
     };
 
@@ -1660,12 +2189,14 @@ export default function BookingPage() {
         const payload: Omit<BookingRequest, "customer_id"> = {
             company_id: pending.company_id,
             staff_id: pending.staff_id,
+            secondary_staff_id: pending.secondary_staff_id,
             service_ids: pending.service_ids,
             start_at: pending.start_at,
             payment_method: pending.payment_method,
             notes: pending.notes,
             qr_proof_image_url: pending.qr_proof_image_url,
             booking_source: pending.booking_source,
+            booking_groups: pending.booking_groups,
         };
 
         void (async () => {
@@ -1685,7 +2216,7 @@ export default function BookingPage() {
     }, [authLoading, user, slug, success, submitBookingPayload, t, deleteUploadedQrProof]);
 
     const handleSubmit = async () => {
-        if (!booking.slot || !company) return;
+        if (!company) return;
 
         setSubmitting(true);
         setSubmitError(null);
@@ -1717,16 +2248,19 @@ export default function BookingPage() {
             }
 
             if (SLOT_UNAVAILABLE_PATTERN.test(errorMessage)) {
+                setScheduleDates({});
                 setBooking((prev) => ({
                     ...prev,
                     step: 3,
                     slot: null,
+                    groupSlots: {},
                 }));
-                setSubmitError("That slot is no longer available. Please choose another time.");
+                setSubmitError("Ese horario ya no está disponible. Elegí otro para continuar.");
                 return;
             }
 
             if (STAFF_UNAVAILABLE_PATTERN.test(errorMessage)) {
+                setScheduleDates({});
                 setBooking((prev) => ({
                     ...prev,
                     step: 2,
@@ -1735,19 +2269,22 @@ export default function BookingPage() {
                         display_name: t('shopBooking.anyAvailable'),
                     },
                     slot: null,
+                    groupSlots: {},
                 }));
-                setSubmitError("Your selected staff member is unavailable now. Pick another option to continue.");
+                setSubmitError("El personal seleccionado ya no está disponible. Elegí otra opción para continuar.");
                 return;
             }
 
             if (SERVICE_UNAVAILABLE_PATTERN.test(errorMessage)) {
+                setScheduleDates({});
                 setBooking((prev) => ({
                     ...prev,
                     step: 1,
                     services: [],
                     slot: null,
+                    groupSlots: {},
                 }));
-                setSubmitError("One or more services are no longer available. Please reselect your service.");
+                setSubmitError("Uno o más servicios ya no están disponibles. Volvé a elegirlos.");
                 return;
             }
 
@@ -1840,13 +2377,13 @@ export default function BookingPage() {
                 <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <p className="font-semibold">Prefilled from Marketplace</p>
+                            <p className="font-semibold">Datos cargados desde Marketplace</p>
                             <p className="mt-1 text-emerald-700">
-                                We preselected your booking details. Review and adjust staff/date/time if needed before confirming.
+                                Preseleccionamos los datos de tu reserva desde Marketplace. Revisalos y ajustá personal, fecha u hora si hace falta antes de confirmar.
                             </p>
                             {marketplaceHandoff.requestedTime && (
                                 <p className="mt-1 text-emerald-700">
-                                    Requested time: {marketplaceHandoff.requestedTime}
+                                    Hora solicitada: {marketplaceHandoff.requestedTime}
                                 </p>
                             )}
                             {prefillWarnings.length > 0 && (
@@ -1862,7 +2399,7 @@ export default function BookingPage() {
                             className="text-xs font-medium text-emerald-700 hover:text-emerald-900"
                             onClick={() => setShowMarketplacePrefillBanner(false)}
                         >
-                            Dismiss
+                            Cerrar
                         </button>
                     </div>
                 </div>
@@ -1938,26 +2475,66 @@ export default function BookingPage() {
                     )}
                 </div>
                 {booking.step === 3 && (
-                    <DateTimeStep
-                        companyId={company.id}
-                        isActive={booking.step === 3}
-                        selectedServices={booking.services}
-                        selectedStaff={booking.staff}
-                        selectedSecondaryStaff={booking.secondaryStaff}
-                        selectedSlot={booking.slot}
-                        onSelectSlot={selectSlot}
-                        selectedDate={selectedDate}
-                        onSelectDate={setSelectedDate}
-                        timezone={company.timezone}
-                        preferredSlotTime={preselectedSlotTime}
-                        marketplacePrefillEnabled={isMarketplaceSource}
-                        maxAdvanceDays={settings?.max_advance_booking_days}
-                        minAdvanceMinutes={settings?.min_advance_booking_minutes}
-                    />
+                    <div className="space-y-8">
+                        {activeScheduleItem ? (
+                            <div className="rounded-2xl border border-surface-border bg-white p-4 shadow-sm sm:p-6">
+                                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="inline-flex rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+                                            {t("shopBooking.scheduleProgress", {
+                                                current: schedulePage + 1,
+                                                total: scheduleItems.length,
+                                            })}
+                                        </span>
+                                        {activeScheduleItem.group.isMultiSession ? (
+                                            <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                                                {t("shopBooking.multiSessionService")}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    {scheduleItems.length > 1 ? (
+                                        <p className="text-xs text-text-muted">
+                                            {t("shopBooking.scheduleProgressHint")}
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <DateTimeStep
+                                    companyId={company.id}
+                                    isActive={booking.step === 3}
+                                    selectedServices={activeScheduleItem.group.services}
+                                    selectedStaff={getEffectiveGroupStaff(activeScheduleItem.group)}
+                                    selectedSecondaryStaff={activeScheduleItem.group.fixedSecondaryStaff}
+                                    selectedSlot={booking.groupSlots[activeScheduleItem.key]}
+                                    onSelectSlot={(slot) => selectSlot(activeScheduleItem, slot)}
+                                    selectedDate={scheduleDates[activeScheduleItem.key] ?? null}
+                                    onSelectDate={(date) =>
+                                        setScheduleDates((prev) => ({
+                                            ...prev,
+                                            [activeScheduleItem.key]: date,
+                                        }))
+                                    }
+                                    timezone={company.timezone}
+                                    preferredSlotTime={activeScheduleItem.group.isMultiSession ? null : preselectedSlotTime}
+                                    marketplacePrefillEnabled={isMarketplaceSource && !activeScheduleItem.group.isMultiSession}
+                                    maxAdvanceDays={settings?.max_advance_booking_days}
+                                    minAdvanceMinutes={settings?.min_advance_booking_minutes}
+                                    slotDurationMinutes={getGroupSlotDurationMinutes(activeScheduleItem.group)}
+                                    blockedIntervals={activeBlockedIntervals}
+                                    title={activeScheduleItem.title}
+                                    subtitle={activeScheduleItem.subtitle}
+                                    ignoreMaxAdvanceLimit={activeScheduleItem.group.isMultiSession}
+                                />
+                            </div>
+                        ) : null}
+                    </div>
                 )}
                 {booking.step === 4 && (
                     <ConfirmStep
                         booking={booking}
+                        bookingGroups={bookingGroups}
+                        scheduledSlots={Object.values(booking.groupSlots).filter(
+                            (slot): slot is BookingScheduleSlot => Boolean(slot),
+                        )}
                         settings={settings}
                         currency={company.currency}
                         qrProofFile={qrProofFile}

@@ -2,6 +2,7 @@ import {
   buildBusinessPricingProductMap,
   DEFAULT_BUSINESS_PRICING_CONFIG,
   type BusinessPricingConfig,
+  type BusinessPricingTier,
   type PublicAddOnKey,
   type PublicCoreProductKey,
 } from "@/lib/negocios/business-pricing";
@@ -14,6 +15,7 @@ export type NegociosProductCard = {
   slug: string;
   href: string;
   priceMonthly: number;
+  tiers?: BusinessPricingTier[];
   tagline: string;
   description: string;
   bullets: string[];
@@ -350,11 +352,18 @@ export function applyPricingConfigToCatalog(
     return {
       ...product,
       priceMonthly: pricingProduct.monthlyPriceBs,
+      tiers: pricingProduct.tiers,
       disabled: isDisabled,
       badge: pricingProduct.isComingSoon ? "Próximamente" : product.badge,
       title: pricingProduct.displayName || product.title,
       shortTitle: pricingProduct.displayName || product.shortTitle,
       tagline: pricingProduct.description || product.tagline,
+      bullets: pricingProduct.tiers?.[0]?.featureList?.length
+        ? pricingProduct.tiers[0].featureList
+        : pricingProduct.featureList?.length
+          ? pricingProduct.featureList
+          : product.bullets,
+      includedNote: pricingProduct.includedNote || product.includedNote,
     };
   };
 

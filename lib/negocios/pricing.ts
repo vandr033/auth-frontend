@@ -1,15 +1,17 @@
 import {
   buildBusinessPricingProductMap,
   DEFAULT_BUSINESS_PRICING_CONFIG,
+  getTierByKey,
+  sanitizeCoreSelections,
   type BusinessPricingConfig,
+  type CoreTierSelection,
   type PricingBillingCycle,
   type PublicAddOnKey,
   type PublicCoreProductKey,
-  type SelectableCoreProductKey,
 } from "@/lib/negocios/business-pricing";
 
 export type PricingSelection = {
-  coreProducts: SelectableCoreProductKey[];
+  coreSelections: CoreTierSelection[];
   addOns: PublicAddOnKey[];
   billingCycle: PricingBillingCycle;
 };
@@ -46,10 +48,7 @@ export function sanitizePricingSelection(
 
   return {
     ...selection,
-    coreProducts: Array.from(new Set(selection.coreProducts)).filter((key) => {
-      const product = pricingByKey.get(key);
-      return Boolean(product && product.type === "CORE" && product.isActive && !product.isComingSoon);
-    }),
+    coreSelections: sanitizeCoreSelections(selection.coreSelections, pricingConfig),
     addOns: Array.from(new Set(selection.addOns)).filter((key) => {
       const product = pricingByKey.get(key);
       return Boolean(product && product.type === "ADDON" && product.isActive && !product.isComingSoon);
@@ -63,25 +62,36 @@ export function calculateBusinessPricing(
 ): PricingBreakdown {
   const pricingByKey = buildBusinessPricingProductMap(pricingConfig);
   const sanitizedSelection = sanitizePricingSelection(selection, pricingConfig);
-  const coreProducts = sanitizedSelection.coreProducts;
+  const coreSelections = sanitizedSelection.coreSelections;
   const addOns = sanitizedSelection.addOns;
   const validationErrors: string[] = [];
 
-  if (coreProducts.length === 0) {
-    validationErrors.push("Elegí al menos un producto principal.");
+  if (coreSelections.length === 0) {
+    validationErrors.push("Seleccioná al menos un producto principal.");
   }
 
-  const selectedProductKeys = [...coreProducts, ...addOns];
-  const selectedItemCount = selectedProductKeys.length;
-  const subtotalMonthly = selectedProductKeys.reduce((sum, key) => {
-    const product = pricingByKey.get(key as PublicCoreProductKey | PublicAddOnKey);
-    return sum + (product?.monthlyPriceBs ?? 0);
-  }, 0);
+  const selectedProductKeys = [
+    ...coreSelections.map((selectionItem) => `${selectionItem.productKey}:${selectionItem.tierKey}`),
+    ...addOns,
+  ];
+  const selectedItemCount = coreSelections.length + addOns.length;
+  const subtotalMonthly = [
+    ...coreSelections.map((selectionItem) => {
+      const product = pricingByKey.get(selectionItem.productKey as PublicCoreProductKey | PublicAddOnKey);
+      return getTierByKey(product, selectionItem.tierKey)?.monthlyPriceBs ?? product?.monthlyPriceBs ?? 0;
+    }),
+    ...addOns.map((key) => pricingByKey.get(key)?.monthlyPriceBs ?? 0),
+  ].reduce((sum, value) => sum + value, 0);
 
   const bundleDiscountPercent = clampPercent(
     pricingConfig.discounts.bundleTiers
       .slice()
-      .sort((left, right) => left.minSelectedItems - right.minSelectedItems)
+      .sort((left, right) => {
+        const leftOrder = left.sortOrder ?? left.minSelectedItems;
+        const rightOrder = right.sortOrder ?? right.minSelectedItems;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return left.minSelectedItems - right.minSelectedItems;
+      })
       .reduce((currentDiscount, tier) => {
         if (selectedItemCount >= tier.minSelectedItems) {
           return tier.discountPercent;
@@ -119,9 +129,16 @@ export function calculateBusinessPricing(
     firstMonthFree: pricingConfig.discounts.firstMonthFree,
     trialLengthDays: pricingConfig.discounts.trialLengthDays,
     selectedProductKeys,
-    selectedProducts: selectedProductKeys.map(
-      (key) => pricingByKey.get(key as PublicCoreProductKey | PublicAddOnKey)?.displayName ?? key,
-    ),
+    selectedProducts: [
+      ...coreSelections.map((selectionItem) => {
+        const product = pricingByKey.get(selectionItem.productKey);
+        const tier = getTierByKey(product, selectionItem.tierKey);
+        return `${product?.displayName ?? selectionItem.productKey} ${tier?.label ?? ""}`.trim();
+      }),
+      ...addOns.map(
+        (key) => pricingByKey.get(key as PublicCoreProductKey | PublicAddOnKey)?.displayName ?? key,
+      ),
+    ],
     validationErrors,
   };
 }

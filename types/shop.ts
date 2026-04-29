@@ -112,6 +112,9 @@ export interface ShopService {
     description?: string;
     price_cents: number;
     duration_minutes: number;
+    is_multi_session?: boolean;
+    session_count?: number | null;
+    session_duration_minutes?: number | null;
     position: number;
     required_resource_ids?: number[]; // StaffProfile IDs required to be booked with this service
 }

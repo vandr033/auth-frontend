@@ -10,6 +10,9 @@ export interface SelectedService {
     description?: string;
     price_cents: number;
     duration_minutes: number;
+    is_multi_session?: boolean;
+    session_count?: number | null;
+    session_duration_minutes?: number | null;
     category_id: number;
     required_resource_ids?: number[];
 }
@@ -29,12 +32,32 @@ export interface SelectedSlot {
     staff_name: string;
 }
 
+export interface BookingScheduleSlot extends SelectedSlot {
+    key: string;
+    groupId: string;
+    groupLabel: string;
+    sessionIndex: number | null;
+    sessionCount: number | null;
+}
+
+export interface BookingServiceGroup {
+    id: string;
+    label: string;
+    services: SelectedService[];
+    fixedStaff: SelectedStaff | null;
+    fixedSecondaryStaff: SelectedStaff | null;
+    isMultiSession: boolean;
+    sessionCount: number;
+    sessionDurationMinutes: number;
+}
+
 export interface BookingState {
     step: BookingStep;
     services: SelectedService[];
     staff: SelectedStaff | null;
     secondaryStaff: SelectedStaff | null; // required room/equipment auto-applied from service
     slot: SelectedSlot | null;
+    groupSlots: Record<string, BookingScheduleSlot | null>;
     paymentMethod: 'CASH' | 'QR' | 'NONE';
     notes: string;
 }
@@ -48,15 +71,23 @@ export interface TimeSlot {
 
 export interface BookingRequest {
     company_id: number;
-    staff_id: number;
+    staff_id?: number;
     secondary_staff_id?: number;
     customer_id: string;
-    service_ids: number[];
-    start_at: string;
+    service_ids?: number[];
+    start_at?: string;
     payment_method: 'CASH' | 'QR' | 'NONE';
     notes?: string;
     qr_proof_image_url?: string;
     booking_source?: 'MARKETPLACE' | 'SALON_SITE' | 'ADMIN' | 'MANUAL';
+    booking_groups?: Array<{
+        client_group_id: string;
+        staff_id?: number;
+        secondary_staff_id?: number;
+        service_ids: number[];
+        start_at?: string;
+        session_slots?: Array<{ start_at: string }>;
+    }>;
 }
 
 export interface BookingResponse {

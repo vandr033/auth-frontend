@@ -81,6 +81,11 @@ export default function SuperAdminLayout({
             icon: <BadgePercent className="h-5 w-5" />,
         },
         {
+            label: "Funciones por producto",
+            href: "/admin/super-admin/product-features",
+            icon: <Shield className="h-5 w-5" />,
+        },
+        {
             label: t("adminNav.productRequests"),
             href: "/admin/super-admin/product-requests",
             icon: <Shield className="h-5 w-5" />,

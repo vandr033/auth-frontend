@@ -3,6 +3,7 @@ import { resolveBackendUrl } from "@/lib/api-url";
 import { normalizeApiError } from "@/lib/api-error";
 import type {
     BusinessPricingProduct,
+    BusinessPricingCoreTierKey,
     BusinessPricingProductKey,
 } from "@/lib/negocios/business-pricing";
 import type {
@@ -95,12 +96,43 @@ export type SuperAdminBusinessPricingConfig = {
             discountPercent: number;
             label: string;
             isActive: boolean;
+            sortOrder: number;
         }>;
         annualDiscountPercent: number;
         trialLengthDays: number;
         firstMonthFree: boolean;
     };
 };
+
+export type SuperAdminProductFeatureSection =
+    | {
+        kind: "core";
+        productKey: "RESERVAS" | "EVENTOS" | "CLASES";
+        title: string;
+        rows: Array<{
+            feature: string;
+            base: boolean;
+            pro: boolean;
+        }>;
+    }
+    | {
+        kind: "comingSoon";
+        productKey: "TIENDA";
+        title: string;
+        status: string;
+        features: string[];
+    }
+    | {
+        kind: "addons";
+        title: string;
+        rows: Array<{
+            addOnKey: "PERSONALIZACION_PRO" | "METRICAS" | "MENSAJERIA_PRO" | "CRM_PRO";
+            name: string;
+            features: string[];
+            dependency?: string | null;
+            status: string;
+        }>;
+    };
 
 export async function getSuperAdminBusinessPricing(): Promise<SuperAdminBusinessPricingConfig> {
     const response = await apiFetch<{ data: SuperAdminBusinessPricingConfig }>(
@@ -117,6 +149,10 @@ export async function updateSuperAdminBusinessPricingProduct(
         isActive: boolean;
         isComingSoon: boolean;
         sortOrder: number;
+        tiers?: Array<{
+            tierKey: BusinessPricingCoreTierKey;
+            monthlyPriceBs: number;
+        }>;
     },
 ): Promise<SuperAdminBusinessPricingConfig> {
     const response = await apiFetch<{ data: SuperAdminBusinessPricingConfig }>(
@@ -136,10 +172,8 @@ export async function updateSuperAdminBusinessPricingDiscounts(input: {
         discountPercent: number;
         label: string;
         isActive: boolean;
+        sortOrder: number;
     }>;
-    annualDiscountPercent: number;
-    trialLengthDays: number;
-    firstMonthFree: boolean;
 }): Promise<SuperAdminBusinessPricingConfig> {
     const response = await apiFetch<{ data: SuperAdminBusinessPricingConfig }>(
         "/api/super-admin/business-pricing/discounts",
@@ -149,6 +183,31 @@ export async function updateSuperAdminBusinessPricingDiscounts(input: {
         },
     );
 
+    return response.data;
+}
+
+export async function updateSuperAdminBusinessPricingSettings(input: {
+    annualDiscountPercent: number;
+    trialLengthDays: number;
+    firstMonthFree: boolean;
+}): Promise<SuperAdminBusinessPricingConfig> {
+    const response = await apiFetch<{ data: SuperAdminBusinessPricingConfig }>(
+        "/api/super-admin/business-pricing/settings",
+        {
+            method: "PUT",
+            body: JSON.stringify(input),
+        },
+    );
+
+    return response.data;
+}
+
+export async function getSuperAdminProductFeatures(): Promise<{
+    sections: SuperAdminProductFeatureSection[];
+}> {
+    const response = await apiFetch<{ data: { sections: SuperAdminProductFeatureSection[] } }>(
+        "/api/super-admin/product-features",
+    );
     return response.data;
 }
 

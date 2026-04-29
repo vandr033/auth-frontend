@@ -16,6 +16,10 @@ type ApiErrorPayload = {
 
 type ApiErrorPayloadData = {
     capability?: unknown;
+    missingCapability?: unknown;
+    recommendedProductCode?: unknown;
+    recommendedTierCode?: unknown;
+    requiresLabel?: unknown;
 };
 
 export type AppApiError = Error & {
@@ -70,13 +74,23 @@ export function normalizeApiError(
 ): AppApiError {
     const payloadRecord = toRecord(payload) as ApiErrorPayload | null;
     const payloadData = toRecord(payloadRecord?.data) as ApiErrorPayloadData | null;
-    const capability = isProductCapability(payloadData?.capability) ? payloadData.capability : undefined;
+    const capability = isProductCapability(payloadData?.capability)
+        ? payloadData.capability
+        : isProductCapability(payloadData?.missingCapability)
+            ? payloadData.missingCapability
+            : undefined;
     const reason = toStringOrUndefined(payloadRecord?.reason);
+    const hasProductAccessRecommendation =
+        typeof payloadData?.recommendedProductCode === "string" &&
+        typeof payloadData?.recommendedTierCode === "string";
+    const hasRequiresLabel = typeof payloadData?.requiresLabel === "string";
 
     const isEntitlementError = status === 403 && (
         reason === "PRODUCT_NOT_ACTIVE" ||
         reason === "CAPABILITY_REQUIRED" ||
-        capability !== undefined
+        capability !== undefined ||
+        hasProductAccessRecommendation ||
+        hasRequiresLabel
     );
 
     const rawMessage =

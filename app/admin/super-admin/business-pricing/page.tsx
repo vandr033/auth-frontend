@@ -7,6 +7,7 @@ import {
   getSuperAdminBusinessPricing,
   updateSuperAdminBusinessPricingDiscounts,
   updateSuperAdminBusinessPricingProduct,
+  updateSuperAdminBusinessPricingSettings,
   type SuperAdminBusinessPricingConfig,
 } from "@/app/admin/lib/adminApi";
 import { AdminPageHeader, AdminPageShell, LoadingSkeleton } from "@/components/admin/shared";
@@ -17,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { notify } from "@/lib/notify";
 import type {
+  BusinessPricingCoreTierKey,
   BusinessPricingProductKey,
   BusinessPricingProductType,
 } from "@/lib/negocios/business-pricing";
@@ -30,6 +32,11 @@ type ProductForm = {
   isActive: boolean;
   isComingSoon: boolean;
   sortOrder: string;
+  tiers: Array<{
+    tierKey: BusinessPricingCoreTierKey;
+    label: string;
+    monthlyPriceBs: string;
+  }>;
 };
 
 type BundleTierForm = {
@@ -38,9 +45,10 @@ type BundleTierForm = {
   discountPercent: string;
   label: string;
   isActive: boolean;
+  sortOrder: string;
 };
 
-type SaveSection = "core" | "addons" | "discounts" | null;
+type SaveSection = "core" | "addons" | "discounts" | "settings" | null;
 
 function hydrateProductForms(config: SuperAdminBusinessPricingConfig): ProductForm[] {
   return config.products.map((product) => ({
@@ -51,6 +59,11 @@ function hydrateProductForms(config: SuperAdminBusinessPricingConfig): ProductFo
     isActive: product.isActive,
     isComingSoon: product.isComingSoon,
     sortOrder: String(product.sortOrder),
+    tiers: (product.tiers ?? []).map((tier) => ({
+      tierKey: tier.tierKey,
+      label: tier.label,
+      monthlyPriceBs: String(tier.monthlyPriceBs),
+    })),
   }));
 }
 
@@ -61,6 +74,7 @@ function hydrateBundleTierForms(config: SuperAdminBusinessPricingConfig): Bundle
     discountPercent: String(tier.discountPercent),
     label: tier.label,
     isActive: tier.isActive,
+    sortOrder: String(tier.sortOrder),
   }));
 }
 
@@ -128,6 +142,25 @@ export default function SuperAdminBusinessPricingPage() {
     );
   }, []);
 
+  const updateProductTierForm = useCallback((
+    key: BusinessPricingProductKey,
+    tierKey: BusinessPricingCoreTierKey,
+    monthlyPriceBs: string,
+  ) => {
+    setProductForms((current) =>
+      current.map((product) =>
+        product.key === key
+          ? {
+              ...product,
+              tiers: product.tiers.map((tier) =>
+                tier.tierKey === tierKey ? { ...tier, monthlyPriceBs } : tier,
+              ),
+            }
+          : product,
+      ),
+    );
+  }, []);
+
   const updateBundleTierForm = useCallback((id: number, patch: Partial<BundleTierForm>) => {
     setBundleTierForms((current) =>
       current.map((tier) => (tier.id === id ? { ...tier, ...patch } : tier)),
@@ -149,6 +182,10 @@ export default function SuperAdminBusinessPricingPage() {
           isActive: product.isActive,
           isComingSoon: product.isComingSoon,
           sortOrder: Math.round(toNumber(product.sortOrder)),
+          tiers: product.tiers.map((tier) => ({
+            tierKey: tier.tierKey,
+            monthlyPriceBs: toNumber(tier.monthlyPriceBs),
+          })),
         });
       }
 
@@ -175,7 +212,25 @@ export default function SuperAdminBusinessPricingPage() {
           discountPercent: toNumber(tier.discountPercent),
           label: tier.label.trim(),
           isActive: tier.isActive,
+          sortOrder: Math.round(toNumber(tier.sortOrder)),
         })),
+      });
+
+      syncFromConfig(nextConfig);
+      await notify.success("Precios actualizados");
+    } catch (error) {
+      await notify.error(
+        error instanceof Error ? error.message : "No pudimos actualizar los descuentos.",
+      );
+    } finally {
+      setSavingSection(null);
+    }
+  }, [bundleTierForms, syncFromConfig]);
+
+  const handleSaveSettings = useCallback(async () => {
+    setSavingSection("settings");
+    try {
+      const nextConfig = await updateSuperAdminBusinessPricingSettings({
         annualDiscountPercent: toNumber(annualDiscountPercent),
         trialLengthDays: Math.round(toNumber(trialLengthDays)),
         firstMonthFree,
@@ -192,7 +247,6 @@ export default function SuperAdminBusinessPricingPage() {
     }
   }, [
     annualDiscountPercent,
-    bundleTierForms,
     firstMonthFree,
     trialLengthDays,
     syncFromConfig,
@@ -264,18 +318,29 @@ export default function SuperAdminBusinessPricingPage() {
                     onChange={(event) => updateProductForm(product.key, { displayName: event.target.value })}
                   />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor={`product-price-${product.key}`}>Precio mensual Bs</Label>
-                    <Input
-                      id={`product-price-${product.key}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={product.monthlyPriceBs}
-                      onChange={(event) => updateProductForm(product.key, { monthlyPriceBs: event.target.value })}
-                    />
+                <div className="grid gap-3">
+                  <Label>Precios por tier</Label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {product.tiers.map((tier) => (
+                      <div key={tier.tierKey} className="grid gap-2 rounded-lg border border-slate-200 p-3">
+                        <Label htmlFor={`product-tier-price-${product.key}-${tier.tierKey}`}>
+                          {tier.label}
+                        </Label>
+                        <Input
+                          id={`product-tier-price-${product.key}-${tier.tierKey}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={tier.monthlyPriceBs}
+                          onChange={(event) =>
+                            updateProductTierForm(product.key, tier.tierKey, event.target.value)
+                          }
+                        />
+                      </div>
+                    ))}
                   </div>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor={`product-order-${product.key}`}>Orden</Label>
                     <Input
@@ -411,13 +476,13 @@ export default function SuperAdminBusinessPricingPage() {
             className="bg-admin-brand text-white hover:bg-admin-brand-hover"
           >
             {savingSection === "discounts" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Guardar descuentos y prueba
+            Guardar descuentos
           </Button>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-4">
             {bundleTierForms.map((tier) => (
-              <div key={tier.id} className="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_1fr_1.2fr_auto] md:items-end">
+              <div key={tier.id} className="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_1fr_1.2fr_1fr_auto] md:items-end">
                 <div className="grid gap-2">
                   <Label htmlFor={`tier-min-${tier.id}`}>Mínimo de selecciones</Label>
                   <Input
@@ -449,6 +514,17 @@ export default function SuperAdminBusinessPricingPage() {
                     onChange={(event) => updateBundleTierForm(tier.id, { label: event.target.value })}
                   />
                 </div>
+                <div className="grid gap-2">
+                  <Label htmlFor={`tier-order-${tier.id}`}>Orden</Label>
+                  <Input
+                    id={`tier-order-${tier.id}`}
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={tier.sortOrder}
+                    onChange={(event) => updateBundleTierForm(tier.id, { sortOrder: event.target.value })}
+                  />
+                </div>
                 <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 md:min-w-[180px]">
                   <div>
                     <p className="text-sm font-medium text-slate-900">Activo</p>
@@ -463,6 +539,27 @@ export default function SuperAdminBusinessPricingPage() {
             ))}
           </div>
 
+        </CardContent>
+      </Card>
+
+      <Card className="border-slate-200">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-base">Anual y prueba gratis</CardTitle>
+            <p className="text-sm text-slate-500">
+              Estos valores afectan /negocios y /negocios/crear-cuenta.
+            </p>
+          </div>
+          <Button
+            onClick={() => void handleSaveSettings()}
+            disabled={savingSection !== null}
+            className="bg-admin-brand text-white hover:bg-admin-brand-hover"
+          >
+            {savingSection === "settings" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Guardar configuración
+          </Button>
+        </CardHeader>
+        <CardContent>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="grid gap-2 rounded-xl border border-slate-200 p-4">
               <Label htmlFor="annualDiscountPercent">Descuento anual (%)</Label>
@@ -481,7 +578,7 @@ export default function SuperAdminBusinessPricingPage() {
               <Input
                 id="trialLengthDays"
                 type="number"
-                min="0"
+                min="1"
                 max="365"
                 step="1"
                 value={trialLengthDays}

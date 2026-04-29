@@ -26,6 +26,9 @@ import {
   applyPricingConfigToCatalog,
 } from "@/lib/negocios/catalog";
 import {
+  getDefaultTierForCoreProduct,
+  getTierByKey,
+  type CoreTierSelection,
   type PublicAddOnKey,
   type PublicCoreProductKey,
   type SelectableCoreProductKey,
@@ -157,11 +160,22 @@ function SectionEyebrow({
 function CoreProductFeature({
   index,
   product,
+  activeSelection,
+  onChooseTier,
 }: {
   index: number;
   product: ReturnType<typeof applyPricingConfigToCatalog>["coreProducts"][number];
+  activeSelection?: CoreTierSelection;
+  onChooseTier?: (tierKey: "RESERVAS_BASE" | "RESERVAS_PRO" | "EVENTOS_BASE" | "EVENTOS_PRO" | "CLASES_BASE" | "CLASES_PRO") => void;
 }) {
   const Icon = PRODUCT_ICONS[product.key] ?? Sparkles;
+  const activeTier =
+    product.key !== "TIENDA"
+      ? getTierByKey(
+          product as never,
+          activeSelection?.tierKey ?? getDefaultTierForCoreProduct(product.key as SelectableCoreProductKey),
+        )
+      : null;
   const cardClasses = [
     "md:col-span-2 bg-black text-white",
     "bg-white text-black",
@@ -212,11 +226,36 @@ function CoreProductFeature({
           </span>
         </div>
 
-        {product.badge ? (
-          <span className="inline-flex bg-biz-yellow px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-black">
-            {product.badge}
-          </span>
-        ) : null}
+        <div className="flex flex-wrap justify-end gap-2">
+          {activeTier && !product.disabled ? (
+            <>
+              {(product.tiers ?? []).map((tier) => (
+                <button
+                  key={tier.tierKey}
+                  type="button"
+                  onClick={() => onChooseTier?.(tier.tierKey)}
+                  className={cn(
+                    "inline-flex h-10 items-center justify-center border px-3 text-[10px] font-black uppercase tracking-[0.08em]",
+                    activeTier.tierKey === tier.tierKey
+                      ? index === 0
+                        ? "border-biz-yellow bg-biz-yellow text-black"
+                        : "border-black bg-black text-white"
+                      : index === 0
+                        ? "border-white/[0.16] bg-white/[0.08] text-white"
+                        : "border-black/[0.08] bg-white text-black",
+                  )}
+                >
+                  {tier.label}
+                </button>
+              ))}
+            </>
+          ) : null}
+          {product.badge ? (
+            <span className="inline-flex bg-biz-yellow px-3 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-black">
+              {product.badge}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="relative mt-7 min-w-0 max-w-[34rem]">
@@ -235,7 +274,7 @@ function CoreProductFeature({
       </div>
 
       <div className="relative mt-5 flex flex-wrap gap-2">
-        {product.bullets.slice(0, 3).map((bullet) => (
+        {(activeTier?.featureList ?? product.bullets).slice(0, 3).map((bullet) => (
           <span
             key={`${product.key}-${bullet}`}
             className={cn(
@@ -259,7 +298,7 @@ function CoreProductFeature({
             product.disabled && "text-slate-400",
           )}
         >
-          {formatBsCompact(product.priceMonthly)}
+          {formatBsCompact(activeTier?.monthlyPriceBs ?? product.priceMonthly)}
         </p>
 
         <Link
@@ -273,7 +312,7 @@ function CoreProductFeature({
                 : "border-black bg-black text-white hover:bg-biz-barbie-pink hover:border-biz-barbie-pink",
           )}
         >
-          {product.disabled ? "Ver lo que viene" : `Ver ${product.shortTitle}`}
+          {product.disabled ? "Ver lo que viene" : activeTier ? `${product.shortTitle} ${activeTier.label}` : `Ver ${product.shortTitle}`}
           {!product.disabled ? <ArrowUpRight className="h-4 w-4" /> : null}
         </Link>
       </div>
@@ -386,11 +425,16 @@ function SectorCard({
 export function NegociosLandingPage() {
   const { pricingConfig, isLoading: pricingLoading } = usePublicBusinessPricing();
   const [selection, setSelection] = useState<{
-    coreProducts: SelectableCoreProductKey[];
+    coreSelections: CoreTierSelection[];
     addOns: PublicAddOnKey[];
     billingCycle: "monthly" | "annual";
   }>({
-    coreProducts: ["RESERVAS"],
+    coreSelections: [
+      {
+        productKey: "RESERVAS",
+        tierKey: getDefaultTierForCoreProduct("RESERVAS"),
+      },
+    ],
     addOns: [],
     billingCycle: "monthly",
   });
@@ -425,7 +469,7 @@ export function NegociosLandingPage() {
     setSelection((current) => {
       const nextSelection = sanitizePricingSelection(current, pricingConfig);
       const hasChanged =
-        nextSelection.coreProducts.join("|") !== current.coreProducts.join("|") ||
+        JSON.stringify(nextSelection.coreSelections) !== JSON.stringify(current.coreSelections) ||
         nextSelection.addOns.join("|") !== current.addOns.join("|");
 
       return hasChanged ? nextSelection : current;
@@ -490,7 +534,7 @@ export function NegociosLandingPage() {
                   Base activa
                 </p>
                 <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-none">
-                  {sanitizedSelection.coreProducts.length}
+                  {sanitizedSelection.coreSelections.length}
                 </p>
               </div>
               <div className="border border-black bg-white p-4">
@@ -651,7 +695,27 @@ export function NegociosLandingPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               {coreProducts.map((product, index) => (
-                <CoreProductFeature key={product.key} index={index} product={product} />
+                <CoreProductFeature
+                  key={product.key}
+                  index={index}
+                  product={product}
+                  activeSelection={
+                    product.key !== "TIENDA"
+                      ? selection.coreSelections.find((item) => item.productKey === product.key)
+                      : undefined
+                  }
+                  onChooseTier={(tierKey) => {
+                    if (product.key === "TIENDA") return;
+                    const productKey = product.key as SelectableCoreProductKey;
+                    setSelection((current) => ({
+                      ...current,
+                      coreSelections: [
+                        ...current.coreSelections.filter((item) => item.productKey !== productKey),
+                        { productKey, tierKey },
+                      ],
+                    }));
+                  }}
+                />
               ))}
             </div>
           </div>
