@@ -137,7 +137,7 @@ function ProductCard({
     <article
       className={cn(
         "group relative flex h-full flex-col overflow-hidden border transition-all duration-300",
-        isCore ? "min-h-[320px] p-6" : "min-h-[260px] p-5",
+        isCore ? "min-h-[280px] p-5 sm:p-6" : "min-h-[220px] p-5",
         selected
           ? "border-black bg-black text-white shadow-[0_22px_48px_rgba(5,5,5,0.2)]"
           : "border-black/[0.12] bg-white text-black hover:-translate-y-1 hover:border-black hover:shadow-[0_20px_40px_rgba(15,23,42,0.1)]",
@@ -196,14 +196,14 @@ function ProductCard({
           <h3
             className={cn(
               "font-business-display uppercase leading-[0.88] tracking-[-0.03em]",
-              isCore ? "text-[clamp(2.3rem,4vw,3.5rem)]" : "text-[clamp(1.9rem,3vw,2.8rem)]",
+              isCore ? "text-[clamp(2rem,3.3vw,3rem)]" : "text-[clamp(1.8rem,2.5vw,2.5rem)]",
             )}
           >
             {title}
           </h3>
           <p
             className={cn(
-              "mt-3 max-w-[36ch] text-sm leading-7",
+              "mt-3 max-w-[34ch] text-sm leading-6",
               selected ? "text-white/[0.78]" : "text-slate-700",
               disabled && "text-slate-500",
             )}
@@ -234,11 +234,11 @@ function ProductCard({
         </div>
 
         <ul className="grid gap-2">
-          {bullets.slice(0, isCore ? 4 : 3).map((bullet) => (
+          {bullets.slice(0, 3).map((bullet) => (
             <li
               key={`${title}-${bullet}`}
               className={cn(
-                "flex items-start gap-2 text-sm leading-6",
+                "flex items-start gap-2 text-sm leading-[1.35rem]",
                 selected ? "text-white/[0.76]" : "text-slate-700",
                 disabled && "text-slate-500",
               )}
@@ -342,14 +342,14 @@ export function BusinessPricingBuilder({
       : "Mientras más productos y herramientas sumás, más baja el total final.";
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn("space-y-5", className)}>
       <div className="overflow-hidden border border-black/10 bg-white">
-        <div className="grid gap-4 px-5 py-5 lg:grid-cols-[1fr_auto] lg:items-center lg:px-6">
+        <div className="grid gap-4 px-5 py-4 lg:grid-cols-[1fr_auto] lg:items-center lg:px-6">
           <div>
             <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-barbie-pink">
               Configurador modular
             </p>
-            <h3 className="mt-2 font-business-display text-[clamp(2.1rem,5vw,3.6rem)] uppercase leading-[0.9] tracking-[-0.03em] text-biz-heading-dark">
+            <h3 className="mt-2 font-business-display text-[clamp(1.9rem,4vw,3rem)] uppercase leading-[0.92] tracking-[-0.03em] text-biz-heading-dark">
               Elegí tu base y armá el resto a medida.
             </h3>
           </div>
@@ -376,24 +376,24 @@ export function BusinessPricingBuilder({
 
       <div
         className={cn(
-          "grid gap-6",
+          "grid gap-5",
           compact
             ? "xl:grid-cols-[minmax(0,1fr)_340px]"
-            : "xl:grid-cols-[minmax(0,1fr)_390px]",
+            : "xl:grid-cols-[minmax(0,1fr)_370px]",
         )}
       >
-        <div className="space-y-6">
+        <div className="space-y-5">
           <section className="overflow-hidden border border-black/10 bg-white">
-            <div className="grid gap-4 border-b border-black/[0.08] px-5 py-5 lg:grid-cols-[0.95fr_1.05fr] lg:px-6">
+            <div className="grid gap-3 border-b border-black/[0.08] px-5 py-4 lg:grid-cols-[0.95fr_1.05fr] lg:px-6">
               <div>
                 <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-barbie-pink">
                   1. Producto principal
                 </p>
-                <h4 className="mt-2 font-business-display text-[clamp(2rem,4vw,3.2rem)] uppercase leading-[0.9] tracking-[-0.03em] text-biz-heading-dark">
+                <h4 className="mt-2 font-business-display text-[clamp(1.85rem,3.5vw,2.8rem)] uppercase leading-[0.92] tracking-[-0.03em] text-biz-heading-dark">
                   Elegí qué querés gestionar.
                 </h4>
               </div>
-              <p className="max-w-[42ch] text-sm leading-7 text-slate-700">
+              <p className="max-w-[40ch] text-sm leading-6 text-slate-700">
                 Empezá por Reservas, Eventos o Clases. Tienda queda visible para que veas lo que viene, pero sigue bloqueada como Próximamente.
               </p>
             </div>
@@ -425,16 +425,16 @@ export function BusinessPricingBuilder({
           </section>
 
           <section className="overflow-hidden border border-black/10 bg-[linear-gradient(180deg,rgba(6,180,227,0.08),rgba(255,255,255,0.96))]">
-            <div className="grid gap-4 border-b border-black/[0.08] px-5 py-5 lg:grid-cols-[0.95fr_1.05fr] lg:px-6">
+            <div className="grid gap-3 border-b border-black/[0.08] px-5 py-4 lg:grid-cols-[0.95fr_1.05fr] lg:px-6">
               <div>
                 <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-sky-surge">
                   2. Herramientas extra
                 </p>
-                <h4 className="mt-2 font-business-display text-[clamp(2rem,4vw,3.2rem)] uppercase leading-[0.9] tracking-[-0.03em] text-biz-heading-dark">
+                <h4 className="mt-2 font-business-display text-[clamp(1.85rem,3.5vw,2.8rem)] uppercase leading-[0.92] tracking-[-0.03em] text-biz-heading-dark">
                   Después sumá lo que te hace crecer.
                 </h4>
               </div>
-              <p className="max-w-[42ch] text-sm leading-7 text-slate-700">
+              <p className="max-w-[40ch] text-sm leading-6 text-slate-700">
                 CRM Base, Personalización Base y Mensajería Base ya vienen incluidas. Estos extras desbloquean la parte más avanzada.
               </p>
             </div>
@@ -473,11 +473,11 @@ export function BusinessPricingBuilder({
 
         <aside
           className={cn(
-            "relative h-fit overflow-hidden border border-black bg-black p-5 text-white sm:p-6",
-            compact ? "xl:sticky xl:top-6" : "xl:sticky xl:top-24",
+            "relative h-fit overflow-hidden border border-black bg-black p-5 text-white",
+            compact ? "xl:sticky xl:top-4" : "xl:sticky xl:top-20",
           )}
         >
-          <div className="pointer-events-none absolute right-[-22px] top-6 rotate-[8deg] bg-biz-yellow px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black shadow-[0_14px_28px_rgba(0,0,0,0.18)]">
+          <div className="pointer-events-none absolute right-[-18px] top-5 rotate-[3deg] bg-biz-yellow px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black shadow-[0_14px_28px_rgba(0,0,0,0.18)]">
             Primer mes gratis
           </div>
 
@@ -485,10 +485,10 @@ export function BusinessPricingBuilder({
             <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-yellow">
               Tu resumen
             </p>
-            <h4 className="mt-2 max-w-[10ch] font-business-display text-[clamp(2.4rem,5vw,4.1rem)] uppercase leading-[0.88] tracking-[-0.03em]">
+            <h4 className="mt-2 max-w-[10ch] font-business-display text-[clamp(2rem,4vw,3.2rem)] uppercase leading-[0.9] tracking-[-0.03em]">
               Calculá tu plan.
             </h4>
-            <p className="mt-4 max-w-[28ch] text-sm leading-7 text-white/[0.76]">
+            <p className="mt-3 max-w-[28ch] text-sm leading-6 text-white/[0.76]">
               {bundleMessage}
             </p>
           </div>
