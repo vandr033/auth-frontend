@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,13 +33,11 @@ const getInitials = (name?: string | null, email?: string | null) => {
   return "U";
 };
 
-export function BusinessNavbar() {
+function BusinessNavbarContent({ shopSlug }: { shopSlug: string | null }) {
   const t = useT();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { isAuthenticated, user, signOut, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const shopSlug = getShopSlugFromParams(searchParams);
   const profileHref = appendShopParam("/me/profile", shopSlug);
   const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
   const reviewsHref = appendShopParam("/me/reviews", shopSlug);
@@ -266,5 +264,19 @@ export function BusinessNavbar() {
         </div>
       </div>
     </header>
+  );
+}
+
+function BusinessNavbarWithSearchParams() {
+  const searchParams = useSearchParams();
+  const shopSlug = getShopSlugFromParams(searchParams);
+  return <BusinessNavbarContent shopSlug={shopSlug} />;
+}
+
+export function BusinessNavbar() {
+  return (
+    <Suspense fallback={<BusinessNavbarContent shopSlug={null} />}>
+      <BusinessNavbarWithSearchParams />
+    </Suspense>
   );
 }

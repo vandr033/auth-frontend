@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "lucide-react";
-import { type MouseEvent, useMemo, useState } from "react";
+import { Suspense, type MouseEvent, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -34,13 +34,11 @@ const getInitials = (name?: string | null, email?: string | null) => {
   return "U";
 };
 
-export function NegociosHeader() {
+function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
   const t = useT();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { isAuthenticated, user, signOut, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const shopSlug = getShopSlugFromParams(searchParams);
   const profileHref = appendShopParam("/me/profile", shopSlug);
   const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
   const reviewsHref = appendShopParam("/me/reviews", shopSlug);
@@ -282,5 +280,19 @@ export function NegociosHeader() {
         </div>
       </div>
     </header>
+  );
+}
+
+function NegociosHeaderWithSearchParams() {
+  const searchParams = useSearchParams();
+  const shopSlug = getShopSlugFromParams(searchParams);
+  return <NegociosHeaderContent shopSlug={shopSlug} />;
+}
+
+export function NegociosHeader() {
+  return (
+    <Suspense fallback={<NegociosHeaderContent shopSlug={null} />}>
+      <NegociosHeaderWithSearchParams />
+    </Suspense>
   );
 }

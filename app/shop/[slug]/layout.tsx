@@ -7,7 +7,7 @@ import {
     type ShopApiResponse,
 } from "../lib/shopData";
 import type { ShopData } from "@/types/shop";
-import { getShopBrandingForPwa, getSizedShopIcon } from "@/lib/pwa/shopBranding";
+import { getShopBrandingForPwa } from "@/lib/pwa/shopBranding";
 
 type ShopLayoutProps = {
     children: React.ReactNode;
@@ -17,7 +17,10 @@ type ShopLayoutProps = {
 export async function generateMetadata({ params }: ShopLayoutProps): Promise<Metadata> {
     const { slug } = await params;
     const branding = await getShopBrandingForPwa(slug);
-    const appleIconUrl = branding.logoUrl ? getSizedShopIcon(branding.logoUrl, 180) : "/icons/icon-192.png";
+    const shopIconBase = `/shop-manifest/${encodeURIComponent(branding.slug)}/icon`;
+    const icon192Url = branding.logoUrl ? `${shopIconBase}/192` : "/icons/icon-192.png";
+    const icon512Url = branding.logoUrl ? `${shopIconBase}/512` : "/icons/icon-512.png";
+    const appleIconUrl = branding.logoUrl ? `${shopIconBase}/180` : "/icons/icon-192.png";
     const appleIconSize = branding.logoUrl ? "180x180" : "192x192";
 
     return {
@@ -30,8 +33,8 @@ export async function generateMetadata({ params }: ShopLayoutProps): Promise<Met
         },
         icons: {
             icon: [
-                { url: getSizedShopIcon(branding.logoUrl, 192), sizes: "192x192", type: "image/png" },
-                { url: getSizedShopIcon(branding.logoUrl, 512), sizes: "512x512", type: "image/png" },
+                { url: icon192Url, sizes: "192x192", type: "image/png" },
+                { url: icon512Url, sizes: "512x512", type: "image/png" },
             ],
             apple: [{ url: appleIconUrl, sizes: appleIconSize, type: "image/png" }],
         },

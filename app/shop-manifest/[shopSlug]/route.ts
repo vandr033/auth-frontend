@@ -2,13 +2,13 @@ import {
     DEFAULT_PWA_THEME_COLOR,
     FALLBACK_PWA_ICONS,
     getShopBrandingForPwa,
-    getSizedShopIcon,
 } from "@/lib/pwa/shopBranding";
 
 type ManifestIcon = {
     src: string;
     sizes: string;
     type: "image/png";
+    purpose?: "any" | "maskable" | "any maskable";
 };
 
 type ShopManifestResponse = {
@@ -37,10 +37,11 @@ export async function GET(_: Request, { params }: RouteContext) {
 
     const shop = await getShopBrandingForPwa(shopSlug);
 
+    const generatedIconBase = `/shop-manifest/${encodeURIComponent(shop.slug)}/icon`;
     const icons: ManifestIcon[] = shop.logoUrl
         ? [
-              { src: getSizedShopIcon(shop.logoUrl, 192), sizes: "192x192", type: "image/png" },
-              { src: getSizedShopIcon(shop.logoUrl, 512), sizes: "512x512", type: "image/png" },
+              { src: `${generatedIconBase}/192`, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+              { src: `${generatedIconBase}/512`, sizes: "512x512", type: "image/png", purpose: "any maskable" },
           ]
         : FALLBACK_PWA_ICONS;
 

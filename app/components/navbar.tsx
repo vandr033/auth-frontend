@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Menu, X, Sun, Moon, Scissors } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,13 +24,11 @@ const getInitials = (name?: string | null, email?: string | null) => {
   return "U";
 };
 
-export function Navbar() {
+function NavbarContent({ shopSlug }: { shopSlug: string | null }) {
   const t = useT();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const { isAuthenticated, user, signOut, loading } = useAuth();
-  const shopSlug = getShopSlugFromParams(searchParams);
   const profileHref = appendShopParam("/me/profile", shopSlug);
   const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
   const reviewsHref = appendShopParam("/me/reviews", shopSlug);
@@ -329,5 +327,19 @@ export function Navbar() {
         </>
       )}
     </>
+  );
+}
+
+function NavbarWithSearchParams() {
+  const searchParams = useSearchParams();
+  const shopSlug = getShopSlugFromParams(searchParams);
+  return <NavbarContent shopSlug={shopSlug} />;
+}
+
+export function Navbar() {
+  return (
+    <Suspense fallback={<NavbarContent shopSlug={null} />}>
+      <NavbarWithSearchParams />
+    </Suspense>
   );
 }

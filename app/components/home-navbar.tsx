@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -126,14 +126,12 @@ function AuthMenu({
   );
 }
 
-export function HomeNavbar() {
+function HomeNavbarContent({ shopSlug }: { shopSlug: string | null }) {
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const isMarketplace = pathname === "/marketplace";
   const { isAuthenticated, user, signOut, loading } = useAuth();
-  const shopSlug = getShopSlugFromParams(searchParams);
   const profileHref = appendShopParam("/me/profile", shopSlug);
   const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
   const reviewsHref = appendShopParam("/me/reviews", shopSlug);
@@ -303,5 +301,19 @@ export function HomeNavbar() {
         </div>
       </div>
     </header>
+  );
+}
+
+function HomeNavbarWithSearchParams() {
+  const searchParams = useSearchParams();
+  const shopSlug = getShopSlugFromParams(searchParams);
+  return <HomeNavbarContent shopSlug={shopSlug} />;
+}
+
+export function HomeNavbar() {
+  return (
+    <Suspense fallback={<HomeNavbarContent shopSlug={null} />}>
+      <HomeNavbarWithSearchParams />
+    </Suspense>
   );
 }
