@@ -25,10 +25,30 @@ import {
 } from "@/app/lib/shop-context";
 import { AnnouncementBannerStrip } from "@/components/shop/AnnouncementBanner";
 
-const getInitials = (name?: string | null, email?: string | null) => {
-    if (name && name.length > 0) return name.charAt(0).toUpperCase();
-    if (email && email.length > 0) return email.charAt(0).toUpperCase();
-    return "U";
+const getDisplayName = (user?: {
+    name?: string | null;
+    email?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+} | null) => {
+    const firstName = user?.first_name?.trim() || "";
+    const lastName = user?.last_name?.trim() || "";
+    const fullName = `${firstName} ${lastName}`.trim();
+    if (fullName) return fullName;
+    if (user?.name?.trim()) return user.name.trim();
+    if (user?.email?.trim()) return user.email.trim();
+    return "User";
+};
+
+const getInitials = (user?: {
+    name?: string | null;
+    email?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+} | null) => {
+    const firstInitial = user?.first_name?.trim()?.charAt(0) || user?.name?.trim()?.charAt(0) || user?.email?.trim()?.charAt(0) || "U";
+    const lastInitial = user?.last_name?.trim()?.charAt(0) || "";
+    return `${firstInitial}${lastInitial}`.toUpperCase();
 };
 
 export function ShopNavbar() {
@@ -47,6 +67,7 @@ export function ShopNavbar() {
     const profileHref = appendShopParam("/me/profile", slug);
     const appointmentsHref = appendShopParam("/me/appointments", slug);
     const groupReservationsHref = appendShopParam("/me/group-reservations", slug);
+    const userDisplayName = getDisplayName(user);
     const publicFeatures = getShopPublicFeatures(company);
     const showGroupReservationsLink = publicFeatures.eventsVisible || publicFeatures.classesVisible;
 
@@ -127,9 +148,9 @@ export function ShopNavbar() {
                     className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-surface-border bg-surface shadow-sm transition hover:border-brand focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
                 >
                     <Avatar className="h-9 w-9">
-                        <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? "User"} />
+                        <AvatarImage src={user?.image ?? undefined} alt={userDisplayName} />
                         <AvatarFallback className="bg-brand text-white font-semibold text-sm">
-                            {getInitials(user?.name, user?.email)}
+                            {getInitials(user)}
                         </AvatarFallback>
                     </Avatar>
                 </button>
@@ -138,14 +159,14 @@ export function ShopNavbar() {
                         {/* User Info Header */}
                         <div className="flex items-center gap-3 border-b border-surface-border bg-section px-4 py-3">
                             <Avatar className="h-10 w-10 shrink-0">
-                                <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? "User"} />
+                                <AvatarImage src={user?.image ?? undefined} alt={userDisplayName} />
                                 <AvatarFallback className="bg-brand text-white font-semibold">
-                                    {getInitials(user?.name, user?.email)}
+                                    {getInitials(user)}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold text-text-main truncate">
-                                    {user?.name || "User"}
+                                    {userDisplayName}
                                 </p>
                                 {user?.email && (
                                     <p className="text-xs text-text-muted truncate">{user.email}</p>
@@ -284,14 +305,14 @@ export function ShopNavbar() {
                                 {/* User Info */}
                                 <div className="flex items-center gap-3 rounded-md border border-surface-border bg-section px-3 py-3">
                                     <Avatar className="h-10 w-10 shrink-0">
-                                        <AvatarImage src={user?.image ?? undefined} alt={user?.name ?? "User"} />
+                                        <AvatarImage src={user?.image ?? undefined} alt={userDisplayName} />
                                         <AvatarFallback className="bg-brand text-white font-semibold">
-                                            {getInitials(user?.name, user?.email)}
+                                            {getInitials(user)}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="min-w-0 flex-1">
                                         <p className="font-semibold text-text-main truncate">
-                                            {user?.name || user?.email || t('shopNav.guest')}
+                                            {isAuthenticated ? userDisplayName : t('shopNav.guest')}
                                         </p>
                                         <p className="text-sm text-text-muted truncate">
                                             {isAuthenticated ? (user?.email || t('shopNav.signedIn')) : t('shopNav.notSignedIn')}

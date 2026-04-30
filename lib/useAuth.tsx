@@ -306,7 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      await apiPost("/auth/phone-number/send-otp", { phoneNumber });
+      await apiPost("/v1/auth/customer/login/phone/start", { phoneNumber });
     } catch (err) {
       const message = err instanceof Error ? err.message : authT("authErrors.sendOtp");
       setError(message);
@@ -321,7 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setError(null);
       try {
-        await apiPost("/auth/phone-number/verify", { phoneNumber, code });
+        await apiPost("/v1/auth/customer/login/phone/verify", { phoneNumber, code });
         const currentUser = await refreshSession();
         const needsProfileCompletion = !currentUser?.first_name;
         return {
