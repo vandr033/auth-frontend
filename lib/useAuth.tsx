@@ -393,7 +393,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(message);
       throw new Error(message);
     },
-    [refreshSession],
+    [],
   );
 
   const signOut = useCallback(async () => {
@@ -460,7 +460,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
-    [],
+    [refreshSession],
   );
 
   const completeCustomerEmailRegistration = useCallback(
