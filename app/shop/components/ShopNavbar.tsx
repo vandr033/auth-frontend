@@ -63,10 +63,12 @@ export function ShopNavbar() {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement | null>(null);
 
-    const basePath = `/shop/${slug}`;
-    const profileHref = appendShopParam("/me/profile", slug);
-    const appointmentsHref = appendShopParam("/me/appointments", slug);
-    const groupReservationsHref = appendShopParam("/me/group-reservations", slug);
+    const resolvedShopSlug = company?.slug || slug;
+    const basePath = `/shop/${resolvedShopSlug}`;
+    const profileHref = appendShopParam("/me/profile", resolvedShopSlug);
+    const appointmentsHref = appendShopParam("/me/appointments", resolvedShopSlug);
+    const reviewsHref = appendShopParam("/me/reviews", resolvedShopSlug);
+    const groupReservationsHref = appendShopParam("/me/group-reservations", resolvedShopSlug);
     const userDisplayName = getDisplayName(user);
     const publicFeatures = getShopPublicFeatures(company);
     const showGroupReservationsLink = publicFeatures.eventsVisible || publicFeatures.classesVisible;
@@ -184,6 +186,12 @@ export function ShopNavbar() {
                             className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
                         >
                             {t('shopNav.myAppointments')}
+                        </Link>
+                        <Link
+                            href={reviewsHref}
+                            className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
+                        >
+                            {t('shopNav.myReviews')}
                         </Link>
                         {showGroupReservationsLink ? (
                             <Link
@@ -377,6 +385,12 @@ export function ShopNavbar() {
                                             <Button variant="outline" className="w-full justify-start gap-2">
                                                 <span className="h-2 w-2 rounded-full bg-brand" />
                                                 {t('shopNav.myAppointments')}
+                                            </Button>
+                                        </Link>
+                                        <Link href={reviewsHref} onClick={() => setOpen(false)}>
+                                            <Button variant="outline" className="w-full justify-start gap-2">
+                                                <span className="h-2 w-2 rounded-full bg-brand" />
+                                                {t('shopNav.myReviews')}
                                             </Button>
                                         </Link>
                                         {showGroupReservationsLink ? (
