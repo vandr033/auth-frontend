@@ -126,13 +126,49 @@ const extractUser = (payload: unknown): AuthUser | null => {
     name:
       toStringOrUndefined(candidate.name) ??
       toStringOrUndefined(candidate.full_name) ??
+      toStringOrUndefined(candidate.fullName) ??
       toStringOrUndefined(candidate.first_name) ??
+      toStringOrUndefined(candidate.firstName) ??
+      null,
+    first_name:
+      toStringOrUndefined(candidate.first_name) ??
+      toStringOrUndefined(candidate.firstName) ??
+      null,
+    last_name:
+      toStringOrUndefined(candidate.last_name) ??
+      toStringOrUndefined(candidate.lastName) ??
       null,
     phoneNumber:
       toStringOrUndefined(candidate.phoneNumber) ??
       toStringOrUndefined(candidate.phone_number) ??
       null,
+    phone_prefix:
+      toStringOrUndefined(candidate.phone_prefix) ??
+      toStringOrUndefined(candidate.phonePrefix) ??
+      null,
   };
+};
+
+const userNeedsProfileCompletion = (user: AuthUser | null): boolean => {
+  if (!user) return true;
+
+  const firstName = typeof user.first_name === "string" ? user.first_name.trim() : "";
+  const lastName = typeof user.last_name === "string" ? user.last_name.trim() : "";
+  if (firstName || lastName) return false;
+
+  const email = typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
+  const name = typeof user.name === "string" ? user.name.trim() : "";
+  const normalizedName = name.replace(/\s+/g, "");
+  const phoneDigits = typeof user.phoneNumber === "string"
+    ? user.phoneNumber.replace(/[^\d]/g, "")
+    : "";
+
+  if (!name) return true;
+  if (email.endsWith("@tmppriconpri.com")) return true;
+  if (/^\+?\d+$/.test(normalizedName)) return true;
+  if (phoneDigits && normalizedName.replace(/[^\d]/g, "") === phoneDigits) return true;
+
+  return false;
 };
 
 const authT = (key: string, vars?: Record<string, string | number>) =>
@@ -323,7 +359,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await apiPost("/v1/auth/customer/login/phone/verify", { phoneNumber, code });
         const currentUser = await refreshSession();
-        const needsProfileCompletion = !currentUser?.first_name;
+        const needsProfileCompletion = userNeedsProfileCompletion(currentUser);
         return {
           user: currentUser,
           needsProfileCompletion,
