@@ -9,7 +9,7 @@ import { useApi } from "@/app/hooks/useApi";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { ReviewCard } from "@/components/reviews/ReviewCard";
-import { buildSignInRedirectPath, getShopSlugFromParams } from "@/app/lib/shop-context";
+import { appendShopParam, buildSignInRedirectPath, getShopSlugFromParams } from "@/app/lib/shop-context";
 import { notify } from "@/lib/notify";
 import type { CustomerReview, EligibleBooking } from "@/types/review";
 
@@ -109,7 +109,7 @@ function ReviewsPageContent() {
                       )}
                     </p>
                   </div>
-                  <Link href={`/me/reviews/new?bookingId=${booking.id}`}>
+                  <Link href={appendShopParam(`/me/reviews/new?bookingId=${booking.id}`, booking.company.slug || shopSlug)}>
                     <Button
                       size="sm"
                       className="text-xs bg-brand text-white hover:bg-brand-hover shrink-0"

@@ -9,7 +9,7 @@ import { useApi } from "@/app/hooks/useApi";
 import { useT } from "@/lib/i18n";
 import { ReviewForm } from "@/components/reviews/ReviewForm";
 import type { EligibleBooking } from "@/types/review";
-import { buildSignInRedirectPath, getShopSlugFromParams } from "@/app/lib/shop-context";
+import { appendShopParam, buildSignInRedirectPath, getShopSlugFromParams } from "@/app/lib/shop-context";
 
 function NewReviewContent() {
   const t = useT();
@@ -23,6 +23,12 @@ function NewReviewContent() {
   const [booking, setBooking] = useState<EligibleBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const effectiveShopSlug = shopSlug || booking?.company.slug || null;
+
+  useEffect(() => {
+    if (shopSlug || !effectiveShopSlug || !bookingId) return;
+    router.replace(appendShopParam(`/me/reviews/new?bookingId=${bookingId}`, effectiveShopSlug));
+  }, [bookingId, effectiveShopSlug, router, shopSlug]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -75,7 +81,7 @@ function NewReviewContent() {
     <div className="min-h-screen bg-page text-text-main">
       <div className="mx-auto max-w-lg px-4 py-10">
         <Link
-          href="/me/appointments"
+          href={appendShopParam("/me/appointments", effectiveShopSlug)}
           className="mb-6 inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-main transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -88,7 +94,7 @@ function NewReviewContent() {
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-6 text-center">
             <p className="text-sm text-rose-700">{error}</p>
             <Link
-              href="/me/appointments"
+              href={appendShopParam("/me/appointments", effectiveShopSlug)}
               className="mt-4 inline-block text-sm font-medium text-brand hover:text-brand-hover"
             >
               {t("reviewForm.backToAppointments")}
@@ -97,7 +103,7 @@ function NewReviewContent() {
         ) : booking ? (
           <ReviewForm
             booking={booking}
-            onSuccess={() => router.push("/me/reviews")}
+            onSuccess={() => router.push(appendShopParam("/me/reviews", effectiveShopSlug))}
             onCancel={() => router.back()}
           />
         ) : null}

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  appendShopParam,
   buildSignInRedirectPath,
   getShopSlugFromParams,
 } from "@/app/lib/shop-context";
@@ -84,11 +85,13 @@ function AppointmentCard({
   appointment,
   onCancel,
   cancelling,
+  shopSlug,
   t,
 }: {
   appointment: Appointment;
   onCancel?: (id: number) => void;
   cancelling?: boolean;
+  shopSlug?: string | null;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const startDate = new Date(appointment.start_at);
@@ -219,8 +222,8 @@ function AppointmentCard({
               </div>
             )}
 
-            {/* Review button for completed bookings */}
-            {appointment.status === "COMPLETED" && (
+            {/* Review state for eligible past bookings */}
+            {(appointment.hasReview || appointment.canReview) && (
               <div>
                 {appointment.hasReview ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -228,7 +231,7 @@ function AppointmentCard({
                     {t("meAppointments.reviewed")}
                   </span>
                 ) : appointment.canReview ? (
-                  <Link href={`/me/reviews/new?bookingId=${appointment.id}`}>
+                  <Link href={appendShopParam(`/me/reviews/new?bookingId=${appointment.id}`, appointment.company.slug || shopSlug)}>
                     <Button
                       variant="outline"
                       size="sm"
@@ -379,6 +382,7 @@ function AppointmentsPageContent() {
                 appointment={appointment}
                 onCancel={handleCancel}
                 cancelling={cancellingId === appointment.id}
+                shopSlug={shopSlug}
                 t={t}
               />
             ))}
