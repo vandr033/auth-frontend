@@ -2,7 +2,7 @@ type SearchParamsLike = {
   get: (name: string) => string | null;
 };
 
-const SHOP_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const SHOP_SLUG_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const REDIRECT_BASE_ORIGIN = "https://priconpri.local";
 
 function normalizeInternalPath(path: string): string | null {
