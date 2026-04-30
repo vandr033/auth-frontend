@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -21,8 +21,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import {
+  appendShopParam,
   buildSignInRedirectFromCurrentLocation,
   getCurrentInternalPathWithQuery,
+  getShopSlugFromParams,
 } from "@/app/lib/shop-context";
 
 const getInitials = (name?: string | null, email?: string | null) => {
@@ -34,8 +36,13 @@ const getInitials = (name?: string | null, email?: string | null) => {
 export function BusinessNavbar() {
   const t = useT();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, user, signOut, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const shopSlug = getShopSlugFromParams(searchParams);
+  const profileHref = appendShopParam("/me/profile", shopSlug);
+  const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
+  const reviewsHref = appendShopParam("/me/reviews", shopSlug);
   const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
 
   const navLinks = [
@@ -127,13 +134,13 @@ export function BusinessNavbar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/me/profile">{t("mainNavbar.myProfile")}</Link>
+                  <Link href={profileHref}>{t("mainNavbar.myProfile")}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/me/appointments">{t("mainNavbar.myAppointments")}</Link>
+                  <Link href={appointmentsHref}>{t("mainNavbar.myAppointments")}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/me/reviews">{t("mainNavbar.myReviews")}</Link>
+                  <Link href={reviewsHref}>{t("mainNavbar.myReviews")}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -210,21 +217,21 @@ export function BusinessNavbar() {
                 {isAuthenticated ? (
                   <>
                     <Link
-                      href="/me/profile"
+                      href={profileHref}
                       onClick={() => setMobileOpen(false)}
                       className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                     >
                       {t("mainNavbar.myProfile")}
                     </Link>
                     <Link
-                      href="/me/appointments"
+                      href={appointmentsHref}
                       onClick={() => setMobileOpen(false)}
                       className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                     >
                       {t("mainNavbar.myAppointments")}
                     </Link>
                     <Link
-                      href="/me/reviews"
+                      href={reviewsHref}
                       onClick={() => setMobileOpen(false)}
                       className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                     >

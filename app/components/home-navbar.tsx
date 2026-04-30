@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -18,8 +18,10 @@ import {
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import {
+  appendShopParam,
   buildSignInRedirectFromCurrentLocation,
   getCurrentInternalPathWithQuery,
+  getShopSlugFromParams,
 } from "@/app/lib/shop-context";
 
 const DEMO_HREF = "https://cal.com/priconpri/demo";
@@ -43,6 +45,9 @@ function AuthMenu({
   appointmentsLabel,
   reviewsLabel,
   signOutLabel,
+  profileHref,
+  appointmentsHref,
+  reviewsHref,
   onSignOut,
 }: {
   loading: boolean;
@@ -57,6 +62,9 @@ function AuthMenu({
   appointmentsLabel: string;
   reviewsLabel: string;
   signOutLabel: string;
+  profileHref: string;
+  appointmentsHref: string;
+  reviewsHref: string;
   onSignOut: () => void;
 }) {
   if (loading) {
@@ -96,13 +104,13 @@ function AuthMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/me/profile">{profileLabel}</Link>
+          <Link href={profileHref}>{profileLabel}</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/me/appointments">{appointmentsLabel}</Link>
+          <Link href={appointmentsHref}>{appointmentsLabel}</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/me/reviews">{reviewsLabel}</Link>
+          <Link href={reviewsHref}>{reviewsLabel}</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -122,8 +130,13 @@ export function HomeNavbar() {
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isMarketplace = pathname === "/marketplace";
   const { isAuthenticated, user, signOut, loading } = useAuth();
+  const shopSlug = getShopSlugFromParams(searchParams);
+  const profileHref = appendShopParam("/me/profile", shopSlug);
+  const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
+  const reviewsHref = appendShopParam("/me/reviews", shopSlug);
   const loginHref = buildSignInRedirectFromCurrentLocation(pathname || "/");
 
   const displayName = useMemo(() => {
@@ -204,6 +217,9 @@ export function HomeNavbar() {
               appointmentsLabel={t("mainNavbar.myAppointments")}
               reviewsLabel={t("mainNavbar.myReviews")}
               signOutLabel={t("mainNavbar.signOut")}
+              profileHref={profileHref}
+              appointmentsHref={appointmentsHref}
+              reviewsHref={reviewsHref}
               onSignOut={() => {
                 void handleSignOut();
               }}
@@ -269,6 +285,9 @@ export function HomeNavbar() {
             appointmentsLabel={t("mainNavbar.myAppointments")}
             reviewsLabel={t("mainNavbar.myReviews")}
             signOutLabel={t("mainNavbar.signOut")}
+            profileHref={profileHref}
+            appointmentsHref={appointmentsHref}
+            reviewsHref={reviewsHref}
             onSignOut={() => {
               void handleSignOut();
             }}

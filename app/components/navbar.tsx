@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, X, Sun, Moon, Scissors } from "lucide-react";
 
@@ -12,8 +12,10 @@ import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/useAuth";
 import { cn } from "@/lib/utils";
 import {
+  appendShopParam,
   buildSignInRedirectFromCurrentLocation,
   getCurrentInternalPathWithQuery,
+  getShopSlugFromParams,
 } from "@/app/lib/shop-context";
 
 const getInitials = (name?: string | null, email?: string | null) => {
@@ -25,8 +27,13 @@ const getInitials = (name?: string | null, email?: string | null) => {
 export function Navbar() {
   const t = useT();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { isAuthenticated, user, signOut, loading } = useAuth();
+  const shopSlug = getShopSlugFromParams(searchParams);
+  const profileHref = appendShopParam("/me/profile", shopSlug);
+  const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
+  const reviewsHref = appendShopParam("/me/reviews", shopSlug);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -177,19 +184,19 @@ export function Navbar() {
                       )}
                     </div>
                     <Link
-                      href="/me/profile"
+                      href={profileHref}
                       className="block px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       {t("mainNavbar.myProfile")}
                     </Link>
                     <Link
-                      href="/me/appointments"
+                      href={appointmentsHref}
                       className="block px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       {t("mainNavbar.myAppointments")}
                     </Link>
                     <Link
-                      href="/me/reviews"
+                      href={reviewsHref}
                       className="block px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       {t("mainNavbar.myReviews")}
@@ -286,21 +293,21 @@ export function Navbar() {
               ) : (
                 <>
                   <Link
-                    href="/me/profile"
+                    href={profileHref}
                     onClick={() => setMobileOpen(false)}
                     className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
                     {t("mainNavbar.myProfile")}
                   </Link>
                   <Link
-                    href="/me/appointments"
+                    href={appointmentsHref}
                     onClick={() => setMobileOpen(false)}
                     className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
                     {t("mainNavbar.myAppointments")}
                   </Link>
                   <Link
-                    href="/me/reviews"
+                    href={reviewsHref}
                     onClick={() => setMobileOpen(false)}
                     className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
