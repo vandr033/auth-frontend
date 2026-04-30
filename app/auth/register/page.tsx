@@ -11,7 +11,7 @@ import { useOtpResendTimer } from "@/lib/auth/otpResend";
 import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
 
 type Method = null | "email" | "phone";
-type FlowStep = "method" | "contact" | "otp" | "profile" | "done";
+type FlowStep = "method" | "contact" | "otp" | "profile" | "done" | "redirecting";
 
 function RegisterPageInner() {
   const t = useT();
@@ -49,7 +49,51 @@ function RegisterPageInner() {
 
   const [localError, setLocalError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
   const { secondsRemaining, canResend, startCooldown } = useOtpResendTimer();
+
+  React.useEffect(() => {
+    const presetStep = searchParams?.get("step");
+    if (presetStep !== "profile") return;
+
+    const presetMode = searchParams?.get("mode");
+    if (presetMode === "email") {
+      setMethod("email");
+      setStep("profile");
+      setEmail(searchParams?.get("email") ?? "");
+      setPreRegToken(searchParams?.get("preRegToken") ?? "");
+      setLocalError(null);
+      return;
+    }
+
+    if (presetMode === "phone") {
+      setMethod("phone");
+      setStep("profile");
+      setPhoneNumber(searchParams?.get("phone") ?? "");
+      setDialCode(searchParams?.get("dialCode") ?? "");
+      setLocalError(null);
+    }
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    if (step !== "redirecting") return;
+    if (redirectCountdown <= 0) {
+      router.push(redirect);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setRedirectCountdown((current) => current - 1);
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [redirect, redirectCountdown, router, step]);
+
+  const startExistingAccountRedirect = React.useCallback(() => {
+    setRedirectCountdown(3);
+    setStep("redirecting");
+    setLocalError(null);
+  }, []);
 
   const handleSelectMethod = (m: Method) => {
     setMethod(m);
@@ -95,7 +139,13 @@ function RegisterPageInner() {
     setSending(true);
     setLocalError(null);
     try {
-      const { preRegToken: token } = await verifyCustomerEmailCode(email, emailCode);
+      const result = await verifyCustomerEmailCode(email, emailCode);
+      if (result.existingAccount) {
+        startExistingAccountRedirect();
+        return;
+      }
+
+      const token = result.preRegToken ?? "";
       setPreRegToken(token);
       setStep("profile");
     } catch (err) {
@@ -150,8 +200,12 @@ function RegisterPageInner() {
     setSending(true);
     setLocalError(null);
     try {
-      await verifyPhoneOtp(phoneNumber, otpCode);
-      setStep("profile");
+      const result = await verifyPhoneOtp(phoneNumber, otpCode);
+      if (result.needsProfileCompletion) {
+        setStep("profile");
+      } else {
+        startExistingAccountRedirect();
+      }
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("auth.register.invalidOtp"));
     } finally {
@@ -243,6 +297,23 @@ function RegisterPageInner() {
           </div>
           <h1 className="text-2xl font-bold text-slate-900">{t("auth.register.accountCreated")}</h1>
           <p className="text-sm text-slate-500">{t("auth.register.redirecting")}</p>
+          <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand" />
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "redirecting") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
+        <div className="w-full max-w-sm space-y-4 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <Sparkles className="h-8 w-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">{t("auth.register.accountExistsTitle")}</h1>
+          <p className="text-sm text-slate-500">
+            {t("auth.register.accountExistsRedirect", { seconds: Math.max(1, redirectCountdown) })}
+          </p>
           <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand" />
         </div>
       </div>

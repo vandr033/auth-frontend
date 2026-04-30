@@ -2355,6 +2355,8 @@ const en = {
       alreadyHaveAccount: "Already have an account?",
       signIn: "Sign in",
       accountCreated: "Account created!",
+      accountExistsTitle: "You already have an account",
+      accountExistsRedirect: "You already have an account. Redirecting in {{seconds}}...",
       redirecting: "You're being redirected...",
       back: "Back",
       enterYourEmail: "Enter your email",

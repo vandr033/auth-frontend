@@ -26,6 +26,23 @@ export type AuthUser = {
   [key: string]: unknown;
 };
 
+export type EmailOtpVerificationResult = {
+  user: AuthUser | null;
+  requiresProfileCompletion: boolean;
+  preRegToken?: string;
+};
+
+export type PhoneOtpVerificationResult = {
+  user: AuthUser | null;
+  needsProfileCompletion: boolean;
+};
+
+export type EmailRegistrationVerificationResult = {
+  preRegToken?: string;
+  existingAccount: boolean;
+  user: AuthUser | null;
+};
+
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
@@ -35,11 +52,11 @@ type AuthContextValue = {
 
   // Email OTP login (clients)
   sendLoginEmailOtp: (email: string) => Promise<void>;
-  verifyLoginEmailOtp: (email: string, code: string) => Promise<void>;
+  verifyLoginEmailOtp: (email: string, code: string) => Promise<EmailOtpVerificationResult>;
 
   // Phone OTP login (clients)
   sendPhoneOtp: (phoneNumber: string) => Promise<void>;
-  verifyPhoneOtp: (phoneNumber: string, code: string) => Promise<void>;
+  verifyPhoneOtp: (phoneNumber: string, code: string) => Promise<PhoneOtpVerificationResult>;
 
   // Sign out
   signOut: () => Promise<void>;
@@ -50,7 +67,7 @@ type AuthContextValue = {
 
   // Email registration (OTP, no password)
   startCustomerEmailRegistration: (email: string) => Promise<void>;
-  verifyCustomerEmailCode: (email: string, code: string) => Promise<{ preRegToken: string }>;
+  verifyCustomerEmailCode: (email: string, code: string) => Promise<EmailRegistrationVerificationResult>;
   completeCustomerEmailRegistration: (
     preRegToken: string,
     email: string,
@@ -253,8 +270,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setError(null);
       try {
-        await apiPost("/v1/auth/customer/login/email/verify", { email, code });
-        await refreshSession();
+        const response = await apiPost<{
+          data?: {
+            requiresProfileCompletion?: boolean;
+            preRegToken?: string;
+          };
+        }>("/v1/auth/customer/login/email/verify", { email, code });
+
+        if (response.data?.requiresProfileCompletion) {
+          return {
+            user: null,
+            requiresProfileCompletion: true,
+            preRegToken: response.data.preRegToken ?? "",
+          };
+        }
+
+        const currentUser = await refreshSession();
+        return {
+          user: currentUser,
+          requiresProfileCompletion: false,
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : authT("authErrors.verifyCode");
         setError(message);
@@ -287,7 +322,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       try {
         await apiPost("/auth/phone-number/verify", { phoneNumber, code });
-        await refreshSession();
+        const currentUser = await refreshSession();
+        const needsProfileCompletion = !currentUser?.first_name;
+        return {
+          user: currentUser,
+          needsProfileCompletion,
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : authT("authErrors.verifyCode");
         setError(message);
@@ -353,7 +393,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(message);
       throw new Error(message);
     },
-    [],
+    [refreshSession],
   );
 
   const signOut = useCallback(async () => {
@@ -391,12 +431,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiPost<{ data?: { preRegToken: string }; preRegToken?: string }>(
+        const response = await apiPost<{
+          data?: { preRegToken?: string; existingAccount?: boolean };
+          preRegToken?: string;
+        }>(
           "/v1/auth/customer/email/verify",
           { email, code },
         );
+        if (response.data?.existingAccount) {
+          const currentUser = await refreshSession();
+          return {
+            existingAccount: true,
+            user: currentUser,
+          };
+        }
+
         const preRegToken = response.data?.preRegToken ?? response.preRegToken ?? "";
-        return { preRegToken };
+        return {
+          preRegToken,
+          existingAccount: false,
+          user: null,
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : authT("authErrors.verifyCode");
         setError(message);

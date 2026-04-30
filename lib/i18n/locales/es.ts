@@ -2336,6 +2336,8 @@ const es: TranslationKeys = {
       alreadyHaveAccount: "¿Ya tienes una cuenta?",
       signIn: "Iniciar sesión",
       accountCreated: "¡Cuenta creada!",
+      accountExistsTitle: "Ya tienes una cuenta",
+      accountExistsRedirect: "Ya tienes una cuenta, redirigiéndote en {{seconds}}...",
       redirecting: "Te estamos redirigiendo...",
       back: "Atrás",
       enterYourEmail: "Ingresa tu correo",

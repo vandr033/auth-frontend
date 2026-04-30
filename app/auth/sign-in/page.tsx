@@ -36,6 +36,7 @@ function SignInPageInner() {
 
   // Phone state
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [dialCode, setDialCode] = useState("");
 
   // OTP state
   const [otpCode, setOtpCode] = useState("");
@@ -44,6 +45,18 @@ function SignInPageInner() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const { secondsRemaining, canResend, startCooldown } = useOtpResendTimer();
+
+  const buildRegisterProfileUrl = React.useCallback(
+    (params: Record<string, string>) => {
+      const next = new URLSearchParams({
+        step: "profile",
+        ...params,
+      });
+      if (redirect) next.set("redirect", redirect);
+      return `/auth/register?${next.toString()}`;
+    },
+    [redirect],
+  );
 
   const handleSelectMethod = (m: Method) => {
     setMethod(m);
@@ -92,9 +105,29 @@ function SignInPageInner() {
     setLocalError(null);
     try {
       if (method === "email") {
-        await verifyLoginEmailOtp(email, otpCode);
+        const result = await verifyLoginEmailOtp(email, otpCode);
+        if (result.requiresProfileCompletion && result.preRegToken) {
+          router.push(
+            buildRegisterProfileUrl({
+              mode: "email",
+              email,
+              preRegToken: result.preRegToken,
+            }),
+          );
+          return;
+        }
       } else {
-        await verifyPhoneOtp(phoneNumber, otpCode);
+        const result = await verifyPhoneOtp(phoneNumber, otpCode);
+        if (result.needsProfileCompletion) {
+          router.push(
+            buildRegisterProfileUrl({
+              mode: "phone",
+              phone: phoneNumber,
+              ...(dialCode ? { dialCode } : {}),
+            }),
+          );
+          return;
+        }
       }
       router.push(redirect);
     } catch (err) {
@@ -212,8 +245,9 @@ function SignInPageInner() {
               ) : (
                 <PhoneInput
                   value={phoneNumber}
-                  onChange={(full) => {
+                  onChange={(full, dial) => {
                     setPhoneNumber(full);
+                    setDialCode(dial);
                   }}
                 />
               )}
