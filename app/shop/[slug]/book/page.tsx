@@ -52,7 +52,7 @@ const PENDING_BOOKING_STORAGE_KEY = "pending-booking-intent-v1";
 const PENDING_BOOKING_MAX_AGE_MS = 30 * 60 * 1000;
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)/;
-const SLOT_UNAVAILABLE_PATTERN = /(slot|time|hora|available|disponible|occupied|ocupad|conflict)/i;
+const SLOT_UNAVAILABLE_PATTERN = /(slot|time slot|hora(?:rio)?|occupied|ocupad|conflict|reserved)/i;
 const STAFF_UNAVAILABLE_PATTERN = /(staff|barber|professional|employee|personal)/i;
 const SERVICE_UNAVAILABLE_PATTERN = /(service|servicio)/i;
 
@@ -560,6 +560,7 @@ function DateTimeStep({
     defaultTimeViewMode,
     slotDurationMinutes,
     blockedIntervals,
+    refreshVersion,
     title,
     subtitle,
     ignoreMaxAdvanceLimit,
@@ -581,6 +582,7 @@ function DateTimeStep({
     defaultTimeViewMode?: "all" | "hour";
     slotDurationMinutes: number;
     blockedIntervals?: BlockedSlotInterval[];
+    refreshVersion?: number;
     title?: string;
     subtitle?: string;
     ignoreMaxAdvanceLimit?: boolean;
@@ -713,6 +715,7 @@ function DateTimeStep({
             minAdvanceMinutes ?? "",
             slotDurationMinutes,
             blockedIntervalsKey,
+            refreshVersion ?? 0,
         ].join("|");
 
         if (
@@ -807,6 +810,7 @@ function DateTimeStep({
         selectedServiceIds,
         selectedStaffId,
         slotDurationMinutes,
+        refreshVersion,
     ]);
 
     const availableHours = useMemo(() => {
@@ -1409,6 +1413,7 @@ export default function BookingPage() {
     const [qrProofFile, setQrProofFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [slotRefreshVersion, setSlotRefreshVersion] = useState(0);
     const [success, setSuccess] = useState(false);
     const [completedAfterSignIn, setCompletedAfterSignIn] = useState(false);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
@@ -1908,6 +1913,7 @@ export default function BookingPage() {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setSchedulePage(0);
         setScheduleDates({});
+        setSubmitError(null);
         setBooking((prev) => {
             const exists = prev.services.find((s) => s.id === service.id);
             return {
@@ -1925,10 +1931,12 @@ export default function BookingPage() {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setSchedulePage(0);
         setScheduleDates({});
+        setSubmitError(null);
         setBooking((prev) => ({ ...prev, staff, slot: null, groupSlots: {} }));
     }, [isMarketplaceSource]);
 
     const selectSlot = React.useCallback((item: BookingScheduleItem, slot: SelectedSlot) => {
+        setSubmitError(null);
         setBooking((prev) => {
             const nextSlot: BookingScheduleSlot = {
                 ...slot,
@@ -2264,18 +2272,6 @@ export default function BookingPage() {
                 await deleteUploadedQrProof(uploadedQrUrl);
             }
 
-            if (SLOT_UNAVAILABLE_PATTERN.test(errorMessage)) {
-                setScheduleDates({});
-                setBooking((prev) => ({
-                    ...prev,
-                    step: 3,
-                    slot: null,
-                    groupSlots: {},
-                }));
-                setSubmitError("Ese horario ya no está disponible. Elegí otro para continuar.");
-                return;
-            }
-
             if (STAFF_UNAVAILABLE_PATTERN.test(errorMessage)) {
                 setScheduleDates({});
                 setBooking((prev) => ({
@@ -2302,6 +2298,19 @@ export default function BookingPage() {
                     groupSlots: {},
                 }));
                 setSubmitError("Uno o más servicios ya no están disponibles. Volvé a elegirlos.");
+                return;
+            }
+
+            if (SLOT_UNAVAILABLE_PATTERN.test(errorMessage)) {
+                setSlotRefreshVersion((prev) => prev + 1);
+                setScheduleDates({});
+                setBooking((prev) => ({
+                    ...prev,
+                    step: 3,
+                    slot: null,
+                    groupSlots: {},
+                }));
+                setSubmitError("Ese horario ya no está disponible. Elegí otro para continuar.");
                 return;
             }
 
@@ -2525,10 +2534,13 @@ export default function BookingPage() {
                                     onSelectSlot={(slot) => selectSlot(activeScheduleItem, slot)}
                                     selectedDate={scheduleDates[activeScheduleItem.key] ?? null}
                                     onSelectDate={(date) =>
-                                        setScheduleDates((prev) => ({
-                                            ...prev,
-                                            [activeScheduleItem.key]: date,
-                                        }))
+                                        {
+                                            setSubmitError(null);
+                                            setScheduleDates((prev) => ({
+                                                ...prev,
+                                                [activeScheduleItem.key]: date,
+                                            }));
+                                        }
                                     }
                                     timezone={company.timezone}
                                     preferredSlotTime={activeScheduleItem.group.isMultiSession ? null : preselectedSlotTime}
@@ -2538,6 +2550,7 @@ export default function BookingPage() {
                                     defaultTimeViewMode={settings?.booking_time_view_default}
                                     slotDurationMinutes={getGroupSlotDurationMinutes(activeScheduleItem.group)}
                                     blockedIntervals={activeBlockedIntervals}
+                                    refreshVersion={slotRefreshVersion}
                                     title={activeScheduleItem.title}
                                     subtitle={activeScheduleItem.subtitle}
                                     ignoreMaxAdvanceLimit={activeScheduleItem.group.isMultiSession}
