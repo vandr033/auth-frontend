@@ -5,12 +5,13 @@ import {
     ChevronLeft,
     ChevronRight,
     Loader2,
+    Trash2,
     Users,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable, DataToolbar, EmptyState } from "@/components/admin/shared";
+import { ConfirmDialog, DataTable, DataToolbar, EmptyState } from "@/components/admin/shared";
 import {
     Select,
     SelectContent,
@@ -90,6 +91,8 @@ export default function SuperAdminUsersPage() {
     const [total, setTotal] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
     const [sourceFilter, setSourceFilter] = useState<string>("all");
+    const [deletingUser, setDeletingUser] = useState<UserRecord | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -152,6 +155,36 @@ export default function SuperAdminUsersPage() {
         setPage(1);
         void fetchData(1, searchQuery);
     }, [sourceFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleDeleteUser = async () => {
+        if (!deletingUser) return;
+
+        setDeleting(true);
+        try {
+            const response = await fetch(getApiUrl(`/api/super-admin/users/${encodeURIComponent(deletingUser.id)}`), {
+                method: "DELETE",
+                credentials: "include",
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.message || payload.error || t("superAdminUsers.deleteError"));
+            }
+
+            setDeletingUser(null);
+            await notify.success(t("superAdminUsers.deleteSuccess"));
+
+            const nextPage = users.length === 1 && page > 1 ? page - 1 : page;
+            if (nextPage !== page) {
+                setPage(nextPage);
+            }
+            await fetchData(nextPage, searchQuery);
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("superAdminUsers.deleteError"));
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -274,6 +307,24 @@ export default function SuperAdminUsersPage() {
                                 className: "text-sm text-slate-500",
                                 cell: (user) => formatDate(user.created_at),
                             },
+                            {
+                                key: "actions",
+                                header: t("superAdminUsers.actions"),
+                                headerClassName: "text-right",
+                                className: "text-right",
+                                cell: (user) => (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                        onClick={() => setDeletingUser(user)}
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        {t("superAdminUsers.delete")}
+                                    </Button>
+                                ),
+                            },
                         ]}
                         renderMobileItem={(user) => (
                             <div className="space-y-3">
@@ -325,6 +376,18 @@ export default function SuperAdminUsersPage() {
                                         </div>
                                     </div>
                                 </div>
+                                <div className="pt-1">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                                        onClick={() => setDeletingUser(user)}
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        {t("superAdminUsers.delete")}
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     />
@@ -364,6 +427,23 @@ export default function SuperAdminUsersPage() {
                     </div>
                 )}
             </div>
+
+            <ConfirmDialog
+                open={Boolean(deletingUser)}
+                onOpenChange={(open) => {
+                    if (!open && !deleting) {
+                        setDeletingUser(null);
+                    }
+                }}
+                title={t("superAdminUsers.deleteTitle")}
+                description={t("superAdminUsers.deleteConfirm", {
+                    name: deletingUser?.name || deletingUser?.email || "this user",
+                })}
+                confirmLabel={deleting ? t("superAdminUsers.deleting") : t("superAdminUsers.delete")}
+                onConfirm={handleDeleteUser}
+                variant="destructive"
+                loading={deleting}
+            />
         </div>
     );
 }
