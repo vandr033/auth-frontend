@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { AdminPageHeader, AdminPageShell, ConfirmDialog, StatusBadge } from "@/components/admin/shared";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
@@ -20,8 +21,10 @@ import {
     cancelTimeOffRequest,
     createTimeOffRequest,
     getStaff,
+    getTimeOffApprovalSettings,
     listTimeOffRequests,
     reviewTimeOffRequest,
+    updateTimeOffApprovalSettings,
 } from "@/app/admin/lib/adminApi";
 
 function statusTone(status: StaffTimeOffStatus): "success" | "warning" | "danger" | "neutral" {
@@ -42,7 +45,9 @@ export default function PermissionsPage() {
 
     const [loading, setLoading] = useState(true);
     const [submittingRequest, setSubmittingRequest] = useState(false);
+    const [savingAutoApprove, setSavingAutoApprove] = useState(false);
     const [staffList, setStaffList] = useState<StaffMember[]>([]);
+    const [autoApproveTimeOff, setAutoApproveTimeOff] = useState(false);
     const [requestStaffId, setRequestStaffId] = useState<string>("ALL");
     const [requests, setRequests] = useState<StaffTimeOffRequest[]>([]);
     const [statusFilter, setStatusFilter] = useState<StaffTimeOffStatus | "ALL">("ALL");
@@ -90,8 +95,9 @@ export default function PermissionsPage() {
         setLoading(true);
         try {
             if (isOwnerOrAdmin) {
-                const staff = await getStaff();
+                const [staff, timeOffSettings] = await Promise.all([getStaff(), getTimeOffApprovalSettings()]);
                 setStaffList(staff);
+                setAutoApproveTimeOff(timeOffSettings.auto_approve_staff_time_off);
                 if (staff.length > 0) {
                     setRequestStaffId(String(staff[0].id));
                     setRequestStaffFilter("ALL");
@@ -143,6 +149,21 @@ export default function PermissionsPage() {
             await notify.error(err instanceof Error ? err.message : t("adminPermissions.submitRequestError"));
         } finally {
             setSubmittingRequest(false);
+        }
+    };
+
+    const handleAutoApproveChange = async (checked: boolean) => {
+        setSavingAutoApprove(true);
+        try {
+            const nextSettings = await updateTimeOffApprovalSettings({
+                auto_approve_staff_time_off: checked,
+            });
+            setAutoApproveTimeOff(nextSettings.auto_approve_staff_time_off);
+            await notify.success(t("adminPermissions.autoApproveUpdated"));
+        } catch (err) {
+            await notify.error(err instanceof Error ? err.message : t("adminPermissions.autoApproveUpdateError"));
+        } finally {
+            setSavingAutoApprove(false);
         }
     };
 
@@ -225,6 +246,22 @@ export default function PermissionsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {isOwnerOrAdmin ? (
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5 pr-4">
+                                    <Label className="text-base">{t("adminPermissions.autoApproveTimeOff")}</Label>
+                                    <p className="text-sm text-slate-500">
+                                        {t("adminPermissions.autoApproveTimeOffDesc")}
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={autoApproveTimeOff}
+                                    onCheckedChange={handleAutoApproveChange}
+                                    disabled={savingAutoApprove}
+                                />
+                            </div>
+                        ) : null}
+
+                        {isOwnerOrAdmin ? (
                             <div className="space-y-2">
                                 <Label>{t("adminPermissions.staffMember")}</Label>
                                 <Select value={requestStaffId} onValueChange={setRequestStaffId}>
@@ -275,6 +312,9 @@ export default function PermissionsPage() {
                             {submittingRequest ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                             {submittingRequest ? t("adminPermissions.submittingRequest") : t("adminPermissions.submitRequest")}
                         </Button>
+                        {savingAutoApprove ? (
+                            <p className="text-xs text-slate-500">{t("adminPermissions.autoApproveSaving")}</p>
+                        ) : null}
                     </CardContent>
                 </Card>
 

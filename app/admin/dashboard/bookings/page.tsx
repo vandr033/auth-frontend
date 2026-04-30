@@ -40,6 +40,7 @@ import {
     createRecurringBookings,
     updateBooking,
     getStaff,
+    getMyStaffProfile,
     getServices,
     getHours,
     getTodayReminderPreview,
@@ -131,9 +132,12 @@ export default function BookingsPage() {
     }, [staffFilter, statusFilter]);
 
     const selectedStaffLabel = useMemo(() => {
+        if (isStaffRole) {
+            return staffList[0]?.display_name ?? t("adminBookings.allStaff");
+        }
         if (staffFilter === "ALL") return t("adminBookings.allStaff");
         return staffList.find((staff) => staff.id.toString() === staffFilter)?.display_name ?? t("adminBookings.allStaff");
-    }, [staffFilter, staffList, t]);
+    }, [isStaffRole, staffFilter, staffList, t]);
 
     const selectedStatusLabel = useMemo(() => {
         const option = STATUS_OPTIONS.find((item) => item.value === statusFilter);
@@ -149,15 +153,42 @@ export default function BookingsPage() {
     // Fetch staff, services, and hours on mount
     useEffect(() => {
         if (!isAuthenticated) return;
-        if (isStaffRole) return;
 
         const fetchDropdownData = async () => {
             try {
-                const [staffData, servicesData, hoursData] = await Promise.all([
-                    getStaff(),
-                    getServices(),
-                    getHours(),
-                ]);
+                if (isStaffRole) {
+                    const [servicesData, myStaffProfile] = await Promise.all([
+                        getServices(),
+                        getMyStaffProfile(),
+                    ]);
+                    setServiceList(servicesData);
+                    setStaffList([
+                        {
+                            id: myStaffProfile.id,
+                            display_name: myStaffProfile.display_name,
+                            bio: myStaffProfile.bio,
+                            image_url: myStaffProfile.image_url ?? undefined,
+                            is_bookable: myStaffProfile.is_bookable,
+                            status: myStaffProfile.status,
+                            services: myStaffProfile.services || [],
+                            created_at: "",
+                            updated_at: "",
+                            user: {
+                                id: myStaffProfile.user.id,
+                                email: myStaffProfile.user.email,
+                                name: myStaffProfile.user.name,
+                                first_name: myStaffProfile.user.first_name,
+                                last_name: myStaffProfile.user.last_name,
+                                phoneNumber: myStaffProfile.user.phoneNumber,
+                                phone_prefix: myStaffProfile.user.phone_prefix,
+                            },
+                        },
+                    ]);
+                    setBusinessHours([]);
+                    return;
+                }
+
+                const [staffData, servicesData, hoursData] = await Promise.all([getStaff(), getServices(), getHours()]);
                 setStaffList(staffData);
                 setServiceList(servicesData);
                 setBusinessHours(hoursData);
@@ -431,40 +462,42 @@ export default function BookingsPage() {
                     </div>
                 }
                 actions={
-                    !isStaffRole ? (
-                        <>
-                            {canSendReminders ? (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => void handleSendTodayReminders()}
-                                    disabled={isSendingReminders}
-                                    className="w-full border-admin-border-strong bg-admin-surface text-admin-brand hover:bg-admin-brand-soft sm:w-auto"
-                                >
-                                    {isSendingReminders ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <BellRing className="h-4 w-4" />
-                                    )}
-                                    {t("adminBookings.sendTodayReminders")}
-                                </Button>
-                            ) : (
-                                <LockedFeatureButton
-                                    capability="MENSAJERIA_REMINDERS"
-                                    title={t("entitlements.requiresProduct", {
-                                        productName: remindersRecommendation.requestLabel,
-                                    })}
-                                    description={t("adminSettings.communicationAutomationDesc")}
-                                    buttonLabel={t("adminBookings.sendTodayReminders")}
-                                    source="ADMIN_LOCKED_PAGE"
-                                    className="border-admin-border-strong"
-                                />
-                            )}
+                    <>
+                        {!isStaffRole ? (
+                            <>
+                                {canSendReminders ? (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => void handleSendTodayReminders()}
+                                        disabled={isSendingReminders}
+                                        className="w-full border-admin-border-strong bg-admin-surface text-admin-brand hover:bg-admin-brand-soft sm:w-auto"
+                                    >
+                                        {isSendingReminders ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <BellRing className="h-4 w-4" />
+                                        )}
+                                        {t("adminBookings.sendTodayReminders")}
+                                    </Button>
+                                ) : (
+                                    <LockedFeatureButton
+                                        capability="MENSAJERIA_REMINDERS"
+                                        title={t("entitlements.requiresProduct", {
+                                            productName: remindersRecommendation.requestLabel,
+                                        })}
+                                        description={t("adminSettings.communicationAutomationDesc")}
+                                        buttonLabel={t("adminBookings.sendTodayReminders")}
+                                        source="ADMIN_LOCKED_PAGE"
+                                        className="border-admin-border-strong"
+                                    />
+                                )}
+                            </>
+                        ) : null}
 
-                            <Button onClick={() => setIsNewBookingOpen(true)} className="w-full bg-admin-brand text-white shadow-sm hover:bg-admin-brand-hover sm:w-auto">
-                                <Plus className="h-4 w-4" /> {t("adminBookings.newBooking")}
-                            </Button>
-                        </>
-                    ) : null
+                        <Button onClick={() => setIsNewBookingOpen(true)} className="w-full bg-admin-brand text-white shadow-sm hover:bg-admin-brand-hover sm:w-auto">
+                            <Plus className="h-4 w-4" /> {t("adminBookings.newBooking")}
+                        </Button>
+                    </>
                 }
             />
 
@@ -699,17 +732,17 @@ export default function BookingsPage() {
             </div>
 
             {/* Modals */}
-            {!isStaffRole && (
-                <NewBookingModal
-                    isOpen={isNewBookingOpen}
-                    onClose={() => setIsNewBookingOpen(false)}
-                    staffList={staffList}
-                    serviceList={serviceList}
-                    currency={currency}
-                    onCreate={handleCreateBooking}
-                    onCreateRecurring={handleCreateRecurringBookings}
-                />
-            )}
+            <NewBookingModal
+                isOpen={isNewBookingOpen}
+                onClose={() => setIsNewBookingOpen(false)}
+                staffList={staffList}
+                serviceList={serviceList}
+                currency={currency}
+                fixedStaffId={isStaffRole ? staffList[0]?.id ?? null : null}
+                allowExistingCustomerSelection={!isStaffRole}
+                onCreate={handleCreateBooking}
+                onCreateRecurring={handleCreateRecurringBookings}
+            />
 
             <BookingDetailSheet
                 booking={selectedBooking}

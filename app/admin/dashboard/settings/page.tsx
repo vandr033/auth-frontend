@@ -80,6 +80,7 @@ interface CompanySettings {
     // Configuration (CompanySettings Model)
     booking_buffer_minutes: number;
     booking_time_granularity_minutes: number;
+    booking_time_view_default: "hour" | "all";
     cancel_limit_minutes: number;
     reschedule_limit_minutes: number;
     auto_approve_staff_time_off: boolean;
@@ -117,6 +118,7 @@ const initialSettings: CompanySettings = {
     // Defaults
     booking_buffer_minutes: 10,
     booking_time_granularity_minutes: 30,
+    booking_time_view_default: "hour",
     cancel_limit_minutes: 120,
     reschedule_limit_minutes: 120,
     auto_approve_staff_time_off: false,
@@ -307,6 +309,7 @@ export default function SettingsPage({
                 // Config
                 booking_buffer_minutes: config.booking_buffer_minutes ?? prev.booking_buffer_minutes,
                 booking_time_granularity_minutes: config.booking_time_granularity_minutes ?? prev.booking_time_granularity_minutes,
+                booking_time_view_default: config.booking_time_view_default === "all" ? "all" : "hour",
                 cancel_limit_minutes: config.cancel_limit_minutes ?? prev.cancel_limit_minutes,
                 reschedule_limit_minutes: config.reschedule_limit_minutes ?? prev.reschedule_limit_minutes,
                 auto_approve_staff_time_off: config.auto_approve_staff_time_off ?? prev.auto_approve_staff_time_off,
@@ -469,6 +472,7 @@ export default function SettingsPage({
             const payloadSettings = {
                 booking_buffer_minutes: Number(settings.booking_buffer_minutes),
                 booking_time_granularity_minutes: Number(settings.booking_time_granularity_minutes),
+                booking_time_view_default: settings.booking_time_view_default,
                 cancel_limit_minutes: Number(settings.cancel_limit_minutes),
                 reschedule_limit_minutes: Number(settings.reschedule_limit_minutes),
                 auto_approve_staff_time_off: settings.auto_approve_staff_time_off,
@@ -868,6 +872,24 @@ export default function SettingsPage({
                                 />
                                 <p className="text-xs text-slate-500">
                                     Frequency of available time slots (e.g., every 15, 30, 60 mins)
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="booking_time_view_default">{t('adminSettings.bookingTimeViewDefault')}</Label>
+                                <Select
+                                    value={settings.booking_time_view_default}
+                                    onValueChange={(value) => handleChange('booking_time_view_default', value as "hour" | "all")}
+                                >
+                                    <SelectTrigger id="booking_time_view_default">
+                                        <SelectValue placeholder={t('adminSettings.bookingTimeViewDefault')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="hour">{t('adminSettings.bookingTimeViewHour')}</SelectItem>
+                                        <SelectItem value="all">{t('adminSettings.bookingTimeViewAll')}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-slate-500">
+                                    {t('adminSettings.bookingTimeViewDefaultDesc')}
                                 </p>
                             </div>
                             <div className="space-y-2">

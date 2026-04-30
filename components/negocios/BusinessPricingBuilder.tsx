@@ -423,14 +423,17 @@ export function BusinessPricingBuilder({
       <div
         className={cn(
           "grid gap-5",
-          compact
-            ? "xl:grid-cols-[minmax(0,1fr)_340px]"
-            : "xl:grid-cols-[minmax(0,1fr)_370px]",
+          !compact && "xl:grid-cols-[minmax(0,1fr)_370px]",
         )}
       >
         <div className="space-y-5 min-w-0">
           <section className="overflow-hidden border border-black/10 bg-white">
-            <div className="grid gap-3 border-b border-black/[0.08] px-5 py-4 lg:grid-cols-[0.95fr_1.05fr] lg:px-6">
+            <div
+              className={cn(
+                "grid gap-3 border-b border-black/[0.08] px-5 py-4 lg:px-6",
+                !compact && "lg:grid-cols-[0.95fr_1.05fr]",
+              )}
+            >
               <div>
                 <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-barbie-pink">
                   1. Producto principal
@@ -444,7 +447,7 @@ export function BusinessPricingBuilder({
               </p>
             </div>
 
-            <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-2">
+            <div className={cn("grid gap-4 p-4 sm:p-5", !compact && "lg:grid-cols-2")}>
               {coreProducts.map((product) => {
                 if (product.key === "TIENDA") {
                   return (
@@ -472,7 +475,12 @@ export function BusinessPricingBuilder({
           </section>
 
           <section className="overflow-hidden border border-black/10 bg-[linear-gradient(180deg,rgba(6,180,227,0.08),rgba(255,255,255,0.96))]">
-            <div className="grid gap-3 border-b border-black/[0.08] px-5 py-4 lg:grid-cols-[0.95fr_1.05fr] lg:px-6">
+            <div
+              className={cn(
+                "grid gap-3 border-b border-black/[0.08] px-5 py-4 lg:px-6",
+                !compact && "lg:grid-cols-[0.95fr_1.05fr]",
+              )}
+            >
               <div>
                 <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-sky-surge">
                   2. Herramientas extra
@@ -486,7 +494,7 @@ export function BusinessPricingBuilder({
               </p>
             </div>
 
-            <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-2">
+            <div className={cn("grid gap-4 p-4 sm:p-5", !compact && "lg:grid-cols-2")}>
               {addOnProducts.map((product) => (
                 <AddOnProductCard
                   key={product.key}
@@ -503,9 +511,7 @@ export function BusinessPricingBuilder({
         <aside
           className={cn(
             "relative min-w-0 border border-black bg-black p-4 text-white sm:p-5",
-            compact
-              ? "xl:sticky xl:top-4 xl:max-h-[calc(100vh-1.5rem)] xl:overflow-y-auto"
-              : "xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto",
+            !compact && "xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto",
           )}
         >
           <div className="pointer-events-none absolute right-4 top-4 max-w-[9rem] bg-biz-yellow px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-black shadow-[0_14px_28px_rgba(0,0,0,0.18)]">

@@ -199,6 +199,7 @@ export interface ShopSettings {
     allow_cash_payment: boolean;
     require_comprobante_for_qr?: boolean;
     auto_confirm_bookings?: boolean;
+    booking_time_view_default?: "hour" | "all";
     social_links: SocialLinks;
     default_language?: string;
     max_advance_booking_days?: number | null;

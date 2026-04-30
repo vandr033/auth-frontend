@@ -557,6 +557,7 @@ function DateTimeStep({
     marketplacePrefillEnabled,
     maxAdvanceDays,
     minAdvanceMinutes,
+    defaultTimeViewMode,
     slotDurationMinutes,
     blockedIntervals,
     title,
@@ -577,6 +578,7 @@ function DateTimeStep({
     marketplacePrefillEnabled?: boolean;
     maxAdvanceDays?: number | null;
     minAdvanceMinutes?: number | null;
+    defaultTimeViewMode?: "all" | "hour";
     slotDurationMinutes: number;
     blockedIntervals?: BlockedSlotInterval[];
     title?: string;
@@ -584,6 +586,7 @@ function DateTimeStep({
     ignoreMaxAdvanceLimit?: boolean;
 }) {
     const t = useT();
+    const resolvedDefaultTimeViewMode = defaultTimeViewMode === "all" ? "all" : "hour";
     const [slots, setSlots] = useState<TimeSlot[]>([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -591,7 +594,7 @@ function DateTimeStep({
     const [loadingDates, setLoadingDates] = useState(true);
     const [datesError, setDatesError] = useState<string | null>(null);
     const [datePage, setDatePage] = useState(0);
-    const [timeViewMode, setTimeViewMode] = useState<"all" | "hour">("hour");
+    const [timeViewMode, setTimeViewMode] = useState<"all" | "hour">(resolvedDefaultTimeViewMode);
     const [selectedHour, setSelectedHour] = useState<number | null>(null);
     const hasLoadedDates = React.useRef(false);
     const prefillSlotAppliedRef = React.useRef(false);
@@ -615,6 +618,10 @@ function DateTimeStep({
     );
     const selectedStaffId = selectedStaff?.id === "any" ? "" : selectedStaff?.id ?? "";
     const selectedSecondaryStaffId = selectedSecondaryStaff?.id ?? "";
+
+    React.useEffect(() => {
+        setTimeViewMode(resolvedDefaultTimeViewMode);
+    }, [resolvedDefaultTimeViewMode]);
 
     // Fetch available dates on mount (only once)
     React.useEffect(() => {
@@ -1010,7 +1017,7 @@ function DateTimeStep({
                         onClick={() => setTimeViewMode("hour")}
                         className={timeViewMode === "hour" ? "bg-brand hover:bg-brand-hover text-white" : ""}
                     >
-                        Por hora
+                        {t('shopBooking.timeViewHour')}
                     </Button>
                     <Button
                         type="button"
@@ -1019,7 +1026,7 @@ function DateTimeStep({
                         onClick={() => setTimeViewMode("all")}
                         className={timeViewMode === "all" ? "bg-brand hover:bg-brand-hover text-white" : ""}
                     >
-                        Todas
+                        {t('shopBooking.timeViewAll')}
                     </Button>
                 </div>
                 {timeViewMode === "hour" && availableHours.length > 0 && (
@@ -2528,6 +2535,7 @@ export default function BookingPage() {
                                     marketplacePrefillEnabled={isMarketplaceSource && !activeScheduleItem.group.isMultiSession}
                                     maxAdvanceDays={settings?.max_advance_booking_days}
                                     minAdvanceMinutes={settings?.min_advance_booking_minutes}
+                                    defaultTimeViewMode={settings?.booking_time_view_default}
                                     slotDurationMinutes={getGroupSlotDurationMinutes(activeScheduleItem.group)}
                                     blockedIntervals={activeBlockedIntervals}
                                     title={activeScheduleItem.title}

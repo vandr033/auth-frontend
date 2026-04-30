@@ -808,6 +808,7 @@ export interface StaffSelfProfile {
     image_url?: string | null;
     is_bookable: boolean;
     status?: 'PENDING' | 'ACTIVE' | 'INACTIVE';
+    services?: number[];
     user: {
         id: string;
         email: string;
@@ -1750,6 +1751,10 @@ export interface GroupBookingFlowSettings {
     require_comprobante_for_qr: boolean;
 }
 
+export interface TimeOffApprovalSettings {
+    auto_approve_staff_time_off: boolean;
+}
+
 export interface AdminCompanyLocation {
     address: string | null;
     city: string | null;
@@ -1823,6 +1828,25 @@ function buildGroupQuery(params: Record<string, string | number | boolean | unde
 export async function getGroupBookingFlowSettings(): Promise<GroupBookingFlowSettings> {
     const response = await apiFetch<{ data: GroupBookingFlowSettings }>("/api/admin/settings");
     return response.data;
+}
+
+export async function getTimeOffApprovalSettings(): Promise<TimeOffApprovalSettings> {
+    const response = await apiFetch<{ data: TimeOffApprovalSettings }>("/api/admin/settings");
+    return {
+        auto_approve_staff_time_off: response.data.auto_approve_staff_time_off ?? false,
+    };
+}
+
+export async function updateTimeOffApprovalSettings(
+    payload: TimeOffApprovalSettings,
+): Promise<TimeOffApprovalSettings> {
+    const response = await apiFetch<{ data: TimeOffApprovalSettings }>("/api/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+    return {
+        auto_approve_staff_time_off: response.data.auto_approve_staff_time_off ?? false,
+    };
 }
 
 export async function getAdminCompanyLocation(companyId: number): Promise<AdminCompanyLocation | null> {

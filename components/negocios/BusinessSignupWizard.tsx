@@ -188,6 +188,7 @@ export function BusinessSignupWizard() {
     buildSlug(form.slug || form.businessName).length >= 2;
 
   const canSubmit = canGoToProducts && pricing.validationErrors.length === 0;
+  const isProductsStep = step === 2;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -235,8 +236,14 @@ export function BusinessSignupWizard() {
 
   return (
     <main className="bg-biz-surface px-6 py-12 lg:px-10 lg:py-16">
-      <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.94fr_1.06fr]">
-        <section className="space-y-6">
+      <div
+        className={`mx-auto grid gap-8 ${
+          isProductsStep
+            ? "max-w-[1280px]"
+            : "max-w-7xl lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)]"
+        }`}
+      >
+        <section className={`min-w-0 space-y-6 ${isProductsStep ? "lg:col-span-1" : ""}`}>
           <div>
             <p className="font-bebas text-[16px] uppercase tracking-[0.18em] text-biz-barbie-pink">
               /negocios/crear-cuenta
@@ -268,260 +275,260 @@ export function BusinessSignupWizard() {
             ))}
           </div>
 
-          <Card className="rounded-none border-black bg-white shadow-none">
-            <CardContent className="space-y-6 p-6">
-              {step === 1 ? (
-                <>
-                  <div className="grid gap-5">
-                    <div className="grid gap-2">
-                      <Label htmlFor="businessName">Nombre del negocio</Label>
-                      <Input
-                        id="businessName"
-                        value={form.businessName}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            businessName: event.target.value,
-                            slug: buildSlug(event.target.value),
-                          }))
-                        }
-                        placeholder="Monas Studio"
-                      />
+          {step === 2 ? (
+            <div className="space-y-6">
+              <BusinessPricingBuilder
+                value={selection}
+                onChange={setSelection}
+                ctaHref="#review"
+                ctaLabel="Seguir a revisión"
+                pricingConfig={pricingConfig}
+                isPricingLoading={pricingLoading}
+              />
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
+                >
+                  Volver a datos
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  disabled={pricing.validationErrors.length > 0}
+                  className="h-11 rounded-none bg-black text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink"
+                >
+                  Seguir a revisión
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Card className="rounded-none border-black bg-white shadow-none">
+              <CardContent className="space-y-6 p-6">
+                {step === 1 ? (
+                  <>
+                    <div className="grid gap-5">
+                      <div className="grid gap-2">
+                        <Label htmlFor="businessName">Nombre del negocio</Label>
+                        <Input
+                          id="businessName"
+                          value={form.businessName}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              businessName: event.target.value,
+                              slug: buildSlug(event.target.value),
+                            }))
+                          }
+                          placeholder="Monas Studio"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="businessType">Tipo de negocio</Label>
+                        <Select
+                          value={form.businessType}
+                          onValueChange={(value) =>
+                            setForm((current) => ({ ...current, businessType: value }))
+                          }
+                          disabled={loadingTypes}
+                        >
+                          <SelectTrigger id="businessType">
+                            <SelectValue placeholder="Elegí un tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {companyTypes.map((type) => (
+                              <SelectItem key={type.key} value={type.key}>
+                                {type.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="ownerName">Nombre del dueño</Label>
+                        <Input
+                          id="ownerName"
+                          value={form.ownerName}
+                          onChange={(event) =>
+                            setForm((current) => ({ ...current, ownerName: event.target.value }))
+                          }
+                          placeholder="Sebastián"
+                        />
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="email">Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={form.email}
+                            onChange={(event) =>
+                              setForm((current) => ({ ...current, email: event.target.value }))
+                            }
+                            placeholder="hola@tunegocio.com"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="phone">Teléfono / WhatsApp</Label>
+                          <Input
+                            id="phone"
+                            value={form.phone}
+                            onChange={(event) =>
+                              setForm((current) => ({ ...current, phone: event.target.value }))
+                            }
+                            placeholder="59170000000"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="password">Contraseña</Label>
+                          <Input
+                            id="password"
+                            type="password"
+                            value={form.password}
+                            onChange={(event) =>
+                              setForm((current) => ({ ...current, password: event.target.value }))
+                            }
+                            placeholder="Mínimo 8 caracteres"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="slug">Slug sugerido</Label>
+                          <Input
+                            id="slug"
+                            value={form.slug}
+                            onChange={(event) =>
+                              setForm((current) => ({ ...current, slug: buildSlug(event.target.value) }))
+                            }
+                            placeholder="monas-studio"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="businessType">Tipo de negocio</Label>
-                      <Select
-                        value={form.businessType}
-                        onValueChange={(value) =>
-                          setForm((current) => ({ ...current, businessType: value }))
-                        }
-                        disabled={loadingTypes}
+
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <Button
+                        type="button"
+                        onClick={() => setStep(2)}
+                        disabled={!canGoToProducts}
+                        className="h-11 rounded-none bg-black text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink"
                       >
-                        <SelectTrigger id="businessType">
-                          <SelectValue placeholder="Elegí un tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {companyTypes.map((type) => (
-                            <SelectItem key={type.key} value={type.key}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        Seguir a productos
+                      </Button>
+                      <Link
+                        href="/negocios"
+                        className="inline-flex h-11 items-center justify-center border border-black px-5 text-[11px] font-black uppercase tracking-[0.08em] text-black transition-colors hover:bg-black hover:text-white"
+                      >
+                        Volver a /negocios
+                      </Link>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="ownerName">Nombre del dueño</Label>
-                      <Input
-                        id="ownerName"
-                        value={form.ownerName}
-                        onChange={(event) =>
-                          setForm((current) => ({ ...current, ownerName: event.target.value }))
-                        }
-                        placeholder="Sebastián"
-                      />
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={form.email}
-                          onChange={(event) =>
-                            setForm((current) => ({ ...current, email: event.target.value }))
-                          }
-                          placeholder="hola@tunegocio.com"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="phone">Teléfono / WhatsApp</Label>
-                        <Input
-                          id="phone"
-                          value={form.phone}
-                          onChange={(event) =>
-                            setForm((current) => ({ ...current, phone: event.target.value }))
-                          }
-                          placeholder="59170000000"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="password">Contraseña</Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          value={form.password}
-                          onChange={(event) =>
-                            setForm((current) => ({ ...current, password: event.target.value }))
-                          }
-                          placeholder="Mínimo 8 caracteres"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="slug">Slug sugerido</Label>
-                        <Input
-                          id="slug"
-                          value={form.slug}
-                          onChange={(event) =>
-                            setForm((current) => ({ ...current, slug: buildSlug(event.target.value) }))
-                          }
-                          placeholder="monas-studio"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  </>
+                ) : null}
 
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      disabled={!canGoToProducts}
-                      className="h-11 rounded-none bg-black text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink"
-                    >
-                      Seguir a productos
-                    </Button>
-                    <Link
-                      href="/negocios"
-                      className="inline-flex h-11 items-center justify-center border border-black px-5 text-[11px] font-black uppercase tracking-[0.08em] text-black transition-colors hover:bg-black hover:text-white"
-                    >
-                      Volver a /negocios
-                    </Link>
-                  </div>
-                </>
-              ) : null}
+                {step === 3 ? (
+                  <div id="review" className="space-y-6">
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="border border-black p-5">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                          Negocio
+                        </p>
+                        <p className="mt-3 font-bebas text-[1.9rem] uppercase">{form.businessName}</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">
+                          {form.ownerName} · {form.email}
+                        </p>
+                        <p className="text-sm leading-6 text-slate-700">{form.phone}</p>
+                        <p className="mt-3 text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                          /{buildSlug(form.slug || form.businessName)}
+                        </p>
+                      </div>
 
-              {step === 2 ? (
-                <div className="space-y-6">
-                  <BusinessPricingBuilder
-                    value={selection}
-                    onChange={setSelection}
-                    ctaHref="#review"
-                    ctaLabel="Seguir a revisión"
-                    compact
-                    pricingConfig={pricingConfig}
-                    isPricingLoading={pricingLoading}
-                  />
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setStep(1)}
-                      className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
-                    >
-                      Volver a datos
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => setStep(3)}
-                      disabled={pricing.validationErrors.length > 0}
-                      className="h-11 rounded-none bg-black text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink"
-                    >
-                      Seguir a revisión
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
+                      <div className="border border-black bg-black p-5 text-white">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/60">
+                          Tu prueba gratis
+                        </p>
+                        <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-[0.92] text-biz-yellow">
+                          {pricing.trialLengthDays} días
+                        </p>
+                        <p className="mt-3 text-sm leading-7 text-white/80">
+                          {pricing.firstMonthFree
+                            ? "Empezás sin tarjeta y con el primer mes gratis. Después activás el plan que mejor cierre con tu operación."
+                            : "Empezás sin tarjeta durante la prueba. Después activás el plan que mejor cierre con tu operación."}
+                        </p>
+                      </div>
+                    </div>
 
-              {step === 3 ? (
-                <div id="review" className="space-y-6">
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="border border-black p-5">
+                    <div className="border border-black bg-white p-5">
                       <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
-                        Negocio
+                        Precio estimado después del mes gratis
                       </p>
-                      <p className="mt-3 font-bebas text-[1.9rem] uppercase">{form.businessName}</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-700">
-                        {form.ownerName} · {form.email}
-                      </p>
-                      <p className="text-sm leading-6 text-slate-700">{form.phone}</p>
-                      <p className="mt-3 text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
-                        /{buildSlug(form.slug || form.businessName)}
-                      </p>
-                    </div>
-
-                    <div className="border border-black bg-black p-5 text-white">
-                      <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/60">
-                        Tu prueba gratis
-                      </p>
-                      <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-[0.92] text-biz-yellow">
-                        {pricing.trialLengthDays} días
-                      </p>
-                      <p className="mt-3 text-sm leading-7 text-white/80">
-                        {pricing.firstMonthFree
-                          ? "Empezás sin tarjeta y con el primer mes gratis. Después activás el plan que mejor cierre con tu operación."
-                          : "Empezás sin tarjeta durante la prueba. Después activás el plan que mejor cierre con tu operación."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="border border-black bg-white p-5">
-                    <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
-                      Precio estimado después del mes gratis
-                    </p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
-                          Subtotal mensual
-                        </p>
-                        <p className="mt-2 font-bebas text-[1.7rem] uppercase">
-                          {formatBsAmount(pricing.subtotalMonthly)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
-                          Bundle
-                        </p>
-                        <p className="mt-2 font-bebas text-[1.7rem] uppercase">
-                          {pricing.bundleDiscountPercent}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
-                          Mensual estimado
-                        </p>
-                        <p className="mt-2 font-bebas text-[1.7rem] uppercase">
-                          {formatBsAmount(pricing.finalMonthly)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
-                          Equivalente anual
-                        </p>
-                        <p className="mt-2 font-bebas text-[1.7rem] uppercase">
-                          {formatBsAmount(pricing.finalAnnualEquivalent)}
-                        </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
+                            Subtotal mensual
+                          </p>
+                          <p className="mt-2 font-bebas text-[1.7rem] uppercase">
+                            {formatBsAmount(pricing.subtotalMonthly)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
+                            Bundle
+                          </p>
+                          <p className="mt-2 font-bebas text-[1.7rem] uppercase">
+                            {pricing.bundleDiscountPercent}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
+                            Mensual estimado
+                          </p>
+                          <p className="mt-2 font-bebas text-[1.7rem] uppercase">
+                            {formatBsAmount(pricing.finalMonthly)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.08em] text-slate-500">
+                            Equivalente anual
+                          </p>
+                          <p className="mt-2 font-bebas text-[1.7rem] uppercase">
+                            {formatBsAmount(pricing.finalAnnualEquivalent)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setStep(2)}
-                      className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
-                    >
-                      Volver a productos
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        void handleSubmit();
-                      }}
-                      disabled={!canSubmit || submitting}
-                      className="h-11 rounded-none bg-biz-cta-primary text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-cta-hover"
-                    >
-                      {submitting ? "Creando tu cuenta..." : "Crear mi cuenta gratis"}
-                    </Button>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setStep(2)}
+                        className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
+                      >
+                        Volver a productos
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          void handleSubmit();
+                        }}
+                        disabled={!canSubmit || submitting}
+                        className="h-11 rounded-none bg-biz-cta-primary text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-cta-hover"
+                      >
+                        {submitting ? "Creando tu cuenta..." : "Crear mi cuenta gratis"}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+                ) : null}
+              </CardContent>
+            </Card>
+          )}
         </section>
 
-        <aside className="space-y-4">
+        {!isProductsStep ? (
+          <aside className="min-w-0 space-y-4">
           <div className="border border-black bg-white p-6">
             <p className="font-bebas text-[15px] uppercase tracking-[0.14em] text-biz-barbie-pink">
               Lo que desbloqueás desde el día uno
@@ -553,7 +560,8 @@ export function BusinessSignupWizard() {
               Si querés estimar con anual, podés cambiar el toggle en el paso 2. El alta sigue arrancando sin tarjeta y respeta la configuración pública actual.
             </p>
           </div>
-        </aside>
+          </aside>
+        ) : null}
       </div>
     </main>
   );

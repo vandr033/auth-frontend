@@ -64,6 +64,8 @@ interface NewBookingModalProps {
     staffList: StaffMember[];
     serviceList: ServiceItem[];
     currency?: string | null;
+    fixedStaffId?: number | null;
+    allowExistingCustomerSelection?: boolean;
     onCreate: (data: CreateBookingData) => Promise<void>;
     onCreateRecurring: (data: CreateRecurringBookingData) => Promise<void>;
 }
@@ -166,6 +168,8 @@ export function NewBookingModal({
     staffList,
     serviceList,
     currency,
+    fixedStaffId,
+    allowExistingCustomerSelection = true,
     onCreate,
     onCreateRecurring,
 }: NewBookingModalProps) {
@@ -210,7 +214,7 @@ export function NewBookingModal({
         setSelectedCustomer(null);
         setUploadingSingleQr(false);
         setUploadingSessions({});
-        setStaffId("");
+        setStaffId(fixedStaffId ? String(fixedStaffId) : "");
         setSingleServiceIds([]);
         setSingleDate(format(new Date(), "yyyy-MM-dd"));
         setSingleTime("09:00");
@@ -225,7 +229,13 @@ export function NewBookingModal({
         setRecurringWeeks("2");
         setRecurringTemplates([createTemplate()]);
         setSessionPayments({});
-    }, [isOpen]);
+    }, [fixedStaffId, isOpen]);
+
+    useEffect(() => {
+        if (!allowExistingCustomerSelection && customerMode !== "guest") {
+            setCustomerMode("guest");
+        }
+    }, [allowExistingCustomerSelection, customerMode]);
 
     useEffect(() => {
         if (!isOpen || customerMode !== "existing") return;
@@ -593,20 +603,26 @@ export function NewBookingModal({
                                 <Label htmlFor="staff" className="mb-2 block text-sm font-semibold">
                                     {t("adminBookings.staffMember")}
                                 </Label>
-                                <Select value={staffId} onValueChange={handleStaffChange}>
-                                    <SelectTrigger id="staff">
-                                        <SelectValue placeholder={t("adminBookings.selectStaff")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {staffList
-                                            .filter((staff) => staff.is_bookable)
-                                            .map((staff) => (
-                                                <SelectItem key={staff.id} value={String(staff.id)}>
-                                                    {staff.display_name}
-                                                </SelectItem>
-                                            ))}
-                                    </SelectContent>
-                                </Select>
+                                {fixedStaffId ? (
+                                    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-900">
+                                        {selectedStaff?.display_name || t("adminBookings.selectStaff")}
+                                    </div>
+                                ) : (
+                                    <Select value={staffId} onValueChange={handleStaffChange}>
+                                        <SelectTrigger id="staff">
+                                            <SelectValue placeholder={t("adminBookings.selectStaff")} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {staffList
+                                                .filter((staff) => staff.is_bookable)
+                                                .map((staff) => (
+                                                    <SelectItem key={staff.id} value={String(staff.id)}>
+                                                        {staff.display_name}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 <p className="mt-2 text-xs text-muted-foreground">
                                     {selectedStaff
                                         ? t("adminBookings.servicesFilteredForStaff")
@@ -618,18 +634,20 @@ export function NewBookingModal({
                                 <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     {t("adminBookings.assignClient")}
                                 </Label>
-                                <Tabs value={customerMode} onValueChange={(value) => setCustomerMode(value as CustomerMode)}>
-                                    <TabsList className="grid w-full grid-cols-2">
-                                        <TabsTrigger value="existing" className="gap-2">
-                                            <Users className="h-4 w-4" />
-                                            {t("adminBookings.existingClient")}
-                                        </TabsTrigger>
-                                        <TabsTrigger value="guest" className="gap-2">
-                                            <UserRound className="h-4 w-4" />
-                                            {t("adminBookings.manualClient")}
-                                        </TabsTrigger>
-                                    </TabsList>
-                                </Tabs>
+                                {allowExistingCustomerSelection ? (
+                                    <Tabs value={customerMode} onValueChange={(value) => setCustomerMode(value as CustomerMode)}>
+                                        <TabsList className="grid w-full grid-cols-2">
+                                            <TabsTrigger value="existing" className="gap-2">
+                                                <Users className="h-4 w-4" />
+                                                {t("adminBookings.existingClient")}
+                                            </TabsTrigger>
+                                            <TabsTrigger value="guest" className="gap-2">
+                                                <UserRound className="h-4 w-4" />
+                                                {t("adminBookings.manualClient")}
+                                            </TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
+                                ) : null}
 
                                 {customerMode === "existing" ? (
                                     <div className="mt-4 space-y-3">

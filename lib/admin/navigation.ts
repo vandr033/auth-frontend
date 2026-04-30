@@ -19,6 +19,7 @@ export type AdminNavigationIconKey =
     | "bookings"
     | "services"
     | "availability"
+    | "timeOff"
     | "settings"
     | "events"
     | "classes"
@@ -37,6 +38,7 @@ export type AdminNavigationItemId =
     | "bookings"
     | "services"
     | "availability"
+    | "time-off"
     | "booking-settings"
     | "events"
     | "classes"
@@ -214,6 +216,17 @@ const NAVIGATION_DEFINITIONS: AdminNavigationDefinition[] = [
         href: "/admin/dashboard/availability",
         iconKey: "availability",
         roles: ["OWNER", "ADMIN", "STAFF"],
+        resolveState: (context) => (context.hasReservas ? "active" : "hidden"),
+    },
+    {
+        id: "time-off",
+        groupId: "products",
+        labelKey: "adminNav.timeOff",
+        href: "/admin/dashboard/time-off",
+        iconKey: "timeOff",
+        roles: ["OWNER", "ADMIN", "STAFF"],
+        exact: true,
+        activePrefixes: ["/admin/dashboard/time-off", "/admin/dashboard/permissions"],
         resolveState: (context) => (context.hasReservas ? "active" : "hidden"),
     },
     {
