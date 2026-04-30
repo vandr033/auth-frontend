@@ -219,8 +219,8 @@ function AppointmentCard({
               </div>
             )}
 
-            {/* Review button for completed past bookings */}
-            {appointment.isPast && appointment.status === "COMPLETED" && (
+            {/* Review button for completed bookings */}
+            {appointment.status === "COMPLETED" && (
               <div>
                 {appointment.hasReview ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-medium text-emerald-700">
