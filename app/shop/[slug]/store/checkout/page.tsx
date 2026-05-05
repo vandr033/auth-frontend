@@ -275,34 +275,35 @@ export default function StoreCheckoutPage() {
         const resolvedFirstName = user.first_name?.trim() || resolvedName.split(" ")[0] || "";
         const resolvedLastName = user.last_name?.trim() || resolvedName.split(" ").slice(1).join(" ") || "";
         const resolvedEmail = isTemporaryEmail(user.email) ? "" : user.email || "";
+        const resolvedPhoneSelection = normalizePhoneSelection({
+            countryCode: typeof user.country_code === "string" ? user.country_code : null,
+            phonePrefix: user.phone_prefix,
+            phoneNumber: user.phoneNumber,
+            fallbackCountryCode: company?.country_code || DEFAULT_COUNTRY_CODE,
+        });
+        const hasUserPhone = Boolean(
+            resolvedPhoneSelection.phoneNumber || resolvedPhoneSelection.phonePrefix,
+        );
+
         setForm((prev) => ({
             ...prev,
             customerFirstName: prev.customerFirstName || resolvedFirstName,
             customerLastName: prev.customerLastName || resolvedLastName,
             customerName: prev.customerName || resolvedName,
             customerPhone:
-                prev.customerPhone
-                || normalizePhoneSelection({
-                    countryCode: typeof user.country_code === "string" ? user.country_code : null,
-                    phonePrefix: user.phone_prefix,
-                    phoneNumber: user.phoneNumber,
-                    fallbackCountryCode: company?.country_code || DEFAULT_COUNTRY_CODE,
-                }).phoneNumber,
+                prev.customerPhone || resolvedPhoneSelection.phoneNumber,
             customerCountryCode:
-                prev.customerCountryCode
-                || (typeof user.country_code === "string" ? user.country_code : null)
-                || company?.country_code
-                || DEFAULT_COUNTRY_CODE,
+                hasUserPhone
+                    ? resolvedPhoneSelection.countryCode
+                    : prev.customerCountryCode
+                        || company?.country_code
+                        || DEFAULT_COUNTRY_CODE,
             customerPhonePrefix:
-                prev.customerPhonePrefix
-                || normalizePhoneSelection({
-                    countryCode: typeof user.country_code === "string" ? user.country_code : null,
-                    phonePrefix: user.phone_prefix,
-                    phoneNumber: user.phoneNumber,
-                    fallbackCountryCode: company?.country_code || DEFAULT_COUNTRY_CODE,
-                }).phonePrefix
-                || company?.phone_prefix
-                || "591",
+                hasUserPhone
+                    ? resolvedPhoneSelection.phonePrefix
+                    : prev.customerPhonePrefix
+                        || company?.phone_prefix
+                        || "591",
             customerEmail: prev.customerEmail || resolvedEmail,
         }));
         autofilledUserIdRef.current = user.id;
