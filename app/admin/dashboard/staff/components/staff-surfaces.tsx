@@ -57,8 +57,8 @@ import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUseEntitledFeature, getStaffLimitForPlan } from "@/lib/plans/capabilities";
-import { hasProductCapability } from "@/lib/product-access";
+import { canUseEntitledFeature, getStaffLimitForPlan, type CompanyCapabilities } from "@/lib/plans/capabilities";
+import { hasProductTier } from "@/lib/product-access";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/utils/image-url";
 
@@ -93,6 +93,13 @@ const initialFormData: StaffFormData = {
     start_date: "",
     end_date: "",
 };
+
+function companyHasBookingModule(capabilities: CompanyCapabilities | null | undefined) {
+    return (
+        hasProductTier(capabilities, "RESERVAS_BASE") ||
+        hasProductTier(capabilities, "RESERVAS_PRO")
+    );
+}
 
 function getInitials(name: string) {
     return name
@@ -256,8 +263,7 @@ export function StaffRosterSurface() {
     const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
     const hasBookingModule =
         Boolean(user?.is_super_admin) ||
-        hasProductCapability(capabilities, "RESERVAS_BASE") ||
-        hasProductCapability(capabilities, "RESERVAS_PRO");
+        companyHasBookingModule(capabilities);
     const canManageRoles =
         Boolean(user?.is_super_admin) ||
         (hasBookingModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
@@ -641,8 +647,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
     const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
     const hasBookingModule =
         Boolean(user?.is_super_admin) ||
-        hasProductCapability(capabilities, "RESERVAS_BASE") ||
-        hasProductCapability(capabilities, "RESERVAS_PRO");
+        companyHasBookingModule(capabilities);
     const canManageRoles =
         Boolean(user?.is_super_admin) ||
         (hasBookingModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
@@ -1079,8 +1084,7 @@ export function StaffProfileSurface({ staffId }: { staffId: number }) {
     const capabilities = companyUser?.company?.capabilities;
     const hasBookingModule =
         Boolean(user?.is_super_admin) ||
-        hasProductCapability(capabilities, "RESERVAS_BASE") ||
-        hasProductCapability(capabilities, "RESERVAS_PRO");
+        companyHasBookingModule(capabilities);
     const [member, setMember] = useState<StaffMember | null>(null);
     const [services, setServices] = useState<ServiceItem[]>([]);
     const [loading, setLoading] = useState(true);
