@@ -3103,6 +3103,8 @@ const en = {
     bookingConfigurationDesc: "Control when and how customers can book.",
     paymentMethods: "Payment methods",
     paymentMethodsDesc: "Choose how customers can pay when booking.",
+    bookingQrStoreHint: "This QR is only for bookings. Store payments and the store QR are configured separately.",
+    openStoreSettings: "Open store settings",
     notifications: "Messaging",
     notificationsDesc: "Manage included transactional messaging and review which automations need Messaging Pro.",
     messagingBasic: "Basic messaging",

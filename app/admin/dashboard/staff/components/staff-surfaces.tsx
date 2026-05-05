@@ -58,6 +58,7 @@ import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { canUsePlanFeature, getStaffLimitForPlan } from "@/lib/plans/capabilities";
+import { hasProductCapability } from "@/lib/product-access";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/utils/image-url";
 
@@ -251,8 +252,13 @@ function buildEditableFormData(member: StaffMember): StaffFormData {
 export function StaffRosterSurface() {
     const { companyUser, user } = useAdminAuth();
     const { t } = useI18n();
+    const capabilities = companyUser?.company?.capabilities;
     const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
     const canManageRoles = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "ROLES_PERMISSIONS");
+    const hasBookingModule =
+        Boolean(user?.is_super_admin) ||
+        hasProductCapability(capabilities, "RESERVAS_BASE") ||
+        hasProductCapability(capabilities, "RESERVAS_PRO");
 
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [services, setServices] = useState<ServiceItem[]>([]);
@@ -270,7 +276,10 @@ export function StaffRosterSurface() {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const [staffRows, serviceRows] = await Promise.all([getStaff(), getServices()]);
+            const [staffRows, serviceRows] = await Promise.all([
+                getStaff(),
+                hasBookingModule ? getServices() : Promise.resolve([] as ServiceItem[]),
+            ]);
             setStaff(staffRows);
             setServices(serviceRows);
         } catch (error: unknown) {
@@ -278,7 +287,7 @@ export function StaffRosterSurface() {
         } finally {
             setLoading(false);
         }
-    }, [t]);
+    }, [hasBookingModule, t]);
 
     useEffect(() => {
         void loadData();
@@ -391,7 +400,7 @@ export function StaffRosterSurface() {
                     message={t("planEnforcement.staffLimitReached")}
                 />
             ) : null}
-            {!canManageRoles ? (
+            {!canManageRoles && hasBookingModule ? (
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={t("planEnforcement.availableOnBusiness")}
@@ -626,8 +635,13 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
     const { companyId, companyUser, role: currentRole, user } = useAdminAuth();
     const { t } = useI18n();
     const isEditing = Number.isInteger(staffId);
+    const capabilities = companyUser?.company?.capabilities;
     const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
     const canManageRoles = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "ROLES_PERMISSIONS");
+    const hasBookingModule =
+        Boolean(user?.is_super_admin) ||
+        hasProductCapability(capabilities, "RESERVAS_BASE") ||
+        hasProductCapability(capabilities, "RESERVAS_PRO");
 
     const [services, setServices] = useState<ServiceItem[]>([]);
     const [staffMember, setStaffMember] = useState<StaffMember | null>(null);
@@ -647,14 +661,17 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
         async function load() {
             setLoading(Boolean(isEditing));
             try {
-                const requests: Array<Promise<unknown>> = [getServices(), getStaff()];
+                const requests: Array<Promise<unknown>> = [getStaff()];
+                if (hasBookingModule) {
+                    requests.push(getServices());
+                }
                 if (isEditing && staffId) {
                     requests.push(getStaffById(staffId));
                 }
                 const results = await Promise.all(requests);
-                const serviceRows = results[0] as ServiceItem[];
-                const staffRows = results[1] as StaffMember[];
-                const selectedMember = isEditing ? (results[2] as StaffMember) : null;
+                const staffRows = results[0] as StaffMember[];
+                const serviceRows = hasBookingModule ? (results[1] as ServiceItem[]) : [];
+                const selectedMember = isEditing ? (results[hasBookingModule ? 2 : 1] as StaffMember) : null;
 
                 if (!isMounted) return;
                 setServices(serviceRows);
@@ -684,7 +701,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
         return () => {
             isMounted = false;
         };
-    }, [isEditing, staffId, t]);
+    }, [hasBookingModule, isEditing, staffId, t]);
 
     const servicesByCategory = useMemo(() => {
         const grouped = new Map<string, { key: string; name: string; services: ServiceItem[] }>();
@@ -744,7 +761,9 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
             let saved: StaffMember;
             if (isEditing && staffId) {
                 saved = await updateStaffMember(staffId, basePayload);
-                await updateStaffMemberServices(staffId, formData.service_ids);
+                if (hasBookingModule) {
+                    await updateStaffMemberServices(staffId, formData.service_ids);
+                }
             } else {
                 saved = await createStaffMember({
                     ...basePayload,
@@ -752,7 +771,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                     role: canManageRoles ? formData.role : "STAFF",
                     phone_prefix: formData.phone_prefix.trim() || undefined,
                     phone: formData.phone.trim() || undefined,
-                    service_ids: formData.service_ids,
+                    service_ids: hasBookingModule ? formData.service_ids : [],
                     ...(formData.start_date ? { start_date: formData.start_date } : {}),
                     ...(formData.end_date ? { end_date: formData.end_date } : {}),
                 });
@@ -810,7 +829,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                     message={t("planEnforcement.staffLimitReached")}
                 />
             ) : null}
-            {!canManageRoles ? (
+            {!canManageRoles && hasBookingModule ? (
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={t("planEnforcement.availableOnBusiness")}
@@ -976,40 +995,42 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                     </CardContent>
                 </Card>
 
-                <Card className="admin-card">
-                    <CardHeader>
-                        <CardTitle>{t("adminStaff.assignedServices")}</CardTitle>
-                        <CardDescription>{t("adminStaff.assignedServicesDescription")}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {services.length === 0 ? (
-                            <p className="text-sm italic text-slate-500">{t("adminStaff.noServicesHint")}</p>
-                        ) : (
-                            <div className="max-h-80 space-y-3 overflow-y-auto rounded-md border border-admin-border p-3">
-                                {servicesByCategory.map((group) => (
-                                    <div key={group.key} className="space-y-1">
-                                        <p className="px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{group.name}</p>
-                                        {group.services.length === 0 ? (
-                                            <p className="px-2 pb-2 text-xs text-slate-400">{t("adminStaff.emptyCategoryServices")}</p>
-                                        ) : (
-                                            group.services.map((service) => (
-                                                <label key={service.id} className="flex cursor-pointer items-center gap-2 rounded p-2 transition-colors hover:bg-admin-surface-subtle">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={formData.service_ids.includes(service.id)}
-                                                        onChange={() => toggleService(service.id)}
-                                                        className="h-4 w-4 rounded border-slate-300 text-admin-brand-hover focus:ring-admin-brand"
-                                                    />
-                                                    <span className="text-sm text-slate-700">{service.name}</span>
-                                                </label>
-                                            ))
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {hasBookingModule ? (
+                    <Card className="admin-card">
+                        <CardHeader>
+                            <CardTitle>{t("adminStaff.assignedServices")}</CardTitle>
+                            <CardDescription>{t("adminStaff.assignedServicesDescription")}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {services.length === 0 ? (
+                                <p className="text-sm italic text-slate-500">{t("adminStaff.noServicesHint")}</p>
+                            ) : (
+                                <div className="max-h-80 space-y-3 overflow-y-auto rounded-md border border-admin-border p-3">
+                                    {servicesByCategory.map((group) => (
+                                        <div key={group.key} className="space-y-1">
+                                            <p className="px-2 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{group.name}</p>
+                                            {group.services.length === 0 ? (
+                                                <p className="px-2 pb-2 text-xs text-slate-400">{t("adminStaff.emptyCategoryServices")}</p>
+                                            ) : (
+                                                group.services.map((service) => (
+                                                    <label key={service.id} className="flex cursor-pointer items-center gap-2 rounded p-2 transition-colors hover:bg-admin-surface-subtle">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.service_ids.includes(service.id)}
+                                                            onChange={() => toggleService(service.id)}
+                                                            className="h-4 w-4 rounded border-slate-300 text-admin-brand-hover focus:ring-admin-brand"
+                                                        />
+                                                        <span className="text-sm text-slate-700">{service.name}</span>
+                                                    </label>
+                                                ))
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                ) : null}
 
                 <Card className="admin-card">
                     <CardHeader>
@@ -1049,7 +1070,13 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
 }
 
 export function StaffProfileSurface({ staffId }: { staffId: number }) {
+    const { companyUser, user } = useAdminAuth();
     const { t, locale } = useI18n();
+    const capabilities = companyUser?.company?.capabilities;
+    const hasBookingModule =
+        Boolean(user?.is_super_admin) ||
+        hasProductCapability(capabilities, "RESERVAS_BASE") ||
+        hasProductCapability(capabilities, "RESERVAS_PRO");
     const [member, setMember] = useState<StaffMember | null>(null);
     const [services, setServices] = useState<ServiceItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1062,7 +1089,10 @@ export function StaffProfileSurface({ staffId }: { staffId: number }) {
             setLoading(true);
             setError(null);
             try {
-                const [staffMember, serviceRows] = await Promise.all([getStaffById(staffId), getServices()]);
+                const [staffMember, serviceRows] = await Promise.all([
+                    getStaffById(staffId),
+                    hasBookingModule ? getServices() : Promise.resolve([] as ServiceItem[]),
+                ]);
                 if (!isMounted) return;
                 setMember(staffMember);
                 setServices(serviceRows);
@@ -1081,7 +1111,7 @@ export function StaffProfileSurface({ staffId }: { staffId: number }) {
         return () => {
             isMounted = false;
         };
-    }, [staffId, t]);
+    }, [hasBookingModule, staffId, t]);
 
     const { getAvailabilityLabel, getResourceTypeLabel, getServiceCoverage, getStatusLabel, getStatusTone, servicesById } = useStaffHelpers(services);
 
@@ -1203,31 +1233,33 @@ export function StaffProfileSurface({ staffId }: { staffId: number }) {
                     </CardContent>
                 </Card>
 
-                <Card className="admin-card">
-                    <CardHeader>
-                        <CardTitle>{t("adminStaff.assignedServices")}</CardTitle>
-                        <CardDescription>{t("adminStaff.profileServicesDescription")}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {assignedServices.length === 0 ? (
-                            <EmptyState icon={CheckCircle2} title={t("adminStaff.noServicesAssigned")} description={t("adminStaff.noServicesHint")} />
-                        ) : (
-                            <div className="space-y-3">
-                                {assignedServices.map((service) => (
-                                    <div key={service.id} className="rounded-lg border border-admin-border p-3">
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <div>
-                                                <p className="text-sm font-medium text-slate-900">{service.name}</p>
-                                                <p className="text-xs text-slate-500">{service.category?.name || t("adminServices.uncategorized")}</p>
+                {hasBookingModule ? (
+                    <Card className="admin-card">
+                        <CardHeader>
+                            <CardTitle>{t("adminStaff.assignedServices")}</CardTitle>
+                            <CardDescription>{t("adminStaff.profileServicesDescription")}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {assignedServices.length === 0 ? (
+                                <EmptyState icon={CheckCircle2} title={t("adminStaff.noServicesAssigned")} description={t("adminStaff.noServicesHint")} />
+                            ) : (
+                                <div className="space-y-3">
+                                    {assignedServices.map((service) => (
+                                        <div key={service.id} className="rounded-lg border border-admin-border p-3">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <div>
+                                                    <p className="text-sm font-medium text-slate-900">{service.name}</p>
+                                                    <p className="text-xs text-slate-500">{service.category?.name || t("adminServices.uncategorized")}</p>
+                                                </div>
+                                                <StatusBadge tone="neutral">{service.duration_minutes} min</StatusBadge>
                                             </div>
-                                            <StatusBadge tone="neutral">{service.duration_minutes} min</StatusBadge>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                ) : null}
             </div>
         </AdminPageShell>
     );

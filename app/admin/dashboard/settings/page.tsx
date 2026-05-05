@@ -233,6 +233,12 @@ export default function SettingsPage({
     const t = useT();
     const isSuperAdmin = Boolean(user?.is_super_admin);
     const capabilities = companyUser?.company?.capabilities;
+    const hasBookingModule =
+        isSuperAdmin ||
+        hasProductCapability(capabilities, "RESERVAS_BASE") ||
+        hasProductCapability(capabilities, "RESERVAS_PRO");
+    const hasStoreModule =
+        isSuperAdmin || hasProductCapability(capabilities, "COMMERCE_ACCESS");
     const canUseBasicMessaging = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_BASE");
     const hasMessagingPro = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_PRO");
     const hasMessagingReminders = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_REMINDERS");
@@ -241,9 +247,13 @@ export default function SettingsPage({
     const hasBulkMessaging = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_BULK_WHATSAPP");
     const canCustomizeBookingFlow = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
     const messagingBaseRecommendation = getProductAccessRecommendationForCapability("MENSAJERIA_BASE");
-    const visibleTabSet = useMemo(() => new Set<SettingsTab>(visibleTabs), [visibleTabs]);
-    const showStorefrontHandoff = visibleTabs.some((tab) => tab !== "subscription");
-    const showSaveActions = visibleTabs.some((tab) => tab !== "subscription");
+    const resolvedVisibleTabs = useMemo(
+        () => visibleTabs.filter((tab) => tab !== "booking" || hasBookingModule),
+        [hasBookingModule, visibleTabs],
+    );
+    const visibleTabSet = useMemo(() => new Set<SettingsTab>(resolvedVisibleTabs), [resolvedVisibleTabs]);
+    const showStorefrontHandoff = resolvedVisibleTabs.some((tab) => tab !== "subscription");
+    const showSaveActions = resolvedVisibleTabs.some((tab) => tab !== "subscription");
 
     const [settings, setSettings] = useState<CompanySettings>(initialSettings);
     const [subscriptionSummary, setSubscriptionSummary] = useState<ShopSubscriptionSnapshot | null>(null);
@@ -263,9 +273,9 @@ export default function SettingsPage({
 
     useEffect(() => {
         if (!visibleTabSet.has(activeTab)) {
-            setActiveTab(visibleTabs[0] ?? "booking");
+            setActiveTab(resolvedVisibleTabs[0] ?? "subscription");
         }
-    }, [activeTab, visibleTabSet, visibleTabs]);
+    }, [activeTab, resolvedVisibleTabs, visibleTabSet]);
 
     // Fetch company settings
     const fetchData = useCallback(async () => {
@@ -966,105 +976,115 @@ export default function SettingsPage({
 
                 {/* --- PAYMENTS & NOTIFICATIONS TAB --- */}
                 <TabsContent value="payments" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center gap-2">
-                                <CreditCard className="h-5 w-5 text-slate-500" />
-                                <CardTitle>{t('adminSettings.paymentMethods')}</CardTitle>
-                            </div>
-                            <CardDescription>{t('adminSettings.paymentMethodsDesc')}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {/* Cash Payment */}
-                            <div className="flex items-center justify-between rounded-lg border p-4">
-                                <div className="space-y-0.5">
-                                    <Label className="text-base">{t('adminSettings.allowCash')}</Label>
-                                    <p className="text-sm text-slate-500">
-                                        {t('adminSettings.allowCashDesc')}
-                                    </p>
+                    {hasBookingModule ? (
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <CreditCard className="h-5 w-5 text-slate-500" />
+                                    <CardTitle>{t('adminSettings.paymentMethods')}</CardTitle>
                                 </div>
-                                <Switch
-                                    checked={settings.allow_cash_payment}
-                                    onCheckedChange={(checked) => handleChange('allow_cash_payment', checked)}
-                                />
-                            </div>
+                                <CardDescription>{t('adminSettings.paymentMethodsDesc')}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                {hasStoreModule ? (
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                                        <p>{t("adminSettings.bookingQrStoreHint")}</p>
+                                        <Link
+                                            href="/admin/dashboard/store/settings"
+                                            className="mt-2 inline-flex font-medium text-amber-900 underline underline-offset-2"
+                                        >
+                                            {t("adminSettings.openStoreSettings")}
+                                        </Link>
+                                    </div>
+                                ) : null}
 
-                            {/* QR Payment */}
-                            <div className="space-y-4 rounded-lg border p-4">
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between rounded-lg border p-4">
                                     <div className="space-y-0.5">
-                                        <Label className="text-base">{t('adminSettings.allowQR')}</Label>
+                                        <Label className="text-base">{t('adminSettings.allowCash')}</Label>
                                         <p className="text-sm text-slate-500">
-                                            {t('adminSettings.allowQRDesc')}
+                                            {t('adminSettings.allowCashDesc')}
                                         </p>
                                     </div>
                                     <Switch
-                                        checked={settings.allow_qr_payment}
-                                        onCheckedChange={(checked) => handleChange('allow_qr_payment', checked)}
+                                        checked={settings.allow_cash_payment}
+                                        onCheckedChange={(checked) => handleChange('allow_cash_payment', checked)}
                                     />
+                                </div>
+
+                                <div className="space-y-4 rounded-lg border p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <Label className="text-base">{t('adminSettings.allowQR')}</Label>
+                                            <p className="text-sm text-slate-500">
+                                                {t('adminSettings.allowQRDesc')}
+                                            </p>
+                                        </div>
+                                        <Switch
+                                            checked={settings.allow_qr_payment}
+                                            onCheckedChange={(checked) => handleChange('allow_qr_payment', checked)}
+                                        />
+                                    </div>
+
+                                    {settings.allow_qr_payment && (
+                                        <div className="mt-4 border-t pt-4">
+                                            <Label className="mb-2 block">{t('adminSettings.qrImage')}</Label>
+                                            <p className="text-sm text-slate-500 mb-4">
+                                                {t('adminSettings.qrImageDesc')}
+                                            </p>
+                                            <div className="flex justify-start">
+                                                <ImageUpload
+                                                    companyId={Number(companyId)}
+                                                    type="qr"
+                                                    autoUpload={false}
+                                                    currentUrl={selectedQR ? URL.createObjectURL(selectedQR) : (settings.qr_image_url || undefined)}
+                                                    onFileSelect={setSelectedQR}
+                                                    aspectRatio="1:1"
+                                                    className="w-full max-w-[250px]"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {settings.allow_qr_payment && (
-                                    <div className="mt-4 border-t pt-4">
-                                        <Label className="mb-2 block">{t('adminSettings.qrImage')}</Label>
-                                        <p className="text-sm text-slate-500 mb-4">
-                                            {t('adminSettings.qrImageDesc')}
-                                        </p>
-                                        <div className="flex justify-start">
-                                            <ImageUpload
-                                                companyId={Number(companyId)}
-                                                type="qr"
-                                                autoUpload={false}
-                                                currentUrl={selectedQR ? URL.createObjectURL(selectedQR) : (settings.qr_image_url || undefined)}
-                                                onFileSelect={setSelectedQR}
-                                                aspectRatio="1:1"
-                                                className="w-full max-w-[250px]"
-                                            />
+                                    <div className={`flex items-center justify-between rounded-lg border p-4 ${!canCustomizeBookingFlow ? "opacity-50" : ""}`}>
+                                        <div className="space-y-0.5">
+                                            <Label className="text-base">{t('adminSettings.requireComprobante')}</Label>
+                                            <p className="text-sm text-slate-500">
+                                                {t('adminSettings.requireComprobanteDesc')}
+                                            </p>
                                         </div>
+                                        <Switch
+                                            checked={settings.require_comprobante_for_qr}
+                                            onCheckedChange={(checked) => handleChange('require_comprobante_for_qr', checked)}
+                                            disabled={!canCustomizeBookingFlow}
+                                        />
                                     </div>
                                 )}
-                            </div>
 
-                            {/* Require Comprobante for QR */}
-                            {settings.allow_qr_payment && (
                                 <div className={`flex items-center justify-between rounded-lg border p-4 ${!canCustomizeBookingFlow ? "opacity-50" : ""}`}>
                                     <div className="space-y-0.5">
-                                        <Label className="text-base">{t('adminSettings.requireComprobante')}</Label>
+                                        <Label className="text-base">{t('adminSettings.autoConfirmBookings')}</Label>
                                         <p className="text-sm text-slate-500">
-                                            {t('adminSettings.requireComprobanteDesc')}
+                                            {t('adminSettings.autoConfirmBookingsDesc')}
                                         </p>
                                     </div>
                                     <Switch
-                                        checked={settings.require_comprobante_for_qr}
-                                        onCheckedChange={(checked) => handleChange('require_comprobante_for_qr', checked)}
+                                        checked={settings.auto_confirm_bookings}
+                                        onCheckedChange={(checked) => handleChange('auto_confirm_bookings', checked)}
                                         disabled={!canCustomizeBookingFlow}
                                     />
                                 </div>
-                            )}
-
-                            {/* Auto Confirm Bookings */}
-                            <div className={`flex items-center justify-between rounded-lg border p-4 ${!canCustomizeBookingFlow ? "opacity-50" : ""}`}>
-                                <div className="space-y-0.5">
-                                    <Label className="text-base">{t('adminSettings.autoConfirmBookings')}</Label>
-                                    <p className="text-sm text-slate-500">
-                                        {t('adminSettings.autoConfirmBookingsDesc')}
-                                    </p>
-                                </div>
-                                <Switch
-                                    checked={settings.auto_confirm_bookings}
-                                    onCheckedChange={(checked) => handleChange('auto_confirm_bookings', checked)}
-                                    disabled={!canCustomizeBookingFlow}
-                                />
-                            </div>
-                            {!canCustomizeBookingFlow && (
-                                <PlanUpgradeNotice
-                                    title={t("planEnforcement.featureLockedTitle")}
-                                    message={t("planEnforcement.availableOnBusiness")}
-                                    feature="BOOKING_FLOW_CUSTOMIZATION"
-                                />
-                            )}
-                        </CardContent>
-                    </Card>
+                                {!canCustomizeBookingFlow && (
+                                    <PlanUpgradeNotice
+                                        title={t("planEnforcement.featureLockedTitle")}
+                                        message={t("planEnforcement.availableOnBusiness")}
+                                        feature="BOOKING_FLOW_CUSTOMIZATION"
+                                    />
+                                )}
+                            </CardContent>
+                        </Card>
+                    ) : null}
 
                     <Card>
                         <CardHeader>

@@ -3087,6 +3087,8 @@ const es: TranslationKeys = {
     bookingConfigurationDesc: "Controla cuándo y cómo los clientes pueden reservar.",
     paymentMethods: "Métodos de pago",
     paymentMethodsDesc: "Elige cómo pueden pagar los clientes al reservar.",
+    bookingQrStoreHint: "Este QR es solo para reservas. Los pagos y el QR de la tienda se configuran por separado.",
+    openStoreSettings: "Ir a ajustes de tienda",
     notifications: "Mensajería",
     notificationsDesc: "Controla la mensajería transaccional incluida y revisa qué automatizaciones requieren Mensajería Pro.",
     messagingBasic: "Mensajería básica",
