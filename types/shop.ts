@@ -7,7 +7,7 @@ export type ServicesVariant = 'services-grid' | 'services-list';
 export type TeamVariant = 'team-cards' | 'team-spotlight';
 export type FontPairing = 'classic' | 'modern' | 'bold' | 'refined' | 'friendly';
 
-export type CTADestination = 'booking' | 'services' | 'free-events' | 'events' | 'classes';
+export type CTADestination = 'booking' | 'services' | 'store' | 'free-events' | 'events' | 'classes';
 
 export interface HomeCTAButton {
     destination: CTADestination;
@@ -69,6 +69,9 @@ export interface ShopPublicFeatureVisibility {
     contactVisible: boolean;
     servicesVisible: boolean;
     bookingsEnabled: boolean;
+    commerceVisible: boolean;
+    commercePromotionsVisible: boolean;
+    commerceCombosVisible: boolean;
     eventsVisible: boolean;
     eventRegistrationEnabled: boolean;
     eventAdvancedEnabled: boolean;
@@ -111,11 +114,24 @@ export interface ShopService {
     name: string;
     description?: string;
     price_cents: number;
+    promo_price_cents?: number | null;
+    promo_starts_at?: string | null;
+    promo_ends_at?: string | null;
+    promo_label?: string | null;
     duration_minutes: number;
     is_multi_session?: boolean;
     session_count?: number | null;
     session_duration_minutes?: number | null;
     position: number;
+    pricing?: {
+        regular_price_cents?: number | null;
+        base_price_cents: number;
+        final_price_cents: number;
+        promo_applied: boolean;
+        promo_label?: string | null;
+        promo_starts_at?: string | null;
+        promo_ends_at?: string | null;
+    };
     required_resource_ids?: number[]; // StaffProfile IDs required to be booked with this service
 }
 
@@ -137,8 +153,8 @@ export interface ShopHours {
     is_closed: boolean;
 }
 
-export type HomeSectionKey = 'about' | 'services' | 'events' | 'classes' | 'team';
-export const DEFAULT_SECTION_ORDER: HomeSectionKey[] = ['about', 'services', 'events', 'classes', 'team'];
+export type HomeSectionKey = 'about' | 'services' | 'products' | 'promotions' | 'combos' | 'events' | 'classes' | 'team';
+export const DEFAULT_SECTION_ORDER: HomeSectionKey[] = ['about', 'services', 'products', 'promotions', 'combos', 'events', 'classes', 'team'];
 
 export interface AnnouncementBanner {
     id: string;           // stable UUID used as localStorage dismissal key
@@ -170,12 +186,133 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
     nav_links: [
         { key: 'home', enabled: true },
         { key: 'services', enabled: true },
+        { key: 'store', enabled: true },
         { key: 'events', enabled: true },
         { key: 'classes', enabled: true },
         { key: 'about', enabled: true },
         { key: 'book', enabled: true },
     ],
 };
+
+export interface ShopCommerceStore {
+    id: string;
+    company_id: number;
+    is_active: boolean;
+    fulfillment_mode: 'PICKUP_ONLY' | 'DELIVERY_ONLY' | 'PICKUP_AND_DELIVERY';
+    scheduled_orders_enabled: boolean;
+    min_preparation_minutes?: number | null;
+    max_schedule_days_ahead?: number | null;
+    order_slots_enabled: boolean;
+    allow_cash_payment: boolean;
+    allow_qr_payment: boolean;
+    allow_manual_payment: boolean;
+    qr_image_url?: string | null;
+    payment_instructions?: string | null;
+    payment_proof_required: boolean;
+    payment_review_required: boolean;
+    delivery_cost_mode: 'MANUAL' | 'FIXED';
+    fixed_delivery_cost?: number | null;
+    delivery_instructions?: string | null;
+    order_schedule_slots?: ShopCommerceOrderScheduleSlot[];
+}
+
+export interface ShopCommerceOrderScheduleSlot {
+    id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    is_active: boolean;
+    sort_order: number;
+}
+
+export interface ShopCommercePointOfSale {
+    id: string;
+    name: string;
+    address: string;
+    opening_time: string;
+    closing_time: string;
+    latitude: number;
+    longitude: number;
+    google_maps_url: string;
+    notes?: string | null;
+    is_active: boolean;
+    sort_order: number;
+}
+
+export interface ShopCommerceCategory {
+    id: string;
+    store_id?: string | null;
+    name: string;
+    slug: string;
+    description?: string | null;
+    image_url?: string | null;
+    is_active: boolean;
+    sort_order: number;
+}
+
+export interface ShopCommerceProductImage {
+    id: string;
+    image_url: string;
+    alt_text?: string | null;
+    sort_order: number;
+    is_primary: boolean;
+}
+
+export interface ShopCommerceComboItem {
+    id: string;
+    component_product_id: string;
+    quantity: number;
+    component_product?: {
+        id: string;
+        name: string;
+        price?: number | null;
+        regular_price?: number | null;
+        promo_price?: number | null;
+        track_stock?: boolean;
+        stock_quantity?: number;
+        allow_out_of_stock_orders?: boolean;
+    } | null;
+}
+
+export interface ShopCommerceProductPricing {
+    regular_price?: number | null;
+    base_price: number;
+    final_price: number;
+    promo_applied: boolean;
+    promo_label?: string | null;
+    promo_starts_at?: string | null;
+    promo_ends_at?: string | null;
+}
+
+export interface ShopCommerceProduct {
+    id: string;
+    store_id?: string | null;
+    category_id?: string | null;
+    name: string;
+    slug: string;
+    description?: string | null;
+    product_type: 'SIMPLE' | 'COMBO';
+    price: number;
+    regular_price?: number | null;
+    promo_price?: number | null;
+    promo_starts_at?: string | null;
+    promo_ends_at?: string | null;
+    promo_label?: string | null;
+    is_active: boolean;
+    is_featured: boolean;
+    track_stock: boolean;
+    stock_quantity: number;
+    low_stock_threshold?: number | null;
+    allow_out_of_stock_orders: boolean;
+    available_for_pickup: boolean;
+    available_for_delivery: boolean;
+    sort_order: number;
+    category?: ShopCommerceCategory | null;
+    images: ShopCommerceProductImage[];
+    combo_items: ShopCommerceComboItem[];
+    combo_available_units?: number | null;
+    pricing?: ShopCommerceProductPricing | null;
+}
 
 export interface ShopTheme {
     brand_color: string;
@@ -219,6 +356,10 @@ export interface ShopData {
     services: ShopService[];
     staff: ShopStaff[];
     hours: ShopHours[];
+    commerceStore?: ShopCommerceStore | null;
+    commercePointsOfSale?: ShopCommercePointOfSale[];
+    commerceCategories?: ShopCommerceCategory[];
+    commerceProducts?: ShopCommerceProduct[];
     settings: ShopSettings;
     theme: ShopTheme;
     reviewStats: ShopReviewStats;

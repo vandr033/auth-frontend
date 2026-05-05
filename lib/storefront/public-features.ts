@@ -6,6 +6,9 @@ const DEFAULT_PUBLIC_FEATURES: ShopPublicFeatureVisibility = {
     contactVisible: true,
     servicesVisible: true,
     bookingsEnabled: true,
+    commerceVisible: false,
+    commercePromotionsVisible: false,
+    commerceCombosVisible: false,
     eventsVisible: false,
     eventRegistrationEnabled: false,
     eventAdvancedEnabled: false,
@@ -41,6 +44,8 @@ export function isShopDestinationVisible(
             return publicFeatures.bookingsEnabled;
         case "services":
             return publicFeatures.servicesVisible;
+        case "store":
+            return publicFeatures.commerceVisible;
         case "free-events":
         case "events":
             return publicFeatures.eventsVisible;

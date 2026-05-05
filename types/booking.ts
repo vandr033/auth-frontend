@@ -9,11 +9,24 @@ export interface SelectedService {
     name: string;
     description?: string;
     price_cents: number;
+    promo_price_cents?: number | null;
+    promo_starts_at?: string | null;
+    promo_ends_at?: string | null;
+    promo_label?: string | null;
     duration_minutes: number;
     is_multi_session?: boolean;
     session_count?: number | null;
     session_duration_minutes?: number | null;
     category_id: number;
+    pricing?: {
+        regular_price_cents?: number | null;
+        base_price_cents: number;
+        final_price_cents: number;
+        promo_applied: boolean;
+        promo_label?: string | null;
+        promo_starts_at?: string | null;
+        promo_ends_at?: string | null;
+    };
     required_resource_ids?: number[];
 }
 
@@ -107,9 +120,25 @@ export interface BookingResponse {
     };
 }
 
+export function getServiceDisplayPriceCents(
+    service: Pick<SelectedService, "price_cents" | "pricing">,
+): number {
+    return service.pricing?.final_price_cents ?? service.price_cents;
+}
+
+export function getServiceRegularPriceCents(
+    service: Pick<SelectedService, "price_cents" | "pricing">,
+): number | null {
+    if (!service.pricing?.promo_applied) {
+        return null;
+    }
+
+    return service.pricing.regular_price_cents ?? service.price_cents;
+}
+
 // Calculate totals from selected services
 export function calculateBookingTotals(services: SelectedService[]) {
-    const totalPrice = services.reduce((sum, s) => sum + s.price_cents, 0);
+    const totalPrice = services.reduce((sum, s) => sum + getServiceDisplayPriceCents(s), 0);
     const totalDuration = services.reduce((sum, s) => sum + s.duration_minutes, 0);
     return { totalPrice, totalDuration };
 }

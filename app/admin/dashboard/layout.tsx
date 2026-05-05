@@ -43,7 +43,9 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
+    getDefaultAdminHref,
     getAdminNavigationForEntitlements,
+    type AdminNavigationChildItem,
     type AdminNavigationGroup,
     type AdminNavigationIconKey,
     type AdminNavigationItem,
@@ -56,6 +58,7 @@ const routeTitleOverrides: Array<{
 }> = [
     { prefix: "/admin/dashboard/business-settings", label: "adminNav.basicSettings", exact: true },
     { prefix: "/admin/dashboard/settings", label: "adminNav.bookingSettings", exact: true },
+    { prefix: "/admin/dashboard/store", label: "adminNav.store" },
     { prefix: "/admin/dashboard/customers/import-export", label: "adminNav.crmPro" },
     { prefix: "/admin/dashboard/customers/communications", label: "adminNav.messagingPro" },
     { prefix: "/admin/dashboard/reviews", label: "adminNav.metricsPro" },
@@ -96,6 +99,14 @@ function routeMatches(prefix: string, currentPath: string, exact = false) {
 
 function isNavItemActive(item: AdminNavigationItem, currentPath: string) {
     const prefixes = item.activePrefixes;
+    return (
+        prefixes.some((prefix) => routeMatches(prefix, currentPath, item.exact)) ||
+        (item.children?.some((child) => isNavChildActive(child, currentPath)) ?? false)
+    );
+}
+
+function isNavChildActive(item: AdminNavigationChildItem, currentPath: string) {
+    const prefixes = item.activePrefixes ?? [item.href];
     return prefixes.some((prefix) => routeMatches(prefix, currentPath, item.exact));
 }
 
@@ -283,10 +294,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         signOut,
     } = useAdminAuth();
     const t = useT();
+    const navigationRole = role as "OWNER" | "ADMIN" | "STAFF" | null;
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const activeMembership = companyUsers.find((membership) => membership.company_id === companyId) ?? null;
     const companyCapabilities = activeMembership?.company?.capabilities ?? null;
+    const defaultAdminHref = useMemo(
+        () => getDefaultAdminHref(companyCapabilities, navigationRole),
+        [companyCapabilities, navigationRole],
+    );
 
     const hasMultipleShops = !user?.is_super_admin && companyUsers.length > 1;
 
@@ -300,14 +316,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     };
 
     const filteredNavGroups = useMemo<AdminNavigationGroup[]>(() => {
-        const navigationGroups = getAdminNavigationForEntitlements(companyCapabilities);
-        return navigationGroups
-            .map((group) => ({
-                ...group,
-                items: group.items.filter((item) => Boolean(role && item.roles.includes(role as "OWNER" | "ADMIN" | "STAFF"))),
-            }))
-            .filter((group) => group.items.length > 0);
-    }, [companyCapabilities, role]);
+        return getAdminNavigationForEntitlements(companyCapabilities, {
+            includeLocked: false,
+            role: navigationRole,
+        });
+    }, [companyCapabilities, navigationRole]);
     const filteredNavItems = useMemo(
         () => filteredNavGroups.flatMap((group) => group.items),
         [filteredNavGroups],
@@ -330,26 +343,32 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             await switchActiveShop(nextCompanyId);
 
             const nextMembership = companyUsers.find((m) => m.company_id === nextCompanyId);
-            const nextGroups = getAdminNavigationForEntitlements(nextMembership?.company?.capabilities ?? null)
-                .map((group) => ({
-                    ...group,
-                    items: group.items.filter((item) => Boolean(role && item.roles.includes(role as "OWNER" | "ADMIN" | "STAFF"))),
-                }))
-                .filter((group) => group.items.length > 0);
+            const nextCapabilities = nextMembership?.company?.capabilities ?? null;
+            const nextGroups = getAdminNavigationForEntitlements(nextCapabilities, {
+                includeLocked: false,
+                role: navigationRole,
+            });
             const nextItems = nextGroups.flatMap((group) => group.items);
             const currentNavItem = filteredNavItems.find((item) => isNavItemActive(item, currentPath));
             const nextNavItem = currentNavItem
                 ? nextItems.find((item) => item.id === currentNavItem.id) ?? null
                 : null;
 
-            router.replace(nextNavItem?.href ?? "/admin/dashboard");
+            router.replace(nextNavItem?.href ?? getDefaultAdminHref(nextCapabilities, navigationRole));
             router.refresh();
         } catch {
             // Error state is handled in auth context.
         }
     };
 
+    useEffect(() => {
+        if (currentPath !== "/admin/dashboard") return;
+        if (defaultAdminHref === "/admin/dashboard") return;
+        router.replace(defaultAdminHref);
+    }, [currentPath, defaultAdminHref, router]);
+
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+    const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (!activeGroupId) return;
@@ -358,6 +377,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             [activeGroupId]: true,
         }));
     }, [activeGroupId]);
+
+    useEffect(() => {
+        setExpandedItems((current) => {
+            const next = { ...current };
+            for (const item of filteredNavItems) {
+                if (!item.children?.length) continue;
+                next[item.id] = isNavItemActive(item, currentPath) || (current[item.id] ?? false);
+            }
+            return next;
+        });
+    }, [currentPath, filteredNavItems]);
 
     useEffect(() => {
         setExpandedGroups((current) => {
@@ -484,36 +514,113 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                                                 {group.items.map((item) => {
                                                     const isActive = isNavItemActive(item, currentPath);
                                                     const isLocked = item.state === "locked";
-                                                    return (
-                                                        <Link
-                                                            key={item.id}
-                                                            href={item.href}
-                                                            className={cn(
-                                                                "group flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
-                                                                isActive
-                                                                    ? "bg-admin-sidebar-active text-white shadow-sm ring-1 ring-admin-brand/25"
-                                                                    : isLocked
-                                                                        ? "text-white/[0.52] hover:bg-admin-sidebar-hover hover:text-white"
-                                                                        : "text-white/[0.68] hover:bg-admin-sidebar-hover hover:text-white",
-                                                            )}
-                                                            onClick={() => setSidebarOpen(false)}
-                                                        >
-                                                            <span
+                                                    const hasChildren = Boolean(item.children?.length);
+                                                    const isExpanded = expandedItems[item.id] ?? isActive;
+
+                                                    if (!hasChildren) {
+                                                        return (
+                                                            <Link
+                                                                key={item.id}
+                                                                href={item.href}
                                                                 className={cn(
-                                                                    "text-white/[0.36] transition-colors group-hover:text-white/[0.72]",
-                                                                    isActive && "text-admin-brand",
+                                                                    "group flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+                                                                    isActive
+                                                                        ? "bg-admin-sidebar-active text-white shadow-sm ring-1 ring-admin-brand/25"
+                                                                        : isLocked
+                                                                            ? "text-white/[0.52] hover:bg-admin-sidebar-hover hover:text-white"
+                                                                            : "text-white/[0.68] hover:bg-admin-sidebar-hover hover:text-white",
                                                                 )}
+                                                                onClick={() => setSidebarOpen(false)}
                                                             >
-                                                                {NAV_ICON_MAP[item.iconKey]}
-                                                            </span>
-                                                            <span className="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
-                                                            {isLocked ? (
-                                                                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/70">
-                                                                    <Lock className="h-3 w-3" />
-                                                                    {t("common.locked")}
+                                                                <span
+                                                                    className={cn(
+                                                                        "text-white/[0.36] transition-colors group-hover:text-white/[0.72]",
+                                                                        isActive && "text-admin-brand",
+                                                                    )}
+                                                                >
+                                                                    {NAV_ICON_MAP[item.iconKey]}
                                                                 </span>
+                                                                <span className="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
+                                                                {isLocked ? (
+                                                                    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/70">
+                                                                        <Lock className="h-3 w-3" />
+                                                                        {t("common.locked")}
+                                                                    </span>
+                                                                ) : null}
+                                                            </Link>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <div key={item.id} className="space-y-1">
+                                                            <div className="flex items-center gap-1">
+                                                                <Link
+                                                                    href={item.href}
+                                                                    className={cn(
+                                                                        "group flex min-h-10 min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
+                                                                        isActive
+                                                                            ? "bg-admin-sidebar-active text-white shadow-sm ring-1 ring-admin-brand/25"
+                                                                            : "text-white/[0.68] hover:bg-admin-sidebar-hover hover:text-white",
+                                                                    )}
+                                                                    onClick={() => setSidebarOpen(false)}
+                                                                >
+                                                                    <span
+                                                                        className={cn(
+                                                                            "text-white/[0.36] transition-colors group-hover:text-white/[0.72]",
+                                                                            isActive && "text-admin-brand",
+                                                                        )}
+                                                                    >
+                                                                        {NAV_ICON_MAP[item.iconKey]}
+                                                                    </span>
+                                                                    <span className="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
+                                                                </Link>
+                                                                <button
+                                                                    type="button"
+                                                                    className={cn(
+                                                                        "flex h-10 w-10 items-center justify-center rounded-lg text-white/[0.5] transition-colors hover:bg-admin-sidebar-hover hover:text-white",
+                                                                        isActive && "text-white",
+                                                                    )}
+                                                                    aria-label={t(item.labelKey)}
+                                                                    aria-expanded={isExpanded}
+                                                                    onClick={() =>
+                                                                        setExpandedItems((current) => ({
+                                                                            ...current,
+                                                                            [item.id]: !(current[item.id] ?? isActive),
+                                                                        }))
+                                                                    }
+                                                                >
+                                                                    <ChevronDown
+                                                                        className={cn(
+                                                                            "h-4 w-4 transition-transform duration-200",
+                                                                            !isExpanded && "-rotate-90",
+                                                                        )}
+                                                                    />
+                                                                </button>
+                                                            </div>
+
+                                                            {isExpanded ? (
+                                                                <div className="ml-4 space-y-1 border-l border-white/10 pl-4">
+                                                                    {item.children?.map((child) => {
+                                                                        const isChildActive = isNavChildActive(child, currentPath);
+                                                                        return (
+                                                                            <Link
+                                                                                key={child.id}
+                                                                                href={child.href}
+                                                                                className={cn(
+                                                                                    "flex min-h-9 items-center rounded-md px-3 py-2 text-sm transition-colors",
+                                                                                    isChildActive
+                                                                                        ? "bg-white/10 text-white"
+                                                                                        : "text-white/[0.58] hover:bg-white/[0.06] hover:text-white",
+                                                                                )}
+                                                                                onClick={() => setSidebarOpen(false)}
+                                                                            >
+                                                                                {t(child.labelKey)}
+                                                                            </Link>
+                                                                        );
+                                                                    })}
+                                                                </div>
                                                             ) : null}
-                                                        </Link>
+                                                        </div>
                                                     );
                                                 })}
                                             </div>

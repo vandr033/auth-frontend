@@ -18,6 +18,7 @@ export type AuthUser = {
   first_name?: string | null;
   last_name?: string | null;
   image?: string | null;
+  country_code?: string | null;
   phoneNumber?: string | null;
   phone_prefix?: string | null;
   is_super_admin?: boolean;
@@ -80,6 +81,7 @@ type AuthContextValue = {
     first_name: string,
     last_name?: string,
     phone_prefix?: string,
+    country_code?: string,
   ) => Promise<void>;
 
   // Profile management
@@ -87,7 +89,12 @@ type AuthContextValue = {
   sendEmailChangeOtp: (newEmail: string) => Promise<void>;
   verifyEmailChange: (newEmail: string, code: string) => Promise<void>;
   sendPhoneChangeOtp: (newPhone: string) => Promise<void>;
-  verifyPhoneChange: (newPhone: string, code: string, phone_prefix?: string) => Promise<void>;
+  verifyPhoneChange: (
+    newPhone: string,
+    code: string,
+    phone_prefix?: string,
+    country_code?: string,
+  ) => Promise<void>;
 
   // Admin sign in (password-based, kept for admin/superadmin)
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -141,6 +148,10 @@ const extractUser = (payload: unknown): AuthUser | null => {
     phoneNumber:
       toStringOrUndefined(candidate.phoneNumber) ??
       toStringOrUndefined(candidate.phone_number) ??
+      null,
+    country_code:
+      toStringOrUndefined(candidate.country_code) ??
+      toStringOrUndefined(candidate.countryCode) ??
       null,
     phone_prefix:
       toStringOrUndefined(candidate.phone_prefix) ??
@@ -523,11 +534,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const completeCustomerPhoneProfile = useCallback(
-    async (first_name: string, last_name?: string, phone_prefix?: string) => {
+    async (
+      first_name: string,
+      last_name?: string,
+      phone_prefix?: string,
+      country_code?: string,
+    ) => {
       setLoading(true);
       setError(null);
       try {
-        await apiPost("/v1/auth/customer/complete-phone", { first_name, last_name, phone_prefix });
+        await apiPost("/v1/auth/customer/complete-phone", {
+          first_name,
+          last_name,
+          phone_prefix,
+          country_code,
+        });
         await refreshSession();
       } catch (err) {
         const message = err instanceof Error ? err.message : authT("authErrors.completePhoneProfile");
@@ -606,11 +627,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const verifyPhoneChange = useCallback(
-    async (newPhone: string, code: string, phone_prefix?: string) => {
+    async (newPhone: string, code: string, phone_prefix?: string, country_code?: string) => {
       setLoading(true);
       setError(null);
       try {
-        await apiPost("/v1/auth/me/phone/verify", { phoneNumber: newPhone, code, phone_prefix });
+        await apiPost("/v1/auth/me/phone/verify", {
+          phoneNumber: newPhone,
+          code,
+          phone_prefix,
+          country_code,
+        });
         await refreshSession();
       } catch (err) {
         const message = err instanceof Error ? err.message : authT("authErrors.verifyPhoneChange");

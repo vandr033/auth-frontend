@@ -97,6 +97,12 @@ export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTA
                                         {t('shopNav.services')}
                                     </Button>
                                 </Link>
+                            ) : resolvedPublicFeatures.commerceVisible ? (
+                                <Link href={`/shop/${slug}/store`}>
+                                    <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
+                                        {t('shopNav.store')}
+                                    </Button>
+                                </Link>
                             ) : null}
                         </>
                     }

@@ -2,9 +2,10 @@
 
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ShopCompany, ShopHours } from "@/types/shop";
+import type { ShopCommercePointOfSale, ShopCompany, ShopHours } from "@/types/shop";
 import { useT } from "@/lib/i18n";
 import { ShopLocationMap } from "@/components/shop/ShopLocationMap";
+import { ShopPointsOfSaleMap } from "@/components/shop/ShopPointsOfSaleMap";
 
 const dayKeys = ["adminHours.sunday", "adminHours.monday", "adminHours.tuesday", "adminHours.wednesday", "adminHours.thursday", "adminHours.friday", "adminHours.saturday"];
 const orderedDayIndexes = [1, 2, 3, 4, 5, 6, 0]; // Mon-Sun
@@ -22,10 +23,13 @@ interface LocationHoursProps {
     company: ShopCompany;
     hours: ShopHours[];
     className?: string;
+    pointsOfSale?: ShopCommercePointOfSale[];
 }
 
-export function LocationHours({ company, hours, className }: LocationHoursProps) {
+export function LocationHours({ company, hours, className, pointsOfSale = [] }: LocationHoursProps) {
     const t = useT();
+    const activePointsOfSale = pointsOfSale.filter((point) => point.is_active !== false);
+    const showPointsOfSale = activePointsOfSale.length > 0;
 
     const mapQuery = [company.address, company.city, company.state, company.country_code]
         .filter(Boolean)
@@ -116,31 +120,79 @@ export function LocationHours({ company, hours, className }: LocationHoursProps)
                     {/* Map */}
                     <div className="order-2 md:order-1">
                         <div className="overflow-hidden rounded-lg border border-surface-border bg-surface shadow-card">
-                            <ShopLocationMap
-                                company={company}
-                                className="h-80 w-full md:h-full md:min-h-[400px]"
-                                fallback={
-                                    company.google_maps_url ? (
-                                        <iframe
-                                            title={t('sharedUi.shopLocation')}
-                                            src={company.google_maps_url}
-                                            loading="lazy"
-                                            className="h-80 w-full border-0 md:h-full md:min-h-[400px]"
-                                        />
-                                    ) : (
-                                        <div className="flex h-80 w-full items-center justify-center bg-section text-text-muted md:h-full md:min-h-[400px]">
+                            {showPointsOfSale ? (
+                                <ShopPointsOfSaleMap
+                                    points={activePointsOfSale}
+                                    className="h-80 w-full md:min-h-[400px]"
+                                    fallback={
+                                        <div className="flex h-80 w-full items-center justify-center bg-section text-text-muted md:min-h-[400px]">
                                             {t('sharedUi.mapNotAvailable')}
                                         </div>
-                                    )
-                                }
-                            />
+                                    }
+                                />
+                            ) : (
+                                <ShopLocationMap
+                                    company={company}
+                                    className="h-80 w-full md:h-full md:min-h-[400px]"
+                                    fallback={
+                                        company.google_maps_url ? (
+                                            <iframe
+                                                title={t('sharedUi.shopLocation')}
+                                                src={company.google_maps_url}
+                                                loading="lazy"
+                                                className="h-80 w-full border-0 md:h-full md:min-h-[400px]"
+                                            />
+                                        ) : (
+                                            <div className="flex h-80 w-full items-center justify-center bg-section text-text-muted md:h-full md:min-h-[400px]">
+                                                {t('sharedUi.mapNotAvailable')}
+                                            </div>
+                                        )
+                                    }
+                                />
+                            )}
                         </div>
-                        {company.address && (
+                        {showPointsOfSale ? (
+                            <div className="mt-4 space-y-3">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                    {t("shopHome.pointsOfSale")}
+                                </p>
+                                <div className="space-y-3">
+                                    {activePointsOfSale.map((point) => (
+                                        <div key={point.id} className="rounded-lg border border-surface-border bg-surface p-4 shadow-card">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="font-semibold text-text-main">{point.name}</p>
+                                                    <p className="mt-1 text-sm text-text-muted">{point.address}</p>
+                                                    <p className="mt-2 text-sm text-text-muted">
+                                                        {t("shopHome.pointOfSaleHours", {
+                                                            openingTime: formatTime(point.opening_time),
+                                                            closingTime: formatTime(point.closing_time),
+                                                        })}
+                                                    </p>
+                                                    {point.notes ? (
+                                                        <p className="mt-2 text-sm text-text-muted">{point.notes}</p>
+                                                    ) : null}
+                                                </div>
+                                                <a
+                                                    href={point.google_maps_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand-hover"
+                                                >
+                                                    {t('sharedUi.getDirections')}
+                                                    <ExternalLink className="h-4 w-4" />
+                                                </a>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : company.address ? (
                             <p className="mt-3 text-sm text-text-muted">
                                 {company.address}{company.city ? `, ${company.city}` : ""}
                             </p>
-                        )}
-                        {directionsUrl && (
+                        ) : null}
+                        {!showPointsOfSale && directionsUrl && (
                             <a
                                 href={directionsUrl}
                                 target="_blank"

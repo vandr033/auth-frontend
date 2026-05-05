@@ -21,6 +21,7 @@ export default function AboutPage() {
         error,
         slug,
         isShopActive,
+        publicFeatures,
     } = useShop();
     const t = useT();
 
@@ -87,9 +88,15 @@ export default function AboutPage() {
                         </p>
                     )}
                     <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                        <Link href={`/shop/${slug}/book`}>
-                            <PrimaryButton>{t('common.bookNow')}</PrimaryButton>
-                        </Link>
+                        {publicFeatures.bookingsEnabled ? (
+                            <Link href={`/shop/${slug}/book`}>
+                                <PrimaryButton>{t('common.bookNow')}</PrimaryButton>
+                            </Link>
+                        ) : publicFeatures.commerceVisible ? (
+                            <Link href={`/shop/${slug}/store`}>
+                                <PrimaryButton>{t('shopNav.store')}</PrimaryButton>
+                            </Link>
+                        ) : null}
                     </div>
                 </div>
             </section>

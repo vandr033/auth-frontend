@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CountryPhoneSelect } from "@/components/ui/country-phone-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
@@ -55,6 +56,7 @@ import {
 } from "@/app/shop/lib/groupReservationsFormat";
 import { getImageUrl } from "@/utils/image-url";
 import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
+import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
 
 function hasUpcomingSession(sessions: PublicGroupClassSession[]): boolean {
   const now = Date.now();
@@ -92,6 +94,7 @@ export default function ShopClassDetailPage() {
   const [registrationStep, setRegistrationStep] = React.useState<"contact" | "code" | "thanks" | "online" | "submitted">("contact");
   const [guestFullName, setGuestFullName] = React.useState("");
   const [guestEmail, setGuestEmail] = React.useState("");
+  const [guestCountryCode, setGuestCountryCode] = React.useState(DEFAULT_COUNTRY_CODE);
   const [guestPhonePrefix, setGuestPhonePrefix] = React.useState("591");
   const [guestPhoneNumber, setGuestPhoneNumber] = React.useState("");
   const [guestCode, setGuestCode] = React.useState("");
@@ -251,6 +254,7 @@ export default function ShopClassDetailPage() {
         company_id: company.id,
         full_name: fullName,
         email,
+        countryCode: guestCountryCode,
         phonePrefix,
         phoneNumber,
       });
@@ -601,15 +605,19 @@ export default function ShopClassDetailPage() {
                 <Label>Email</Label>
                 <Input type="email" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} />
               </div>
-              <div className="grid grid-cols-[88px_1fr] gap-2">
-                <div className="space-y-1">
-                  <Label>Prefijo</Label>
-                  <Input value={guestPhonePrefix} onChange={(event) => setGuestPhonePrefix(event.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Celular</Label>
-                  <Input value={guestPhoneNumber} onChange={(event) => setGuestPhoneNumber(event.target.value)} />
-                </div>
+              <div className="space-y-1">
+                <Label>Celular</Label>
+                <CountryPhoneSelect
+                  countryCode={guestCountryCode}
+                  phonePrefix={guestPhonePrefix}
+                  phoneNumber={guestPhoneNumber}
+                  defaultCountryCode={DEFAULT_COUNTRY_CODE}
+                  onChange={(value) => {
+                    setGuestCountryCode(value.countryCode);
+                    setGuestPhonePrefix(value.phonePrefix);
+                    setGuestPhoneNumber(value.phoneNumber);
+                  }}
+                />
               </div>
               <Button className="w-full bg-brand text-white hover:bg-brand-hover" onClick={() => void handleStartGuestRegistration()} disabled={guestBusy === "start"}>
                 {guestBusy === "start" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

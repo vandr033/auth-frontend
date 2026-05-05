@@ -8,6 +8,7 @@ function getCTAHref(destination: CTADestination, slug: string): string {
     switch (destination) {
         case "booking": return `/shop/${slug}/book`;
         case "services": return `/shop/${slug}/services`;
+        case "store": return `/shop/${slug}/store`;
         case "free-events": return `/shop/${slug}/events?free=true`;
         case "events": return `/shop/${slug}/events`;
         case "classes": return `/shop/${slug}/classes`;
@@ -70,6 +71,7 @@ export function HeroCTAButtons({
         <div className={className}>
             {sorted.map((btn, idx) => {
                 const href = getCTAHref(btn.destination, slug);
+                if (!href) return null;
                 const isPrimary = idx === 0;
 
                 const sharedClass =

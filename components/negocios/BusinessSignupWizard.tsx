@@ -538,7 +538,7 @@ export function BusinessSignupWizard() {
               <li>Probás Priconpri gratis por un mes.</li>
               <li>Entrás directo a `/admin/onboarding`.</li>
               <li>No te pedimos tarjeta para arrancar.</li>
-              <li>Tienda aparece, pero queda deshabilitada por ahora.</li>
+              <li>También podés empezar con Tienda si querés vender productos desde tu página.</li>
             </ul>
           </div>
 

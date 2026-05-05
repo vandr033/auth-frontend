@@ -14,6 +14,10 @@ import { LocationHours } from "@/components/shop/LocationHours";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { PublicReviewList } from "@/components/shop/PublicReviewList";
 import { ShopUnavailableState } from "../components/ShopUnavailableState";
+import {
+    getRenderableHomeSectionKeys,
+    resolveHomeSectionOrder,
+} from "@/lib/storefront/home-sections";
 import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { DEFAULT_SECTION_ORDER, type HomeSectionKey } from "@/types/shop";
 import { useAuth } from "@/lib/useAuth";
@@ -27,6 +31,7 @@ import {
 } from "@/app/shop/lib/groupReservationsApi";
 import { GroupClassCard, GroupEventCard } from "@/app/shop/components/group/GroupPublicCards";
 import { isEventSoldOut } from "@/app/shop/lib/groupReservationsFormat";
+import { StoreProductCard } from "@/components/shop/commerce/StoreProductCard";
 
 export default function ShopPage() {
     const {
@@ -38,15 +43,22 @@ export default function ShopPage() {
         slug,
         isShopActive,
         services,
+        commerceProducts,
+        commercePointsOfSale,
         staff,
         homeSectionOrder,
         publicFeatures,
     } = useShop();
-    const sectionOrder: HomeSectionKey[] = homeSectionOrder ?? DEFAULT_SECTION_ORDER;
     const t = useT();
     const { user } = useAuth();
     const resolvedPublicFeatures = company ? getShopPublicFeatures(company) : publicFeatures;
+    const sectionOrder: HomeSectionKey[] = resolveHomeSectionOrder({
+        storedOrder: homeSectionOrder ?? DEFAULT_SECTION_ORDER,
+        availableKeys: getRenderableHomeSectionKeys(resolvedPublicFeatures),
+        preferDefaultOrder: homeSectionOrder == null,
+    });
     const canSeeReservas = resolvedPublicFeatures.servicesVisible;
+    const canSeeCommerce = resolvedPublicFeatures.commerceVisible;
     const canSeeEvents = resolvedPublicFeatures.eventsVisible;
     const canSeeClasses = resolvedPublicFeatures.classesVisible;
     const [events, setEvents] = React.useState<PublicGroupEvent[]>([]);
@@ -56,6 +68,18 @@ export default function ShopPage() {
     const visibleEvents = React.useMemo(
         () => (user?.id ? events : events.filter((event) => event.is_free || !isEventSoldOut(event))),
         [events, user?.id],
+    );
+    const featuredProducts = React.useMemo(
+        () => commerceProducts.filter((product) => product.is_featured).slice(0, 6),
+        [commerceProducts],
+    );
+    const promoProducts = React.useMemo(
+        () => commerceProducts.filter((product) => product.pricing?.promo_applied).slice(0, 6),
+        [commerceProducts],
+    );
+    const comboProducts = React.useMemo(
+        () => commerceProducts.filter((product) => product.product_type === "COMBO").slice(0, 6),
+        [commerceProducts],
     );
 
     React.useEffect(() => {
@@ -216,6 +240,112 @@ export default function ShopPage() {
                         </section>
                     );
                 }
+                if (key === 'products') {
+                    const productsToShow = featuredProducts.length > 0 ? featuredProducts : commerceProducts.slice(0, 6);
+                    if (!canSeeCommerce || productsToShow.length === 0) return null;
+                    return (
+                        <section key="products" className="py-10 md:py-16">
+                            <div className="mx-auto max-w-6xl px-4 md:px-8">
+                                <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                            {t("shopNav.store")}
+                                        </p>
+                                        <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                                            {t("shopHome.featuredProducts")}
+                                        </h2>
+                                    </div>
+                                    <Link href={`/shop/${slug}/store`}>
+                                        <Button variant="ghost" className="text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
+                                            {t("shopHome.viewStore")} →
+                                        </Button>
+                                    </Link>
+                                </div>
+                                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                                    {productsToShow.map((product) => (
+                                        <StoreProductCard
+                                            key={product.id}
+                                            slug={slug}
+                                            product={product}
+                                            currency={company.currency}
+                                            contextProducts={commerceProducts}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+                    );
+                }
+                if (key === 'promotions') {
+                    if (!resolvedPublicFeatures.commercePromotionsVisible || promoProducts.length === 0) return null;
+                    return (
+                        <section key="promotions" className="bg-section py-10 md:py-16">
+                            <div className="mx-auto max-w-6xl px-4 md:px-8">
+                                <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                            Promo
+                                        </p>
+                                        <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                                            {t("shopHome.promoProducts")}
+                                        </h2>
+                                    </div>
+                                    <Link href={`/shop/${slug}/store`}>
+                                        <Button variant="ghost" className="text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
+                                            {t("shopHome.viewStore")} →
+                                        </Button>
+                                    </Link>
+                                </div>
+                                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                                    {promoProducts.map((product) => (
+                                        <StoreProductCard
+                                            key={product.id}
+                                            slug={slug}
+                                            product={product}
+                                            currency={company.currency}
+                                            contextProducts={commerceProducts}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+                    );
+                }
+                if (key === 'combos') {
+                    if (!resolvedPublicFeatures.commerceCombosVisible || comboProducts.length === 0) return null;
+                    return (
+                        <section key="combos" className="py-10 md:py-16">
+                            <div className="mx-auto max-w-6xl px-4 md:px-8">
+                                <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                            Combos
+                                        </p>
+                                        <h2 className="mt-2 font-heading text-2xl font-semibold text-text-main md:text-3xl">
+                                            {t("shopHome.comboProducts")}
+                                        </h2>
+                                    </div>
+                                    <Link href={`/shop/${slug}/store`}>
+                                        <Button variant="ghost" className="text-brand hover:text-brand-hover hover:bg-brand-soft-bg">
+                                            {t("shopHome.viewStore")} →
+                                        </Button>
+                                    </Link>
+                                </div>
+                                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                                    {comboProducts.map((product) => (
+                                        <StoreProductCard
+                                            key={product.id}
+                                            slug={slug}
+                                            product={product}
+                                            currency={company.currency}
+                                            contextProducts={commerceProducts}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+                    );
+                }
                 if (key === 'events') {
                     if (!canSeeEvents || groupsLoading || visibleEvents.length === 0) return null;
                     return (
@@ -308,18 +438,16 @@ export default function ShopPage() {
                 return null;
             })}
 
-            {/* 6. Reviews Banner */}
+            {/* 6. Location & Hours */}
+            <LocationHours company={company} hours={hours} pointsOfSale={canSeeCommerce ? commercePointsOfSale : []} />
+
+            {/* 7. Reviews */}
             {reviewStats && reviewStats.count > 0 && (
                 <ReviewsBanner reviewStats={reviewStats} />
             )}
-
-            {/* 6b. Public Review List */}
             {reviewStats && reviewStats.count > 0 && (
                 <PublicReviewList />
             )}
-
-            {/* 7. Location & Hours */}
-            <LocationHours company={company} hours={hours} />
 
             {/* 8. Footer */}
             <ShopFooter />

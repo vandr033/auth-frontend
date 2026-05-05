@@ -40,6 +40,7 @@ function RegisterPageInner() {
   // Phone state
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dialCode, setDialCode] = useState("");
+  const [countryCode, setCountryCode] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [hasRequestedOtp, setHasRequestedOtp] = useState(false);
 
@@ -71,6 +72,7 @@ function RegisterPageInner() {
       setStep("profile");
       setPhoneNumber(searchParams?.get("phone") ?? "");
       setDialCode(searchParams?.get("dialCode") ?? "");
+      setCountryCode(searchParams?.get("countryCode") ?? "");
       setLocalError(null);
     }
   }, [searchParams]);
@@ -108,6 +110,7 @@ function RegisterPageInner() {
       setEmail("");
       setPhoneNumber("");
       setDialCode("");
+      setCountryCode("");
     } else if (step === "otp") {
       setStep("contact");
       setEmailCode("");
@@ -219,7 +222,7 @@ function RegisterPageInner() {
     try {
       // Extract prefix digits from dialCode (e.g. "+961" → "961")
       const prefix = dialCode.replace("+", "");
-      await completeCustomerPhoneProfile(firstName, lastName, prefix);
+      await completeCustomerPhoneProfile(firstName, lastName, prefix, countryCode || undefined);
       setStep("done");
       setTimeout(() => router.push(redirect), 1500);
     } catch (err) {
@@ -381,9 +384,10 @@ function RegisterPageInner() {
               ) : (
                 <PhoneInput
                   value={phoneNumber}
-                  onChange={(full, dial) => {
+                  onChange={(full, dial, nextCountryCode) => {
                     setPhoneNumber(full);
                     setDialCode(dial);
+                    setCountryCode(nextCountryCode ?? "");
                   }}
                 />
               )}

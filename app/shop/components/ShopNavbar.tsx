@@ -69,6 +69,7 @@ export function ShopNavbar() {
     const appointmentsHref = appendShopParam("/me/appointments", resolvedShopSlug);
     const reviewsHref = appendShopParam("/me/reviews", resolvedShopSlug);
     const groupReservationsHref = appendShopParam("/me/group-reservations", resolvedShopSlug);
+    const ordersHref = resolvedShopSlug ? `/shop/${resolvedShopSlug}/me/orders` : "/me/orders";
     const userDisplayName = getDisplayName(user);
     const publicFeatures = getShopPublicFeatures(company);
     const showGroupReservationsLink = publicFeatures.eventsVisible || publicFeatures.classesVisible;
@@ -76,6 +77,7 @@ export function ShopNavbar() {
     const navLinks = [
         { href: basePath, label: t('shopNav.home') },
         ...(publicFeatures.servicesVisible ? [{ href: `${basePath}/services`, label: t('shopNav.services') }] : []),
+        ...(publicFeatures.commerceVisible ? [{ href: `${basePath}/store`, label: t('shopNav.store') }] : []),
         ...(publicFeatures.eventsVisible ? [{ href: `${basePath}/events`, label: t('shopNav.events') }] : []),
         ...(publicFeatures.classesVisible ? [{ href: `${basePath}/classes`, label: t('shopNav.classes') }] : []),
         { href: `${basePath}/about`, label: t('shopNav.about') },
@@ -199,6 +201,14 @@ export function ShopNavbar() {
                                 className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
                             >
                                 {t('shopNav.myGroupReservations')}
+                            </Link>
+                        ) : null}
+                        {publicFeatures.commerceVisible ? (
+                            <Link
+                                href={ordersHref}
+                                className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
+                            >
+                                {t('shopNav.myOrders')}
                             </Link>
                         ) : null}
                         <Separator className="border-surface-border" />
@@ -398,6 +408,14 @@ export function ShopNavbar() {
                                                 <Button variant="outline" className="w-full justify-start gap-2">
                                                     <span className="h-2 w-2 rounded-full bg-brand" />
                                                     {t('shopNav.myGroupReservations')}
+                                                </Button>
+                                            </Link>
+                                        ) : null}
+                                        {publicFeatures.commerceVisible ? (
+                                            <Link href={ordersHref} onClick={() => setOpen(false)}>
+                                                <Button variant="outline" className="w-full justify-start gap-2">
+                                                    <span className="h-2 w-2 rounded-full bg-brand" />
+                                                    {t('shopNav.myOrders')}
                                                 </Button>
                                             </Link>
                                         ) : null}

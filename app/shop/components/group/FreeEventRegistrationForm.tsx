@@ -9,6 +9,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { useT } from "@/lib/i18n";
 import { appendShopParam } from "@/app/lib/shop-context";
 import { submitFreeEventRegistration, type FreeRegistrationResult } from "@/app/shop/lib/groupReservationsApi";
+import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
 
 interface Props {
   eventId: number;
@@ -21,6 +22,7 @@ interface Props {
     gender: string;
     age: number | null;
     email: string;
+    countryCode?: string;
     phonePrefix: string;
     phoneNumber: string;
   } | null;
@@ -28,7 +30,7 @@ interface Props {
   onRegistered?: (status: "CONFIRMED" | "PENDING" | "INTERESTED") => void;
   onSubmitResult?: (
     result: FreeRegistrationResult,
-    contact: { email: string; phonePrefix: string; phoneNumber: string },
+    contact: { email: string; countryCode?: string; phonePrefix: string; phoneNumber: string },
   ) => void;
 }
 
@@ -51,6 +53,7 @@ export function FreeEventRegistrationForm({
   const [gender, setGender] = React.useState(prefill?.gender ?? "");
   const [age, setAge] = React.useState(prefill?.age ? String(prefill.age) : "");
   const [email, setEmail] = React.useState(prefill?.email ?? "");
+  const [phoneCountryCode, setPhoneCountryCode] = React.useState(prefill?.countryCode ?? DEFAULT_COUNTRY_CODE);
   const [phonePrefix, setPhonePrefix] = React.useState(prefill?.phonePrefix ?? "591");
   const [phoneNumber, setPhoneNumber] = React.useState(prefill?.phoneNumber ?? "");
   const [tosAccepted, setTosAccepted] = React.useState(false);
@@ -124,6 +127,7 @@ export function FreeEventRegistrationForm({
         gender,
         age: Number(age),
         email: email.trim().toLowerCase(),
+        countryCode: phoneCountryCode,
         phonePrefix,
         phoneNumber: phoneNumber.trim(),
         tosAccepted,
@@ -134,6 +138,7 @@ export function FreeEventRegistrationForm({
       onRegistered?.(result.registrationStatus ?? (result.eventOutcome === "INTERESTED" ? "INTERESTED" : "CONFIRMED"));
       onSubmitResult?.(result, {
         email: email.trim().toLowerCase(),
+        countryCode: phoneCountryCode,
         phonePrefix,
         phoneNumber: phoneNumber.trim(),
       });
@@ -213,9 +218,11 @@ export function FreeEventRegistrationForm({
           <label className="mb-1 block text-xs font-medium text-text-muted">{t("freeEventReg.phoneNumber")} *</label>
           <PhoneInput
             value={phoneFullValue}
-            onChange={(fullNumber, dialCode) => {
+            defaultCountry={phoneCountryCode}
+            onChange={(fullNumber, dialCode, countryCode) => {
               // dialCode is like "+591"; strip the "+" for our phonePrefix field
               const prefix = dialCode.replace("+", "");
+              setPhoneCountryCode(countryCode ?? DEFAULT_COUNTRY_CODE);
               setPhonePrefix(prefix);
               // Strip the dial code from the full number to get just the local digits
               const stripped = fullNumber.startsWith(dialCode)

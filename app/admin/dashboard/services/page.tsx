@@ -52,6 +52,19 @@ interface Service {
     name: string;
     description: string | null;
     price_cents: number;
+    promo_price_cents?: number | null;
+    promo_starts_at?: string | null;
+    promo_ends_at?: string | null;
+    promo_label?: string | null;
+    pricing?: {
+        regular_price_cents?: number | null;
+        base_price_cents: number;
+        final_price_cents: number;
+        promo_applied: boolean;
+        promo_label?: string | null;
+        promo_starts_at?: string | null;
+        promo_ends_at?: string | null;
+    };
     duration_minutes: number;
     is_active: boolean;
     category_id: number;
@@ -305,7 +318,16 @@ export default function ServicesPage() {
                         key: "price",
                         header: t('adminServices.price'),
                         className: "font-medium",
-                        cell: (service) => formatPrice(service.price_cents, currency),
+                        cell: (service) => (
+                            <div className="flex flex-col">
+                                <span>{formatPrice(service.pricing?.final_price_cents ?? service.price_cents, currency)}</span>
+                                {service.pricing?.promo_applied && service.pricing.regular_price_cents ? (
+                                    <span className="text-xs text-slate-500 line-through">
+                                        {formatPrice(service.pricing.regular_price_cents, currency)}
+                                    </span>
+                                ) : null}
+                            </div>
+                        ),
                     },
                     {
                         key: "duration",
@@ -355,8 +377,13 @@ export default function ServicesPage() {
                         <div className="flex flex-wrap items-center gap-3 text-sm">
                             <span className="flex items-center gap-1 font-medium text-slate-900">
                                 <DollarSign className="h-3 w-3" />
-                                {formatPrice(service.price_cents, currency)}
+                                {formatPrice(service.pricing?.final_price_cents ?? service.price_cents, currency)}
                             </span>
+                            {service.pricing?.promo_applied && service.pricing.regular_price_cents ? (
+                                <span className="text-xs text-slate-500 line-through">
+                                    {formatPrice(service.pricing.regular_price_cents, currency)}
+                                </span>
+                            ) : null}
                             <span className="flex items-center gap-1 text-slate-500">
                                 <Clock className="h-3 w-3" />
                                 {formatDuration(service.duration_minutes)}

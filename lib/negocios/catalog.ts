@@ -164,31 +164,33 @@ export const CORE_PRODUCTS: NegociosProductCard[] = [
     slug: "tienda",
     href: "/negocios/tienda",
     priceMonthly: 300,
-    tagline: "Tu tienda online en Priconpri está en camino.",
+    tagline: "Catálogo, pedidos y checkout QR para vender desde tu propia página.",
     description:
-      "Muy pronto vas a poder vender productos, recibir pedidos y mandar clientes directo a WhatsApp desde tu página.",
+      "Vendé productos con catálogo, combos, stock, pickup, delivery y pedidos conectados a tu storefront en Priconpri.",
     bullets: [
       "Productos y categorías",
+      "Stock global",
+      "Combos estructurados",
       "Pickup y delivery",
-      "Pedidos programados",
-      "Checkout por WhatsApp",
+      "Checkout invitado",
+      "QR manual",
     ],
-    disabled: true,
-    badge: "Próximamente",
-    heroTitle: "Tu tienda online en Priconpri está en camino.",
+    heroTitle: "Tu tienda online vive dentro de Priconpri, no al costado.",
     heroDescription:
-      "Muy pronto vas a poder vender productos, recibir pedidos y mandar clientes directo a WhatsApp desde tu página.",
+      "Armá tu catálogo, recibí pedidos y gestioná pickup o delivery con checkout QR desde la misma página pública de tu negocio.",
     forWho:
       "Para negocios que quieren sumar venta de productos sin salirse del universo Priconpri.",
     includedItems: [
       "Productos y categorías",
+      "Stock global",
+      "Combos estructurados",
       "Pickup",
       "Delivery",
-      "Pedidos programados",
-      "Checkout por WhatsApp",
+      "Checkout invitado",
+      "QR manual",
     ],
     recommendedCombos: ["Reservas", "Eventos", "Clases"],
-    ctaLabel: "Crear cuenta con otro producto",
+    ctaLabel: "Crear mi cuenta gratis",
   },
 ];
 
@@ -375,9 +377,9 @@ export function applyPricingConfigToCatalog(
 }
 
 export function getNegociosProductBySlug(slug: string) {
-  return ALL_NEGOCIOS_PRODUCTS.find((product) => product.slug === slug) ?? null;
+  return applyPricingConfigToCatalog().allProducts.find((product) => product.slug === slug) ?? null;
 }
 
 export function getNegociosProductByKey(key: PublicCoreProductKey | PublicAddOnKey) {
-  return ALL_NEGOCIOS_PRODUCTS.find((product) => product.key === key) ?? null;
+  return applyPricingConfigToCatalog().allProducts.find((product) => product.key === key) ?? null;
 }

@@ -7,6 +7,15 @@ const MAPBOX_SCRIPT_ID = "mapbox-gl-script";
 const MAPBOX_STYLE_ID = "mapbox-gl-style";
 const FALLBACK_CENTER: [number, number] = [-63.1821, -17.7833];
 
+interface MarkerLngLat {
+  lng: number;
+  lat: number;
+}
+
+interface MapMouseEventLike {
+  lngLat?: MarkerLngLat;
+}
+
 interface MarkerLike {
   setLngLat: (coordinates: [number, number]) => MarkerLike;
   addTo: (map: MapLike) => MarkerLike;
@@ -14,7 +23,8 @@ interface MarkerLike {
 }
 
 interface MapLike {
-  on: (event: "load" | "error", callback: () => void) => void;
+  doubleClickZoom?: { disable: () => void };
+  on: (event: "load" | "error" | "dblclick", callback: (event?: MapMouseEventLike) => void) => void;
   setCenter: (center: [number, number]) => void;
   setZoom: (zoom: number) => void;
   remove?: () => void;
@@ -74,6 +84,7 @@ interface MapboxLocationPreviewProps {
   defaultLongitude?: number | null;
   className?: string;
   fallbackText?: string;
+  onMapDoubleClick?: (coordinates: { latitude: number; longitude: number }) => void;
 }
 
 export function MapboxLocationPreview({
@@ -82,6 +93,7 @@ export function MapboxLocationPreview({
   defaultLongitude,
   className,
   fallbackText,
+  onMapDoubleClick,
 }: MapboxLocationPreviewProps) {
   const mapboxToken =
     process.env.NEXT_PUBLIC_MAPBOX_TOKEN?.trim() ||
@@ -96,8 +108,13 @@ export function MapboxLocationPreview({
   const mapContainerRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<MapLike | null>(null);
   const markerRef = React.useRef<MarkerLike | null>(null);
+  const onMapDoubleClickRef = React.useRef(onMapDoubleClick);
   const [mapFailed, setMapFailed] = React.useState(false);
   const [mapLoaded, setMapLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    onMapDoubleClickRef.current = onMapDoubleClick;
+  }, [onMapDoubleClick]);
 
   const setMarkerAt = React.useCallback((coordinates: [number, number]) => {
     const map = mapRef.current;
@@ -134,6 +151,16 @@ export function MapboxLocationPreview({
         });
 
         mapRef.current = map;
+        map.doubleClickZoom?.disable();
+
+        map.on("dblclick", (event) => {
+          if (disposed || !event?.lngLat) return;
+          const longitude = Number(event.lngLat.lng);
+          const latitude = Number(event.lngLat.lat);
+          if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+          setMarkerAt([longitude, latitude]);
+          onMapDoubleClickRef.current?.({ latitude, longitude });
+        });
 
         map.on("load", () => {
           if (disposed) return;
@@ -219,4 +246,3 @@ export function MapboxLocationPreview({
 
   return <div ref={mapContainerRef} className={className} />;
 }
-

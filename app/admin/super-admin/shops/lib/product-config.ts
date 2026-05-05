@@ -78,6 +78,17 @@ export const CORE_PRODUCT_DEFINITIONS: ProductCardDefinition[] = [
             { tierCode: "CLASES_PRO", label: "Pro" },
         ],
     },
+    {
+        productCode: "STORES",
+        title: "Tienda",
+        description: "Catálogo, stock, pedidos, combos y fulfillment QR.",
+        kind: "core",
+        defaultTierCode: "STORES_BASE",
+        activeTierOptions: [
+            { tierCode: "STORES_BASE", label: "Base" },
+            { tierCode: "STORES_PRO", label: "Pro" },
+        ],
+    },
 ];
 
 export const ADD_ON_DEFINITIONS: ProductCardDefinition[] = [
@@ -304,6 +315,8 @@ export function deriveLegacyPlanCompatibility(state: ProductConfigFormState): Sh
     if (
         selectedTiers.has("RESERVAS_PRO") ||
         selectedTiers.has("EVENTOS_BASE") ||
+        selectedTiers.has("STORES_BASE") ||
+        selectedTiers.has("STORES_PRO") ||
         selectedTiers.has("CRM_PRO") ||
         selectedTiers.has("MENSAJERIA_PRO") ||
         selectedTiers.has("PERSONALIZACION_PLUS") ||

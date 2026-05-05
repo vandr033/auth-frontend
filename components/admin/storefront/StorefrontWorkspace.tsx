@@ -52,9 +52,15 @@ import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { resolveApiUrl } from "@/lib/api-url";
+import { formatCurrencyAmount } from "@/lib/currency";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { canUsePlanFeature, getCurrentPlan, getRequiredPlanForFeature } from "@/lib/plans/capabilities";
+import {
+    getConfigurableHomeSectionKeys,
+    getRenderableHomeSectionKeys,
+    resolveHomeSectionOrder,
+} from "@/lib/storefront/home-sections";
 import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import { mainSiteThemeConfig } from "@/theme/mainSiteTheme";
 import type {
@@ -64,6 +70,7 @@ import type {
     HomeCTAButton,
     HomeSectionKey,
     SocialLinks,
+    ShopCommerceProduct,
     ShopData,
     ShopService,
 } from "@/types/shop";
@@ -148,7 +155,7 @@ const DEFAULT_CTA_BUTTONS: HomeCTAButton[] = [
     // Product terminology decision pending: these persisted theme defaults are Spanish until CTA defaults become locale-aware.
     { destination: "booking", label: "Reservar Ahora", color: "#ffffff", opacity: 100, enabled: true, order: 0 },
     { destination: "services", label: "Servicios", color: "#ffffff", opacity: 20, enabled: true, order: 1 },
-    { destination: "free-events", label: "Eventos Gratuitos", color: "#ffffff", opacity: 20, enabled: false, order: 2 },
+    { destination: "store", label: "Tienda", color: "#ffffff", opacity: 20, enabled: false, order: 2 },
     { destination: "events", label: "Eventos", color: "#ffffff", opacity: 20, enabled: false, order: 3 },
     { destination: "classes", label: "Clases", color: "#ffffff", opacity: 20, enabled: false, order: 4 },
 ];
@@ -235,6 +242,7 @@ export default function StorefrontWorkspace({
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeSection, setActiveSection] = useState<StorefrontSection>(initialSection);
+    const [hasStoredSectionOrder, setHasStoredSectionOrder] = useState(false);
 
     useEffect(() => {
         setActiveSection(initialSection);
@@ -256,6 +264,23 @@ export default function StorefrontWorkspace({
         content.about_image_3_url,
         ...staff.map((member) => member.image_url),
     ].filter(Boolean).length;
+    const storefrontCapabilities = companyUser?.company?.capabilities ?? null;
+    const sectionLabels: Record<HomeSectionKey, string> = {
+        about: t("adminTheme.sectionAbout"),
+        services: t("adminTheme.sectionServices"),
+        products: t("adminTheme.sectionProducts"),
+        promotions: t("adminTheme.sectionPromotions"),
+        combos: t("adminTheme.sectionCombos"),
+        events: t("adminTheme.sectionEvents"),
+        classes: t("adminTheme.sectionClasses"),
+        team: t("adminTheme.sectionTeam"),
+    };
+    const configurableSectionKeys = getConfigurableHomeSectionKeys(storefrontCapabilities);
+    const orderedConfigurableSectionKeys = resolveHomeSectionOrder({
+        storedOrder: themeConfig.homeSectionOrder,
+        availableKeys: configurableSectionKeys,
+        preferDefaultOrder: !hasStoredSectionOrder,
+    });
 
     const normalizeAnnouncementBanner = (banner: AnnouncementBanner): AnnouncementBanner => ({
         ...banner,
@@ -292,6 +317,10 @@ export default function StorefrontWorkspace({
             if (themeRes.ok) {
                 const json = await themeRes.json();
                 if (json.data) {
+                    const storedHomeSectionOrder = Array.isArray(json.data.home_section_order)
+                        ? (json.data.home_section_order as HomeSectionKey[])
+                        : null;
+                    setHasStoredSectionOrder(storedHomeSectionOrder !== null);
                     setThemeConfig((prev) => ({
                         ...prev,
                         brandColor: json.data.brand_color,
@@ -305,7 +334,7 @@ export default function StorefrontWorkspace({
                         teamVariant: json.data.team_variant || "team-cards",
                         fontPairing: json.data.font_pairing || "classic",
                         homeCTAButtons: json.data.home_cta_buttons ?? DEFAULT_CTA_BUTTONS,
-                        homeSectionOrder: json.data.home_section_order ?? DEFAULT_SECTION_ORDER,
+                        homeSectionOrder: storedHomeSectionOrder ?? DEFAULT_SECTION_ORDER,
                         footerConfig: json.data.footer_config ?? DEFAULT_FOOTER_CONFIG,
                         announcementBanners: Array.isArray(json.data.announcement_banners)
                             ? json.data.announcement_banners.map(normalizeAnnouncementBanner)
@@ -458,6 +487,7 @@ export default function StorefrontWorkspace({
         const map: Record<CTADestination, string> = {
             booking: t("adminTheme.ctaDestinationBooking"),
             services: t("adminTheme.ctaDestinationServices"),
+            store: t("adminTheme.ctaDestinationStore"),
             "free-events": t("adminTheme.ctaDestinationFreeEvents"),
             events: t("adminTheme.ctaDestinationEvents"),
             classes: t("adminTheme.ctaDestinationClasses"),
@@ -544,7 +574,7 @@ export default function StorefrontWorkspace({
             team_variant: themeConfig.teamVariant,
             font_pairing: themeConfig.fontPairing,
             ...(canCTACustomize && { home_cta_buttons: themeConfig.homeCTAButtons }),
-            ...(canSectionOrder && { home_section_order: themeConfig.homeSectionOrder }),
+            ...(canSectionOrder && { home_section_order: orderedConfigurableSectionKeys }),
             ...(canFooterCustomize && { footer_config: themeConfig.footerConfig }),
             ...(canBanners && { announcement_banners: themeConfig.announcementBanners }),
         };
@@ -1111,19 +1141,11 @@ export default function StorefrontWorkspace({
                                 ) : (
                                     <div className="space-y-2">
                                         <OutcomeHint>{t("adminTheme.sectionOutcomeHint")}</OutcomeHint>
-                                        {themeConfig.homeSectionOrder.map((key, index) => {
-                                            const labels: Record<HomeSectionKey, string> = {
-                                                about: t("adminTheme.sectionAbout"),
-                                                services: t("adminTheme.sectionServices"),
-                                                events: t("adminTheme.sectionEvents"),
-                                                classes: t("adminTheme.sectionClasses"),
-                                                team: t("adminTheme.sectionTeam"),
-                                            };
-
+                                        {orderedConfigurableSectionKeys.map((key, index, visibleSections) => {
                                             return (
                                                 <div key={key} className="flex items-center gap-3 rounded-lg border border-surface-border bg-page px-4 py-3">
                                                     <GripVertical className="h-4 w-4 shrink-0 text-text-muted" />
-                                                    <span className="flex-1 text-sm font-medium text-text-main">{labels[key]}</span>
+                                                    <span className="flex-1 text-sm font-medium text-text-main">{sectionLabels[key]}</span>
                                                     <Button
                                                         variant="outline"
                                                         size="icon"
@@ -1131,9 +1153,9 @@ export default function StorefrontWorkspace({
                                                         disabled={index === 0}
                                                         onClick={() => {
                                                             setThemeConfig((prev) => {
-                                                                const order = [...prev.homeSectionOrder];
-                                                                [order[index - 1], order[index]] = [order[index], order[index - 1]];
-                                                                return { ...prev, homeSectionOrder: order };
+                                                                const visible = [...orderedConfigurableSectionKeys];
+                                                                [visible[index - 1], visible[index]] = [visible[index], visible[index - 1]];
+                                                                return { ...prev, homeSectionOrder: visible };
                                                             });
                                                         }}
                                                     >
@@ -1143,12 +1165,12 @@ export default function StorefrontWorkspace({
                                                         variant="outline"
                                                         size="icon"
                                                         className="h-8 w-8"
-                                                        disabled={index === themeConfig.homeSectionOrder.length - 1}
+                                                        disabled={index === visibleSections.length - 1}
                                                         onClick={() => {
                                                             setThemeConfig((prev) => {
-                                                                const order = [...prev.homeSectionOrder];
-                                                                [order[index], order[index + 1]] = [order[index + 1], order[index]];
-                                                                return { ...prev, homeSectionOrder: order };
+                                                                const visible = [...orderedConfigurableSectionKeys];
+                                                                [visible[index], visible[index + 1]] = [visible[index + 1], visible[index]];
+                                                                return { ...prev, homeSectionOrder: visible };
                                                             });
                                                         }}
                                                     >
@@ -1581,6 +1603,7 @@ export default function StorefrontWorkspace({
                                 staff={staff.map((member) => ({ ...member, image_url: getStaffDisplayUrl(member) }))}
                                 themeConfig={themeConfig}
                                 previewData={previewData}
+                                hasStoredSectionOrder={hasStoredSectionOrder}
                             />
                         </CardContent>
                     </Card>
@@ -1645,6 +1668,7 @@ function StorefrontDraftPreview({
     staff,
     themeConfig,
     previewData,
+    hasStoredSectionOrder,
 }: {
     content: CompanyContent;
     aboutUsText: string;
@@ -1654,6 +1678,7 @@ function StorefrontDraftPreview({
     staff: StaffMember[];
     themeConfig: ExtendedThemeConfig;
     previewData: ShopData | null;
+    hasStoredSectionOrder: boolean;
 }) {
     const t = useT();
     const theme = useMemo(() => computeTheme(themeConfig), [themeConfig]);
@@ -1701,18 +1726,27 @@ function StorefrontDraftPreview({
         "--font-body": fonts.body,
     } as React.CSSProperties;
 
-    const sectionLabels: Record<HomeSectionKey, string> = {
+    const services = previewData?.services ?? [];
+    const commerceProducts = previewData?.commerceProducts ?? [];
+    const categories = previewData?.categories ?? [];
+    const hours = previewData?.hours ?? [];
+    const slug = company.slug;
+    const previewPublicFeatures = getShopPublicFeatures(company);
+    const orderedPreviewSectionKeys = resolveHomeSectionOrder({
+        storedOrder: themeConfig.homeSectionOrder,
+        availableKeys: getRenderableHomeSectionKeys(previewPublicFeatures),
+        preferDefaultOrder: !hasStoredSectionOrder,
+    });
+    const previewSectionLabels: Record<HomeSectionKey, string> = {
         about: t("adminTheme.sectionAbout"),
         services: t("adminTheme.sectionServices"),
+        products: t("adminTheme.sectionProducts"),
+        promotions: t("adminTheme.sectionPromotions"),
+        combos: t("adminTheme.sectionCombos"),
         events: t("adminTheme.sectionEvents"),
         classes: t("adminTheme.sectionClasses"),
         team: t("adminTheme.sectionTeam"),
     };
-
-    const services = previewData?.services ?? [];
-    const categories = previewData?.categories ?? [];
-    const hours = previewData?.hours ?? [];
-    const slug = company.slug;
 
     const heroProps = {
         company,
@@ -1720,7 +1754,7 @@ function StorefrontDraftPreview({
         socialLinks: settings.social_links,
         slug,
         homeCTAButtons: themeConfig.homeCTAButtons,
-        publicFeatures: getShopPublicFeatures(company),
+        publicFeatures: previewPublicFeatures,
     };
 
     return (
@@ -1761,9 +1795,12 @@ function StorefrontDraftPreview({
                                 <span className="truncate font-heading text-sm font-bold">{company.name}</span>
                             </div>
                             <div className="hidden items-center gap-3 text-xs font-semibold text-text-muted sm:flex">
-                                <span>{t("shopNav.services")}</span>
+                                {previewPublicFeatures.servicesVisible ? <span>{t("shopNav.services")}</span> : null}
+                                {previewPublicFeatures.commerceVisible ? <span>{t("shopNav.store")}</span> : null}
                                 <span>{t("shopNav.about")}</span>
-                                <span className="rounded-md bg-brand px-2.5 py-1 text-white">{t("shopNav.bookShort")}</span>
+                                {previewPublicFeatures.bookingsEnabled ? (
+                                    <span className="rounded-md bg-brand px-2.5 py-1 text-white">{t("shopNav.bookShort")}</span>
+                                ) : null}
                             </div>
                         </div>
                     </div>
@@ -1778,11 +1815,11 @@ function StorefrontDraftPreview({
 
                     <QuickInfoBar company={company} hours={hours} />
 
-                    {themeConfig.homeSectionOrder.map((key) => {
+                    {orderedPreviewSectionKeys.map((key) => {
                         if (key === "about") {
                             if (!aboutUsText) return null;
                             return (
-                                <PreviewSection key={key} eyebrow={sectionLabels[key]} title={t("shopHome.aboutUs")}>
+                                <PreviewSection key={key} eyebrow={previewSectionLabels[key]} title={t("shopHome.aboutUs")}>
                                     <p className="font-heading text-xl leading-relaxed text-text-main">{aboutUsText}</p>
                                     {ourStoryText ? (
                                         <p className="mt-3 line-clamp-3 text-sm leading-6 text-text-muted">{ourStoryText}</p>
@@ -1792,10 +1829,48 @@ function StorefrontDraftPreview({
                         }
 
                         if (key === "services") {
-                            if (services.length === 0) return null;
+                            if (!previewPublicFeatures.servicesVisible || services.length === 0) return null;
                             return (
                                 <PreviewSection key={key} eyebrow={t("shopHome.whatWeOffer")} title={t("shopHome.ourServices")}>
                                     <PreviewServices services={services} currency={company.currency} listStyle={themeConfig.servicesVariant === "services-list"} />
+                                </PreviewSection>
+                            );
+                        }
+
+                        if (key === "products") {
+                            if (!previewPublicFeatures.commerceVisible || commerceProducts.length === 0) return null;
+                            return (
+                                <PreviewSection key={key} eyebrow={previewSectionLabels[key]} title={t("shopHome.featuredProducts")}>
+                                    <PreviewCommerceProducts
+                                        products={commerceProducts.slice(0, 3)}
+                                        currency={company.currency}
+                                    />
+                                </PreviewSection>
+                            );
+                        }
+
+                        if (key === "promotions") {
+                            const promoProducts = commerceProducts.filter((product) => product.pricing?.promo_applied).slice(0, 3);
+                            if (!previewPublicFeatures.commercePromotionsVisible || promoProducts.length === 0) return null;
+                            return (
+                                <PreviewSection key={key} eyebrow={previewSectionLabels[key]} title={t("shopHome.promoProducts")}>
+                                    <PreviewCommerceProducts
+                                        products={promoProducts}
+                                        currency={company.currency}
+                                    />
+                                </PreviewSection>
+                            );
+                        }
+
+                        if (key === "combos") {
+                            const comboProducts = commerceProducts.filter((product) => product.product_type === "COMBO").slice(0, 3);
+                            if (!previewPublicFeatures.commerceCombosVisible || comboProducts.length === 0) return null;
+                            return (
+                                <PreviewSection key={key} eyebrow={previewSectionLabels[key]} title={t("shopHome.comboProducts")}>
+                                    <PreviewCommerceProducts
+                                        products={comboProducts}
+                                        currency={company.currency}
+                                    />
                                 </PreviewSection>
                             );
                         }
@@ -1825,7 +1900,7 @@ function StorefrontDraftPreview({
 
                         if (key === "events" || key === "classes") {
                             return (
-                                <PreviewSection key={key} eyebrow={sectionLabels[key]} title={sectionLabels[key]}>
+                                <PreviewSection key={key} eyebrow={previewSectionLabels[key]} title={previewSectionLabels[key]}>
                                     <p className="text-sm text-text-muted">{t("storefrontBuilder.previewManagedContent")}</p>
                                 </PreviewSection>
                             );
@@ -1911,6 +1986,30 @@ function PreviewServices({
                     <p className="font-heading text-base font-semibold text-text-main">{service.name}</p>
                     {service.description ? <p className="mt-2 line-clamp-2 text-sm text-text-muted">{service.description}</p> : null}
                     <p className="mt-3 text-sm font-semibold text-brand">{currency} {(service.price_cents / 100).toFixed(0)}</p>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function PreviewCommerceProducts({
+    products,
+    currency,
+}: {
+    products: ShopCommerceProduct[];
+    currency?: string;
+}) {
+    return (
+        <div className="grid gap-3 sm:grid-cols-3">
+            {products.map((product) => (
+                <div key={product.id} className="rounded-lg border border-surface-border bg-surface p-4 shadow-card">
+                    <p className="font-heading text-base font-semibold text-text-main">{product.name}</p>
+                    {product.description ? (
+                        <p className="mt-2 line-clamp-2 text-sm text-text-muted">{product.description}</p>
+                    ) : null}
+                    <p className="mt-3 text-sm font-semibold text-brand">
+                        {formatCurrencyAmount(product.pricing?.final_price ?? product.price, currency)}
+                    </p>
                 </div>
             ))}
         </div>

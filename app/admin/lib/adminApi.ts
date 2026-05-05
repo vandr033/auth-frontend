@@ -948,6 +948,19 @@ export interface ServiceItem {
     description?: string;
     duration_minutes: number;
     price_cents: number;
+    promo_price_cents?: number | null;
+    promo_starts_at?: string | null;
+    promo_ends_at?: string | null;
+    promo_label?: string | null;
+    pricing?: {
+        regular_price_cents?: number | null;
+        base_price_cents: number;
+        final_price_cents: number;
+        promo_applied: boolean;
+        promo_label?: string | null;
+        promo_starts_at?: string | null;
+        promo_ends_at?: string | null;
+    };
     is_active: boolean;
     position: number;
     company_id: number;

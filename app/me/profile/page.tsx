@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CountryPhoneSelect } from "@/components/ui/country-phone-select";
 import {
   User,
   Mail,
@@ -24,6 +25,10 @@ import { cn } from "@/lib/utils";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { buildSignInRedirectPath, getShopSlugFromParams } from "@/app/lib/shop-context";
 import { useOtpResendTimer } from "@/lib/auth/otpResend";
+import {
+  DEFAULT_COUNTRY_CODE,
+  normalizePhoneSelection,
+} from "@/lib/phone-country";
 
 type OtpFlow = null | "email" | "phone";
 
@@ -56,6 +61,9 @@ function ProfilePageContent() {
   // OTP modal state
   const [otpFlow, setOtpFlow] = useState<OtpFlow>(null);
   const [newContactValue, setNewContactValue] = useState("");
+  const [newPhoneCountryCode, setNewPhoneCountryCode] = useState(DEFAULT_COUNTRY_CODE);
+  const [newPhonePrefix, setNewPhonePrefix] = useState("591");
+  const [newPhoneNumber, setNewPhoneNumber] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
 
@@ -113,21 +121,15 @@ function ProfilePageContent() {
 
   if (!user) return null;
 
-  const displayPhone = (() => {
-    const rawPhone = user.phoneNumber?.trim() || "";
-    if (!rawPhone) return "";
-
-    const rawPrefix = (user.phone_prefix || "").replace(/\D/g, "");
-    if (!rawPrefix) return rawPhone;
-
-    const phoneDigits = rawPhone.replace(/\D/g, "");
-    if (phoneDigits.startsWith(rawPrefix)) {
-      const withoutPrefixDigits = phoneDigits.slice(rawPrefix.length);
-      return withoutPrefixDigits ? `+${rawPrefix} ${withoutPrefixDigits}` : `+${rawPrefix}`;
-    }
-
-    return `+${rawPrefix} ${rawPhone}`;
-  })();
+  const displayPhoneSelection = normalizePhoneSelection({
+    countryCode: typeof user.country_code === "string" ? user.country_code : null,
+    phonePrefix: user.phone_prefix,
+    phoneNumber: user.phoneNumber,
+    fallbackCountryCode: DEFAULT_COUNTRY_CODE,
+  });
+  const displayPhone = displayPhoneSelection.phoneNumber
+    ? `${displayPhoneSelection.dialCode} ${displayPhoneSelection.phoneNumber}`
+    : "";
 
   const initials =
     (user.first_name?.[0] || user.name?.[0] || "U") +
@@ -153,7 +155,20 @@ function ProfilePageContent() {
   // ── OTP handlers ──
   const handleStartOtp = (type: "email" | "phone") => {
     setOtpFlow(type);
-    setNewContactValue("");
+    if (type === "phone") {
+      const nextPhone = normalizePhoneSelection({
+        countryCode: typeof user?.country_code === "string" ? user.country_code : null,
+        phonePrefix: user?.phone_prefix,
+        phoneNumber: user?.phoneNumber,
+        fallbackCountryCode: DEFAULT_COUNTRY_CODE,
+      });
+      setNewPhoneCountryCode(nextPhone.countryCode);
+      setNewPhonePrefix(nextPhone.phonePrefix);
+      setNewPhoneNumber(nextPhone.phoneNumber);
+      setNewContactValue(nextPhone.fullPhone);
+    } else {
+      setNewContactValue("");
+    }
     setOtpCode("");
     setOtpSent(false);
     setError(null);
@@ -189,7 +204,7 @@ function ProfilePageContent() {
         await verifyEmailChange(newContactValue, otpCode);
         setStatus(t("meProfile.emailUpdated"));
       } else {
-        await verifyPhoneChange(newContactValue, otpCode);
+        await verifyPhoneChange(newContactValue, otpCode, newPhonePrefix, newPhoneCountryCode);
         setStatus(t("meProfile.phoneUpdated"));
       }
       setOtpFlow(null);
@@ -382,10 +397,13 @@ function ProfilePageContent() {
           </CardHeader>
           <CardContent>
             {user.phoneNumber ? (
-              <div className="flex items-center gap-2">
-                <p className="text-text-main">
-                  {displayPhone}
-                </p>
+              <div className="flex items-center gap-3">
+                <div>
+                  <p className="text-text-main">{displayPhone}</p>
+                  <p className="text-xs text-text-muted">
+                    {displayPhoneSelection.country.flag} {displayPhoneSelection.country.name}
+                  </p>
+                </div>
                 {user.phoneNumberVerified && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft-bg px-2 py-0.5 text-xs font-medium text-brand">
                     <Shield className="h-3 w-3" />
@@ -436,16 +454,28 @@ function ProfilePageContent() {
                           ? t("meProfile.newEmailAddress")
                           : t("meProfile.newPhoneNumber")}
                       </Label>
-                      <Input
-                        type={otpFlow === "email" ? "email" : "tel"}
-                        placeholder={
-                          otpFlow === "email"
-                            ? t("meProfile.newEmailPlaceholder")
-                            : t("meProfile.newPhonePlaceholder")
-                        }
-                        value={newContactValue}
-                        onChange={(e) => setNewContactValue(e.target.value)}
-                      />
+                      {otpFlow === "email" ? (
+                        <Input
+                          type="email"
+                          placeholder={t("meProfile.newEmailPlaceholder")}
+                          value={newContactValue}
+                          onChange={(e) => setNewContactValue(e.target.value)}
+                        />
+                      ) : (
+                        <CountryPhoneSelect
+                          countryCode={newPhoneCountryCode}
+                          phonePrefix={newPhonePrefix}
+                          phoneNumber={newPhoneNumber}
+                          defaultCountryCode={DEFAULT_COUNTRY_CODE}
+                          placeholder={t("meProfile.newPhonePlaceholder")}
+                          onChange={(value) => {
+                            setNewPhoneCountryCode(value.countryCode);
+                            setNewPhonePrefix(value.phonePrefix);
+                            setNewPhoneNumber(value.phoneNumber);
+                            setNewContactValue(value.fullPhone);
+                          }}
+                        />
+                      )}
                     </div>
                     <p className="text-xs text-text-muted">
                       {otpFlow === "email"

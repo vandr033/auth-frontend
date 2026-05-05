@@ -26,6 +26,7 @@ import {
   applyPricingConfigToCatalog,
 } from "@/lib/negocios/catalog";
 import {
+  type BusinessPricingCoreTierKey,
   getDefaultTierForCoreProduct,
   getTierByKey,
   type CoreTierSelection,
@@ -60,7 +61,7 @@ const FAQS = [
   {
     question: "¿Tienda ya está disponible?",
     answer:
-      "Todavía no. Tienda está en camino y aparece como Próximamente.",
+      "Sí. Ya podés activar Tienda para vender productos, manejar pedidos y sumar checkout QR desde tu página pública.",
   },
 ];
 
@@ -166,7 +167,7 @@ function CoreProductFeature({
   index: number;
   product: ReturnType<typeof applyPricingConfigToCatalog>["coreProducts"][number];
   activeSelection?: CoreTierSelection;
-  onChooseTier?: (tierKey: "RESERVAS_BASE" | "RESERVAS_PRO" | "EVENTOS_BASE" | "EVENTOS_PRO" | "CLASES_BASE" | "CLASES_PRO") => void;
+  onChooseTier?: (tierKey: BusinessPricingCoreTierKey) => void;
 }) {
   const Icon = PRODUCT_ICONS[product.key] ?? Sparkles;
   const activeTier =
@@ -688,7 +689,7 @@ export function NegociosLandingPage() {
                   Punto de partida
                 </p>
                 <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-[0.9]">
-                  Reservas, Eventos, Clases y pronto Tienda.
+                  Reservas, Eventos, Clases y Tienda en un mismo sistema.
                 </p>
               </div>
             </div>

@@ -13,6 +13,10 @@ import type {
     ShopData,
     ShopCompany,
     ShopCategory,
+    ShopCommerceCategory,
+    ShopCommercePointOfSale,
+    ShopCommerceProduct,
+    ShopCommerceStore,
     ShopService,
     ShopStaff,
     ShopHours,
@@ -47,6 +51,10 @@ type ShopContextValue = {
     isShopActive: boolean;
     categories: ShopCategory[];
     services: ShopService[];
+    commerceStore: ShopCommerceStore | null;
+    commercePointsOfSale: ShopCommercePointOfSale[];
+    commerceCategories: ShopCommerceCategory[];
+    commerceProducts: ShopCommerceProduct[];
     staff: ShopStaff[];
     hours: ShopHours[];
     settings: ShopSettings | null;
@@ -214,6 +222,10 @@ export function ShopProvider({
                 isShopActive,
                 categories: data?.categories ?? [],
                 services: data?.services ?? [],
+                commerceStore: data?.commerceStore ?? null,
+                commercePointsOfSale: data?.commercePointsOfSale ?? [],
+                commerceCategories: data?.commerceCategories ?? [],
+                commerceProducts: data?.commerceProducts ?? [],
                 staff: data?.staff ?? [],
                 hours: data?.hours ?? [],
                 settings: data?.settings ?? null,

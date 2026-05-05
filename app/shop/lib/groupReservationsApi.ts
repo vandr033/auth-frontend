@@ -368,6 +368,7 @@ export interface PaidEventGuestCheckoutStartInput {
   company_id: number;
   full_name: string;
   email: string;
+  countryCode?: string;
   phonePrefix: string;
   phoneNumber: string;
   tosAccepted: boolean;
@@ -416,6 +417,7 @@ export interface PaidEventGuestCheckoutVerifyResult {
     name?: string | null;
     first_name?: string | null;
     last_name?: string | null;
+    country_code?: string | null;
     phone_prefix?: string | null;
     phoneNumber?: string | null;
     emailVerified?: boolean;
@@ -471,6 +473,7 @@ export interface ClassGuestEnrollmentStartInput {
   company_id: number;
   full_name: string;
   email: string;
+  countryCode?: string;
   phonePrefix: string;
   phoneNumber: string;
 }
@@ -645,6 +648,7 @@ export interface FreeEventRegistrationInput {
   gender: string;
   age: number;
   email: string;
+  countryCode?: string;
   phonePrefix: string;
   phoneNumber: string;
   tosAccepted: boolean;
@@ -661,6 +665,7 @@ export interface FreeRegistrationStateData {
     gender: string;
     age: number | null;
     email: string;
+    countryCode?: string;
     phonePrefix: string;
     phoneNumber: string;
   } | null;

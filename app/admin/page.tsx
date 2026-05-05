@@ -4,11 +4,20 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminAuth } from "./contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
+import { getDefaultAdminHref } from "@/lib/admin/navigation";
 
 export default function AdminIndexPage() {
     const router = useRouter();
     const t = useT();
-    const { loading, isAuthenticated, isSuperAdmin, mustChangePassword } = useAdminAuth();
+    const {
+        loading,
+        isAuthenticated,
+        isSuperAdmin,
+        mustChangePassword,
+        companyUser,
+        role,
+    } = useAdminAuth();
+    const navigationRole = role as "OWNER" | "ADMIN" | "STAFF" | null;
 
     useEffect(() => {
         if (loading) return;
@@ -29,10 +38,17 @@ export default function AdminIndexPage() {
             // Super admins should always land in their panel by default.
             router.replace("/admin/super-admin");
         } else {
-            // Regular admin/staff with company → regular dashboard
-            router.replace("/admin/dashboard");
+            router.replace(getDefaultAdminHref(companyUser?.company?.capabilities, navigationRole));
         }
-    }, [loading, isAuthenticated, isSuperAdmin, mustChangePassword, router]);
+    }, [
+        companyUser?.company?.capabilities,
+        isAuthenticated,
+        isSuperAdmin,
+        loading,
+        mustChangePassword,
+        navigationRole,
+        router,
+    ]);
 
     // Show loading while determining redirect
     return (

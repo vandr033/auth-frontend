@@ -89,6 +89,10 @@ function createTemplate(): RecurringTemplate {
     };
 }
 
+function getServiceDisplayPriceCents(service: ServiceItem): number {
+    return service.pricing?.final_price_cents ?? service.price_cents;
+}
+
 function combinePhone(prefix?: string | null, phone?: string | null): string | undefined {
     const normalizedPhone = (phone || "").trim();
     if (!normalizedPhone) return undefined;
@@ -147,14 +151,14 @@ function ServiceChecklist(props: {
                                     checked={selectedIds.includes(String(service.id))}
                                     onCheckedChange={(checked) => onToggle(String(service.id), checked === true)}
                                 />
-                                <div className="min-w-0 flex-1">
-                                    <div className="truncate text-sm font-medium text-slate-900">{service.name}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {t("shopBooking.duration", { minutes: service.duration_minutes })} · {formatCurrencyFromCents(service.price_cents, currency)}
-                                    </div>
-                                </div>
-                            </label>
-                        ))}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-sm font-medium text-slate-900">{service.name}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {t("shopBooking.duration", { minutes: service.duration_minutes })} · {formatCurrencyFromCents(getServiceDisplayPriceCents(service), currency)}
+                                            </div>
+                                        </div>
+                                    </label>
+                                ))}
                     </div>
                 </div>
             ))}
@@ -306,7 +310,7 @@ export function NewBookingModal({
 
         return {
             totalDuration: selected.reduce((sum, service) => sum + service.duration_minutes, 0),
-            totalPrice: selected.reduce((sum, service) => sum + service.price_cents, 0),
+            totalPrice: selected.reduce((sum, service) => sum + getServiceDisplayPriceCents(service), 0),
         };
     }, [serviceMap, singleServiceIds]);
 
@@ -357,7 +361,7 @@ export function NewBookingModal({
                     serviceIds: validServiceIds,
                     serviceNames: services.map((service) => service.name),
                     totalDuration: services.reduce((sum, service) => sum + service.duration_minutes, 0),
-                    totalPrice: services.reduce((sum, service) => sum + service.price_cents, 0),
+                    totalPrice: services.reduce((sum, service) => sum + getServiceDisplayPriceCents(service), 0),
                     payment,
                 });
             });

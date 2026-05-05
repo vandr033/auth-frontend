@@ -47,14 +47,29 @@ export function ServicesGrid({ categories, services, slug, currency, maxItems }:
                                     {service.name}
                                 </h4>
                                 <div className="mt-2 flex items-center gap-3 text-sm">
-                                    <span className="font-bold text-brand">
-                                        {formatCurrencyFromCents(service.price_cents, currency)}
-                                    </span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-bold text-brand">
+                                            {formatCurrencyFromCents(
+                                                service.pricing?.final_price_cents ?? service.price_cents,
+                                                currency,
+                                            )}
+                                        </span>
+                                        {service.pricing?.promo_applied && service.pricing.regular_price_cents ? (
+                                            <span className="text-text-muted line-through">
+                                                {formatCurrencyFromCents(service.pricing.regular_price_cents, currency)}
+                                            </span>
+                                        ) : null}
+                                    </div>
                                     <span className="flex items-center gap-1 text-text-muted">
                                         <Clock className="h-3.5 w-3.5 shrink-0" />
                                         {t('shopServices.duration', { minutes: service.duration_minutes })}
                                     </span>
                                 </div>
+                                {service.pricing?.promo_applied ? (
+                                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-rose-500">
+                                        {service.pricing.promo_label || t('shopServices.promo')}
+                                    </p>
+                                ) : null}
                                 {service.description && (
                                     <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-text-muted font-body">
                                         {service.description}

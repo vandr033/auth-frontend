@@ -36,6 +36,7 @@ export type AdminNavigationIconKey =
 export type AdminNavigationItemId =
     | "dashboard"
     | "bookings"
+    | "store"
     | "services"
     | "availability"
     | "time-off"
@@ -52,6 +53,14 @@ export type AdminNavigationItemId =
     | "staff"
     | "business-settings"
     | "profile";
+
+export type AdminNavigationChildItem = {
+    id: string;
+    labelKey: string;
+    href: string;
+    exact?: boolean;
+    activePrefixes?: string[];
+};
 
 export type AdminModulePageLink = {
     href: string;
@@ -80,6 +89,7 @@ export type AdminNavigationItem = {
     state: AdminNavigationState;
     exact?: boolean;
     activePrefixes: string[];
+    children?: AdminNavigationChildItem[];
     recommendationFeature?: PlanFeatureKey;
     moduleRoute?: string;
 };
@@ -93,7 +103,9 @@ export type AdminNavigationGroup = {
 type VisibilityContext = {
     entitlements: CompanyCapabilities | null | undefined;
     hasAnyCoreProduct: boolean;
+    isStoreOnlyCompany: boolean;
     hasReservas: boolean;
+    hasStores: boolean;
     hasEventos: boolean;
     hasClases: boolean;
     hasReservasPro: boolean;
@@ -114,6 +126,7 @@ type AdminNavigationDefinition = {
     roles: AdminNavigationRole[];
     exact?: boolean;
     activePrefixes?: string[];
+    children?: AdminNavigationChildItem[];
     moduleRoute?: string;
     recommendationFeature?: PlanFeatureKey;
     resolveState: (context: VisibilityContext) => AdminNavigationState;
@@ -164,12 +177,19 @@ function hasTier(
 function buildVisibilityContext(
     entitlements: CompanyCapabilities | null | undefined,
 ): VisibilityContext {
+    const hasReservas = hasProduct(entitlements, "RESERVAS");
+    const hasStores = hasProduct(entitlements, "STORES");
+    const hasEventos = hasProduct(entitlements, "EVENTOS");
+    const hasClases = hasProduct(entitlements, "CLASES");
+
     return {
         entitlements,
         hasAnyCoreProduct: entitlements?.products?.some((product) => product.isCore) ?? false,
-        hasReservas: hasProduct(entitlements, "RESERVAS"),
-        hasEventos: hasProduct(entitlements, "EVENTOS"),
-        hasClases: hasProduct(entitlements, "CLASES"),
+        isStoreOnlyCompany: hasStores && !hasReservas && !hasEventos && !hasClases,
+        hasReservas,
+        hasStores,
+        hasEventos,
+        hasClases,
         hasReservasPro: hasTier(entitlements, "RESERVAS_PRO"),
         hasEventosPro: hasTier(entitlements, "EVENTOS_PRO"),
         hasClasesPro: hasTier(entitlements, "CLASES_PRO"),
@@ -189,7 +209,7 @@ const NAVIGATION_DEFINITIONS: AdminNavigationDefinition[] = [
         iconKey: "dashboard",
         roles: ["OWNER", "ADMIN", "STAFF"],
         exact: true,
-        resolveState: () => "active",
+        resolveState: (context) => (context.isStoreOnlyCompany ? "hidden" : "active"),
     },
     {
         id: "bookings",
@@ -208,6 +228,48 @@ const NAVIGATION_DEFINITIONS: AdminNavigationDefinition[] = [
         iconKey: "services",
         roles: ["OWNER", "ADMIN"],
         resolveState: (context) => (context.hasReservas ? "active" : "hidden"),
+    },
+    {
+        id: "store",
+        groupId: "products",
+        labelKey: "adminNav.store",
+        href: "/admin/dashboard/store/orders",
+        iconKey: "storefront",
+        roles: ["OWNER", "ADMIN", "STAFF"],
+        children: [
+            {
+                id: "store-overview",
+                labelKey: "adminStore.nav.overview",
+                href: "/admin/dashboard/store",
+                exact: true,
+            },
+            {
+                id: "store-orders",
+                labelKey: "adminStore.nav.orders",
+                href: "/admin/dashboard/store/orders",
+            },
+            {
+                id: "store-products",
+                labelKey: "adminStore.nav.products",
+                href: "/admin/dashboard/store/products",
+            },
+            {
+                id: "store-points-of-sale",
+                labelKey: "adminStore.nav.pointsOfSale",
+                href: "/admin/dashboard/store/points-of-sale",
+            },
+            {
+                id: "store-categories",
+                labelKey: "adminStore.nav.categories",
+                href: "/admin/dashboard/store/categories",
+            },
+            {
+                id: "store-settings",
+                labelKey: "adminStore.nav.settings",
+                href: "/admin/dashboard/store/settings",
+            },
+        ],
+        resolveState: (context) => (context.hasStores ? "active" : "hidden"),
     },
     {
         id: "availability",
@@ -561,6 +623,7 @@ function buildNavigationItem(
         state,
         exact: definition.exact,
         activePrefixes: Array.from(new Set(activePrefixes)),
+        children: definition.children,
         recommendationFeature: definition.recommendationFeature,
         moduleRoute: definition.moduleRoute,
     };
@@ -573,16 +636,56 @@ export function getAdminNavigationCatalog(
     return NAVIGATION_DEFINITIONS.map((definition) => buildNavigationItem(definition, context));
 }
 
+type AdminNavigationOptions = {
+    includeLocked?: boolean;
+    role?: AdminNavigationRole | null;
+};
+
+function filterNavigationItems(
+    items: AdminNavigationItem[],
+    options?: AdminNavigationOptions,
+): AdminNavigationItem[] {
+    const includeLocked = options?.includeLocked ?? true;
+
+    return items.filter((item) => {
+        if (item.state === "hidden") return false;
+        if (!includeLocked && item.state === "locked") return false;
+        if (options?.role && !item.roles.includes(options.role)) return false;
+        return true;
+    });
+}
+
 export function getAdminNavigationForEntitlements(
     entitlements: CompanyCapabilities | null | undefined,
+    options?: AdminNavigationOptions,
 ): AdminNavigationGroup[] {
-    const items = getAdminNavigationCatalog(entitlements).filter((item) => item.state !== "hidden");
+    const items = filterNavigationItems(getAdminNavigationCatalog(entitlements), options);
 
     return GROUP_ORDER.map((group) => ({
         id: group.id,
         labelKey: group.labelKey,
         items: items.filter((item) => item.groupId === group.id),
     })).filter((group) => group.items.length > 0);
+}
+
+export function getDefaultAdminHref(
+    entitlements: CompanyCapabilities | null | undefined,
+    role?: AdminNavigationRole | null,
+): string {
+    const firstVisibleItem = getAdminNavigationForEntitlements(entitlements, {
+        includeLocked: false,
+        role: role ?? null,
+    })
+        .flatMap((group) => group.items)
+        .at(0);
+
+    return firstVisibleItem?.href ?? "/admin/dashboard";
+}
+
+export function isStoreOnlyAdminCompany(
+    entitlements: CompanyCapabilities | null | undefined,
+): boolean {
+    return buildVisibilityContext(entitlements).isStoreOnlyCompany;
 }
 
 export function getAdminNavigationItemById(

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
 import { useI18n } from "@/lib/i18n";
 import { getDashboardMetrics, type DashboardMetrics } from "../lib/adminApi";
@@ -22,7 +23,7 @@ import {
 import { notify } from "@/lib/notify";
 import { canUseEntitledFeature } from "@/lib/plans/capabilities";
 import { formatCurrencyFromCents } from "@/lib/currency";
-import { getAdminNavigationForEntitlements } from "@/lib/admin/navigation";
+import { getAdminNavigationForEntitlements, getDefaultAdminHref } from "@/lib/admin/navigation";
 import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
 import {
     AdminMetricGrid,
@@ -64,15 +65,21 @@ function getMonthLabel(monthKey: string, locale: string) {
 
 export default function DashboardHomePage() {
     const { companyId, companyName, role, companySlug, companyUser, user } = useAdminAuth();
+    const router = useRouter();
     const { t, locale } = useI18n();
     const currency = companyUser?.company?.currency;
     const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
+    const navigationRole = role as "OWNER" | "ADMIN" | "STAFF" | null;
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
     const [metricsLocked, setMetricsLocked] = useState(false);
     const dashboardFeature = "OPERATIONAL_DASHBOARD" as const;
     const canAccessDashboard = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, dashboardFeature);
+    const defaultAdminHref = useMemo(
+        () => getDefaultAdminHref(companyUser?.company?.capabilities, navigationRole),
+        [companyUser?.company?.capabilities, navigationRole],
+    );
     const navigationGroups = useMemo(
         () => getAdminNavigationForEntitlements(companyUser?.company?.capabilities),
         [companyUser?.company?.capabilities],
@@ -97,6 +104,19 @@ export default function DashboardHomePage() {
     );
 
     useEffect(() => {
+        if (defaultAdminHref === "/admin/dashboard") return;
+        router.replace(defaultAdminHref);
+    }, [defaultAdminHref, router]);
+
+    useEffect(() => {
+        if (defaultAdminHref !== "/admin/dashboard") {
+            setLoading(false);
+            setMetrics(null);
+            setLoadFailed(false);
+            setMetricsLocked(false);
+            return;
+        }
+
         setLoading(true);
         setLoadFailed(false);
         setMetricsLocked(false);
@@ -120,7 +140,7 @@ export default function DashboardHomePage() {
                 void notify.error(err instanceof Error ? err.message : t("adminHome.loadMetricsError"));
             })
             .finally(() => setLoading(false));
-    }, [canAccessDashboard, companyId, t]);
+    }, [canAccessDashboard, companyId, defaultAdminHref, t]);
 
     const shouldRenderMetricsLockedState = !canAccessDashboard || metricsLocked;
 
@@ -138,6 +158,14 @@ export default function DashboardHomePage() {
         if (!metrics || metrics.customerGrowthTrend.length === 0) return 0;
         return Math.max(...metrics.customerGrowthTrend.map((item) => item.newCustomers));
     }, [metrics]);
+
+    if (defaultAdminHref !== "/admin/dashboard") {
+        return (
+            <AdminPageShell>
+                <LoadingSkeleton rows={4} variant="page" />
+            </AdminPageShell>
+        );
+    }
 
     if (loading) {
         return (

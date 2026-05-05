@@ -53,6 +53,7 @@ import {
   isEventSoldOut,
 } from "@/app/shop/lib/groupReservationsFormat";
 import { getImageUrl } from "@/utils/image-url";
+import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
 
 type NoticeTone = "success" | "warning" | "error";
 type ExtraAttendeeForm = {
@@ -100,6 +101,7 @@ export default function ShopEventDetailPage() {
   const [freeSubmitResult, setFreeSubmitResult] = React.useState<FreeRegistrationResult | null>(null);
   const [freeSubmitContact, setFreeSubmitContact] = React.useState<{
     email: string;
+    countryCode?: string;
     phonePrefix: string;
     phoneNumber: string;
   } | null>(null);
@@ -114,6 +116,7 @@ export default function ShopEventDetailPage() {
   const [paidGuestModal, setPaidGuestModal] = React.useState<PaidGuestModalState>("none");
   const [paidGuestFullName, setPaidGuestFullName] = React.useState("");
   const [paidGuestEmail, setPaidGuestEmail] = React.useState("");
+  const [paidGuestCountryCode, setPaidGuestCountryCode] = React.useState(DEFAULT_COUNTRY_CODE);
   const [paidGuestPhonePrefix, setPaidGuestPhonePrefix] = React.useState("591");
   const [paidGuestPhoneNumber, setPaidGuestPhoneNumber] = React.useState("");
   const [paidGuestTosAccepted, setPaidGuestTosAccepted] = React.useState(false);
@@ -254,6 +257,7 @@ export default function ShopEventDetailPage() {
     setPaidGuestModal("none");
     setPaidGuestFullName("");
     setPaidGuestEmail("");
+    setPaidGuestCountryCode(DEFAULT_COUNTRY_CODE);
     setPaidGuestPhonePrefix("591");
     setPaidGuestPhoneNumber("");
     setPaidGuestTosAccepted(false);
@@ -435,6 +439,7 @@ export default function ShopEventDetailPage() {
         company_id: company.id,
         full_name: paidGuestFullName.trim(),
         email: paidGuestEmail.trim().toLowerCase(),
+        countryCode: paidGuestCountryCode,
         phonePrefix: paidGuestPhonePrefix,
         phoneNumber: paidGuestPhoneNumber.trim(),
         tosAccepted: paidGuestTosAccepted,
@@ -466,6 +471,7 @@ export default function ShopEventDetailPage() {
   }, [
     company,
     event,
+    paidGuestCountryCode,
     paidGuestEmail,
     paidGuestFullName,
     paidGuestPhoneNumber,
@@ -544,7 +550,7 @@ export default function ShopEventDetailPage() {
 
   const handleFreeRegSubmitted = React.useCallback((
     result: FreeRegistrationResult,
-    contact: { email: string; phonePrefix: string; phoneNumber: string },
+    contact: { email: string; countryCode?: string; phonePrefix: string; phoneNumber: string },
   ) => {
     setIsFreeRegModalOpen(false);
     setFreeSubmitResult(result);
@@ -1167,8 +1173,10 @@ export default function ShopEventDetailPage() {
                 <label className="text-xs font-medium text-text-muted">{t("shopGroup.guestCheckout.fields.phone")}</label>
                 <PhoneInput
                   value={paidGuestPhoneFullValue}
-                  onChange={(fullNumber, dialCode) => {
+                  defaultCountry={paidGuestCountryCode}
+                  onChange={(fullNumber, dialCode, countryCode) => {
                     const prefix = dialCode.replace("+", "");
+                    setPaidGuestCountryCode(countryCode ?? DEFAULT_COUNTRY_CODE);
                     setPaidGuestPhonePrefix(prefix);
                     const stripped = fullNumber.startsWith(dialCode)
                       ? fullNumber.slice(dialCode.length)

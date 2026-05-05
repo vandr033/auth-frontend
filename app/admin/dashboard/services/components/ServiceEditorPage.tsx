@@ -50,6 +50,19 @@ interface Service {
     name: string;
     description: string | null;
     price_cents: number;
+    promo_price_cents?: number | null;
+    promo_starts_at?: string | null;
+    promo_ends_at?: string | null;
+    promo_label?: string | null;
+    pricing?: {
+        regular_price_cents?: number | null;
+        base_price_cents: number;
+        final_price_cents: number;
+        promo_applied: boolean;
+        promo_label?: string | null;
+        promo_starts_at?: string | null;
+        promo_ends_at?: string | null;
+    };
     duration_minutes: number;
     is_active: boolean;
     category_id: number;
@@ -72,6 +85,10 @@ interface ServiceFormData {
     description: string;
     category_id: number | null;
     price: string;
+    promo_price: string;
+    promo_starts_at: string;
+    promo_ends_at: string;
+    promo_label: string;
     duration_minutes: string;
     is_multi_session: boolean;
     session_count: string;
@@ -85,6 +102,10 @@ const initialFormData: ServiceFormData = {
     description: "",
     category_id: null,
     price: "",
+    promo_price: "",
+    promo_starts_at: "",
+    promo_ends_at: "",
+    promo_label: "",
     duration_minutes: "30",
     is_multi_session: false,
     session_count: "4",
@@ -175,6 +196,10 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                     description: service.description || "",
                     category_id: service.category_id,
                     price: (service.price_cents / 100).toFixed(2),
+                    promo_price: service.promo_price_cents != null ? (service.promo_price_cents / 100).toFixed(2) : "",
+                    promo_starts_at: service.promo_starts_at ? service.promo_starts_at.slice(0, 16) : "",
+                    promo_ends_at: service.promo_ends_at ? service.promo_ends_at.slice(0, 16) : "",
+                    promo_label: service.promo_label || "",
                     duration_minutes: String(service.duration_minutes),
                     is_multi_session: service.is_multi_session === true,
                     session_count: service.session_count ? String(service.session_count) : "4",
@@ -206,6 +231,9 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
         [formData.required_resource_ids.length],
     );
     const canUseMultiSession = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
+    const canUseServicePromotions =
+        Boolean(user?.is_super_admin) ||
+        companyUser?.company?.capabilities?.productCapabilities?.RESERVAS_SERVICE_PROMOTIONS === true;
     const shouldPreserveLockedMultiSession =
         isEditing &&
         existingMultiSessionService &&
@@ -253,6 +281,21 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
             setFormError(t("adminServices.durationRequired"));
             return;
         }
+        const promoPriceValue = formData.promo_price.trim()
+            ? Number.parseFloat(formData.promo_price)
+            : null;
+        if (promoPriceValue !== null && (Number.isNaN(promoPriceValue) || promoPriceValue < 0)) {
+            setFormError(t("adminServices.validPromoPriceRequired"));
+            return;
+        }
+        if (
+            canUseServicePromotions &&
+            promoPriceValue === null &&
+            (formData.promo_starts_at || formData.promo_ends_at || formData.promo_label.trim())
+        ) {
+            setFormError(t("adminServices.promoPriceRequired"));
+            return;
+        }
         const multiSessionEnabled = canUseMultiSession
             ? formData.is_multi_session
             : shouldPreserveLockedMultiSession;
@@ -270,11 +313,21 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
         setSubmitting(true);
         setFormError(null);
         try {
+            const promotionPayload = canUseServicePromotions
+                ? {
+                    promo_price_cents:
+                        promoPriceValue !== null ? Math.round(promoPriceValue * 100) : null,
+                    promo_starts_at: formData.promo_starts_at || null,
+                    promo_ends_at: formData.promo_ends_at || null,
+                    promo_label: formData.promo_label.trim() || null,
+                }
+                : {};
             const payload = {
                 name: formData.name.trim(),
                 description: formData.description.trim() || null,
                 category_id: formData.category_id,
                 price_cents: Math.round(priceValue * 100),
+                ...promotionPayload,
                 duration_minutes: multiSessionEnabled
                     ? computedMultiSessionDuration ?? durationValue
                     : durationValue,
@@ -481,6 +534,113 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                                     </p>
                                 ) : null}
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="admin-card">
+                        <CardHeader>
+                            <CardTitle className="text-base">{t("adminServices.promotionsTitle")}</CardTitle>
+                            <CardDescription>{t("adminServices.promotionsDescription")}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {!canUseServicePromotions ? (
+                                <EntitlementLockedCard
+                                    title={t("adminServices.promotionsTitle")}
+                                    description={t("adminServices.promotionsDescription")}
+                                    capability="RESERVAS_SERVICE_PROMOTIONS"
+                                    source="SETTINGS_LOCKED_CONTROL"
+                                    notice={t("entitlements.reservationsProLocked")}
+                                    compact
+                                />
+                            ) : null}
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="promo_price">{t("adminServices.promoPrice")}</Label>
+                                    <Input
+                                        id="promo_price"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        disabled={!canUseServicePromotions}
+                                        value={formData.promo_price}
+                                        onChange={(event) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                promo_price: event.target.value,
+                                            }))
+                                        }
+                                        placeholder={t("adminServices.promoPricePlaceholder")}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="promo_label">{t("adminServices.promoLabel")}</Label>
+                                    <Input
+                                        id="promo_label"
+                                        disabled={!canUseServicePromotions}
+                                        value={formData.promo_label}
+                                        onChange={(event) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                promo_label: event.target.value,
+                                            }))
+                                        }
+                                        placeholder={t("adminServices.promoLabelPlaceholder")}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="promo_starts_at">{t("adminServices.promoStartsAt")}</Label>
+                                    <Input
+                                        id="promo_starts_at"
+                                        type="datetime-local"
+                                        disabled={!canUseServicePromotions}
+                                        value={formData.promo_starts_at}
+                                        onChange={(event) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                promo_starts_at: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="promo_ends_at">{t("adminServices.promoEndsAt")}</Label>
+                                    <Input
+                                        id="promo_ends_at"
+                                        type="datetime-local"
+                                        disabled={!canUseServicePromotions}
+                                        value={formData.promo_ends_at}
+                                        onChange={(event) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                promo_ends_at: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            {canUseServicePromotions ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="justify-start px-0 text-sm text-slate-500 hover:text-slate-900"
+                                    onClick={() =>
+                                        setFormData((prev) => ({
+                                            ...prev,
+                                            promo_price: "",
+                                            promo_starts_at: "",
+                                            promo_ends_at: "",
+                                            promo_label: "",
+                                        }))
+                                    }
+                                >
+                                    {t("adminServices.clearPromotion")}
+                                </Button>
+                            ) : null}
                         </CardContent>
                     </Card>
 

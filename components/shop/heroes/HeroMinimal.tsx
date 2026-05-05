@@ -73,6 +73,12 @@ export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons, public
                                     {t('common.bookNow')}
                                 </PrimaryButton>
                             </Link>
+                        ) : resolvedPublicFeatures.commerceVisible ? (
+                            <Link href={`/shop/${slug}/store`}>
+                                <PrimaryButton className="px-10 py-4 text-lg">
+                                    {t('shopNav.store')}
+                                </PrimaryButton>
+                            </Link>
                         ) : null
                     }
                 />

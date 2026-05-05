@@ -48,6 +48,10 @@ type BookingUpdatesPayload = {
     notes?: string | null;
 };
 
+function getServiceDisplayPriceCents(service: ServiceItem): number {
+    return service.pricing?.final_price_cents ?? service.price_cents;
+}
+
 export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved }: BookingEditDialogProps) {
     const t = useT();
     const { role } = useAdminAuth();
@@ -113,7 +117,7 @@ export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved 
     const { totalPrice, totalDuration } = useMemo(() => {
         const selected = serviceList.filter((s) => selectedServiceIds.includes(s.id));
         return {
-            totalPrice: selected.reduce((sum, s) => sum + s.price_cents, 0),
+            totalPrice: selected.reduce((sum, s) => sum + getServiceDisplayPriceCents(s), 0),
             totalDuration: selected.reduce((sum, s) => sum + s.duration_minutes, 0),
         };
     }, [serviceList, selectedServiceIds]);
@@ -267,7 +271,7 @@ export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved 
                                                             </span>
                                                         </div>
                                                         <span className="text-sm text-slate-600">
-                                                            {formatCurrencyFromCents(service.price_cents, currency)}
+                                                            {formatCurrencyFromCents(getServiceDisplayPriceCents(service), currency)}
                                                         </span>
                                                     </label>
                                                 ))}

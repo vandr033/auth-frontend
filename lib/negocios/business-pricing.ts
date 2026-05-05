@@ -1,14 +1,16 @@
 import { resolveApiUrl } from "@/lib/api-url";
 
 export type PublicCoreProductKey = "RESERVAS" | "EVENTOS" | "CLASES" | "TIENDA";
-export type SelectableCoreProductKey = Exclude<PublicCoreProductKey, "TIENDA">;
+export type SelectableCoreProductKey = PublicCoreProductKey;
 export type BusinessPricingCoreTierKey =
   | "RESERVAS_BASE"
   | "RESERVAS_PRO"
   | "EVENTOS_BASE"
   | "EVENTOS_PRO"
   | "CLASES_BASE"
-  | "CLASES_PRO";
+  | "CLASES_PRO"
+  | "STORES_BASE"
+  | "STORES_PRO";
 export type PublicAddOnKey =
   | "PERSONALIZACION_PRO"
   | "METRICAS"
@@ -212,17 +214,47 @@ export const DEFAULT_BUSINESS_PRICING_CONFIG: BusinessPricingConfig = {
       key: "TIENDA",
       type: "CORE",
       displayName: "Tienda",
-      description: "Tu tienda online en Priconpri está en camino.",
+      description: "Catálogo, pedidos, combos, stock y checkout QR para vender desde tu página.",
       monthlyPriceBs: 300,
-      isActive: false,
-      isComingSoon: true,
+      isActive: true,
+      isComingSoon: false,
       sortOrder: 4,
-      featureList: [
-        "Productos y categorías",
-        "Pickup y delivery",
-        "Pedidos programados",
-        "Checkout por WhatsApp",
-        "Próximamente",
+      featureList: [],
+      tiers: [
+        {
+          tierKey: "STORES_BASE",
+          label: "Base",
+          monthlyPriceBs: 300,
+          featureList: [
+            "Productos y categorías",
+            "Stock global",
+            "Combos estructurados",
+            "Pickup y delivery",
+            "Checkout invitado",
+            "QR manual",
+          ],
+          proUnlocks: [
+            "Pedidos programados",
+            "Promociones",
+            "Asignación interna",
+            "Métricas de tienda",
+          ],
+          isDefault: true,
+        },
+        {
+          tierKey: "STORES_PRO",
+          label: "Pro",
+          monthlyPriceBs: 500,
+          featureList: [
+            "Todo lo de Tienda Base",
+            "Pedidos programados",
+            "Promociones",
+            "Asignación de pedidos",
+            "Métricas de tienda",
+          ],
+          proUnlocks: [],
+          isDefault: false,
+        },
       ],
     },
     {
@@ -313,7 +345,7 @@ export const DEFAULT_BUSINESS_PRICING_CONFIG: BusinessPricingConfig = {
   },
 };
 
-const KNOWN_CORE_PRODUCTS: SelectableCoreProductKey[] = ["RESERVAS", "EVENTOS", "CLASES"];
+const KNOWN_CORE_PRODUCTS: SelectableCoreProductKey[] = ["RESERVAS", "EVENTOS", "CLASES", "TIENDA"];
 const KNOWN_TIER_KEYS: BusinessPricingCoreTierKey[] = [
   "RESERVAS_BASE",
   "RESERVAS_PRO",
@@ -321,6 +353,8 @@ const KNOWN_TIER_KEYS: BusinessPricingCoreTierKey[] = [
   "EVENTOS_PRO",
   "CLASES_BASE",
   "CLASES_PRO",
+  "STORES_BASE",
+  "STORES_PRO",
 ];
 
 function isKnownProductKey(value: unknown): value is BusinessPricingProductKey {
@@ -348,7 +382,8 @@ function toStringValue(value: unknown, fallback: string) {
 export function getDefaultTierForCoreProduct(productKey: SelectableCoreProductKey): BusinessPricingCoreTierKey {
   if (productKey === "RESERVAS") return "RESERVAS_BASE";
   if (productKey === "EVENTOS") return "EVENTOS_BASE";
-  return "CLASES_BASE";
+  if (productKey === "CLASES") return "CLASES_BASE";
+  return "STORES_BASE";
 }
 
 export function isTierValidForCoreProduct(
@@ -361,7 +396,10 @@ export function isTierValidForCoreProduct(
   if (productKey === "EVENTOS") {
     return tierKey === "EVENTOS_BASE" || tierKey === "EVENTOS_PRO";
   }
-  return tierKey === "CLASES_BASE" || tierKey === "CLASES_PRO";
+  if (productKey === "CLASES") {
+    return tierKey === "CLASES_BASE" || tierKey === "CLASES_PRO";
+  }
+  return tierKey === "STORES_BASE" || tierKey === "STORES_PRO";
 }
 
 export function buildBusinessPricingProductMap(config: BusinessPricingConfig) {

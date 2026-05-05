@@ -67,6 +67,12 @@ export function HeroSplit({ company, reviewStats, slug, homeCTAButtons, publicFe
                                     {t('common.bookNow')}
                                 </PrimaryButton>
                             </Link>
+                        ) : resolvedPublicFeatures.commerceVisible ? (
+                            <Link href={`/shop/${slug}/store`}>
+                                <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                                    {t('shopNav.store')}
+                                </PrimaryButton>
+                            </Link>
                         ) : null
                     }
                 />

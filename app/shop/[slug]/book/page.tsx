@@ -25,6 +25,8 @@ import {
     calculateBookingTotals,
     formatPrice,
     formatDuration,
+    getServiceDisplayPriceCents,
+    getServiceRegularPriceCents,
 } from "@/types/booking";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -378,15 +380,27 @@ function ServiceStep({
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline justify-between gap-2">
                                             <h4 className="font-semibold text-text-main truncate">{service.name}</h4>
-                                            <span className="text-sm font-bold text-brand flex-shrink-0">
-                                                {formatPrice(service.price_cents, currency)}
-                                            </span>
+                                            <div className="flex flex-col items-end text-right">
+                                                <span className="text-sm font-bold text-brand flex-shrink-0">
+                                                    {formatPrice(getServiceDisplayPriceCents(service), currency)}
+                                                </span>
+                                                {getServiceRegularPriceCents(service) ? (
+                                                    <span className="text-xs text-text-muted line-through">
+                                                        {formatPrice(getServiceRegularPriceCents(service) ?? 0, currency)}
+                                                    </span>
+                                                ) : null}
+                                            </div>
                                         </div>
                                         {service.description && (
                                             <p className="text-sm text-text-muted line-clamp-1 mt-0.5">
                                                 {service.description}
                                             </p>
                                         )}
+                                        {service.pricing?.promo_applied ? (
+                                            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-500">
+                                                {service.pricing.promo_label || t('shopServices.promo')}
+                                            </p>
+                                        ) : null}
                                         <span className="flex items-center gap-1 text-xs text-text-muted mt-1">
                                             <Clock className="h-3 w-3" />
                                             {formatDuration(service.duration_minutes)}
@@ -1141,7 +1155,16 @@ function ConfirmStep({
                         {booking.services.map((service) => (
                             <div key={service.id} className="flex justify-between">
                                 <span className="text-text-main">{service.name}</span>
-                                <span className="text-text-muted">{formatPrice(service.price_cents, currency)}</span>
+                                <div className="text-right">
+                                    <span className="text-text-muted">
+                                        {formatPrice(getServiceDisplayPriceCents(service), currency)}
+                                    </span>
+                                    {getServiceRegularPriceCents(service) ? (
+                                        <p className="text-xs text-text-muted line-through">
+                                            {formatPrice(getServiceRegularPriceCents(service) ?? 0, currency)}
+                                        </p>
+                                    ) : null}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -1489,11 +1512,16 @@ export default function BookingPage() {
             name: s.name,
             description: s.description,
             price_cents: s.price_cents,
+            promo_price_cents: s.promo_price_cents,
+            promo_starts_at: s.promo_starts_at,
+            promo_ends_at: s.promo_ends_at,
+            promo_label: s.promo_label,
             duration_minutes: s.duration_minutes,
             is_multi_session: s.is_multi_session,
             session_count: s.session_count,
             session_duration_minutes: s.session_duration_minutes,
             category_id: s.category_id,
+            pricing: s.pricing,
             required_resource_ids: s.required_resource_ids ?? [],
         })),
         [services],

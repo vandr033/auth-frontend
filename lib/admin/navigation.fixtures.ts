@@ -11,10 +11,23 @@ type NavigationFixture = {
 const ALL_PRODUCT_CAPABILITIES: ProductCapability[] = [
     "RESERVAS_BASE",
     "RESERVAS_PRO",
+    "RESERVAS_SERVICE_PROMOTIONS",
     "EVENTOS_BASE",
     "EVENTOS_PRO",
     "CLASES_BASE",
     "CLASES_PRO",
+    "COMMERCE_ACCESS",
+    "COMMERCE_PRODUCTS",
+    "COMMERCE_CATEGORIES",
+    "COMMERCE_STOCK",
+    "COMMERCE_ORDERS",
+    "COMMERCE_PICKUP",
+    "COMMERCE_DELIVERY",
+    "COMMERCE_SCHEDULED_ORDERS",
+    "COMMERCE_COMBOS",
+    "COMMERCE_PROMOTIONS",
+    "COMMERCE_STAFF_ASSIGNMENT",
+    "COMMERCE_METRICS",
     "CRM_BASE",
     "CRM_PRO",
     "CRM_IMPORT_EXPORT",
@@ -43,6 +56,7 @@ function getProductCodeFromTier(tierCode: ProductTierCode): ProductCode {
     if (tierCode.startsWith("RESERVAS")) return "RESERVAS";
     if (tierCode.startsWith("EVENTOS")) return "EVENTOS";
     if (tierCode.startsWith("CLASES")) return "CLASES";
+    if (tierCode.startsWith("STORES")) return "STORES";
     if (tierCode.startsWith("CRM")) return "CRM";
     if (tierCode.startsWith("MENSAJERIA")) return "MENSAJERIA";
     if (tierCode.startsWith("METRICAS")) return "METRICAS";
@@ -63,7 +77,8 @@ function buildEntitlements(
         isCore:
             tierCode.startsWith("RESERVAS") ||
             tierCode.startsWith("EVENTOS") ||
-            tierCode.startsWith("CLASES"),
+            tierCode.startsWith("CLASES") ||
+            tierCode.startsWith("STORES"),
         includedByDefault:
             tierCode === "CRM_BASE" ||
             tierCode === "MENSAJERIA_BASE" ||
@@ -83,10 +98,10 @@ function buildEntitlements(
         }, {} as Record<ProductCapability, boolean>),
         products,
         activeCoreProducts: tierCodes.filter((tier) =>
-            tier.startsWith("RESERVAS") || tier.startsWith("EVENTOS") || tier.startsWith("CLASES"),
+            tier.startsWith("RESERVAS") || tier.startsWith("EVENTOS") || tier.startsWith("CLASES") || tier.startsWith("STORES"),
         ),
         activeAddOns: tierCodes.filter((tier) =>
-            !tier.startsWith("RESERVAS") && !tier.startsWith("EVENTOS") && !tier.startsWith("CLASES"),
+            !tier.startsWith("RESERVAS") && !tier.startsWith("EVENTOS") && !tier.startsWith("CLASES") && !tier.startsWith("STORES"),
         ),
     };
 }

@@ -37,6 +37,7 @@ function SignInPageInner() {
   // Phone state
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dialCode, setDialCode] = useState("");
+  const [countryCode, setCountryCode] = useState("");
 
   // OTP state
   const [otpCode, setOtpCode] = useState("");
@@ -71,6 +72,7 @@ function SignInPageInner() {
     setStep("method");
     setEmail("");
     setPhoneNumber("");
+    setCountryCode("");
     setOtpCode("");
     setOtpSent(false);
     setLocalError(null);
@@ -124,6 +126,7 @@ function SignInPageInner() {
               mode: "phone",
               phone: phoneNumber,
               ...(dialCode ? { dialCode } : {}),
+              ...(countryCode ? { countryCode } : {}),
             }),
           );
           return;
@@ -245,9 +248,10 @@ function SignInPageInner() {
               ) : (
                 <PhoneInput
                   value={phoneNumber}
-                  onChange={(full, dial) => {
+                  onChange={(full, dial, nextCountryCode) => {
                     setPhoneNumber(full);
                     setDialCode(dial);
+                    setCountryCode(nextCountryCode ?? "");
                   }}
                 />
               )}
