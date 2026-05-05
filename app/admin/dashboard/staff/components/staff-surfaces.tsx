@@ -57,7 +57,7 @@ import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUsePlanFeature, getStaffLimitForPlan } from "@/lib/plans/capabilities";
+import { canUseEntitledFeature, getStaffLimitForPlan } from "@/lib/plans/capabilities";
 import { hasProductCapability } from "@/lib/product-access";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/utils/image-url";
@@ -254,11 +254,13 @@ export function StaffRosterSurface() {
     const { t } = useI18n();
     const capabilities = companyUser?.company?.capabilities;
     const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
-    const canManageRoles = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "ROLES_PERMISSIONS");
     const hasBookingModule =
         Boolean(user?.is_super_admin) ||
         hasProductCapability(capabilities, "RESERVAS_BASE") ||
         hasProductCapability(capabilities, "RESERVAS_PRO");
+    const canManageRoles =
+        Boolean(user?.is_super_admin) ||
+        (hasBookingModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
 
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [services, setServices] = useState<ServiceItem[]>([]);
@@ -637,11 +639,13 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
     const isEditing = Number.isInteger(staffId);
     const capabilities = companyUser?.company?.capabilities;
     const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
-    const canManageRoles = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, "ROLES_PERMISSIONS");
     const hasBookingModule =
         Boolean(user?.is_super_admin) ||
         hasProductCapability(capabilities, "RESERVAS_BASE") ||
         hasProductCapability(capabilities, "RESERVAS_PRO");
+    const canManageRoles =
+        Boolean(user?.is_super_admin) ||
+        (hasBookingModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
 
     const [services, setServices] = useState<ServiceItem[]>([]);
     const [staffMember, setStaffMember] = useState<StaffMember | null>(null);
