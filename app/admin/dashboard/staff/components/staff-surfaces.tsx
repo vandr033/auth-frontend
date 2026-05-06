@@ -101,6 +101,16 @@ function companyHasBookingModule(capabilities: CompanyCapabilities | null | unde
     );
 }
 
+function companyHasActiveCoreProduct(capabilities: CompanyCapabilities | null | undefined) {
+    return (
+        capabilities?.products?.some(
+            (product) =>
+                product.isCore &&
+                (product.status === "ACTIVE" || product.status === "TRIALING"),
+        ) ?? false
+    );
+}
+
 function getInitials(name: string) {
     return name
         .split(" ")
@@ -261,12 +271,15 @@ export function StaffRosterSurface() {
     const { t } = useI18n();
     const capabilities = companyUser?.company?.capabilities;
     const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
+    const hasStaffModule =
+        Boolean(user?.is_super_admin) ||
+        companyHasActiveCoreProduct(capabilities);
     const hasBookingModule =
         Boolean(user?.is_super_admin) ||
         companyHasBookingModule(capabilities);
     const canManageRoles =
         Boolean(user?.is_super_admin) ||
-        (hasBookingModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
+        (hasStaffModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
 
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [services, setServices] = useState<ServiceItem[]>([]);
@@ -645,12 +658,15 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
     const isEditing = Number.isInteger(staffId);
     const capabilities = companyUser?.company?.capabilities;
     const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
+    const hasStaffModule =
+        Boolean(user?.is_super_admin) ||
+        companyHasActiveCoreProduct(capabilities);
     const hasBookingModule =
         Boolean(user?.is_super_admin) ||
         companyHasBookingModule(capabilities);
     const canManageRoles =
         Boolean(user?.is_super_admin) ||
-        (hasBookingModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
+        (hasStaffModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
 
     const [services, setServices] = useState<ServiceItem[]>([]);
     const [staffMember, setStaffMember] = useState<StaffMember | null>(null);
