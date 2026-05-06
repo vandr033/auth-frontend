@@ -58,8 +58,9 @@ import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { canUseEntitledFeature, getStaffLimitForPlan, type CompanyCapabilities } from "@/lib/plans/capabilities";
-import { hasProductTier } from "@/lib/product-access";
+import { hasProductCapability } from "@/lib/product-access";
 import { cn } from "@/lib/utils";
+import { isEntitlementApiError } from "@/lib/api-error";
 import { getImageUrl } from "@/utils/image-url";
 
 type StaffRosterStatus = "active" | "pending" | "inactive" | "scheduled" | "expired";
@@ -96,8 +97,8 @@ const initialFormData: StaffFormData = {
 
 function companyHasBookingModule(capabilities: CompanyCapabilities | null | undefined) {
     return (
-        hasProductTier(capabilities, "RESERVAS_BASE") ||
-        hasProductTier(capabilities, "RESERVAS_PRO")
+        hasProductCapability(capabilities, "RESERVAS_BASE") ||
+        hasProductCapability(capabilities, "RESERVAS_PRO")
     );
 }
 
@@ -266,6 +267,43 @@ function buildEditableFormData(member: StaffMember): StaffFormData {
     };
 }
 
+function isReservasServicesEntitlementError(error: unknown) {
+    return (
+        isEntitlementApiError(error) &&
+        (
+            error.reason === "PRODUCT_NOT_ACTIVE" ||
+            error.capability === "RESERVAS_BASE" ||
+            error.capability === "RESERVAS_PRO"
+        )
+    );
+}
+
+async function loadOptionalStaffServices(shouldLoadServices: boolean) {
+    if (!shouldLoadServices) {
+        return {
+            services: [] as ServiceItem[],
+            canAssignServices: false,
+        };
+    }
+
+    try {
+        const services = await getServices();
+        return {
+            services,
+            canAssignServices: true,
+        };
+    } catch (error) {
+        if (isReservasServicesEntitlementError(error)) {
+            return {
+                services: [] as ServiceItem[],
+                canAssignServices: false,
+            };
+        }
+
+        throw error;
+    }
+}
+
 export function StaffRosterSurface() {
     const { companyUser, user } = useAdminAuth();
     const { t } = useI18n();
@@ -283,6 +321,7 @@ export function StaffRosterSurface() {
 
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [services, setServices] = useState<ServiceItem[]>([]);
+    const [canAssignServices, setCanAssignServices] = useState(hasBookingModule);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [resourceFilter, setResourceFilter] = useState<StaffResourceFilter>("all");
@@ -297,12 +336,13 @@ export function StaffRosterSurface() {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const [staffRows, serviceRows] = await Promise.all([
+            const [staffRows, serviceResult] = await Promise.all([
                 getStaff(),
-                hasBookingModule ? getServices() : Promise.resolve([] as ServiceItem[]),
+                loadOptionalStaffServices(hasBookingModule),
             ]);
             setStaff(staffRows);
-            setServices(serviceRows);
+            setServices(serviceResult.services);
+            setCanAssignServices(serviceResult.canAssignServices);
         } catch (error: unknown) {
             await notify.error(error instanceof Error ? error.message : t("adminStaff.loadDataError"));
         } finally {
@@ -322,7 +362,7 @@ export function StaffRosterSurface() {
                 member.display_name,
                 member.user?.email,
                 getResourceTypeLabel(member.resource_type),
-                getServiceCoverage(member),
+                canAssignServices ? getServiceCoverage(member) : null,
             ]
                 .filter(Boolean)
                 .join(" ")
@@ -335,7 +375,7 @@ export function StaffRosterSurface() {
             if (statusFilter !== "all" && status !== statusFilter) return false;
             return true;
         });
-    }, [bookableFilter, getResourceTypeLabel, getServiceCoverage, resourceFilter, searchQuery, staff, statusFilter]);
+    }, [bookableFilter, canAssignServices, getResourceTypeLabel, getServiceCoverage, resourceFilter, searchQuery, staff, statusFilter]);
 
     const isStaffLimitReached = maxStaffMembers !== null && staff.length >= maxStaffMembers;
     const bookableCount = staff.filter((member) => member.is_bookable).length;
@@ -421,7 +461,7 @@ export function StaffRosterSurface() {
                     message={t("planEnforcement.staffLimitReached")}
                 />
             ) : null}
-            {!canManageRoles && hasBookingModule ? (
+            {!canManageRoles && canAssignServices ? (
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={t("planEnforcement.availableOnBusiness")}
@@ -513,10 +553,12 @@ export function StaffRosterSurface() {
                                 <span className="text-slate-500">{t("adminStaff.resourceType")}</span>
                                 <span className="font-medium text-slate-800">{getResourceTypeLabel(member.resource_type)}</span>
                             </div>
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-slate-500">{t("adminStaff.assignedServices")}</span>
-                                <span className="max-w-[60%] truncate text-right font-medium text-slate-800">{getServiceCoverage(member)}</span>
-                            </div>
+                            {canAssignServices ? (
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="text-slate-500">{t("adminStaff.assignedServices")}</span>
+                                    <span className="max-w-[60%] truncate text-right font-medium text-slate-800">{getServiceCoverage(member)}</span>
+                                </div>
+                            ) : null}
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-slate-500">{t("adminStaff.bookable")}</span>
                                 <div className="flex items-center gap-2">
@@ -568,16 +610,18 @@ export function StaffRosterSurface() {
                             />
                         ),
                     },
-                    {
-                        key: "services",
-                        header: t("adminStaff.assignedServices"),
-                        cell: (member) => (
-                            <div className="max-w-xs">
-                                <p className="truncate text-sm font-medium text-slate-800">{getServiceCoverage(member)}</p>
-                                <p className="text-xs text-slate-500">{t("adminStaff.servicesCount", { count: member.services?.length || 0 })}</p>
-                            </div>
-                        ),
-                    },
+                    ...(canAssignServices
+                        ? [{
+                            key: "services",
+                            header: t("adminStaff.assignedServices"),
+                            cell: (member: StaffMember) => (
+                                <div className="max-w-xs">
+                                    <p className="truncate text-sm font-medium text-slate-800">{getServiceCoverage(member)}</p>
+                                    <p className="text-xs text-slate-500">{t("adminStaff.servicesCount", { count: member.services?.length || 0 })}</p>
+                                </div>
+                            ),
+                        }]
+                        : []),
                     {
                         key: "bookable",
                         header: t("adminStaff.bookable"),
@@ -669,6 +713,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
         (hasStaffModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
 
     const [services, setServices] = useState<ServiceItem[]>([]);
+    const [canAssignServices, setCanAssignServices] = useState(hasBookingModule);
     const [staffMember, setStaffMember] = useState<StaffMember | null>(null);
     const [loading, setLoading] = useState(Boolean(isEditing));
     const [submitting, setSubmitting] = useState(false);
@@ -686,20 +731,18 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
         async function load() {
             setLoading(Boolean(isEditing));
             try {
-                const requests: Array<Promise<unknown>> = [getStaff()];
-                if (hasBookingModule) {
-                    requests.push(getServices());
-                }
+                const requests: Array<Promise<unknown>> = [getStaff(), loadOptionalStaffServices(hasBookingModule)];
                 if (isEditing && staffId) {
                     requests.push(getStaffById(staffId));
                 }
                 const results = await Promise.all(requests);
                 const staffRows = results[0] as StaffMember[];
-                const serviceRows = hasBookingModule ? (results[1] as ServiceItem[]) : [];
-                const selectedMember = isEditing ? (results[hasBookingModule ? 2 : 1] as StaffMember) : null;
+                const serviceResult = results[1] as Awaited<ReturnType<typeof loadOptionalStaffServices>>;
+                const selectedMember = isEditing ? (results[2] as StaffMember) : null;
 
                 if (!isMounted) return;
-                setServices(serviceRows);
+                setServices(serviceResult.services);
+                setCanAssignServices(serviceResult.canAssignServices);
                 setStaffCount(staffRows.length);
 
                 if (selectedMember) {
@@ -786,7 +829,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
             let saved: StaffMember;
             if (isEditing && staffId) {
                 saved = await updateStaffMember(staffId, basePayload);
-                if (hasBookingModule) {
+                if (canAssignServices) {
                     await updateStaffMemberServices(staffId, formData.service_ids);
                 }
             } else {
@@ -796,7 +839,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                     role: canManageRoles ? formData.role : "STAFF",
                     phone_prefix: formData.phone_prefix.trim() || undefined,
                     phone: formData.phone.trim() || undefined,
-                    service_ids: hasBookingModule ? formData.service_ids : [],
+                    service_ids: canAssignServices ? formData.service_ids : [],
                     ...(formData.start_date ? { start_date: formData.start_date } : {}),
                     ...(formData.end_date ? { end_date: formData.end_date } : {}),
                 });
@@ -854,7 +897,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                     message={t("planEnforcement.staffLimitReached")}
                 />
             ) : null}
-            {!canManageRoles && hasBookingModule ? (
+            {!canManageRoles && canAssignServices ? (
                 <PlanUpgradeNotice
                     title={t("planEnforcement.featureLockedTitle")}
                     message={t("planEnforcement.availableOnBusiness")}
@@ -1020,7 +1063,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                     </CardContent>
                 </Card>
 
-                {hasBookingModule ? (
+                {canAssignServices ? (
                     <Card className="admin-card">
                         <CardHeader>
                             <CardTitle>{t("adminStaff.assignedServices")}</CardTitle>
@@ -1103,6 +1146,7 @@ export function StaffProfileSurface({ staffId }: { staffId: number }) {
         companyHasBookingModule(capabilities);
     const [member, setMember] = useState<StaffMember | null>(null);
     const [services, setServices] = useState<ServiceItem[]>([]);
+    const [canAssignServices, setCanAssignServices] = useState(hasBookingModule);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -1113,13 +1157,14 @@ export function StaffProfileSurface({ staffId }: { staffId: number }) {
             setLoading(true);
             setError(null);
             try {
-                const [staffMember, serviceRows] = await Promise.all([
+                const [staffMember, serviceResult] = await Promise.all([
                     getStaffById(staffId),
-                    hasBookingModule ? getServices() : Promise.resolve([] as ServiceItem[]),
+                    loadOptionalStaffServices(hasBookingModule),
                 ]);
                 if (!isMounted) return;
                 setMember(staffMember);
-                setServices(serviceRows);
+                setServices(serviceResult.services);
+                setCanAssignServices(serviceResult.canAssignServices);
             } catch (fetchError: unknown) {
                 if (!isMounted) return;
                 setError(fetchError instanceof Error ? fetchError.message : t("adminStaff.loadDataError"));
@@ -1198,7 +1243,9 @@ export function StaffProfileSurface({ staffId }: { staffId: number }) {
             <AdminMetricGrid>
                 <StatCard label={t("adminStaff.resourceType")} value={getResourceTypeLabel(member.resource_type)} hint={t("adminStaff.bookable")} icon={<UserRound className="h-5 w-5" />} />
                 <StatCard label={t("adminStaff.availability")} value={getStatusLabel(status)} hint={getAvailabilityLabel(member)} icon={<CalendarClock className="h-5 w-5" />} />
-                <StatCard label={t("adminStaff.assignedServices")} value={member.services?.length || 0} hint={getServiceCoverage(member)} icon={<CheckCircle2 className="h-5 w-5" />} />
+                {canAssignServices ? (
+                    <StatCard label={t("adminStaff.assignedServices")} value={member.services?.length || 0} hint={getServiceCoverage(member)} icon={<CheckCircle2 className="h-5 w-5" />} />
+                ) : null}
                 <StatCard label={t("adminStaff.bookable")} value={member.is_bookable ? t("superAdminShops.yes") : t("superAdminShops.no")} hint={t("adminStaff.bookableToggleHint")} icon={<CheckCircle2 className="h-5 w-5" />} />
             </AdminMetricGrid>
 
@@ -1257,7 +1304,7 @@ export function StaffProfileSurface({ staffId }: { staffId: number }) {
                     </CardContent>
                 </Card>
 
-                {hasBookingModule ? (
+                {canAssignServices ? (
                     <Card className="admin-card">
                         <CardHeader>
                             <CardTitle>{t("adminStaff.assignedServices")}</CardTitle>
