@@ -4,14 +4,8 @@ import { useEffect } from "react";
 
 export function DevServiceWorkerCleanup() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development") return;
     if (typeof window === "undefined") return;
-
-    const isLocalhost =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1" ||
-      window.location.hostname === "::1";
-    if (!isLocalhost) return;
+    if (process.env.NEXT_PUBLIC_PWA_ENABLED === "true") return;
 
     if ("serviceWorker" in navigator) {
       void navigator.serviceWorker.getRegistrations().then((registrations) => {

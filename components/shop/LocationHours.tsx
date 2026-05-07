@@ -33,7 +33,10 @@ interface LocationHoursProps {
 
 export function LocationHours({ company, hours, className, pointsOfSale = [] }: LocationHoursProps) {
     const t = useT();
-    const activePointsOfSale = pointsOfSale.filter((point) => point.is_active !== false);
+    const activePointsOfSale = React.useMemo(
+        () => pointsOfSale.filter((point) => point.is_active !== false),
+        [pointsOfSale],
+    );
     const showPointsOfSale = activePointsOfSale.length > 0;
     const locale = React.useMemo(
         () => (typeof navigator !== "undefined" ? navigator.language : "es-BO"),

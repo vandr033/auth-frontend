@@ -122,6 +122,13 @@ export function useResolvedPointOfSaleLocations<TPoint extends PointOfSaleLocati
   const [locationsById, setLocationsById] = React.useState<
     Record<string, ResolvedPointOfSaleLocation>
   >({});
+  const pointsSignature = React.useMemo(
+    () =>
+      points
+        .map((point) => `${point.id}:${point.latitude}:${point.longitude}:${point.address}`)
+        .join("|"),
+    [points],
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -139,7 +146,28 @@ export function useResolvedPointOfSaleLocations<TPoint extends PointOfSaleLocati
       );
 
       if (cancelled) return;
-      setLocationsById(Object.fromEntries(entries));
+      const nextLocations = Object.fromEntries(entries) as Record<string, ResolvedPointOfSaleLocation>;
+      setLocationsById((current) => {
+        const currentEntries = Object.entries(current);
+        const nextEntries = Object.entries(nextLocations);
+
+        if (currentEntries.length === nextEntries.length) {
+          const isSame = nextEntries.every(([key, value]) => {
+            const currentValue = current[key];
+            return (
+              currentValue?.city === value.city &&
+              currentValue?.countryCode === value.countryCode &&
+              currentValue?.countryLabel === value.countryLabel
+            );
+          });
+
+          if (isSame) {
+            return current;
+          }
+        }
+
+        return nextLocations;
+      });
     };
 
     void run();
@@ -147,7 +175,7 @@ export function useResolvedPointOfSaleLocations<TPoint extends PointOfSaleLocati
     return () => {
       cancelled = true;
     };
-  }, [locale, points]);
+  }, [locale, points, pointsSignature]);
 
   return locationsById;
 }

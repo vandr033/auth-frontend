@@ -1,14 +1,21 @@
-import type { NextConfig } from "next"
+import type { NextConfig } from "next";
 import withPWAInit from "next-pwa";
+
+const isPwaEnabled =
+  process.env.NODE_ENV === "production" &&
+  process.env.ENABLE_PWA === "true";
 
 const withPWA = withPWAInit({
   dest: "public",
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
+  disable: !isPwaEnabled,
 });
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_PWA_ENABLED: isPwaEnabled ? "true" : "false",
+  },
   images: {
     remotePatterns: [
       {
@@ -46,6 +53,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-}
+};
 
 export default withPWA(nextConfig);
