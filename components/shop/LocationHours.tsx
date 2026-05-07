@@ -196,7 +196,7 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                         <div
                             className={cn(
                                 "rounded-lg border border-surface-border bg-surface p-6 shadow-card",
-                                showPointsOfSale && "md:flex md:h-[400px] md:flex-col",
+                                showPointsOfSale && "md:flex md:h-[640px] md:flex-col",
                             )}
                         >
                             <div className={cn(showPointsOfSale && "md:flex-none")}>
@@ -250,7 +250,7 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                                             {activePointsOfSale.length}
                                         </span>
                                     </div>
-                                    <div className="max-h-[24rem] overflow-y-auto pr-1 md:h-full md:max-h-none">
+                                    <div className="max-h-[24rem] overflow-y-auto pr-1 md:h-full md:min-h-[12rem] md:max-h-none">
                                         {renderPointsOfSaleLists()}
                                     </div>
                                 </div>
@@ -264,9 +264,9 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                             {showPointsOfSale ? (
                                 <ShopPointsOfSaleMap
                                     points={activePointsOfSale}
-                                    className="h-80 w-full md:min-h-[400px]"
+                                    className="h-80 w-full md:min-h-[640px]"
                                     fallback={
-                                        <div className="flex h-80 w-full items-center justify-center bg-section text-text-muted md:min-h-[400px]">
+                                        <div className="flex h-80 w-full items-center justify-center bg-section text-text-muted md:min-h-[640px]">
                                             {t('sharedUi.mapNotAvailable')}
                                         </div>
                                     }
