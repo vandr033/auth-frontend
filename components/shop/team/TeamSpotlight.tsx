@@ -51,9 +51,11 @@ export function TeamSpotlight({ staff, slug }: TeamSpotlightProps) {
                         </p>
                     )}
                     <div className="mt-6">
-                        <Link href={`/shop/${slug}/book?staffId=${featured.id}`}>
-                            <PrimaryButton>{t('shopHome.bookWith', { name: featured.display_name.split(" ")[0] })}</PrimaryButton>
-                        </Link>
+                        <PrimaryButton asChild>
+                            <Link href={`/shop/${slug}/book?staffId=${featured.id}`}>
+                                {t('shopHome.bookWith', { name: featured.display_name.split(" ")[0] })}
+                            </Link>
+                        </PrimaryButton>
                     </div>
                 </div>
             </div>

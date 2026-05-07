@@ -828,7 +828,12 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
 
             let saved: StaffMember;
             if (isEditing && staffId) {
-                saved = await updateStaffMember(staffId, basePayload);
+                saved = await updateStaffMember(staffId, {
+                    ...basePayload,
+                    email: formData.email.trim(),
+                    phone_prefix: formData.phone_prefix.trim() || undefined,
+                    phone: formData.phone.trim() || undefined,
+                });
                 if (canAssignServices) {
                     await updateStaffMemberServices(staffId, formData.service_ids);
                 }
@@ -997,12 +1002,38 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminStaff.email")}</p>
-                                <p className="mt-1 text-sm text-slate-800">{staffMember?.user?.email || t("adminStaff.noEmail")}</p>
-                            </div>
-                            <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.status")}</p>
                                 <p className="mt-1 text-sm text-slate-800">{staffMember?.status || "ACTIVE"}</p>
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <Label htmlFor="email">{t("adminStaff.email")}</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(event) => setFormData((current) => ({ ...current, email: event.target.value }))}
+                                    placeholder={t("adminStaff.emailPlaceholder")}
+                                />
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-3 md:col-span-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone_prefix">{t("superAdminShops.countryCode")}</Label>
+                                    <Input
+                                        id="phone_prefix"
+                                        value={formData.phone_prefix}
+                                        onChange={(event) => setFormData((current) => ({ ...current, phone_prefix: event.target.value }))}
+                                        placeholder="591"
+                                    />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label htmlFor="phone">{t("adminCustomers.phone")}</Label>
+                                    <Input
+                                        id="phone"
+                                        value={formData.phone}
+                                        onChange={(event) => setFormData((current) => ({ ...current, phone: event.target.value }))}
+                                        placeholder="70000000"
+                                    />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

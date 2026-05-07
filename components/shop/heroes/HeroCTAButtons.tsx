@@ -80,30 +80,30 @@ export function HeroCTAButtons({
                 if (isPrimary) {
                     const bg = hexToRgba(btn.color, btn.opacity);
                     return (
-                        <Link key={btn.destination} href={href}>
-                            <button
-                                style={{ backgroundColor: bg, color: getReadableTextColor(btn.color) }}
-                                className={`${sharedClass} shadow-card hover:opacity-90`}
-                            >
-                                {btn.label}
-                            </button>
+                        <Link
+                            key={btn.destination}
+                            href={href}
+                            style={{ backgroundColor: bg, color: getReadableTextColor(btn.color) }}
+                            className={`${sharedClass} shadow-card hover:opacity-90`}
+                        >
+                            {btn.label}
                         </Link>
                     );
                 }
 
                 const ghostColor = hexToRgba(btn.color, btn.opacity);
-                return (
-                    <Link key={btn.destination} href={href}>
-                        <button
-                            style={{
-                                borderColor: ghostColor,
-                                color: ghostColor,
-                                backgroundColor: "transparent",
-                            }}
-                            className={`${sharedClass} border backdrop-blur-sm hover:opacity-80`}
-                        >
-                            {btn.label}
-                        </button>
+                    return (
+                        <Link
+                            key={btn.destination}
+                            href={href}
+                        style={{
+                            borderColor: ghostColor,
+                            color: ghostColor,
+                            backgroundColor: "transparent",
+                        }}
+                        className={`${sharedClass} border backdrop-blur-sm hover:opacity-80`}
+                    >
+                        {btn.label}
                     </Link>
                 );
             })}

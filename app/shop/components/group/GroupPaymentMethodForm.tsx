@@ -117,7 +117,7 @@ export function GroupPaymentMethodForm({
             <input
               id="group-qr-proof-upload"
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp,application/pdf"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0] || null;

@@ -832,7 +832,7 @@ export function NewBookingModal({
                                                                         {t("adminBookings.uploadQrProof")}
                                                                         <input
                                                                             type="file"
-                                                                            accept="image/png,image/jpeg,image/webp"
+                                                                            accept="image/png,image/jpeg,image/webp,application/pdf"
                                                                             className="hidden"
                                                                             onChange={(e) => void handleSingleQrUpload(e.target.files?.[0] || null)}
                                                                         />
@@ -1068,7 +1068,7 @@ export function NewBookingModal({
                                                                                     {t("adminBookings.uploadQrProof")}
                                                                                     <input
                                                                                         type="file"
-                                                                                        accept="image/png,image/jpeg,image/webp"
+                                                                                        accept="image/png,image/jpeg,image/webp,application/pdf"
                                                                                         className="hidden"
                                                                                         onChange={(e) => void handleSessionQrUpload(session.key, e.target.files?.[0] || null)}
                                                                                     />

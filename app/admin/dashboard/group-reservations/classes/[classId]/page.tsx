@@ -68,6 +68,7 @@ import {
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ProofAssetPreview } from "@/components/ui/proof-asset-preview";
 import {
     Dialog,
     DialogContent,
@@ -1312,13 +1313,11 @@ export default function GroupClassDetailPage() {
                         <DialogTitle>{t("adminGroup.actions.viewQrProof")}</DialogTitle>
                     </DialogHeader>
                     {qrProofDialog ? (
-                        <div className="flex flex-col items-center gap-3 py-2">
-                            <img
-                                src={getImageUrl(qrProofDialog) || qrProofDialog}
-                                alt="QR proof"
-                                className="max-h-80 w-full rounded-lg border border-slate-200 object-contain"
-                            />
-                        </div>
+                        <ProofAssetPreview
+                            alt="QR proof"
+                            title={t("adminGroup.actions.viewQrProof")}
+                            url={getImageUrl(qrProofDialog) || qrProofDialog}
+                        />
                     ) : null}
                 </DialogContent>
             </Dialog>
@@ -1456,7 +1455,7 @@ export default function GroupClassDetailPage() {
                                     {addMemberUploadingQr ? t("common.loading") : t("adminBookings.uploadQrProof")}
                                     <input
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/png,image/jpeg,image/webp,application/pdf"
                                         className="hidden"
                                         onChange={(e) => void handleAddMemberQrUpload(e.target.files?.[0] ?? null)}
                                         disabled={addMemberUploadingQr}

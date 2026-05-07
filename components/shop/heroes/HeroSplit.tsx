@@ -62,17 +62,17 @@ export function HeroSplit({ company, reviewStats, slug, homeCTAButtons, publicFe
                     className="mt-8 flex flex-wrap gap-3"
                     defaultContent={
                         resolvedPublicFeatures.bookingsEnabled ? (
-                            <Link href={`/shop/${slug}/book`}>
-                                <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                            <PrimaryButton asChild className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                                <Link href={`/shop/${slug}/book`}>
                                     {t('common.bookNow')}
-                                </PrimaryButton>
-                            </Link>
+                                </Link>
+                            </PrimaryButton>
                         ) : resolvedPublicFeatures.commerceVisible ? (
-                            <Link href={`/shop/${slug}/store`}>
-                                <PrimaryButton className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                            <PrimaryButton asChild className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
+                                <Link href={`/shop/${slug}/store`}>
                                     {t('shopNav.store')}
-                                </PrimaryButton>
-                            </Link>
+                                </Link>
+                            </PrimaryButton>
                         ) : null
                     }
                 />

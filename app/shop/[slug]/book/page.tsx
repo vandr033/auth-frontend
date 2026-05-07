@@ -1322,7 +1322,7 @@ function ConfirmStep({
                                                 <input
                                                     id="qr-proof-upload"
                                                     type="file"
-                                                    accept="image/*"
+                                                    accept="image/png,image/jpeg,image/webp,application/pdf"
                                                     className="hidden"
                                                     onChange={(e) => {
                                                         const file = e.target.files?.[0] || null;

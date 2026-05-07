@@ -89,13 +89,13 @@ export default function AboutPage() {
                     )}
                     <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                         {publicFeatures.bookingsEnabled ? (
-                            <Link href={`/shop/${slug}/book`}>
-                                <PrimaryButton>{t('common.bookNow')}</PrimaryButton>
-                            </Link>
+                            <PrimaryButton asChild>
+                                <Link href={`/shop/${slug}/book`}>{t('common.bookNow')}</Link>
+                            </PrimaryButton>
                         ) : publicFeatures.commerceVisible ? (
-                            <Link href={`/shop/${slug}/store`}>
-                                <PrimaryButton>{t('shopNav.store')}</PrimaryButton>
-                            </Link>
+                            <PrimaryButton asChild>
+                                <Link href={`/shop/${slug}/store`}>{t('shopNav.store')}</Link>
+                            </PrimaryButton>
                         ) : null}
                     </div>
                 </div>

@@ -702,7 +702,7 @@ export default function ShopClassDetailPage() {
                 <input
                   id="class-online-qr-proof-upload"
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp,application/pdf"
                   className="hidden"
                   onChange={(event) => setQrProofFile(event.target.files?.[0] || null)}
                 />

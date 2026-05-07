@@ -76,11 +76,11 @@ export function ServicesGrid({ categories, services, slug, currency, maxItems }:
                                     </p>
                                 )}
                                 <div className="mt-4 pt-2">
-                                    <Link href={`/shop/${slug}/book?serviceId=${service.id}`} className="block">
-                                        <PrimaryButton className="w-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                    <PrimaryButton asChild className="w-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                        <Link href={`/shop/${slug}/book?serviceId=${service.id}`} className="block">
                                             {t('shopServices.book')}
-                                        </PrimaryButton>
-                                    </Link>
+                                        </Link>
+                                    </PrimaryButton>
                                 </div>
                             </div>
                         ))}

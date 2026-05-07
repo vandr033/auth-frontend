@@ -186,7 +186,7 @@ export function InstallmentPlanCard({
                                             </label>
                                             <input
                                                 type="file"
-                                                accept="image/png,image/jpeg,image/webp"
+                                                accept="image/png,image/jpeg,image/webp,application/pdf"
                                                 className="block w-full rounded-md border border-surface-border bg-white px-3 py-2 text-sm text-text-main"
                                                 onChange={(event) =>
                                                     setSelectedFiles((prev) => ({

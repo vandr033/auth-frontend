@@ -70,7 +70,7 @@ function MediaUploadField({
             </div>
             <Input
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept="image/png,image/jpeg,image/webp,application/pdf"
                 onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
             />
             {(preview || fallbackUrl) ? (

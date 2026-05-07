@@ -29,6 +29,7 @@ export type PublicCommerceOrderItem = {
 export type PublicCommerceOrder = {
     id: string;
     order_number: string;
+    public_access_token?: string | null;
     customer_name: string;
     payment_method: "CASH" | "QR" | "MANUAL";
     payment_status: string;
@@ -253,8 +254,15 @@ export async function verifyPublicCommerceGuestCheckout(
 export async function getPublicCommerceOrder(
     slug: string,
     orderNumber: string,
+    accessToken?: string | null,
 ): Promise<PublicCommerceOrderLookupResponse> {
-    const response = await fetch(resolveApiUrl(`/api/public/commerce/${slug}/orders/${orderNumber}`), {
+    const search = new URLSearchParams();
+    if (accessToken) {
+        search.set("token", accessToken);
+    }
+
+    const suffix = search.size > 0 ? `?${search.toString()}` : "";
+    const response = await fetch(resolveApiUrl(`/api/public/commerce/${slug}/orders/${orderNumber}${suffix}`), {
         credentials: "include",
         cache: "no-store",
     });
@@ -265,6 +273,7 @@ export async function submitPublicCommercePaymentProof(
     slug: string,
     orderNumber: string,
     paymentProofUrl: string,
+    accessToken?: string | null,
 ) {
     const response = await fetch(
         resolveApiUrl(`/api/public/commerce/${slug}/orders/${orderNumber}/payment-proof`),
@@ -272,29 +281,49 @@ export async function submitPublicCommercePaymentProof(
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ paymentProofUrl }),
+            body: JSON.stringify({ paymentProofUrl, accessToken }),
         },
     );
     return parseApiResponse<PublicCommerceOrder>(response);
 }
 
-export async function uploadPublicCommercePaymentProof(companyId: number, file: File) {
+export async function uploadCheckoutCommercePaymentProof(slug: string, file: File) {
     const formData = new FormData();
     formData.append("image", file);
-    formData.append("company_id", companyId.toString());
 
-    const response = await fetch(resolveApiUrl("/api/upload/qr"), {
+    const response = await fetch(resolveApiUrl(`/api/public/commerce/${slug}/checkout/payment-proof-upload`), {
         method: "POST",
+        credentials: "include",
         body: formData,
     });
-    return parseApiResponse<{ url: string }>(response);
+    return parseApiResponse<{ url: string; deleteToken?: string }>(response);
 }
 
-export async function deletePublicCommercePaymentProof(url: string) {
+export async function uploadPublicCommercePaymentProof(
+    slug: string,
+    orderNumber: string,
+    file: File,
+    accessToken?: string | null,
+) {
+    const formData = new FormData();
+    formData.append("image", file);
+    if (accessToken) {
+        formData.append("accessToken", accessToken);
+    }
+
+    const response = await fetch(resolveApiUrl(`/api/public/commerce/${slug}/orders/${orderNumber}/payment-proof/upload`), {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+    });
+    return parseApiResponse<{ url: string; deleteToken?: string }>(response);
+}
+
+export async function deletePublicCommercePaymentProof(url: string, deleteToken?: string) {
     const response = await fetch(resolveApiUrl("/api/upload/qr"), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, deleteToken }),
     });
     return parseApiResponse<{ success?: boolean }>(response);
 }

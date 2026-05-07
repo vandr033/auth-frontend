@@ -68,17 +68,17 @@ export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons, public
                     className="mt-10 flex flex-wrap items-center justify-center gap-3"
                     defaultContent={
                         resolvedPublicFeatures.bookingsEnabled ? (
-                            <Link href={`/shop/${slug}/book`}>
-                                <PrimaryButton className="px-10 py-4 text-lg">
+                            <PrimaryButton asChild className="px-10 py-4 text-lg">
+                                <Link href={`/shop/${slug}/book`}>
                                     {t('common.bookNow')}
-                                </PrimaryButton>
-                            </Link>
+                                </Link>
+                            </PrimaryButton>
                         ) : resolvedPublicFeatures.commerceVisible ? (
-                            <Link href={`/shop/${slug}/store`}>
-                                <PrimaryButton className="px-10 py-4 text-lg">
+                            <PrimaryButton asChild className="px-10 py-4 text-lg">
+                                <Link href={`/shop/${slug}/store`}>
                                     {t('shopNav.store')}
-                                </PrimaryButton>
-                            </Link>
+                                </Link>
+                            </PrimaryButton>
                         ) : null
                     }
                 />

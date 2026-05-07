@@ -107,9 +107,9 @@ export function ServicesList({ categories, services, slug, currency, maxItems }:
                                                     {service.description}
                                                 </p>
                                             )}
-                                            <Link href={`/shop/${slug}/book?serviceId=${service.id}`}>
-                                                <PrimaryButton className="px-6">{t('shopServices.book')}</PrimaryButton>
-                                            </Link>
+                                            <PrimaryButton asChild className="px-6">
+                                                <Link href={`/shop/${slug}/book?serviceId=${service.id}`}>{t('shopServices.book')}</Link>
+                                            </PrimaryButton>
                                         </div>
                                     )}
                                 </div>

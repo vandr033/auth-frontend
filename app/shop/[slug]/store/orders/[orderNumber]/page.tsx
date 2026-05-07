@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 import { PaymentProofUploader } from "@/app/shop/components/commerce/PaymentProofUploader";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,9 @@ function translatePaymentMethod(method: string | null | undefined, t: ReturnType
 export default function StoreOrderStatusPage() {
     const t = useT();
     const params = useParams<{ orderNumber: string }>();
+    const searchParams = useSearchParams();
     const orderNumber = params?.orderNumber ?? "";
+    const accessToken = searchParams?.get("token") ?? "";
     const { slug, company: shopCompany } = useShop();
     const [orderLookup, setOrderLookup] = React.useState<PublicCommerceOrderLookupResponse | null>(null);
     const [loading, setLoading] = React.useState(true);
@@ -51,14 +53,14 @@ export default function StoreOrderStatusPage() {
         try {
             setLoading(true);
             if (!orderNumber) return;
-            const data = await getPublicCommerceOrder(slug, orderNumber);
+            const data = await getPublicCommerceOrder(slug, orderNumber, accessToken || null);
             setOrderLookup(data);
         } catch (error) {
             notify.error(error instanceof Error ? error.message : t("shopStore.orderNotFound"));
         } finally {
             setLoading(false);
         }
-    }, [orderNumber, slug, t]);
+    }, [accessToken, orderNumber, slug, t]);
 
     React.useEffect(() => {
         void refreshOrder();
@@ -197,8 +199,18 @@ export default function StoreOrderStatusPage() {
                                             try {
                                                 setUploading(true);
                                                 setProofError(null);
-                                                const upload = await uploadPublicCommercePaymentProof(company.id, proofFile);
-                                                await submitPublicCommercePaymentProof(slug, order.order_number, upload.url);
+                                                const upload = await uploadPublicCommercePaymentProof(
+                                                    slug,
+                                                    order.order_number,
+                                                    proofFile,
+                                                    accessToken || null,
+                                                );
+                                                await submitPublicCommercePaymentProof(
+                                                    slug,
+                                                    order.order_number,
+                                                    upload.url,
+                                                    accessToken || null,
+                                                );
                                                 setProofFile(null);
                                                 notify.success(t("shopStore.proofSent"));
                                                 await refreshOrder();

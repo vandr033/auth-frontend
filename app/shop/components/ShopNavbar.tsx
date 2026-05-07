@@ -286,11 +286,11 @@ export function ShopNavbar() {
                 <div className="hidden items-center gap-3 md:flex">
                     <SocialIcons socialLinks={socialLinks} iconSize={16} className="gap-2" />
                     {isShopActive && publicFeatures.bookingsEnabled ? (
-                        <Link href={`${basePath}/book`}>
-                            <Button className="rounded-md bg-brand px-6 py-2 text-white shadow-card transition hover:bg-brand-hover">
+                        <Button asChild className="rounded-md bg-brand px-6 py-2 text-white shadow-card transition hover:bg-brand-hover">
+                            <Link href={`${basePath}/book`}>
                                 {t('shopNav.book')}
-                            </Button>
-                        </Link>
+                            </Link>
+                        </Button>
                     ) : null}
                     <LanguageSwitcher variant="shop" />
                     <AuthActions />
@@ -299,11 +299,11 @@ export function ShopNavbar() {
                 {/* Mobile Actions */}
                 <div className="flex items-center gap-2 md:hidden">
                     {isShopActive && publicFeatures.bookingsEnabled ? (
-                        <Link href={`${basePath}/book`}>
-                            <Button className="rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover">
+                        <Button asChild className="rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover">
+                            <Link href={`${basePath}/book`}>
                                 {t('shopNav.bookShort')}
-                            </Button>
-                        </Link>
+                            </Link>
+                        </Button>
                     ) : null}
                     <Sheet open={open} onOpenChange={setOpen}>
                         <SheetTrigger asChild>
@@ -357,11 +357,11 @@ export function ShopNavbar() {
 
                                 {/* Book Now */}
                                 {isShopActive && publicFeatures.bookingsEnabled ? (
-                                    <Link href={`${basePath}/book`} onClick={() => setOpen(false)}>
-                                        <Button className="w-full rounded-md bg-brand px-4 py-2 text-white shadow-card hover:bg-brand-hover">
+                                    <Button asChild className="w-full rounded-md bg-brand px-4 py-2 text-white shadow-card hover:bg-brand-hover">
+                                        <Link href={`${basePath}/book`} onClick={() => setOpen(false)}>
                                             {t('shopNav.book')}
-                                        </Button>
-                                    </Link>
+                                        </Link>
+                                    </Button>
                                 ) : null}
 
                                 {/* Social Links */}

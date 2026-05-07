@@ -20,6 +20,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
+import {
+  groupPointsOfSaleByLocation,
+  useResolvedPointOfSaleLocations,
+} from "@/lib/point-of-sale-location";
 
 function formatTime(time: string) {
   const [hourString, minuteString = "00"] = time.split(":");
@@ -32,6 +36,10 @@ function formatTime(time: string) {
 
 export function StorePointsOfSalePage() {
   const t = useT();
+  const locale = React.useMemo(
+    () => (typeof navigator !== "undefined" ? navigator.language : "es-BO"),
+    [],
+  );
   const [loading, setLoading] = React.useState(true);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -63,6 +71,17 @@ export function StorePointsOfSalePage() {
         .some((value) => String(value).toLowerCase().includes(normalized)),
     );
   }, [points, searchValue]);
+  const locationsById = useResolvedPointOfSaleLocations(filteredPoints, locale);
+  const pointGroups = React.useMemo(
+    () =>
+      groupPointsOfSaleByLocation(filteredPoints, locationsById, {
+        city: t("adminStore.pointsOfSale.otherCity"),
+        country: t("adminStore.pointsOfSale.otherCountry"),
+      }),
+    [filteredPoints, locationsById, t],
+  );
+  const showCountryMenus = pointGroups.length > 1;
+  const showCityMenus = !showCountryMenus && pointGroups[0]?.cities.length > 1;
 
   const handleDelete = async (point: AdminCommercePointOfSale) => {
     try {
@@ -80,6 +99,59 @@ export function StorePointsOfSalePage() {
   if (loading) {
     return <LoadingSkeleton variant="cards" rows={3} />;
   }
+
+  const renderPointCard = (point: AdminCommercePointOfSale) => (
+    <div key={point.id} className="rounded-2xl border border-slate-200 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold text-slate-950">{point.name}</p>
+            <StatusBadge tone={point.is_active ? "success" : "neutral"} dot>
+              {point.is_active ? t("common.enabled") : t("common.disabled")}
+            </StatusBadge>
+          </div>
+          <p className="text-sm text-slate-600">{point.address}</p>
+          <p className="text-sm text-slate-500">
+            {t("adminStore.pointsOfSale.hoursSummary", {
+              openingTime: formatTime(point.opening_time),
+              closingTime: formatTime(point.closing_time),
+            })}
+          </p>
+          {point.notes ? <p className="text-sm text-slate-500">{point.notes}</p> : null}
+          <a
+            href={point.google_maps_url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex text-sm font-medium text-admin-brand hover:underline"
+          >
+            {t("adminStore.pointsOfSale.openMaps")}
+          </a>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/dashboard/store/points-of-sale/${point.id}`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="mr-2 h-4 w-4" />
+              {t("common.edit")}
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+            onClick={() => void handleDelete(point)}
+            disabled={deletingId === point.id}
+          >
+            {deletingId === point.id ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 h-4 w-4" />
+            )}
+            {t("common.delete")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -111,60 +183,65 @@ export function StorePointsOfSalePage() {
               title={t("adminStore.pointsOfSale.emptyTitle")}
               description={t("adminStore.pointsOfSale.emptyDescription")}
             />
+          ) : showCountryMenus ? (
+            <div className="space-y-3">
+              {pointGroups.map((countryGroup, countryIndex) => (
+                <details
+                  key={countryGroup.key}
+                  open={countryIndex === 0}
+                  className="rounded-2xl border border-slate-200 bg-white"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-slate-950">
+                    <span>{countryGroup.label}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">
+                      {countryGroup.cities.reduce((total, city) => total + city.points.length, 0)}
+                    </span>
+                  </summary>
+                  <div className="space-y-4 border-t border-slate-200 px-4 py-4">
+                    {countryGroup.cities.map((cityGroup) => (
+                      <details
+                        key={`${countryGroup.key}-${cityGroup.key}`}
+                        open
+                        className="rounded-2xl border border-slate-200 bg-slate-50"
+                      >
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-slate-900">
+                          <span>{cityGroup.label}</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-500">
+                            {cityGroup.points.length}
+                          </span>
+                        </summary>
+                        <div className="space-y-3 border-t border-slate-200 p-4">
+                          {cityGroup.points.map(renderPointCard)}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
+          ) : showCityMenus ? (
+            <div className="space-y-3">
+              {pointGroups[0]?.cities.map((cityGroup, cityIndex) => (
+                <details
+                  key={cityGroup.key}
+                  open={cityIndex === 0}
+                  className="rounded-2xl border border-slate-200 bg-white"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-slate-950">
+                    <span>{cityGroup.label}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">
+                      {cityGroup.points.length}
+                    </span>
+                  </summary>
+                  <div className="space-y-3 border-t border-slate-200 p-4">
+                    {cityGroup.points.map(renderPointCard)}
+                  </div>
+                </details>
+              ))}
+            </div>
           ) : (
             <div className="space-y-3">
-              {filteredPoints.map((point) => (
-                <div key={point.id} className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-slate-950">{point.name}</p>
-                        <StatusBadge tone={point.is_active ? "success" : "neutral"} dot>
-                          {point.is_active ? t("common.enabled") : t("common.disabled")}
-                        </StatusBadge>
-                      </div>
-                      <p className="text-sm text-slate-600">{point.address}</p>
-                      <p className="text-sm text-slate-500">
-                        {t("adminStore.pointsOfSale.hoursSummary", {
-                          openingTime: formatTime(point.opening_time),
-                          closingTime: formatTime(point.closing_time),
-                        })}
-                      </p>
-                      {point.notes ? <p className="text-sm text-slate-500">{point.notes}</p> : null}
-                      <a
-                        href={point.google_maps_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex text-sm font-medium text-admin-brand hover:underline"
-                      >
-                        {t("adminStore.pointsOfSale.openMaps")}
-                      </a>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Link href={`/admin/dashboard/store/points-of-sale/${point.id}`}>
-                        <Button variant="outline" size="sm">
-                          <Pencil className="mr-2 h-4 w-4" />
-                          {t("common.edit")}
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                        onClick={() => void handleDelete(point)}
-                        disabled={deletingId === point.id}
-                      >
-                        {deletingId === point.id ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="mr-2 h-4 w-4" />
-                        )}
-                        {t("common.delete")}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {pointGroups[0]?.cities[0]?.points.map(renderPointCard)}
             </div>
           )}
         </CardContent>

@@ -85,24 +85,24 @@ export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTA
                     defaultContent={
                         <>
                             {resolvedPublicFeatures.bookingsEnabled ? (
-                                <Link href={`/shop/${slug}/book`}>
-                                    <PrimaryButton className="min-w-[180px] px-8 py-4 text-lg">
+                                <PrimaryButton asChild className="min-w-[180px] px-8 py-4 text-lg">
+                                    <Link href={`/shop/${slug}/book`}>
                                         {t('common.bookNow')}
-                                    </PrimaryButton>
-                                </Link>
+                                    </Link>
+                                </PrimaryButton>
                             ) : null}
                             {resolvedPublicFeatures.servicesVisible ? (
-                                <Link href={`/shop/${slug}/services`}>
-                                    <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
+                                <Button asChild className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
+                                    <Link href={`/shop/${slug}/services`}>
                                         {t('shopNav.services')}
-                                    </Button>
-                                </Link>
+                                    </Link>
+                                </Button>
                             ) : resolvedPublicFeatures.commerceVisible ? (
-                                <Link href={`/shop/${slug}/store`}>
-                                    <Button className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
+                                <Button asChild className="min-w-[160px] border border-white/40 bg-white/10 px-6 py-4 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">
+                                    <Link href={`/shop/${slug}/store`}>
                                         {t('shopNav.store')}
-                                    </Button>
-                                </Link>
+                                    </Link>
+                                </Button>
                             ) : null}
                         </>
                     }

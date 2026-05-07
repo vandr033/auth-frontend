@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React from "react";
-import { X } from "lucide-react";
+import { FileText, X } from "lucide-react";
 
 type QrProofPreviewProps = {
   file: File;
@@ -13,6 +13,7 @@ type QrProofPreviewProps = {
 
 export function QrProofPreview({ file, alt, removeLabel, onRemove }: QrProofPreviewProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const isImage = file.type.startsWith("image/");
 
   React.useEffect(() => {
     const objectUrl = URL.createObjectURL(file);
@@ -26,8 +27,13 @@ export function QrProofPreview({ file, alt, removeLabel, onRemove }: QrProofPrev
   return (
     <div className="space-y-3 rounded-md border border-surface-border bg-white p-3">
       <div className="overflow-hidden rounded-md border border-surface-border bg-slate-50">
-        {previewUrl ? (
+        {previewUrl && isImage ? (
           <img src={previewUrl} alt={alt} className="h-52 w-full object-contain" />
+        ) : previewUrl ? (
+          <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center text-text-muted">
+            <FileText className="h-8 w-8" />
+            <span className="text-sm font-medium">{file.name}</span>
+          </div>
         ) : null}
       </div>
 

@@ -30,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { GroupLocationPicker } from "@/components/maps/GroupLocationPicker";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
+import { ProofAssetPreview } from "@/components/ui/proof-asset-preview";
 import {
     Table,
     TableBody,
@@ -1028,7 +1029,7 @@ export default function GroupEventDetailPage() {
                             <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
                             <Input
                                 type="file"
-                                accept="image/png,image/jpeg,image/webp"
+                                accept="image/png,image/jpeg,image/webp,application/pdf"
                                 onChange={(event) => handleSelectCoverImage(event.target.files?.[0] ?? null)}
                             />
                             {(coverImagePreview || form.cover_image_url) ? (
@@ -1046,7 +1047,7 @@ export default function GroupEventDetailPage() {
                             <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
                             <Input
                                 type="file"
-                                accept="image/png,image/jpeg,image/webp"
+                                accept="image/png,image/jpeg,image/webp,application/pdf"
                                 onChange={(event) => handleSelectThumbnailImage(event.target.files?.[0] ?? null)}
                             />
                             {(thumbnailImagePreview || form.thumbnail_url) ? (
@@ -2027,13 +2028,11 @@ export default function GroupEventDetailPage() {
                         <DialogTitle>{t("adminGroup.actions.viewQrProof")}</DialogTitle>
                     </DialogHeader>
                     {qrProofDialog ? (
-                        <div className="flex flex-col items-center gap-3 py-2">
-                            <img
-                                src={getImageUrl(qrProofDialog) || qrProofDialog}
-                                alt="QR proof"
-                                className="max-h-80 w-full rounded-lg border border-slate-200 object-contain"
-                            />
-                        </div>
+                        <ProofAssetPreview
+                            alt="QR proof"
+                            title={t("adminGroup.actions.viewQrProof")}
+                            url={getImageUrl(qrProofDialog) || qrProofDialog}
+                        />
                     ) : null}
                 </DialogContent>
             </Dialog>

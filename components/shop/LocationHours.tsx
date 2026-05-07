@@ -1,9 +1,14 @@
 "use client";
 
+import * as React from "react";
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ShopCommercePointOfSale, ShopCompany, ShopHours } from "@/types/shop";
 import { useT } from "@/lib/i18n";
+import {
+    groupPointsOfSaleByLocation,
+    useResolvedPointOfSaleLocations,
+} from "@/lib/point-of-sale-location";
 import { ShopLocationMap } from "@/components/shop/ShopLocationMap";
 import { ShopPointsOfSaleMap } from "@/components/shop/ShopPointsOfSaleMap";
 
@@ -30,6 +35,21 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
     const t = useT();
     const activePointsOfSale = pointsOfSale.filter((point) => point.is_active !== false);
     const showPointsOfSale = activePointsOfSale.length > 0;
+    const locale = React.useMemo(
+        () => (typeof navigator !== "undefined" ? navigator.language : "es-BO"),
+        [],
+    );
+    const locationsById = useResolvedPointOfSaleLocations(activePointsOfSale, locale);
+    const pointGroups = React.useMemo(
+        () =>
+            groupPointsOfSaleByLocation(activePointsOfSale, locationsById, {
+                city: t("shopHome.otherCity"),
+                country: t("shopHome.otherCountry"),
+            }),
+        [activePointsOfSale, locationsById, t],
+    );
+    const showCountryMenus = pointGroups.length > 1;
+    const showCityMenus = !showCountryMenus && pointGroups[0]?.cities.length > 1;
 
     const mapQuery = [company.address, company.city, company.state, company.country_code]
         .filter(Boolean)
@@ -59,6 +79,35 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
     }, {} as Record<number, ShopHours[]>);
 
     const today = new Date().getDay();
+
+    const renderPointCard = (point: ShopCommercePointOfSale) => (
+        <div key={point.id} className="rounded-lg border border-surface-border bg-surface p-4 shadow-card">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="font-semibold text-text-main">{point.name}</p>
+                    <p className="mt-1 text-sm text-text-muted">{point.address}</p>
+                    <p className="mt-2 text-sm text-text-muted">
+                        {t("shopHome.pointOfSaleHours", {
+                            openingTime: formatTime(point.opening_time),
+                            closingTime: formatTime(point.closing_time),
+                        })}
+                    </p>
+                    {point.notes ? (
+                        <p className="mt-2 text-sm text-text-muted">{point.notes}</p>
+                    ) : null}
+                </div>
+                <a
+                    href={point.google_maps_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand-hover"
+                >
+                    {t('sharedUi.getDirections')}
+                    <ExternalLink className="h-4 w-4" />
+                </a>
+            </div>
+        </div>
+    );
 
     return (
         <section className={cn("py-16 md:py-24", className)}>
@@ -156,36 +205,67 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
                                     {t("shopHome.pointsOfSale")}
                                 </p>
-                                <div className="space-y-3">
-                                    {activePointsOfSale.map((point) => (
-                                        <div key={point.id} className="rounded-lg border border-surface-border bg-surface p-4 shadow-card">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <p className="font-semibold text-text-main">{point.name}</p>
-                                                    <p className="mt-1 text-sm text-text-muted">{point.address}</p>
-                                                    <p className="mt-2 text-sm text-text-muted">
-                                                        {t("shopHome.pointOfSaleHours", {
-                                                            openingTime: formatTime(point.opening_time),
-                                                            closingTime: formatTime(point.closing_time),
-                                                        })}
-                                                    </p>
-                                                    {point.notes ? (
-                                                        <p className="mt-2 text-sm text-text-muted">{point.notes}</p>
-                                                    ) : null}
+                                {showCountryMenus ? (
+                                    <div className="space-y-3">
+                                        {pointGroups.map((countryGroup, countryIndex) => (
+                                            <details
+                                                key={countryGroup.key}
+                                                open={countryIndex === 0}
+                                                className="rounded-lg border border-surface-border bg-surface shadow-card"
+                                            >
+                                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-text-main">
+                                                    <span>{countryGroup.label}</span>
+                                                    <span className="rounded-full bg-page px-2.5 py-1 text-xs text-text-muted">
+                                                        {countryGroup.cities.reduce((total, city) => total + city.points.length, 0)}
+                                                    </span>
+                                                </summary>
+                                                <div className="space-y-4 border-t border-surface-border px-4 py-4">
+                                                    {countryGroup.cities.map((cityGroup) => (
+                                                        <details
+                                                            key={`${countryGroup.key}-${cityGroup.key}`}
+                                                            open
+                                                            className="rounded-lg border border-surface-border bg-page"
+                                                        >
+                                                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-text-main">
+                                                                <span>{cityGroup.label}</span>
+                                                                <span className="rounded-full bg-surface px-2.5 py-1 text-xs text-text-muted">
+                                                                    {cityGroup.points.length}
+                                                                </span>
+                                                            </summary>
+                                                            <div className="space-y-3 border-t border-surface-border p-4">
+                                                                {cityGroup.points.map(renderPointCard)}
+                                                            </div>
+                                                        </details>
+                                                    ))}
                                                 </div>
-                                                <a
-                                                    href={point.google_maps_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand-hover"
-                                                >
-                                                    {t('sharedUi.getDirections')}
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </a>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                            </details>
+                                        ))}
+                                    </div>
+                                ) : showCityMenus ? (
+                                    <div className="space-y-3">
+                                        {pointGroups[0]?.cities.map((cityGroup, cityIndex) => (
+                                            <details
+                                                key={cityGroup.key}
+                                                open={cityIndex === 0}
+                                                className="rounded-lg border border-surface-border bg-surface shadow-card"
+                                            >
+                                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-text-main">
+                                                    <span>{cityGroup.label}</span>
+                                                    <span className="rounded-full bg-page px-2.5 py-1 text-xs text-text-muted">
+                                                        {cityGroup.points.length}
+                                                    </span>
+                                                </summary>
+                                                <div className="space-y-3 border-t border-surface-border p-4">
+                                                    {cityGroup.points.map(renderPointCard)}
+                                                </div>
+                                            </details>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {pointGroups[0]?.cities[0]?.points.map(renderPointCard)}
+                                    </div>
+                                )}
                             </div>
                         ) : company.address ? (
                             <p className="mt-3 text-sm text-text-muted">

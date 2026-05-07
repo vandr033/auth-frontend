@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import * as React from "react";
-import { ImageIcon, Upload, X } from "lucide-react";
+import { FileText, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -60,7 +60,7 @@ export function PaymentProofUploader({
         ref={inputRef}
         id={id}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,application/pdf"
         className="hidden"
         disabled={disabled}
         onChange={(event) => {
@@ -121,7 +121,7 @@ export function PaymentProofUploader({
               />
             ) : (
               <div className="flex h-40 items-center justify-center text-text-muted">
-                <ImageIcon className="mr-2 h-5 w-5" />
+                <FileText className="mr-2 h-5 w-5" />
                 <span className="text-sm">{file.name}</span>
               </div>
             )}

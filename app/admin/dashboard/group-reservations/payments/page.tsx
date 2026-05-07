@@ -21,6 +21,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ProofAssetPreview } from "@/components/ui/proof-asset-preview";
 import {
     bulkSendGroupInstallmentReminders,
     confirmGroupEnrollmentInstallmentQr,
@@ -352,13 +353,11 @@ export default function GroupPaymentsPage() {
                         <DialogTitle>{t("adminGroup.actions.viewQrProof")}</DialogTitle>
                     </DialogHeader>
                     {qrDialog ? (
-                        <div className="flex flex-col items-center gap-3 py-2">
-                            <img
-                                src={qrDialog}
-                                alt="QR proof"
-                                className="max-h-80 w-full rounded-lg border border-slate-200 object-contain"
-                            />
-                        </div>
+                        <ProofAssetPreview
+                            alt="QR proof"
+                            title={t("adminGroup.actions.viewQrProof")}
+                            url={qrDialog}
+                        />
                     ) : null}
                 </DialogContent>
             </Dialog>

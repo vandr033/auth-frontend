@@ -19,7 +19,7 @@ import {
     getPublicCommerceStore,
     resendPublicCommerceGuestCheckout,
     startPublicCommerceGuestCheckout,
-    uploadPublicCommercePaymentProof,
+    uploadCheckoutCommercePaymentProof,
     verifyPublicCommerceGuestCheckout,
     type PublicCommerceGuestCheckoutResult,
     type PublicCommercePickupPoint,
@@ -557,6 +557,7 @@ export default function StoreCheckoutPage() {
                                 }
 
                                 let uploadedProofUrl: string | null = null;
+                                let uploadedProofDeleteToken: string | null = null;
                                 try {
                                     if (enabledPaymentMethods.length === 0) {
                                         throw new Error(t("shopStore.noPaymentMethodsEnabled"));
@@ -570,11 +571,9 @@ export default function StoreCheckoutPage() {
                                     setSubmitting(true);
                                     setPaymentProofError(null);
                                     if (!awaitsManualDeliveryCost && supportsProofPayment && paymentProofFile) {
-                                        if (!company?.id) {
-                                            throw new Error(t("shopStore.unableToIdentifyStore"));
-                                        }
-                                        const upload = await uploadPublicCommercePaymentProof(company.id, paymentProofFile);
+                                        const upload = await uploadCheckoutCommercePaymentProof(slug, paymentProofFile);
                                         uploadedProofUrl = upload.url;
+                                        uploadedProofDeleteToken = upload.deleteToken ?? null;
                                     }
 
                                     if (!awaitsManualDeliveryCost && requiresProof && !uploadedProofUrl) {
@@ -614,10 +613,17 @@ export default function StoreCheckoutPage() {
                                     clear();
                                     setPaymentProofFile(null);
                                     notify.success(t("shopStore.orderCreated"));
-                                    router.push(`/shop/${slug}/store/orders/${order.order_number}`);
+                                    const orderToken =
+                                        typeof order.public_access_token === "string" && order.public_access_token
+                                            ? `?token=${encodeURIComponent(order.public_access_token)}`
+                                            : "";
+                                    router.push(`/shop/${slug}/store/orders/${order.order_number}${orderToken}`);
                                 } catch (error) {
                                     if (uploadedProofUrl) {
-                                        void deletePublicCommercePaymentProof(uploadedProofUrl).catch(() => undefined);
+                                        void deletePublicCommercePaymentProof(
+                                            uploadedProofUrl,
+                                            uploadedProofDeleteToken || undefined,
+                                        ).catch(() => undefined);
                                     }
                                     notify.error(error instanceof Error ? error.message : t("shopStore.orderCreateFailed"));
                                 } finally {

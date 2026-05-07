@@ -609,7 +609,7 @@ export default function NewGroupEventPage() {
                                 <Label>{t("adminGroup.fields.coverImageUrl")}</Label>
                                 <Input
                                     type="file"
-                                    accept="image/png,image/jpeg,image/webp"
+                                    accept="image/png,image/jpeg,image/webp,application/pdf"
                                     onChange={(event) => handleSelectCoverImage(event.target.files?.[0] ?? null)}
                                 />
                                 {coverImagePreview ? (
@@ -622,7 +622,7 @@ export default function NewGroupEventPage() {
                                 <Label>{t("adminGroup.fields.thumbnailUrl")}</Label>
                                 <Input
                                     type="file"
-                                    accept="image/png,image/jpeg,image/webp"
+                                    accept="image/png,image/jpeg,image/webp,application/pdf"
                                     onChange={(event) => handleSelectThumbnailImage(event.target.files?.[0] ?? null)}
                                 />
                                 {thumbnailImagePreview ? (
