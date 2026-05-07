@@ -112,6 +112,72 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
         </div>
     );
 
+    const renderCityDetails = (
+        cityGroup: (typeof pointGroups)[number]["cities"][number],
+        className?: string,
+    ) => (
+        <details
+            key={cityGroup.key}
+            className={cn("rounded-lg border border-surface-border bg-page", className)}
+        >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-text-main">
+                <span>{cityGroup.label}</span>
+                <span className="rounded-full bg-surface px-2.5 py-1 text-xs text-text-muted">
+                    {cityGroup.points.length}
+                </span>
+            </summary>
+            <div className="space-y-3 border-t border-surface-border p-4">
+                {cityGroup.points.map(renderPointCard)}
+            </div>
+        </details>
+    );
+
+    const renderPointsOfSaleLists = () => {
+        if (!showPointsOfSale) return null;
+
+        if (showCountryMenus) {
+            return (
+                <div className="space-y-3">
+                    {pointGroups.map((countryGroup) => (
+                        <details
+                            key={countryGroup.key}
+                            className="rounded-lg border border-surface-border bg-surface shadow-card"
+                        >
+                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-text-main">
+                                <span>{countryGroup.label}</span>
+                                <span className="rounded-full bg-page px-2.5 py-1 text-xs text-text-muted">
+                                    {countryGroup.cities.reduce((total, city) => total + city.points.length, 0)}
+                                </span>
+                            </summary>
+                            <div className="space-y-4 border-t border-surface-border px-4 py-4">
+                                {countryGroup.cities.map((cityGroup) =>
+                                    renderCityDetails(cityGroup),
+                                )}
+                            </div>
+                        </details>
+                    ))}
+                </div>
+            );
+        }
+
+        if (showCityMenus) {
+            return (
+                <div className="space-y-3">
+                    {pointGroups[0]?.cities.map((cityGroup) => renderCityDetails(cityGroup, "bg-surface shadow-card"))}
+                </div>
+            );
+        }
+
+        const singleCity = pointGroups[0]?.cities[0];
+        if (!singleCity) return null;
+
+        return (
+            <div className="space-y-3">
+                {renderCityDetails(singleCity, "bg-surface shadow-card")}
+            </div>
+        );
+    };
+
     return (
         <section className={cn("py-16 md:py-24", className)}>
             <div className="mx-auto max-w-6xl px-4 md:px-8">
@@ -127,45 +193,68 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                 <div className="grid gap-8 md:grid-cols-2">
                     {/* Hours — shown first on mobile */}
                     <div className="order-1 md:order-2">
-                        <div className="rounded-lg border border-surface-border bg-surface p-6 shadow-card">
-                            <h3 className="mb-4 font-heading text-lg font-semibold text-text-main">
-                                {t('sharedUi.openingHours')}
-                            </h3>
-                            <div className="divide-y divide-surface-border">
-                                {orderedDayIndexes.map(dayIndex => {
-                                    const dayHours = hoursMap[dayIndex];
-                                    const label = t(dayKeys[dayIndex]);
-                                    const display = formatHoursForDayLocalized(dayHours);
-                                    const isClosed = display === t('shopHome.closed');
-                                    const isToday = dayIndex === today;
+                        <div
+                            className={cn(
+                                "rounded-lg border border-surface-border bg-surface p-6 shadow-card",
+                                showPointsOfSale && "md:flex md:h-[400px] md:flex-col",
+                            )}
+                        >
+                            <div className={cn(showPointsOfSale && "md:flex-none")}>
+                                <h3 className="mb-4 font-heading text-lg font-semibold text-text-main">
+                                    {t('sharedUi.openingHours')}
+                                </h3>
+                                <div className="divide-y divide-surface-border">
+                                    {orderedDayIndexes.map(dayIndex => {
+                                        const dayHours = hoursMap[dayIndex];
+                                        const label = t(dayKeys[dayIndex]);
+                                        const display = formatHoursForDayLocalized(dayHours);
+                                        const isClosed = display === t('shopHome.closed');
+                                        const isToday = dayIndex === today;
 
-                                    return (
-                                        <div
-                                            key={dayIndex}
-                                            className={cn(
-                                                "flex items-center justify-between py-3 text-sm",
-                                                isToday && "rounded px-2 -mx-2 bg-brand-soft-bg"
-                                            )}
-                                        >
-                                            <span className={cn(
-                                                "font-semibold",
-                                                isToday ? "text-brand" : "text-text-main"
-                                            )}>
-                                                {label}
-                                                {isToday && (
-                                                    <span className="ml-2 text-xs font-normal text-brand">{t('shopHome.todayHours')}</span>
+                                        return (
+                                            <div
+                                                key={dayIndex}
+                                                className={cn(
+                                                    "flex items-center justify-between py-3 text-sm",
+                                                    isToday && "rounded px-2 -mx-2 bg-brand-soft-bg"
                                                 )}
-                                            </span>
-                                            <span className={cn(
-                                                "text-right whitespace-pre-line",
-                                                isClosed ? "text-text-muted" : "text-text-main"
-                                            )}>
-                                                {display}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                                            >
+                                                <span className={cn(
+                                                    "font-semibold",
+                                                    isToday ? "text-brand" : "text-text-main"
+                                                )}>
+                                                    {label}
+                                                    {isToday && (
+                                                        <span className="ml-2 text-xs font-normal text-brand">{t('shopHome.todayHours')}</span>
+                                                    )}
+                                                </span>
+                                                <span className={cn(
+                                                    "text-right whitespace-pre-line",
+                                                    isClosed ? "text-text-muted" : "text-text-main"
+                                                )}>
+                                                    {display}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
+
+                            {showPointsOfSale ? (
+                                <div className="mt-6 border-t border-surface-border pt-5 md:min-h-0 md:flex-1">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
+                                            {t("shopHome.pointsOfSale")}
+                                        </p>
+                                        <span className="rounded-full bg-page px-2.5 py-1 text-xs text-text-muted">
+                                            {activePointsOfSale.length}
+                                        </span>
+                                    </div>
+                                    <div className="max-h-[24rem] overflow-y-auto pr-1 md:h-full md:max-h-none">
+                                        {renderPointsOfSaleLists()}
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
@@ -203,74 +292,7 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                                 />
                             )}
                         </div>
-                        {showPointsOfSale ? (
-                            <div className="mt-4 space-y-3">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
-                                    {t("shopHome.pointsOfSale")}
-                                </p>
-                                {showCountryMenus ? (
-                                    <div className="space-y-3">
-                                        {pointGroups.map((countryGroup, countryIndex) => (
-                                            <details
-                                                key={countryGroup.key}
-                                                open={countryIndex === 0}
-                                                className="rounded-lg border border-surface-border bg-surface shadow-card"
-                                            >
-                                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-text-main">
-                                                    <span>{countryGroup.label}</span>
-                                                    <span className="rounded-full bg-page px-2.5 py-1 text-xs text-text-muted">
-                                                        {countryGroup.cities.reduce((total, city) => total + city.points.length, 0)}
-                                                    </span>
-                                                </summary>
-                                                <div className="space-y-4 border-t border-surface-border px-4 py-4">
-                                                    {countryGroup.cities.map((cityGroup) => (
-                                                        <details
-                                                            key={`${countryGroup.key}-${cityGroup.key}`}
-                                                            open
-                                                            className="rounded-lg border border-surface-border bg-page"
-                                                        >
-                                                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-text-main">
-                                                                <span>{cityGroup.label}</span>
-                                                                <span className="rounded-full bg-surface px-2.5 py-1 text-xs text-text-muted">
-                                                                    {cityGroup.points.length}
-                                                                </span>
-                                                            </summary>
-                                                            <div className="space-y-3 border-t border-surface-border p-4">
-                                                                {cityGroup.points.map(renderPointCard)}
-                                                            </div>
-                                                        </details>
-                                                    ))}
-                                                </div>
-                                            </details>
-                                        ))}
-                                    </div>
-                                ) : showCityMenus ? (
-                                    <div className="space-y-3">
-                                        {pointGroups[0]?.cities.map((cityGroup, cityIndex) => (
-                                            <details
-                                                key={cityGroup.key}
-                                                open={cityIndex === 0}
-                                                className="rounded-lg border border-surface-border bg-surface shadow-card"
-                                            >
-                                                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-text-main">
-                                                    <span>{cityGroup.label}</span>
-                                                    <span className="rounded-full bg-page px-2.5 py-1 text-xs text-text-muted">
-                                                        {cityGroup.points.length}
-                                                    </span>
-                                                </summary>
-                                                <div className="space-y-3 border-t border-surface-border p-4">
-                                                    {cityGroup.points.map(renderPointCard)}
-                                                </div>
-                                            </details>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {pointGroups[0]?.cities[0]?.points.map(renderPointCard)}
-                                    </div>
-                                )}
-                            </div>
-                        ) : company.address ? (
+                        {!showPointsOfSale && company.address ? (
                             <p className="mt-3 text-sm text-text-muted">
                                 {company.address}{company.city ? `, ${company.city}` : ""}
                             </p>

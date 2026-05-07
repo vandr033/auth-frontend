@@ -1924,6 +1924,27 @@ export default function BookingPage() {
         );
     }, [booking.groupSlots, booking.staff, selectableStaff]);
 
+    const getSchedulingStaffForItem = React.useCallback((item: BookingScheduleItem) => {
+        if (item.group.fixedStaff) return item.group.fixedStaff;
+        if (booking.staff && booking.staff.id !== "any") return booking.staff;
+
+        const siblingSlot = Object.values(booking.groupSlots).find(
+            (slot): slot is BookingScheduleSlot =>
+                slot != null &&
+                slot.groupId === item.group.id &&
+                slot.key !== item.key,
+        );
+
+        if (!siblingSlot) {
+            return booking.staff;
+        }
+
+        return (
+            selectableStaff.find((staffEntry) => staffEntry.id === siblingSlot.staff_id) ??
+            booking.staff
+        );
+    }, [booking.groupSlots, booking.staff, selectableStaff]);
+
     const toggleService = React.useCallback((service: SelectedService) => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setSchedulePage(0);
@@ -2543,7 +2564,7 @@ export default function BookingPage() {
                                     companyId={company.id}
                                     isActive={booking.step === 3}
                                     selectedServices={activeScheduleItem.group.services}
-                                    selectedStaff={getEffectiveGroupStaff(activeScheduleItem.group)}
+                                    selectedStaff={getSchedulingStaffForItem(activeScheduleItem)}
                                     selectedSecondaryStaff={activeScheduleItem.group.fixedSecondaryStaff}
                                     selectedSlot={booking.groupSlots[activeScheduleItem.key]}
                                     onSelectSlot={(slot) => selectSlot(activeScheduleItem, slot)}
