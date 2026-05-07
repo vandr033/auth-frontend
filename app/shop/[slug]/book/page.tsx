@@ -614,8 +614,7 @@ function DateTimeStep({
     const [selectedHour, setSelectedHour] = useState<number | null>(null);
     const hasLoadedDates = React.useRef(false);
     const prefillSlotAppliedRef = React.useRef(false);
-    const activeSlotsRequestKeyRef = React.useRef<string | null>(null);
-    const completedSlotsRequestKeyRef = React.useRef<string | null>(null);
+    const latestSlotsRequestIdRef = React.useRef(0);
     const api = useApi();
     const selectedServiceIds = useMemo(
         () => selectedServices.map((service) => service.id).join(","),
@@ -720,29 +719,16 @@ function DateTimeStep({
     React.useEffect(() => {
         if (!isActive || !selectedDate || selectedServiceIds.length === 0) return;
 
-        const requestKey = [
-            companyId,
-            selectedDate,
-            selectedServiceIds,
-            selectedStaffId,
-            selectedSecondaryStaffId,
-            minAdvanceMinutes ?? "",
-            slotDurationMinutes,
-            blockedIntervalsKey,
-            refreshVersion ?? 0,
-        ].join("|");
-
-        if (
-            activeSlotsRequestKeyRef.current === requestKey ||
-            completedSlotsRequestKeyRef.current === requestKey
-        ) {
-            return;
-        }
-
         const controller = new AbortController();
+        const requestId = latestSlotsRequestIdRef.current + 1;
+        latestSlotsRequestIdRef.current = requestId;
+        let timedOut = false;
+        const timeoutId = window.setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+        }, 15000);
 
         const fetchSlots = async () => {
-            activeSlotsRequestKeyRef.current = requestKey;
             setLoadingSlots(true);
             setSlotsError(null);
             setSlots([]);
@@ -791,18 +777,18 @@ function DateTimeStep({
                     });
                 }
 
+                if (latestSlotsRequestIdRef.current !== requestId) return;
                 setSlots(fetchedSlots);
             } catch (err) {
-                if (controller.signal.aborted) return;
+                if (latestSlotsRequestIdRef.current !== requestId) return;
+                if (controller.signal.aborted && !timedOut) return;
                 setSlotsError(err instanceof Error ? err.message : "No pudimos cargar los horarios disponibles.");
             } finally {
-                if (!controller.signal.aborted) {
-                    completedSlotsRequestKeyRef.current = requestKey;
+                window.clearTimeout(timeoutId);
+                if (latestSlotsRequestIdRef.current !== requestId) return;
+                if (timedOut) {
+                    setSlotsError("La carga de horarios tardó demasiado. Volvé a elegir la fecha para reintentar.");
                 }
-                if (activeSlotsRequestKeyRef.current === requestKey) {
-                    activeSlotsRequestKeyRef.current = null;
-                }
-                if (controller.signal.aborted) return;
                 setLoadingSlots(false);
             }
         };
@@ -810,6 +796,7 @@ function DateTimeStep({
         void fetchSlots();
 
         return () => {
+            window.clearTimeout(timeoutId);
             controller.abort();
         };
     }, [
@@ -2561,15 +2548,39 @@ export default function BookingPage() {
                                     selectedSlot={booking.groupSlots[activeScheduleItem.key]}
                                     onSelectSlot={(slot) => selectSlot(activeScheduleItem, slot)}
                                     selectedDate={scheduleDates[activeScheduleItem.key] ?? null}
-                                    onSelectDate={(date) =>
-                                        {
-                                            setSubmitError(null);
-                                            setScheduleDates((prev) => ({
-                                                ...prev,
-                                                [activeScheduleItem.key]: date,
-                                            }));
-                                        }
-                                    }
+                                    onSelectDate={(date) => {
+                                        setSubmitError(null);
+                                        setScheduleDates((prev) => ({
+                                            ...prev,
+                                            [activeScheduleItem.key]: date,
+                                        }));
+                                        setBooking((current) => {
+                                            const currentSlot = current.groupSlots[activeScheduleItem.key];
+                                            if (!currentSlot || currentSlot.date === date) {
+                                                return current;
+                                            }
+
+                                            const nextGroupSlots = {
+                                                ...current.groupSlots,
+                                                [activeScheduleItem.key]: null,
+                                            };
+                                            const firstItem = scheduleItems[0];
+                                            const firstSlot = firstItem ? nextGroupSlots[firstItem.key] : null;
+
+                                            return {
+                                                ...current,
+                                                groupSlots: nextGroupSlots,
+                                                slot: firstSlot
+                                                    ? {
+                                                        date: firstSlot.date,
+                                                        time: firstSlot.time,
+                                                        staff_id: firstSlot.staff_id,
+                                                        staff_name: firstSlot.staff_name,
+                                                    }
+                                                    : null,
+                                            };
+                                        });
+                                    }}
                                     timezone={company.timezone}
                                     preferredSlotTime={activeScheduleItem.group.isMultiSession ? null : preselectedSlotTime}
                                     marketplacePrefillEnabled={isMarketplaceSource && !activeScheduleItem.group.isMultiSession}
