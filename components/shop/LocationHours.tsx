@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ExternalLink } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ShopCommercePointOfSale, ShopCompany, ShopHours } from "@/types/shop";
 import { useT } from "@/lib/i18n";
@@ -33,6 +33,7 @@ interface LocationHoursProps {
 
 export function LocationHours({ company, hours, className, pointsOfSale = [] }: LocationHoursProps) {
     const t = useT();
+    const [hoursCollapsed, setHoursCollapsed] = React.useState(false);
     const activePointsOfSale = React.useMemo(
         () => pointsOfSale.filter((point) => point.is_active !== false),
         [pointsOfSale],
@@ -82,6 +83,19 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
     }, {} as Record<number, ShopHours[]>);
 
     const today = new Date().getDay();
+    const todayDisplay = formatHoursForDayLocalized(hoursMap[today]);
+
+    React.useEffect(() => {
+        if (!showPointsOfSale) {
+            setHoursCollapsed(false);
+        }
+    }, [showPointsOfSale]);
+
+    const handleDetailsToggle = React.useCallback((isOpen: boolean) => {
+        if (isOpen) {
+            setHoursCollapsed(true);
+        }
+    }, []);
 
     const renderPointCard = (point: ShopCommercePointOfSale) => (
         <div key={point.id} className="rounded-lg border border-surface-border bg-surface p-4 shadow-card">
@@ -119,6 +133,7 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
         <details
             key={cityGroup.key}
             className={cn("rounded-lg border border-surface-border bg-page", className)}
+            onToggle={(event) => handleDetailsToggle(event.currentTarget.open)}
         >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-text-main">
                 <span>{cityGroup.label}</span>
@@ -142,6 +157,7 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                         <details
                             key={countryGroup.key}
                             className="rounded-lg border border-surface-border bg-surface shadow-card"
+                            onToggle={(event) => handleDetailsToggle(event.currentTarget.open)}
                         >
                             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-text-main">
                                 <span>{countryGroup.label}</span>
@@ -199,10 +215,42 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                                 showPointsOfSale && "md:flex md:h-[640px] md:flex-col",
                             )}
                         >
-                            <div className={cn(showPointsOfSale && "md:flex-none")}>
+                            {showPointsOfSale ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setHoursCollapsed((current) => !current)}
+                                    className="flex w-full items-start justify-between gap-4 rounded-lg border border-surface-border/70 bg-page px-4 py-3 text-left transition-colors hover:border-brand/30 hover:bg-brand-soft-bg/40"
+                                >
+                                    <div>
+                                        <p className="font-heading text-lg font-semibold text-text-main">
+                                            {t('sharedUi.openingHours')}
+                                        </p>
+                                        <p className="mt-1 text-sm text-text-muted">
+                                            {`${t(dayKeys[today])} · ${todayDisplay}`}
+                                        </p>
+                                    </div>
+                                    <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
+                                        {t("shopHome.todayHours")}
+                                        <ChevronDown
+                                            className={cn(
+                                                "h-4 w-4 transition-transform",
+                                                !hoursCollapsed && "rotate-180",
+                                            )}
+                                        />
+                                    </span>
+                                </button>
+                            ) : (
                                 <h3 className="mb-4 font-heading text-lg font-semibold text-text-main">
                                     {t('sharedUi.openingHours')}
                                 </h3>
+                            )}
+
+                            <div
+                                className={cn(
+                                    showPointsOfSale ? "mt-4 md:flex-none" : "",
+                                    hoursCollapsed && "hidden",
+                                )}
+                            >
                                 <div className="divide-y divide-surface-border">
                                     {orderedDayIndexes.map(dayIndex => {
                                         const dayHours = hoursMap[dayIndex];
@@ -241,7 +289,12 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                             </div>
 
                             {showPointsOfSale ? (
-                                <div className="mt-6 border-t border-surface-border pt-5 md:min-h-0 md:flex-1">
+                                <div
+                                    className={cn(
+                                        "border-t border-surface-border pt-5 md:min-h-0 md:flex-1",
+                                        hoursCollapsed ? "mt-4" : "mt-6",
+                                    )}
+                                >
                                     <div className="mb-3 flex items-center justify-between gap-3">
                                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted font-body">
                                             {t("shopHome.pointsOfSale")}
