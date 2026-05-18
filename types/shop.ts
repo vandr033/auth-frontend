@@ -111,6 +111,10 @@ export interface ShopCategory {
 export interface ShopService {
     id: number;
     category_id: number;
+    category?: {
+        id: number;
+        name: string;
+    } | null;
     name: string;
     description?: string;
     price_cents: number;
@@ -123,6 +127,7 @@ export interface ShopService {
     session_count?: number | null;
     session_duration_minutes?: number | null;
     position: number;
+    is_invite_only?: boolean;
     pricing?: {
         regular_price_cents?: number | null;
         base_price_cents: number;

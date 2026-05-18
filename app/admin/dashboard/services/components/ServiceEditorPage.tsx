@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Plus, Save } from "lucide-react";
+import { ArrowLeft, Copy, Loader2, Plus, Save } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
@@ -65,6 +65,8 @@ interface Service {
     };
     duration_minutes: number;
     is_active: boolean;
+    is_invite_only?: boolean;
+    invite_token?: string | null;
     category_id: number;
     category?: Category;
     display_order: number;
@@ -94,6 +96,7 @@ interface ServiceFormData {
     session_count: string;
     session_duration_minutes: string;
     is_active: boolean;
+    is_invite_only: boolean;
     required_resource_ids: number[];
 }
 
@@ -111,6 +114,7 @@ const initialFormData: ServiceFormData = {
     session_count: "4",
     session_duration_minutes: "90",
     is_active: true,
+    is_invite_only: false,
     required_resource_ids: [],
 };
 
@@ -139,6 +143,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
     const [newCategoryServiceTypeId, setNewCategoryServiceTypeId] = useState<number | null>(null);
     const [creatingCategory, setCreatingCategory] = useState(false);
     const [existingMultiSessionService, setExistingMultiSessionService] = useState(false);
+    const [inviteToken, setInviteToken] = useState<string | null>(null);
 
     const getServiceTypeName = (type: GlobalServiceType): string =>
         getLocalizedText({
@@ -207,10 +212,13 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                         ? String(service.session_duration_minutes)
                         : "90",
                     is_active: service.is_active,
+                    is_invite_only: service.is_invite_only === true,
                     required_resource_ids: service.required_resources?.map((resource) => resource.staff_profile_id) ?? [],
                 });
+                setInviteToken(service.invite_token ?? null);
             } else {
                 setExistingMultiSessionService(false);
+                setInviteToken(null);
                 setFormData(initialFormData);
             }
         } catch (error) {
@@ -230,6 +238,14 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
         () => formData.required_resource_ids.length,
         [formData.required_resource_ids.length],
     );
+    const companySlug = companyUser?.company?.slug;
+    const inviteLink = useMemo(() => {
+        if (!companySlug || !inviteToken || typeof window === "undefined") {
+            return null;
+        }
+
+        return `${window.location.origin}/shop/${companySlug}/book?invite=${encodeURIComponent(inviteToken)}`;
+    }, [companySlug, inviteToken]);
     const canUseMultiSession = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
     const canUseServicePromotions =
         Boolean(user?.is_super_admin) ||
@@ -335,6 +351,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                 session_count: multiSessionEnabled ? sessionCount : null,
                 session_duration_minutes: multiSessionEnabled ? sessionDuration : null,
                 is_active: formData.is_active,
+                is_invite_only: formData.is_invite_only,
                 company_id: companyId,
                 required_resource_ids: formData.required_resource_ids,
             };
@@ -777,6 +794,42 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                                     checked={formData.is_active}
                                     onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_active: checked }))}
                                 />
+                            </div>
+                            <div className="mt-3 space-y-3 rounded-md border border-admin-border px-3 py-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900">{t("adminServices.inviteOnly")}</p>
+                                        <p className="text-xs text-slate-500">{t("adminServices.inviteOnlyHint")}</p>
+                                    </div>
+                                    <Switch
+                                        checked={formData.is_invite_only}
+                                        onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_invite_only: checked }))}
+                                    />
+                                </div>
+                                {formData.is_invite_only ? (
+                                    inviteLink ? (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="invite_link">{t("adminServices.inviteLinkLabel")}</Label>
+                                            <div className="flex gap-2">
+                                                <Input id="invite_link" value={inviteLink} readOnly />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        void navigator.clipboard.writeText(inviteLink);
+                                                        void notify.success(t("adminServices.inviteLinkCopied"));
+                                                    }}
+                                                    title={t("adminServices.copyInviteLink")}
+                                                >
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-500">{t("adminServices.inviteLinkUnavailable")}</p>
+                                    )
+                                ) : null}
                             </div>
                         </CardContent>
                     </Card>

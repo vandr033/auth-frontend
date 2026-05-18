@@ -70,6 +70,42 @@ type PendingBookingIntent = {
     created_at: string;
 };
 
+type InviteServiceResponse = {
+    data?: {
+        id: number;
+        category_id: number;
+        category?: {
+            id: number;
+            name: string;
+        } | null;
+        name: string;
+        description?: string | null;
+        price_cents: number;
+        promo_price_cents?: number | null;
+        promo_starts_at?: string | null;
+        promo_ends_at?: string | null;
+        promo_label?: string | null;
+        duration_minutes: number;
+        is_multi_session?: boolean;
+        session_count?: number | null;
+        session_duration_minutes?: number | null;
+        position: number;
+        is_invite_only?: boolean;
+        pricing?: {
+            regular_price_cents?: number | null;
+            base_price_cents: number;
+            final_price_cents: number;
+            promo_applied: boolean;
+            promo_label?: string | null;
+            promo_starts_at?: string | null;
+            promo_ends_at?: string | null;
+        };
+        required_resources?: Array<{ staff_profile_id: number }>;
+    };
+    message?: string;
+    error?: boolean;
+};
+
 type BlockedSlotInterval = {
     endAt: Date;
     startAt: Date;
@@ -1386,6 +1422,7 @@ export default function BookingPage() {
     const { company, services, staff, categories, settings, loading, error, slug, isShopActive, publicFeatures } = useShop();
     const t = useT();
     const api = useApi();
+    const inviteToken = searchParams?.get("invite")?.trim() || "";
     const bookingEnabled = getShopPublicFeatures(company).bookingsEnabled || publicFeatures.bookingsEnabled;
     const searchParamsString = searchParams?.toString() || "";
     const marketplaceHandoff = useMemo(
@@ -1426,6 +1463,9 @@ export default function BookingPage() {
     const [slotRefreshVersion, setSlotRefreshVersion] = useState(0);
     const [success, setSuccess] = useState(false);
     const [completedAfterSignIn, setCompletedAfterSignIn] = useState(false);
+    const [inviteService, setInviteService] = useState<SelectedService | null>(null);
+    const [inviteServiceLoading, setInviteServiceLoading] = useState(Boolean(inviteToken));
+    const [inviteServiceError, setInviteServiceError] = useState<string | null>(null);
     const [preselectionApplied, setPreselectionApplied] = useState(false);
     const [prefillWarnings, setPrefillWarnings] = useState<string[]>([]);
     const [showMarketplacePrefillBanner, setShowMarketplacePrefillBanner] = useState(isMarketplaceSource && hasMarketplacePrefillData);
@@ -1447,6 +1487,73 @@ export default function BookingPage() {
         if (selectedDate || !preselectedDate) return;
         setSelectedDate(preselectedDate);
     }, [preselectedDate, selectedDate]);
+
+    useEffect(() => {
+        if (!inviteToken) {
+            setInviteService(null);
+            setInviteServiceError(null);
+            setInviteServiceLoading(false);
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const loadInviteService = async () => {
+            setInviteServiceLoading(true);
+            setInviteServiceError(null);
+
+            try {
+                const response = await fetch(
+                    resolveApiUrl(`/company/${slug}/invite-service/${encodeURIComponent(inviteToken)}`),
+                    {
+                        credentials: "include",
+                        signal: controller.signal,
+                    },
+                );
+                const result = (await response.json()) as InviteServiceResponse;
+
+                if (!response.ok || result.error || !result.data) {
+                    throw new Error(result.message || t('shopBooking.inviteUnavailable'));
+                }
+
+                setInviteService({
+                    id: result.data.id,
+                    category_id: result.data.category_id,
+                    category: result.data.category ?? null,
+                    name: result.data.name,
+                    description: result.data.description ?? undefined,
+                    price_cents: result.data.price_cents,
+                    promo_price_cents: result.data.promo_price_cents ?? null,
+                    promo_starts_at: result.data.promo_starts_at ?? null,
+                    promo_ends_at: result.data.promo_ends_at ?? null,
+                    promo_label: result.data.promo_label ?? null,
+                    duration_minutes: result.data.duration_minutes,
+                    is_multi_session: result.data.is_multi_session,
+                    session_count: result.data.session_count ?? null,
+                    session_duration_minutes: result.data.session_duration_minutes ?? null,
+                    is_invite_only: result.data.is_invite_only === true,
+                    pricing: result.data.pricing,
+                    required_resource_ids:
+                        result.data.required_resources?.map((resource) => resource.staff_profile_id) ?? [],
+                });
+            } catch (err) {
+                if (controller.signal.aborted) return;
+                setInviteService(null);
+                setInviteServiceError(
+                    err instanceof Error ? err.message : t('shopBooking.inviteUnavailable'),
+                );
+            } finally {
+                if (controller.signal.aborted) return;
+                setInviteServiceLoading(false);
+            }
+        };
+
+        void loadInviteService();
+
+        return () => {
+            controller.abort();
+        };
+    }, [inviteToken, slug, t]);
 
     useEffect(() => {
         if (loading || !company || bookingStartedTrackedRef.current) return;
@@ -1493,10 +1600,11 @@ export default function BookingPage() {
     ]);
 
     // Convert shop services to SelectedService format
-    const selectableServices: SelectedService[] = useMemo(
-        () => services.map((s) => ({
+    const selectableServices: SelectedService[] = useMemo(() => {
+        const mapped: SelectedService[] = services.map((s) => ({
             id: s.id,
             name: s.name,
+            category: s.category ?? null,
             description: s.description,
             price_cents: s.price_cents,
             promo_price_cents: s.promo_price_cents,
@@ -1508,11 +1616,33 @@ export default function BookingPage() {
             session_count: s.session_count,
             session_duration_minutes: s.session_duration_minutes,
             category_id: s.category_id,
+            is_invite_only: s.is_invite_only === true,
             pricing: s.pricing,
             required_resource_ids: s.required_resource_ids ?? [],
-        })),
-        [services],
-    );
+        }));
+
+        if (inviteService && !mapped.some((service) => service.id === inviteService.id)) {
+            mapped.push(inviteService);
+        }
+
+        return mapped;
+    }, [inviteService, services]);
+
+    const selectableCategories = useMemo(() => {
+        const mappedCategories = [...categories];
+        if (
+            inviteService?.category &&
+            !mappedCategories.some((category) => category.id === inviteService.category?.id)
+        ) {
+            mappedCategories.push({
+                id: inviteService.category.id,
+                name: inviteService.category.name,
+                slug: `invite-${inviteService.category.id}`,
+                position: mappedCategories.length,
+            });
+        }
+        return mappedCategories;
+    }, [categories, inviteService]);
 
     // Convert shop staff to SelectedStaff format
     const selectableStaff: SelectedStaff[] = useMemo(
@@ -1807,13 +1937,15 @@ export default function BookingPage() {
 
     // Pre-select from marketplace handoff params.
     useEffect(() => {
-        if (preselectionApplied || loading || services.length === 0) return;
+        if (preselectionApplied || loading || inviteServiceLoading || selectableServices.length === 0) return;
 
         const warnings: string[] = [];
         let serviceToSelect: SelectedService | null = null;
         let staffToSelect: SelectedStaff | null = null;
 
-        if (preselectedServiceId) {
+        if (inviteService) {
+            serviceToSelect = inviteService;
+        } else if (preselectedServiceId) {
             serviceToSelect = selectableServices.find((s) => s.id === preselectedServiceId) || null;
             if (!serviceToSelect && isMarketplaceSource) {
                 warnings.push("El servicio elegido desde Marketplace ya no está disponible. Elegí otro para continuar.");
@@ -1851,8 +1983,9 @@ export default function BookingPage() {
     }, [
         preselectedServiceId,
         preselectedStaffId,
+        inviteService,
         loading,
-        services.length,
+        inviteServiceLoading,
         selectableServices,
         selectableStaff,
         preselectionApplied,
@@ -2357,7 +2490,7 @@ export default function BookingPage() {
         }
     };
 
-    if (loading || authLoading) {
+    if (loading || authLoading || inviteServiceLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="h-8 w-8 animate-spin text-brand" />
@@ -2467,6 +2600,12 @@ export default function BookingPage() {
                 </div>
             )}
 
+            {inviteServiceError ? (
+                <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    {inviteServiceError}
+                </div>
+            ) : null}
+
             <StepIndicator currentStep={booking.step} browseMode={browseMode} />
 
             {/* Browse mode toggle — only visible at step 1 */}
@@ -2503,7 +2642,7 @@ export default function BookingPage() {
                     {browseMode === "service-first" ? (
                         <ServiceStep
                             services={selectableServices}
-                            categories={categories}
+                            categories={selectableCategories}
                             selectedServices={booking.services}
                             currency={company.currency}
                             onToggleService={toggleService}

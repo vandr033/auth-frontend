@@ -609,6 +609,7 @@ export interface CreateBookingData {
     staff_id: number;
     service_ids: number[];
     start_at: string; // ISO string
+    session_slots?: Array<{ start_at: string }>;
     customer_id?: number;
     customer: {
         full_name: string;
@@ -947,6 +948,9 @@ export interface ServiceItem {
     name: string;
     description?: string;
     duration_minutes: number;
+    is_multi_session?: boolean;
+    session_count?: number | null;
+    session_duration_minutes?: number | null;
     price_cents: number;
     promo_price_cents?: number | null;
     promo_starts_at?: string | null;

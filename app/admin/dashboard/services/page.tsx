@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
+    Copy,
     Plus,
     Pencil,
     Trash2,
@@ -70,6 +71,8 @@ interface Service {
     category_id: number;
     category?: Category;
     display_order: number;
+    is_invite_only?: boolean;
+    invite_token?: string | null;
     required_resources?: { staff_profile_id: number }[];
 }
 
@@ -92,10 +95,16 @@ function getApiUrl(path: string): string {
     return `${base}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
 }
 
+function buildInviteOnlyBookingUrl(slug: string, inviteToken: string): string {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/shop/${slug}/book?invite=${encodeURIComponent(inviteToken)}`;
+}
+
 export default function ServicesPage() {
     const { companyId, companyUser, isAuthenticated, loading: authLoading } = useAdminAuth();
     const t = useT();
     const currency = companyUser?.company?.currency;
+    const companySlug = companyUser?.company?.slug;
 
     // State
     const [services, setServices] = useState<Service[]>([]);
@@ -204,6 +213,22 @@ export default function ServicesPage() {
         }
     };
 
+    const copyInviteLink = async (service: Service) => {
+        if (!companySlug || !service.invite_token) {
+            await notify.error(t('adminServices.inviteLinkUnavailable'));
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(
+                buildInviteOnlyBookingUrl(companySlug, service.invite_token),
+            );
+            await notify.success(t('adminServices.inviteLinkCopied'));
+        } catch {
+            await notify.error(t('common.error'));
+        }
+    };
+
     // Loading state
     if (authLoading || loading) {
         return <LoadingSkeleton variant="page" rows={5} />;
@@ -234,6 +259,14 @@ export default function ServicesPage() {
                     label: t('adminServices.editService'),
                     icon: <Pencil className="h-4 w-4" />,
                     href: `/admin/dashboard/services/${service.id}/edit`,
+                },
+                {
+                    label: t('adminServices.copyInviteLink'),
+                    icon: <Copy className="h-4 w-4" />,
+                    onSelect: () => {
+                        void copyInviteLink(service);
+                    },
+                    disabled: !service.is_invite_only || !service.invite_token || !companySlug,
                 },
                 {
                     label: t('common.delete'),
@@ -298,7 +331,14 @@ export default function ServicesPage() {
                         header: t('adminBookings.service'),
                         cell: (service) => (
                             <div>
-                                <p className="font-medium text-slate-900">{service.name}</p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="font-medium text-slate-900">{service.name}</p>
+                                    {service.is_invite_only ? (
+                                        <StatusBadge tone="neutral">
+                                            {t('adminServices.inviteOnly')}
+                                        </StatusBadge>
+                                    ) : null}
+                                </div>
                                 {service.description ? (
                                     <p className="line-clamp-1 text-sm text-slate-500">{service.description}</p>
                                 ) : null}
@@ -364,6 +404,11 @@ export default function ServicesPage() {
                             <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <h3 className="font-semibold text-slate-950">{service.name}</h3>
+                                    {service.is_invite_only ? (
+                                        <StatusBadge tone="neutral">
+                                            {t('adminServices.inviteOnly')}
+                                        </StatusBadge>
+                                    ) : null}
                                     <StatusBadge tone={service.is_active ? "success" : "neutral"} dot>
                                         {service.is_active ? t('adminServices.active') : t('adminServices.inactive')}
                                     </StatusBadge>

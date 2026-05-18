@@ -7,6 +7,10 @@ export type BookingStep = 1 | 2 | 3 | 4;
 export interface SelectedService {
     id: number;
     name: string;
+    category?: {
+        id: number;
+        name: string;
+    } | null;
     description?: string;
     price_cents: number;
     promo_price_cents?: number | null;
@@ -18,6 +22,7 @@ export interface SelectedService {
     session_count?: number | null;
     session_duration_minutes?: number | null;
     category_id: number;
+    is_invite_only?: boolean;
     pricing?: {
         regular_price_cents?: number | null;
         base_price_cents: number;

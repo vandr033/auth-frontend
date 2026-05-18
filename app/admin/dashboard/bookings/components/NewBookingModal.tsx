@@ -58,6 +58,11 @@ interface SessionPaymentState {
     qrProofUrl: string | null;
 }
 
+interface SingleSessionSlotState {
+    date: string;
+    time: string;
+}
+
 interface NewBookingModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -112,6 +117,19 @@ function getWeekdayLabel(t: (key: string) => string, weekday: number) {
     ];
     const key = keys[weekday];
     return key ? t(key) : WEEKDAY_OPTIONS.find((option) => Number(option.value) === weekday)?.label || "";
+}
+
+function buildLocalDateTime(date: string, time: string) {
+    return new Date(`${date}T${time}:00`);
+}
+
+function doIntervalsOverlap(
+    startA: Date,
+    endA: Date,
+    startB: Date,
+    endB: Date,
+) {
+    return startA < endB && endA > startB;
 }
 
 function ServiceChecklist(props: {
@@ -201,6 +219,7 @@ export function NewBookingModal({
     const [singleIsPaid, setSingleIsPaid] = useState(false);
     const [singlePaymentMethod, setSinglePaymentMethod] = useState<PaymentMethodValue>("NONE");
     const [singleQrProofUrl, setSingleQrProofUrl] = useState<string | null>(null);
+    const [singleSessionSlots, setSingleSessionSlots] = useState<SingleSessionSlotState[]>([]);
     const [recurringStartDate, setRecurringStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
     const [recurringWeeks, setRecurringWeeks] = useState("2");
     const [recurringTemplates, setRecurringTemplates] = useState<RecurringTemplate[]>([createTemplate()]);
@@ -229,6 +248,7 @@ export function NewBookingModal({
         setSingleIsPaid(false);
         setSinglePaymentMethod("NONE");
         setSingleQrProofUrl(null);
+        setSingleSessionSlots([]);
         setRecurringStartDate(format(new Date(), "yyyy-MM-dd"));
         setRecurringWeeks("2");
         setRecurringTemplates([createTemplate()]);
@@ -314,6 +334,40 @@ export function NewBookingModal({
         };
     }, [serviceMap, singleServiceIds]);
 
+    const singleSelectedServices = useMemo(
+        () =>
+            singleServiceIds
+                .map((serviceId) => serviceMap.get(Number(serviceId)))
+                .filter((service): service is ServiceItem => Boolean(service)),
+        [serviceMap, singleServiceIds],
+    );
+
+    const singleMultiSessionService = useMemo(() => {
+        if (singleSelectedServices.length !== 1) return null;
+        const [service] = singleSelectedServices;
+        return service.is_multi_session ? service : null;
+    }, [singleSelectedServices]);
+
+    const singleMultiSessionCount = Math.max(singleMultiSessionService?.session_count ?? 0, 0);
+    const singleMultiSessionDuration = Math.max(
+        singleMultiSessionService?.session_duration_minutes ?? 0,
+        0,
+    );
+
+    useEffect(() => {
+        if (!singleMultiSessionService || singleMultiSessionCount === 0) {
+            setSingleSessionSlots([]);
+            return;
+        }
+
+        setSingleSessionSlots((previous) =>
+            Array.from({ length: singleMultiSessionCount }, (_, index) => ({
+                date: previous[index]?.date ?? (index === 0 ? format(new Date(), "yyyy-MM-dd") : ""),
+                time: previous[index]?.time ?? (index === 0 ? "09:00" : ""),
+            })),
+        );
+    }, [singleMultiSessionCount, singleMultiSessionService]);
+
     const generatedSessions = useMemo(() => {
         const baseDate = new Date(`${recurringStartDate}T00:00:00`);
         const totalWeeks = Math.max(1, Number(recurringWeeks) || 1);
@@ -373,14 +427,44 @@ export function NewBookingModal({
     const handleStaffChange = (value: string) => {
         setStaffId(value);
         setSingleServiceIds([]);
+        setSingleSessionSlots([]);
         setRecurringTemplates((previous) =>
             previous.map((template) => ({ ...template, serviceIds: [] })),
         );
     };
 
     const toggleSingleService = (serviceId: string, checked: boolean) => {
-        setSingleServiceIds((previous) =>
-            checked ? [...previous, serviceId] : previous.filter((id) => id !== serviceId),
+        setSingleServiceIds((previous) => {
+            const targetService = serviceMap.get(Number(serviceId));
+            if (!targetService) return previous;
+
+            if (!checked) {
+                return previous.filter((id) => id !== serviceId);
+            }
+
+            if (targetService.is_multi_session) {
+                return [serviceId];
+            }
+
+            const hasSelectedMultiSession = previous.some((id) => serviceMap.get(Number(id))?.is_multi_session);
+            if (hasSelectedMultiSession) {
+                return [serviceId];
+            }
+
+            if (previous.includes(serviceId)) {
+                return previous;
+            }
+
+            return [...previous, serviceId];
+        });
+    };
+
+    const updateSingleSessionSlot = (
+        index: number,
+        patch: Partial<SingleSessionSlotState>,
+    ) => {
+        setSingleSessionSlots((previous) =>
+            previous.map((slot, slotIndex) => (slotIndex === index ? { ...slot, ...patch } : slot)),
         );
     };
 
@@ -521,10 +605,50 @@ export function NewBookingModal({
                     throw new Error(t("adminBookings.singleQrProofRequired"));
                 }
 
+                if (singleMultiSessionService) {
+                    if (singleSessionSlots.some((slot) => !slot.date || !slot.time)) {
+                        throw new Error(t("adminBookings.multiSessionSlotMissing"));
+                    }
+
+                    const slotIntervals = singleSessionSlots.map((slot, index) => {
+                        const startAt = buildLocalDateTime(slot.date, slot.time);
+                        return {
+                            index,
+                            startAt,
+                            endAt: new Date(startAt.getTime() + singleMultiSessionDuration * 60 * 1000),
+                        };
+                    });
+
+                    const hasOverlap = slotIntervals.some((current) =>
+                        slotIntervals.some((candidate) =>
+                            candidate.index !== current.index &&
+                            doIntervalsOverlap(
+                                current.startAt,
+                                current.endAt,
+                                candidate.startAt,
+                                candidate.endAt,
+                            ),
+                        ),
+                    );
+
+                    if (hasOverlap) {
+                        throw new Error(t("adminBookings.multiSessionOverlap"));
+                    }
+                }
+
+                const primaryStartAt = singleMultiSessionService
+                    ? `${singleSessionSlots[0]!.date}T${singleSessionSlots[0]!.time}:00`
+                    : `${singleDate}T${singleTime}:00`;
+
                 await onCreate({
                     staff_id: Number(staffId),
                     service_ids: singleServiceIds.map((serviceId) => Number(serviceId)),
-                    start_at: `${singleDate}T${singleTime}:00`,
+                    start_at: primaryStartAt,
+                    session_slots: singleMultiSessionService
+                        ? singleSessionSlots.map((slot) => ({
+                            start_at: `${slot.date}T${slot.time}:00`,
+                        }))
+                        : undefined,
                     customer_id: customerPayload.customer_id,
                     customer: customerPayload.customer,
                     notes: notes.trim() || undefined,
@@ -736,6 +860,11 @@ export function NewBookingModal({
                                             <div>
                                                 <h3 className="text-sm font-semibold text-slate-900">{t("shopBooking.services")}</h3>
                                                 <p className="text-xs text-muted-foreground">{t("adminBookings.singleBookingServicesHelp")}</p>
+                                                {singleMultiSessionService ? (
+                                                    <p className="mt-1 text-xs text-amber-700">
+                                                        {t("adminBookings.multiSessionExclusiveHelp")}
+                                                    </p>
+                                                ) : null}
                                             </div>
                                         </div>
                                         <ServiceChecklist
@@ -751,26 +880,73 @@ export function NewBookingModal({
                                     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr),300px]">
                                         <div className="rounded-xl border border-slate-200 bg-white p-4">
                                             <h3 className="mb-3 text-sm font-semibold text-slate-900">{t("adminBookings.schedule")}</h3>
-                                            <div className="grid gap-4 sm:grid-cols-2">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="single-date">{t("adminBookings.date")}</Label>
-                                                    <Input
-                                                        id="single-date"
-                                                        type="date"
-                                                        value={singleDate}
-                                                        onChange={(e) => setSingleDate(e.target.value)}
-                                                    />
+                                            {singleMultiSessionService ? (
+                                                <div className="space-y-4">
+                                                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                                                        <p className="font-medium">{t("shopBooking.multiSessionService")}</p>
+                                                        <p className="mt-1 text-xs text-amber-800">
+                                                            {t("adminBookings.multiSessionServiceHelp", {
+                                                                count: singleMultiSessionCount,
+                                                                minutes: singleMultiSessionDuration,
+                                                            })}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="space-y-3">
+                                                        {singleSessionSlots.map((slot, index) => (
+                                                            <div key={`${singleMultiSessionService.id}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                                                <p className="mb-3 text-sm font-medium text-slate-900">
+                                                                    {t("adminBookings.multiSessionSlotLabel", {
+                                                                        current: index + 1,
+                                                                        total: singleMultiSessionCount,
+                                                                    })}
+                                                                </p>
+                                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                                    <div className="space-y-2">
+                                                                        <Label htmlFor={`single-session-date-${index}`}>{t("adminBookings.date")}</Label>
+                                                                        <Input
+                                                                            id={`single-session-date-${index}`}
+                                                                            type="date"
+                                                                            value={slot.date}
+                                                                            onChange={(e) => updateSingleSessionSlot(index, { date: e.target.value })}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label htmlFor={`single-session-time-${index}`}>{t("adminBookings.time")}</Label>
+                                                                        <Input
+                                                                            id={`single-session-time-${index}`}
+                                                                            type="time"
+                                                                            value={slot.time}
+                                                                            onChange={(e) => updateSingleSessionSlot(index, { time: e.target.value })}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="single-time">{t("adminBookings.time")}</Label>
-                                                    <Input
-                                                        id="single-time"
-                                                        type="time"
-                                                        value={singleTime}
-                                                        onChange={(e) => setSingleTime(e.target.value)}
-                                                    />
+                                            ) : (
+                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="single-date">{t("adminBookings.date")}</Label>
+                                                        <Input
+                                                            id="single-date"
+                                                            type="date"
+                                                            value={singleDate}
+                                                            onChange={(e) => setSingleDate(e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="single-time">{t("adminBookings.time")}</Label>
+                                                        <Input
+                                                            id="single-time"
+                                                            type="time"
+                                                            value={singleTime}
+                                                            onChange={(e) => setSingleTime(e.target.value)}
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
 
                                             <div className="mt-4 space-y-3">
                                                 <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
@@ -862,6 +1038,18 @@ export function NewBookingModal({
                                                     <span>{t("shopBooking.services")}</span>
                                                     <span>{singleServiceIds.length}</span>
                                                 </div>
+                                                {singleMultiSessionService ? (
+                                                    <div className="flex items-center justify-between">
+                                                        <span>{t("adminBookings.sessionCountLabel")}</span>
+                                                        <span>{singleMultiSessionCount}</span>
+                                                    </div>
+                                                ) : null}
+                                                {singleMultiSessionService ? (
+                                                    <div className="flex items-center justify-between">
+                                                        <span>{t("adminBookings.perSessionDuration")}</span>
+                                                        <span>{singleMultiSessionDuration} min</span>
+                                                    </div>
+                                                ) : null}
                                                 <div className="flex items-center justify-between">
                                                     <span>{t("adminBookings.totalDuration")}</span>
                                                     <span>{singleSummary.totalDuration} min</span>
