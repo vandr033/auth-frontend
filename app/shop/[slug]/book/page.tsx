@@ -751,6 +751,15 @@ function DateTimeStep({
     // Get today's date for comparison
     const today = getTodayDateString(timezone);
 
+    React.useEffect(() => {
+        if (!isActive) return;
+        if (selectedDate || selectedServiceIds.length === 0) return;
+
+        setLoadingSlots(false);
+        setSlotsError(null);
+        setSlots([]);
+    }, [isActive, selectedDate, selectedServiceIds]);
+
     // Fetch available slots when date changes
     React.useEffect(() => {
         if (!isActive || !selectedDate || selectedServiceIds.length === 0) return;
@@ -863,17 +872,25 @@ function DateTimeStep({
     }, [slots]);
 
     React.useEffect(() => {
-        if (timeViewMode !== "hour") return;
-        if (availableHours.length === 0) {
-            setSelectedHour(null);
-            return;
-        }
-        if (selectedHour === null || !availableHours.includes(selectedHour)) {
-            setSelectedHour(availableHours[0]);
-        }
-    }, [timeViewMode, availableHours, selectedHour]);
+        if (timeViewMode !== "hour" || loadingSlots) return;
+
+        setSelectedHour((currentHour) => {
+            if (availableHours.length === 0) {
+                return null;
+            }
+
+            if (currentHour !== null && availableHours.includes(currentHour)) {
+                return currentHour;
+            }
+
+            return availableHours[0];
+        });
+    }, [timeViewMode, availableHours, loadingSlots]);
 
     const visibleSlots = useMemo(() => {
+        if (!selectedDate) {
+            return [];
+        }
         if (timeViewMode !== "hour" || selectedHour === null) {
             return slots;
         }
@@ -881,7 +898,7 @@ function DateTimeStep({
             const hour = Number.parseInt(slot.time.split(":")[0], 10);
             return hour === selectedHour;
         });
-    }, [slots, timeViewMode, selectedHour]);
+    }, [selectedDate, slots, timeViewMode, selectedHour]);
 
     const availableVisibleSlots = useMemo(
         () => visibleSlots.filter((slot) => slot.available),
