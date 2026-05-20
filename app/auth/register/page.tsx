@@ -12,6 +12,7 @@ import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
 
 type Method = null | "email" | "phone";
 type FlowStep = "method" | "contact" | "otp" | "profile" | "done" | "redirecting";
+type ProfileCompletionMode = "signup" | "session";
 
 function RegisterPageInner() {
   const t = useT();
@@ -27,6 +28,7 @@ function RegisterPageInner() {
     sendPhoneOtp,
     verifyPhoneOtp,
     completeCustomerPhoneProfile,
+    updateProfile,
   } = useAuth();
 
   const [method, setMethod] = useState<Method>(null);
@@ -36,6 +38,7 @@ function RegisterPageInner() {
   const [email, setEmail] = useState("");
   const [emailCode, setEmailCode] = useState("");
   const [preRegToken, setPreRegToken] = useState("");
+  const [profileCompletionMode, setProfileCompletionMode] = useState<ProfileCompletionMode>("signup");
 
   // Phone state
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -63,6 +66,17 @@ function RegisterPageInner() {
       setStep("profile");
       setEmail(searchParams?.get("email") ?? "");
       setPreRegToken(searchParams?.get("preRegToken") ?? "");
+      setProfileCompletionMode("signup");
+      setLocalError(null);
+      return;
+    }
+
+    if (presetMode === "session") {
+      setMethod("email");
+      setStep("profile");
+      setEmail(searchParams?.get("email") ?? "");
+      setPreRegToken("");
+      setProfileCompletionMode("session");
       setLocalError(null);
       return;
     }
@@ -73,6 +87,7 @@ function RegisterPageInner() {
       setPhoneNumber(searchParams?.get("phone") ?? "");
       setDialCode(searchParams?.get("dialCode") ?? "");
       setCountryCode(searchParams?.get("countryCode") ?? "");
+      setProfileCompletionMode("session");
       setLocalError(null);
     }
   }, [searchParams]);
@@ -150,6 +165,7 @@ function RegisterPageInner() {
 
       const token = result.preRegToken ?? "";
       setPreRegToken(token);
+      setProfileCompletionMode("signup");
       setStep("profile");
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("auth.register.invalidCode"));
@@ -162,7 +178,11 @@ function RegisterPageInner() {
     setSending(true);
     setLocalError(null);
     try {
-      await completeCustomerEmailRegistration(preRegToken, email, firstName, lastName);
+      if (profileCompletionMode === "session") {
+        await updateProfile({ first_name: firstName, last_name: lastName });
+      } else {
+        await completeCustomerEmailRegistration(preRegToken, email, firstName, lastName);
+      }
       setStep("done");
       setTimeout(() => router.push(redirect), 1500);
     } catch (err) {

@@ -31,6 +31,7 @@ export type EmailOtpVerificationResult = {
   user: AuthUser | null;
   requiresProfileCompletion: boolean;
   preRegToken?: string;
+  profileCompletionMode?: "new-account" | "session";
 };
 
 export type PhoneOtpVerificationResult = {
@@ -160,7 +161,7 @@ const extractUser = (payload: unknown): AuthUser | null => {
   };
 };
 
-const userNeedsProfileCompletion = (user: AuthUser | null): boolean => {
+export const userNeedsProfileCompletion = (user: AuthUser | null): boolean => {
   if (!user) return true;
 
   const firstName = typeof user.first_name === "string" ? user.first_name.trim() : "";
@@ -329,10 +330,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user: null,
             requiresProfileCompletion: true,
             preRegToken: response.data.preRegToken ?? "",
+            profileCompletionMode: "new-account" as const,
           };
         }
 
         const currentUser = await refreshSession();
+        if (userNeedsProfileCompletion(currentUser)) {
+          return {
+            user: currentUser,
+            requiresProfileCompletion: true,
+            profileCompletionMode: "session" as const,
+          };
+        }
+
         return {
           user: currentUser,
           requiresProfileCompletion: false,

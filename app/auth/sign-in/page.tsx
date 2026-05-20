@@ -108,14 +108,20 @@ function SignInPageInner() {
     try {
       if (method === "email") {
         const result = await verifyLoginEmailOtp(email, otpCode);
-        if (result.requiresProfileCompletion && result.preRegToken) {
-          router.push(
-            buildRegisterProfileUrl({
-              mode: "email",
-              email,
-              preRegToken: result.preRegToken,
-            }),
-          );
+        if (result.requiresProfileCompletion) {
+          const params =
+            result.profileCompletionMode === "session"
+              ? {
+                  mode: "session",
+                  ...(result.user?.email ? { email: result.user.email } : {}),
+                }
+              : {
+                  mode: "email",
+                  email,
+                  preRegToken: result.preRegToken ?? "",
+                };
+
+          router.push(buildRegisterProfileUrl(params));
           return;
         }
       } else {
