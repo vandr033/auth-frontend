@@ -109,11 +109,13 @@ function SignInPageInner() {
       if (method === "email") {
         const result = await verifyLoginEmailOtp(email, otpCode);
         if (result.requiresProfileCompletion) {
-          const params =
+          const params: Record<string, string> =
             result.profileCompletionMode === "session"
               ? {
                   mode: "session",
-                  ...(result.user?.email ? { email: result.user.email } : {}),
+                  ...(typeof result.user?.email === "string" && result.user.email
+                    ? { email: result.user.email }
+                    : {}),
                 }
               : {
                   mode: "email",
