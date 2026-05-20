@@ -62,36 +62,26 @@ export async function GET(_: Request, { params }: RouteContext) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: "#ffffff",
+                    background: branding.themeColor || DEFAULT_PWA_THEME_COLOR,
                     position: "relative",
                     overflow: "hidden",
                 }}
             >
-                <div
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        borderRadius: size / 5,
-                        border: `${Math.max(4, Math.round(size * 0.035))}px solid ${branding.themeColor || DEFAULT_PWA_THEME_COLOR}`,
-                        opacity: 0.12,
-                    }}
-                />
                 {logoDataUrl ? (
                     <img
                         src={logoDataUrl}
                         alt={branding.name}
                         style={{
-                            width: "78%",
-                            height: "78%",
-                            objectFit: "contain",
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
                         }}
                     />
                 ) : (
                     <div
                         style={{
-                            width: "78%",
-                            height: "78%",
-                            borderRadius: size / 4,
+                            width: "100%",
+                            height: "100%",
                             background: branding.themeColor || DEFAULT_PWA_THEME_COLOR,
                             color: "#ffffff",
                             display: "flex",

@@ -9,6 +9,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, UserPlus, Sparkles } from "lucide-react";
 import { useOtpResendTimer } from "@/lib/auth/otpResend";
 import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
+import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
 
 type Method = null | "email" | "phone";
 type FlowStep = "method" | "contact" | "otp" | "profile" | "done" | "redirecting";
@@ -43,7 +44,7 @@ function RegisterPageInner() {
   // Phone state
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dialCode, setDialCode] = useState("");
-  const [countryCode, setCountryCode] = useState("");
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [otpCode, setOtpCode] = useState("");
   const [hasRequestedOtp, setHasRequestedOtp] = useState(false);
 
@@ -86,7 +87,7 @@ function RegisterPageInner() {
       setStep("profile");
       setPhoneNumber(searchParams?.get("phone") ?? "");
       setDialCode(searchParams?.get("dialCode") ?? "");
-      setCountryCode(searchParams?.get("countryCode") ?? "");
+      setCountryCode(searchParams?.get("countryCode") ?? DEFAULT_COUNTRY_CODE);
       setProfileCompletionMode("session");
       setLocalError(null);
     }
@@ -125,7 +126,7 @@ function RegisterPageInner() {
       setEmail("");
       setPhoneNumber("");
       setDialCode("");
-      setCountryCode("");
+      setCountryCode(DEFAULT_COUNTRY_CODE);
     } else if (step === "otp") {
       setStep("contact");
       setEmailCode("");
@@ -404,10 +405,11 @@ function RegisterPageInner() {
               ) : (
                 <PhoneInput
                   value={phoneNumber}
+                  defaultCountry={countryCode}
                   onChange={(full, dial, nextCountryCode) => {
                     setPhoneNumber(full);
                     setDialCode(dial);
-                    setCountryCode(nextCountryCode ?? "");
+                    setCountryCode(nextCountryCode ?? DEFAULT_COUNTRY_CODE);
                   }}
                 />
               )}

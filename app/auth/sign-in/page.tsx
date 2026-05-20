@@ -9,6 +9,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, KeyRound, Sparkles } from "lucide-react";
 import { useOtpResendTimer } from "@/lib/auth/otpResend";
 import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
+import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
 
 type Method = null | "email" | "phone";
 type Step = "method" | "otp";
@@ -37,7 +38,7 @@ function SignInPageInner() {
   // Phone state
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dialCode, setDialCode] = useState("");
-  const [countryCode, setCountryCode] = useState("");
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
 
   // OTP state
   const [otpCode, setOtpCode] = useState("");
@@ -72,7 +73,7 @@ function SignInPageInner() {
     setStep("method");
     setEmail("");
     setPhoneNumber("");
-    setCountryCode("");
+    setCountryCode(DEFAULT_COUNTRY_CODE);
     setOtpCode("");
     setOtpSent(false);
     setLocalError(null);
@@ -256,10 +257,11 @@ function SignInPageInner() {
               ) : (
                 <PhoneInput
                   value={phoneNumber}
+                  defaultCountry={countryCode}
                   onChange={(full, dial, nextCountryCode) => {
                     setPhoneNumber(full);
                     setDialCode(dial);
-                    setCountryCode(nextCountryCode ?? "");
+                    setCountryCode(nextCountryCode ?? DEFAULT_COUNTRY_CODE);
                   }}
                 />
               )}
