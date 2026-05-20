@@ -143,7 +143,7 @@ export default function AdminResetPasswordPage() {
     if (loading) return null;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-black flex items-center justify-center px-4 py-10">
+        <div className="flex min-h-[100svh] items-start justify-center overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-black px-4 py-6 sm:items-center sm:py-10">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
                     <Image

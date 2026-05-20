@@ -29,7 +29,7 @@ export default function AdminLayout({
 }) {
     return (
         <AdminAuthProvider>
-            <div className="h-[100dvh] overflow-hidden">
+            <div className="min-h-[100svh]">
                 {children}
             </div>
         </AdminAuthProvider>

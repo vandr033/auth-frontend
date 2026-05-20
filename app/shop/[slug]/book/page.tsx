@@ -1487,6 +1487,9 @@ export default function BookingPage() {
     const [prefillWarnings, setPrefillWarnings] = useState<string[]>([]);
     const [showMarketplacePrefillBanner, setShowMarketplacePrefillBanner] = useState(isMarketplaceSource && hasMarketplacePrefillData);
     const [marketplaceAutoAdvanceEnabled, setMarketplaceAutoAdvanceEnabled] = useState(isMarketplaceSource && hasMarketplacePrefillData);
+    const [servicePrefillAutoAdvanceEnabled, setServicePrefillAutoAdvanceEnabled] = useState(
+        Boolean(inviteToken || preselectedServiceId),
+    );
     const pendingBookingHandledRef = React.useRef(false);
     const bookingStartedTrackedRef = React.useRef(false);
 
@@ -1499,6 +1502,10 @@ export default function BookingPage() {
         setShowMarketplacePrefillBanner(isMarketplaceSource && hasMarketplacePrefillData);
         setMarketplaceAutoAdvanceEnabled(isMarketplaceSource && hasMarketplacePrefillData);
     }, [hasMarketplacePrefillData, isMarketplaceSource]);
+
+    useEffect(() => {
+        setServicePrefillAutoAdvanceEnabled(Boolean(inviteToken || preselectedServiceId));
+    }, [inviteToken, preselectedServiceId]);
 
     useEffect(() => {
         if (selectedDate || !preselectedDate) return;
@@ -2021,6 +2028,20 @@ export default function BookingPage() {
             },
         }));
     }, [booking.services.length, booking.staff, filteredStaff.length, isMarketplaceSource, preselectionApplied, t]);
+
+    useEffect(() => {
+        if (!servicePrefillAutoAdvanceEnabled || !preselectionApplied) return;
+        if (browseMode !== "service-first" || booking.step !== 1 || booking.services.length === 0) return;
+
+        setBooking((prev) => ({ ...prev, step: 2 }));
+        setServicePrefillAutoAdvanceEnabled(false);
+    }, [
+        booking.services.length,
+        booking.step,
+        browseMode,
+        preselectionApplied,
+        servicePrefillAutoAdvanceEnabled,
+    ]);
 
     // Auto-advance prefilled marketplace bookings without skipping required selections.
     useEffect(() => {

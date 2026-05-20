@@ -116,7 +116,7 @@ export default function AdminChangePasswordPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-10">
+        <div className="flex min-h-[100svh] items-start justify-center overflow-y-auto bg-slate-950 px-4 py-6 sm:items-center sm:py-10">
             <div className="w-full max-w-md">
                 <Image
                     src="/assets/priconpri/logo-horizontal-pink-outline.webp"
