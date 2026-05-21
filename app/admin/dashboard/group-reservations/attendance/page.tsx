@@ -26,15 +26,19 @@ import { formatDateTime } from "../lib/format";
 import {
     checkInGroupByTicketCode,
     cancelGroupTicket,
-    checkInGroupClassSessionAttendee,
     getGroupAttendanceSummary,
+    listGroupClassEnrollments,
+    listGroupClassSessionAttendance,
     listGroupClassSessions,
     listGroupClasses,
     listGroupEvents,
     listGroupTickets,
     resendGroupTicket,
+    setGroupClassSessionAttendanceStatus,
+    type GroupAttendanceRow,
     type GroupAttendanceSummary,
     type GroupClass,
+    type GroupClassEnrollment,
     type GroupClassSession,
     type GroupEvent,
     type GroupTicket,
@@ -46,6 +50,7 @@ type ScanResultState = {
     status: ScanResultKind;
     message: string;
 } | null;
+type SessionRosterStatus = "SHOW" | "NO_SHOW" | "UNMARKED";
 
 function normalizeScannedTicketValue(rawValue: string): string {
     const trimmed = rawValue.trim();
@@ -84,12 +89,14 @@ export default function GroupAttendancePage() {
     const [classes, setClasses] = useState<GroupClass[]>([]);
     const [sessions, setSessions] = useState<GroupClassSession[]>([]);
     const [tickets, setTickets] = useState<GroupTicket[]>([]);
+    const [sessionEnrollments, setSessionEnrollments] = useState<GroupClassEnrollment[]>([]);
+    const [sessionAttendanceRows, setSessionAttendanceRows] = useState<GroupAttendanceRow[]>([]);
+    const [sessionRosterLoading, setSessionRosterLoading] = useState(false);
 
     const [selectedEventId, setSelectedEventId] = useState<string>("");
     const [selectedClassId, setSelectedClassId] = useState<string>("");
     const [selectedSessionId, setSelectedSessionId] = useState<string>("");
     const [eventTicketCode, setEventTicketCode] = useState("");
-    const [sessionUserId, setSessionUserId] = useState("");
     const [ticketCode, setTicketCode] = useState("");
     const [scanResult, setScanResult] = useState<ScanResultState>(null);
     const preselectedSessionId = searchParams?.get("sessionId") ?? null;
@@ -122,6 +129,22 @@ export default function GroupAttendancePage() {
         }
     }, [canUseAdvanced, canUseClasses, canUseEvents, t]);
 
+    const loadSessionRoster = useCallback(async (classId: number, sessionId: number) => {
+        setSessionRosterLoading(true);
+        try {
+            const [enrollmentsData, attendanceData] = await Promise.all([
+                listGroupClassEnrollments(classId),
+                listGroupClassSessionAttendance(sessionId),
+            ]);
+            setSessionEnrollments(enrollmentsData);
+            setSessionAttendanceRows(attendanceData);
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.loadError"));
+        } finally {
+            setSessionRosterLoading(false);
+        }
+    }, [t]);
+
     useEffect(() => {
         if (!canUseAdvanced) return;
         void loadData();
@@ -151,6 +174,16 @@ export default function GroupAttendancePage() {
     const selectedSessionClass = selectedSession
         ? (classes.find((c) => c.id === selectedSession.group_class_id) ?? null)
         : null;
+
+    useEffect(() => {
+        if (!selectedClassId || !selectedSessionId) {
+            setSessionEnrollments([]);
+            setSessionAttendanceRows([]);
+            return;
+        }
+
+        void loadSessionRoster(Number.parseInt(selectedClassId, 10), Number.parseInt(selectedSessionId, 10));
+    }, [loadSessionRoster, selectedClassId, selectedSessionId]);
 
     const handleEventCheckIn = async () => {
         const normalizedCode = normalizeScannedTicketValue(eventTicketCode);
@@ -191,23 +224,29 @@ export default function GroupAttendancePage() {
         }
     };
 
-    const handleSessionCheckIn = async () => {
-        if (!selectedSessionId || !sessionUserId.trim()) {
-            await notify.warning(t("adminGroup.attendance.missingSessionCheckInData"));
+    const handleSessionAttendanceStatus = async (userId: string, status: Exclude<SessionRosterStatus, "UNMARKED">) => {
+        if (!selectedSessionId || !selectedClassId) {
+            await notify.warning(t("adminGroup.attendance.noSessionSelected"));
             return;
         }
         setSubmitting(true);
         try {
-            await checkInGroupClassSessionAttendee(Number.parseInt(selectedSessionId, 10), sessionUserId.trim(), "MANUAL");
-            setScanResult({ status: "valid", message: t("adminGroup.attendance.valid") });
-            setSessionUserId("");
-            await loadData();
+            await setGroupClassSessionAttendanceStatus(Number.parseInt(selectedSessionId, 10), {
+                user_id: userId,
+                status,
+                method: "MANUAL",
+            });
+            await notify.success(
+                status === "SHOW"
+                    ? t("adminGroup.attendance.markedShow")
+                    : t("adminGroup.attendance.markedNoShow"),
+            );
+            await Promise.all([
+                loadData(),
+                loadSessionRoster(Number.parseInt(selectedClassId, 10), Number.parseInt(selectedSessionId, 10)),
+            ]);
         } catch (error) {
-            const message = error instanceof Error ? error.message : t("adminGroup.attendance.invalid");
-            const status: ScanResultKind =
-                message.toLowerCase().includes("already") ? "already_used" : "invalid";
-            setScanResult({ status, message });
-            await notify.error(message);
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.attendance.updateStatusError"));
         } finally {
             setSubmitting(false);
         }
@@ -288,6 +327,42 @@ export default function GroupAttendancePage() {
     };
 
     const latestTickets = useMemo(() => tickets.slice(0, 15), [tickets]);
+    const sessionAttendanceByUserId = useMemo(
+        () => new Map(sessionAttendanceRows.map((row) => [row.user_id, row])),
+        [sessionAttendanceRows],
+    );
+    const sessionRoster = useMemo(() => {
+        if (!selectedSession) return [];
+
+        const sessionStart = new Date(selectedSession.start_at).getTime();
+
+        return sessionEnrollments
+            .filter((enrollment) =>
+                enrollment.status === "CONFIRMED"
+                && enrollment.cancelled_at === null
+                && new Date(enrollment.valid_from).getTime() <= sessionStart
+                && new Date(enrollment.valid_until).getTime() >= sessionStart,
+            )
+            .map((enrollment) => {
+                const attendance = sessionAttendanceByUserId.get(enrollment.user_id) ?? null;
+                const status: SessionRosterStatus = attendance
+                    ? attendance.checked_in_at
+                        ? "SHOW"
+                        : "NO_SHOW"
+                    : "UNMARKED";
+
+                return {
+                    enrollment,
+                    attendance,
+                    status,
+                };
+            })
+            .sort((a, b) => {
+                const left = a.enrollment.user?.name || a.enrollment.user?.email || a.enrollment.user_id;
+                const right = b.enrollment.user?.name || b.enrollment.user?.email || b.enrollment.user_id;
+                return left.localeCompare(right);
+            });
+    }, [selectedSession, sessionAttendanceByUserId, sessionEnrollments]);
 
     if (!canUseAdvanced) {
         const requiredPlan = getRequiredPlan("GROUP_ADVANCED");
@@ -438,16 +513,94 @@ export default function GroupAttendancePage() {
                                     <div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700 space-y-0.5">
                                         <p><span className="font-medium">{t("adminGroup.fields.class")}:</span> {selectedSessionClass?.title ?? "—"}</p>
                                         <p><span className="font-medium">{t("adminGroup.fields.session")}:</span> {formatDateTime(selectedSession.start_at)}</p>
+                                        <p><span className="font-medium">{t("adminGroup.attendance.registeredCount")}:</span> {sessionRoster.length}</p>
                                     </div>
                                 )}
-                                <Label>{t("adminGroup.fields.userId")}</Label>
-                                <Input value={sessionUserId} onChange={(e) => setSessionUserId(e.target.value)} />
-                                <Button className="w-full" variant="outline" onClick={() => void handleSessionCheckIn()} disabled={submitting}>
-                                    {t("adminGroup.attendance.checkIn")}
-                                </Button>
+                                <p className="text-sm text-slate-500">{t("adminGroup.attendance.sessionRosterSubtitle")}</p>
                             </CardContent>
                         </Card>
                     </div>
+
+                    <Card className="border-slate-200">
+                        <CardHeader>
+                            <CardTitle className="text-base">{t("adminGroup.attendance.sessionRosterTitle")}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {!selectedSession ? (
+                                <p className="text-sm text-slate-500">{t("adminGroup.attendance.noSessionSelected")}</p>
+                            ) : sessionRosterLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="h-5 w-5 animate-spin text-admin-brand" />
+                                </div>
+                            ) : sessionRoster.length === 0 ? (
+                                <p className="text-sm text-slate-500">{t("adminGroup.attendance.noRegisteredUsers")}</p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.email")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.phone")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.status")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.actions")}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {sessionRoster.map(({ enrollment, attendance, status }) => (
+                                            <TableRow key={enrollment.id}>
+                                                <TableCell className="font-medium">
+                                                    {enrollment.user?.name || enrollment.user?.email || enrollment.user_id}
+                                                </TableCell>
+                                                <TableCell>{enrollment.user?.email || "—"}</TableCell>
+                                                <TableCell>{enrollment.user?.phoneNumber || "—"}</TableCell>
+                                                <TableCell>
+                                                    <div className="space-y-1">
+                                                        <span
+                                                            className={
+                                                                status === "SHOW"
+                                                                    ? "text-sm font-medium text-emerald-700"
+                                                                    : status === "NO_SHOW"
+                                                                        ? "text-sm font-medium text-rose-700"
+                                                                        : "text-sm font-medium text-slate-500"
+                                                            }
+                                                        >
+                                                            {status === "SHOW"
+                                                                ? t("adminGroup.attendance.statusShow")
+                                                                : status === "NO_SHOW"
+                                                                    ? t("adminGroup.attendance.statusNoShow")
+                                                                    : t("adminGroup.attendance.statusUnmarked")}
+                                                        </span>
+                                                        {attendance?.checked_in_at ? (
+                                                            <p className="text-xs text-slate-500">
+                                                                {formatDateTime(attendance.checked_in_at)}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => void handleSessionAttendanceStatus(enrollment.user_id, "SHOW")}
+                                                        disabled={submitting}
+                                                    >
+                                                        {t("adminGroup.attendance.markShow")}
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => void handleSessionAttendanceStatus(enrollment.user_id, "NO_SHOW")}
+                                                        disabled={submitting}
+                                                    >
+                                                        {t("adminGroup.attendance.markNoShow")}
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
 
                     <Card className="border-slate-200">
                         <CardHeader>

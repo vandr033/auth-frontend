@@ -19,6 +19,7 @@ import {
     Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Select,
@@ -98,6 +99,7 @@ export default function BookingsPage() {
     // Filters
     const [staffFilter, setStaffFilter] = useState<string>("ALL");
     const [statusFilter, setStatusFilter] = useState<BookingStatus | "ALL">("ALL");
+    const [showCancelled, setShowCancelled] = useState(false);
 
     // Data
     const [bookings, setBookings] = useState<AdminBooking[]>([]);
@@ -128,8 +130,17 @@ export default function BookingsPage() {
         let count = 0;
         if (staffFilter !== "ALL") count++;
         if (statusFilter !== "ALL") count++;
+        if (showCancelled) count++;
         return count;
-    }, [staffFilter, statusFilter]);
+    }, [showCancelled, staffFilter, statusFilter]);
+
+    const visibleBookings = useMemo(() => {
+        if (showCancelled || statusFilter === "CANCELLED") {
+            return bookings;
+        }
+
+        return bookings.filter((booking) => booking.status !== "CANCELLED");
+    }, [bookings, showCancelled, statusFilter]);
 
     const selectedStaffLabel = useMemo(() => {
         if (isStaffRole) {
@@ -148,6 +159,7 @@ export default function BookingsPage() {
     const clearFilters = () => {
         setStaffFilter("ALL");
         setStatusFilter("ALL");
+        setShowCancelled(false);
     };
 
     // Fetch staff, services, and hours on mount
@@ -433,12 +445,12 @@ export default function BookingsPage() {
     const operationsSummary = useMemo(() => {
         const today = new Date();
         return {
-            total: bookings.length,
-            today: bookings.filter((booking) => isSameDay(new Date(booking.start_at), today)).length,
-            pending: bookings.filter((booking) => booking.status === "PENDING").length,
-            confirmed: bookings.filter((booking) => booking.status === "CONFIRMED").length,
+            total: visibleBookings.length,
+            today: visibleBookings.filter((booking) => isSameDay(new Date(booking.start_at), today)).length,
+            pending: visibleBookings.filter((booking) => booking.status === "PENDING").length,
+            confirmed: visibleBookings.filter((booking) => booking.status === "CONFIRMED").length,
         };
-    }, [bookings]);
+    }, [visibleBookings]);
 
     if (!isAuthenticated) return null;
 
@@ -684,6 +696,14 @@ export default function BookingsPage() {
                             </Select>
                         </div>
 
+                        <label className="mt-auto flex min-h-9 items-center gap-2 rounded-md border border-admin-border bg-white px-3 text-sm text-slate-700">
+                            <Checkbox
+                                checked={showCancelled}
+                                onCheckedChange={(checked) => setShowCancelled(checked === true)}
+                            />
+                            <span>ver canceladas</span>
+                        </label>
+
                         {activeFilterCount > 0 && (
                             <Button
                                 variant="ghost"
@@ -709,7 +729,7 @@ export default function BookingsPage() {
 
                 {viewMode === "calendar" ? (
                     <BookingCalendarView
-                        bookings={bookings}
+                        bookings={visibleBookings}
                         currentDate={currentDate}
                         dayCount={dayCount}
                         onBookingClick={handleBookingClick}
@@ -717,13 +737,13 @@ export default function BookingsPage() {
                     />
                 ) : viewMode === "month" ? (
                     <BookingMonthView
-                        bookings={bookings}
+                        bookings={visibleBookings}
                         currentDate={currentDate}
                         onBookingClick={handleBookingClick}
                     />
                 ) : (
                     <BookingListView
-                        bookings={bookings}
+                        bookings={visibleBookings}
                         currency={currency}
                         onBookingClick={handleBookingClick}
                         onStatusUpdate={handleStatusUpdate}

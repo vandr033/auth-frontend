@@ -65,10 +65,12 @@ export function normalizeShopData(rawData: RawShopData): ShopData {
         ...rawData,
         company: normalizedCompany,
         hours: rawData.company?.hours || rawData.hours || [],
-        staff: (rawData.staff || []).map((member) => ({
-            ...member,
-            services: member.services || member.staff_services?.map((service) => service.service_id) || [],
-        })),
+        staff: (rawData.staff || [])
+            .map((member) => ({
+                ...member,
+                services: member.services || member.staff_services?.map((service) => service.service_id) || [],
+            }))
+            .filter((member) => (member.services?.length ?? 0) > 0),
         services: (rawData.services || []).map((service) => ({
             ...service,
             required_resource_ids:

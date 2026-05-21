@@ -279,10 +279,15 @@ export function NewBookingModal({
         return () => clearTimeout(timer);
     }, [customerMode, customerQuery, isOpen, t]);
 
+    const eligibleStaffList = useMemo(
+        () => staffList.filter((staff) => staff.is_bookable && (staff.services?.length ?? 0) > 0),
+        [staffList],
+    );
+
     const selectedStaff = useMemo(() => {
         if (!staffId) return null;
-        return staffList.find((staff) => String(staff.id) === staffId) || null;
-    }, [staffId, staffList]);
+        return eligibleStaffList.find((staff) => String(staff.id) === staffId) || null;
+    }, [eligibleStaffList, staffId]);
 
     const availableServices = useMemo(() => {
         if (!selectedStaff) return [];
@@ -293,7 +298,7 @@ export function NewBookingModal({
             );
         }
 
-        return serviceList.filter((service) => service.is_active);
+        return [];
     }, [selectedStaff, serviceList]);
 
     const servicesByCategory = useMemo(() => {
@@ -741,13 +746,11 @@ export function NewBookingModal({
                                             <SelectValue placeholder={t("adminBookings.selectStaff")} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {staffList
-                                                .filter((staff) => staff.is_bookable)
-                                                .map((staff) => (
-                                                    <SelectItem key={staff.id} value={String(staff.id)}>
-                                                        {staff.display_name}
-                                                    </SelectItem>
-                                                ))}
+                                            {eligibleStaffList.map((staff) => (
+                                                <SelectItem key={staff.id} value={String(staff.id)}>
+                                                    {staff.display_name}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 )}

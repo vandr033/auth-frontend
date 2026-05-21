@@ -1670,13 +1670,16 @@ export default function BookingPage() {
 
     // Convert shop staff to SelectedStaff format
     const selectableStaff: SelectedStaff[] = useMemo(
-        () => staff.map((s) => ({
-            id: s.id,
-            display_name: s.display_name,
-            image_url: s.image_url,
-            services: s.services,
-            resource_type: s.resource_type,
-        })),
+        () =>
+            staff
+                .filter((member) => (member.services?.length ?? 0) > 0)
+                .map((s) => ({
+                    id: s.id,
+                    display_name: s.display_name,
+                    image_url: s.image_url,
+                    services: s.services,
+                    resource_type: s.resource_type,
+                })),
         [staff],
     );
 

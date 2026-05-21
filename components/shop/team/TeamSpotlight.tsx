@@ -17,12 +17,13 @@ interface TeamSpotlightProps {
 export function TeamSpotlight({ staff, slug }: TeamSpotlightProps) {
     const t = useT();
     const [featuredIndex, setFeaturedIndex] = useState(0);
+    const visibleStaff = staff.filter((member) => (member.services?.length ?? 0) > 0);
 
-    if (staff.length === 0) {
+    if (visibleStaff.length === 0) {
         return <p className="text-text-muted">{t("shopHome.teamInfoSoon")}</p>;
     }
 
-    const featured = staff[featuredIndex];
+    const featured = visibleStaff[Math.min(featuredIndex, visibleStaff.length - 1)];
 
     return (
         <div className="space-y-6">
@@ -61,9 +62,9 @@ export function TeamSpotlight({ staff, slug }: TeamSpotlightProps) {
             </div>
 
             {/* Thumbnails */}
-            {staff.length > 1 && (
+            {visibleStaff.length > 1 && (
                 <div className="flex gap-3 overflow-x-auto pb-2">
-                    {staff.map((member, index) => (
+                    {visibleStaff.map((member, index) => (
                         <button
                             key={member.id}
                             onClick={() => setFeaturedIndex(index)}

@@ -13,7 +13,9 @@ interface TeamCardsProps {
 
 export function TeamCards({ staff, slug }: TeamCardsProps) {
     const t = useT();
-    if (staff.length === 0) {
+    const visibleStaff = staff.filter((member) => (member.services?.length ?? 0) > 0);
+
+    if (visibleStaff.length === 0) {
         return <p className="text-text-muted">{t("shopHome.teamInfoSoon")}</p>;
     }
 
@@ -21,13 +23,13 @@ export function TeamCards({ staff, slug }: TeamCardsProps) {
         <>
             {/* Mobile: horizontal scroll */}
             <div className="flex gap-4 overflow-x-auto pb-4 md:hidden">
-                {staff.map(member => (
+                {visibleStaff.map(member => (
                     <StaffCard key={member.id} member={member} slug={slug} />
                 ))}
             </div>
             {/* Desktop: grid */}
             <div className="hidden gap-6 md:grid md:grid-cols-2 lg:grid-cols-3">
-                {staff.map(member => (
+                {visibleStaff.map(member => (
                     <StaffCard key={member.id} member={member} slug={slug} />
                 ))}
             </div>
@@ -37,6 +39,8 @@ export function TeamCards({ staff, slug }: TeamCardsProps) {
 
 function StaffCard({ member, slug }: { member: ShopStaff; slug: string }) {
     const t = useT();
+    const canBook = (member.services?.length ?? 0) > 0;
+
     return (
         <div className="group relative w-[260px] shrink-0 overflow-hidden rounded-lg border border-surface-border bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg md:w-auto">
             {/* Photo */}
@@ -64,15 +68,17 @@ function StaffCard({ member, slug }: { member: ShopStaff; slug: string }) {
                         {member.bio}
                     </p>
                 )}
-                <Link
-                    href={`/shop/${slug}/book?staffId=${member.id}`}
-                    className="mt-3 inline-block text-sm font-semibold text-brand transition-colors hover:text-brand-hover"
-                >
-                    {(member.resource_type === 'ROOM' || member.resource_type === 'EQUIPMENT')
-                        ? t('shopHome.bookThe', { name: member.display_name })
-                        : t('shopHome.bookWith', { name: member.display_name.split(" ")[0] })}
-                    {' →'}
-                </Link>
+                {canBook ? (
+                    <Link
+                        href={`/shop/${slug}/book?staffId=${member.id}`}
+                        className="mt-3 inline-block text-sm font-semibold text-brand transition-colors hover:text-brand-hover"
+                    >
+                        {(member.resource_type === 'ROOM' || member.resource_type === 'EQUIPMENT')
+                            ? t('shopHome.bookThe', { name: member.display_name })
+                            : t('shopHome.bookWith', { name: member.display_name.split(" ")[0] })}
+                        {' →'}
+                    </Link>
+                ) : null}
             </div>
         </div>
     );

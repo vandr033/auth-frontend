@@ -2323,6 +2323,21 @@ export async function checkInGroupClassSessionAttendee(
     return response.data;
 }
 
+export async function setGroupClassSessionAttendanceStatus(
+    sessionId: number,
+    input: {
+        user_id: string;
+        status: "SHOW" | "NO_SHOW";
+        method?: GroupCheckInMethod;
+    },
+): Promise<GroupAttendanceRow> {
+    const response = await apiFetch<{ data: GroupAttendanceRow }>(`/api/admin/group/attendance/sessions/${sessionId}/status`, {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+    return response.data;
+}
+
 export async function checkInGroupByTicketCode(payload: {
     ticket_code?: string;
     qr_token?: string;
