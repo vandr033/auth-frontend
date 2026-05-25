@@ -147,6 +147,94 @@ function downloadBlob(blob: Blob, fileName: string) {
     URL.revokeObjectURL(url);
 }
 
+const IMPORT_READY_CUSTOMER_HEADERS = ["name", "email", "phone_prefix", "phone", "notes"] as const;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizeContactEmail(value: string | null | undefined) {
+    const normalized = (value || "").trim().toLowerCase();
+    return normalized || null;
+}
+
+function normalizeContactDigits(value: string | null | undefined) {
+    const normalized = (value || "").replace(/\D/g, "");
+    return normalized || null;
+}
+
+function normalizeContactPrefix(value: string | null | undefined) {
+    const digits = normalizeContactDigits(value);
+    return digits || "591";
+}
+
+function buildImportReadyLeadExport(leads: InterestCaptureLead[], locale: string) {
+    const rows: string[][] = [];
+    const seenEmails = new Set<string>();
+    const seenPhones = new Set<string>();
+    let skippedMissingContact = 0;
+    let skippedInvalidEmail = 0;
+    let skippedDuplicates = 0;
+
+    for (const lead of leads) {
+        const email = normalizeContactEmail(lead.email);
+        const phone = normalizeContactDigits(lead.phoneNumber);
+        const phonePrefix = phone ? normalizeContactPrefix(lead.phonePrefix) : "";
+        const fullPhone = phone ? `${phonePrefix}${phone}` : null;
+
+        if (!email && !phone) {
+            skippedMissingContact += 1;
+            continue;
+        }
+
+        if (email && !EMAIL_REGEX.test(email)) {
+            skippedInvalidEmail += 1;
+            continue;
+        }
+
+        if ((email && seenEmails.has(email)) || (fullPhone && seenPhones.has(fullPhone))) {
+            skippedDuplicates += 1;
+            continue;
+        }
+
+        const fallbackName = email?.split("@")[0] || (phone ? `Cliente ${phone.slice(-4)}` : "Cliente");
+        const name = (lead.personName || "").trim() || fallbackName;
+        const createdAt = formatDateTime(lead.createdAt, "", locale);
+        const notesParts = [
+            `${lead.sourceLabel}: ${lead.itemTitle}`,
+            lead.status ? `Estado: ${lead.status}` : null,
+            createdAt ? `Captado: ${createdAt}` : null,
+        ].filter(Boolean);
+
+        rows.push([
+            name,
+            email || "",
+            phone ? phonePrefix : "",
+            phone || "",
+            notesParts.join(" | "),
+        ]);
+
+        if (email) seenEmails.add(email);
+        if (fullPhone) seenPhones.add(fullPhone);
+    }
+
+    const csv = [IMPORT_READY_CUSTOMER_HEADERS, ...rows]
+        .map((row) =>
+            row
+                .map((cell) => {
+                    const text = String(cell).replace(/"/g, '""');
+                    return /[",\n]/.test(text) ? `"${text}"` : text;
+                })
+                .join(","),
+        )
+        .join("\n");
+
+    return {
+        csv,
+        exportedCount: rows.length,
+        skippedMissingContact,
+        skippedInvalidEmail,
+        skippedDuplicates,
+    };
+}
+
 function CustomersSectionNav() {
     const { t } = useI18n();
     const pathname = usePathname() || "";
@@ -647,6 +735,29 @@ export function CustomersCommunicationsSurface() {
         downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `captacion-interesados-${Date.now()}.csv`);
     };
 
+    const exportInterestLeadsImportReadyCsv = async () => {
+        const result = buildImportReadyLeadExport(filteredInterestLeads, locale);
+
+        if (result.exportedCount === 0) {
+            await notify.warning(t("adminCustomers.importReadyExportEmpty"));
+            return;
+        }
+
+        downloadBlob(
+            new Blob([result.csv], { type: "text/csv;charset=utf-8" }),
+            `clientes-importables-${Date.now()}.csv`,
+        );
+
+        await notify.success(
+            t("adminCustomers.importReadyExportSuccess", {
+                exported: result.exportedCount,
+                duplicates: result.skippedDuplicates,
+                invalid: result.skippedInvalidEmail,
+                missing: result.skippedMissingContact,
+            }),
+        );
+    };
+
     return (
         <AdminPageShell>
             <AdminPageHeader
@@ -839,7 +950,11 @@ export function CustomersCommunicationsSurface() {
                             </div>
                         </div>
 
-                        <div className="flex justify-end">
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => void exportInterestLeadsImportReadyCsv()} disabled={filteredInterestLeads.length === 0}>
+                                <Download className="mr-2 h-4 w-4" />
+                                {t("adminCustomers.exportCsvForImport")}
+                            </Button>
                             <Button type="button" variant="outline" onClick={exportInterestLeadsCsv} disabled={filteredInterestLeads.length === 0}>
                                 <Download className="mr-2 h-4 w-4" />
                                 {t("adminCustomers.exportCsv")}
