@@ -13,9 +13,8 @@ interface TeamCardsProps {
 
 export function TeamCards({ staff, slug }: TeamCardsProps) {
     const t = useT();
-    const visibleStaff = staff.filter((member) => (member.services?.length ?? 0) > 0);
 
-    if (visibleStaff.length === 0) {
+    if (staff.length === 0) {
         return <p className="text-text-muted">{t("shopHome.teamInfoSoon")}</p>;
     }
 
@@ -23,13 +22,13 @@ export function TeamCards({ staff, slug }: TeamCardsProps) {
         <>
             {/* Mobile: horizontal scroll */}
             <div className="flex gap-4 overflow-x-auto pb-4 md:hidden">
-                {visibleStaff.map(member => (
+                {staff.map(member => (
                     <StaffCard key={member.id} member={member} slug={slug} />
                 ))}
             </div>
             {/* Desktop: grid */}
             <div className="hidden gap-6 md:grid md:grid-cols-2 lg:grid-cols-3">
-                {visibleStaff.map(member => (
+                {staff.map(member => (
                     <StaffCard key={member.id} member={member} slug={slug} />
                 ))}
             </div>

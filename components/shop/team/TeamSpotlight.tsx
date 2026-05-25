@@ -17,13 +17,13 @@ interface TeamSpotlightProps {
 export function TeamSpotlight({ staff, slug }: TeamSpotlightProps) {
     const t = useT();
     const [featuredIndex, setFeaturedIndex] = useState(0);
-    const visibleStaff = staff.filter((member) => (member.services?.length ?? 0) > 0);
 
-    if (visibleStaff.length === 0) {
+    if (staff.length === 0) {
         return <p className="text-text-muted">{t("shopHome.teamInfoSoon")}</p>;
     }
 
-    const featured = visibleStaff[Math.min(featuredIndex, visibleStaff.length - 1)];
+    const featured = staff[Math.min(featuredIndex, staff.length - 1)];
+    const canBookFeatured = (featured.services?.length ?? 0) > 0;
 
     return (
         <div className="space-y-6">
@@ -51,20 +51,22 @@ export function TeamSpotlight({ staff, slug }: TeamSpotlightProps) {
                             {featured.bio}
                         </p>
                     )}
-                    <div className="mt-6">
-                        <PrimaryButton asChild>
-                            <Link href={`/shop/${slug}/book?staffId=${featured.id}`}>
-                                {t('shopHome.bookWith', { name: featured.display_name.split(" ")[0] })}
-                            </Link>
-                        </PrimaryButton>
-                    </div>
+                    {canBookFeatured ? (
+                        <div className="mt-6">
+                            <PrimaryButton asChild>
+                                <Link href={`/shop/${slug}/book?staffId=${featured.id}`}>
+                                    {t('shopHome.bookWith', { name: featured.display_name.split(" ")[0] })}
+                                </Link>
+                            </PrimaryButton>
+                        </div>
+                    ) : null}
                 </div>
             </div>
 
             {/* Thumbnails */}
-            {visibleStaff.length > 1 && (
+            {staff.length > 1 && (
                 <div className="flex gap-3 overflow-x-auto pb-2">
-                    {visibleStaff.map((member, index) => (
+                    {staff.map((member, index) => (
                         <button
                             key={member.id}
                             onClick={() => setFeaturedIndex(index)}
