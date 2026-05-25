@@ -102,7 +102,7 @@ function combinePhone(prefix?: string | null, phone?: string | null): string | u
     const normalizedPhone = (phone || "").trim();
     if (!normalizedPhone) return undefined;
     const normalizedPrefix = (prefix || "").trim();
-    return normalizedPrefix ? `${normalizedPrefix} ${normalizedPhone}` : normalizedPhone;
+    return normalizedPrefix ? `+${normalizedPrefix} ${normalizedPhone}` : normalizedPhone;
 }
 
 function getWeekdayLabel(t: (key: string) => string, weekday: number) {
@@ -214,6 +214,7 @@ export function NewBookingModal({
     const [singleTime, setSingleTime] = useState("09:00");
     const [guestName, setGuestName] = useState("");
     const [guestEmail, setGuestEmail] = useState("");
+    const [guestPhonePrefix, setGuestPhonePrefix] = useState("591");
     const [guestPhone, setGuestPhone] = useState("");
     const [notes, setNotes] = useState("");
     const [singleIsPaid, setSingleIsPaid] = useState(false);
@@ -243,6 +244,7 @@ export function NewBookingModal({
         setSingleTime("09:00");
         setGuestName("");
         setGuestEmail("");
+        setGuestPhonePrefix("591");
         setGuestPhone("");
         setNotes("");
         setSingleIsPaid(false);
@@ -566,7 +568,8 @@ export function NewBookingModal({
                 customer: {
                     full_name: selectedCustomer.name,
                     email: selectedCustomer.email || undefined,
-                    phone: combinePhone(selectedCustomer.phonePrefix, selectedCustomer.phone),
+                    phoneNumber: selectedCustomer.phone || undefined,
+                    phonePrefix: selectedCustomer.phonePrefix || undefined,
                 },
             };
         }
@@ -580,7 +583,8 @@ export function NewBookingModal({
             customer: {
                 full_name: guestName.trim(),
                 email: guestEmail.trim() || undefined,
-                phone: guestPhone.trim() || undefined,
+                phoneNumber: guestPhone.trim() || undefined,
+                phonePrefix: guestPhone.trim() ? guestPhonePrefix.trim() || undefined : undefined,
             },
         };
     };
@@ -844,11 +848,19 @@ export function NewBookingModal({
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="customer-phone">{t("adminSettings.phone")}</Label>
-                                            <Input
-                                                id="customer-phone"
-                                                value={guestPhone}
-                                                onChange={(e) => setGuestPhone(e.target.value)}
-                                            />
+                                            <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-2">
+                                                <Input
+                                                    id="customer-phone-prefix"
+                                                    value={guestPhonePrefix}
+                                                    onChange={(e) => setGuestPhonePrefix(e.target.value)}
+                                                    placeholder="591"
+                                                />
+                                                <Input
+                                                    id="customer-phone"
+                                                    value={guestPhone}
+                                                    onChange={(e) => setGuestPhone(e.target.value)}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 )}

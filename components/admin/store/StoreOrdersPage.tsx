@@ -209,6 +209,17 @@ function parseInputAmount(value: string) {
   return Number(normalized);
 }
 
+function formatCustomerPhone(phone?: string | null, prefix?: string | null) {
+  const cleanPhone = (phone ?? "").trim();
+  if (!cleanPhone) return "";
+  const cleanPrefix = (prefix ?? "").replace(/\D/g, "");
+  return cleanPrefix ? `+${cleanPrefix} ${cleanPhone}` : cleanPhone;
+}
+
+function buildCustomerPhoneDigits(phone?: string | null, prefix?: string | null) {
+  return `${(prefix ?? "").replace(/\D/g, "")}${(phone ?? "").replace(/\D/g, "")}`;
+}
+
 function mergeOrder(base: AdminCommerceOrder, next: AdminCommerceOrder): AdminCommerceOrder {
   return {
     ...base,
@@ -464,7 +475,7 @@ export function StoreOrdersManager({ limit, compact = false }: StoreOrdersManage
         ![
           order.order_number,
           order.customer_name,
-          order.customer_phone,
+          formatCustomerPhone(order.customer_phone, order.customer_phone_prefix),
           order.assigned_staff?.display_name,
         ]
           .filter(Boolean)
@@ -645,7 +656,10 @@ export function StoreOrdersManager({ limit, compact = false }: StoreOrdersManage
     const orderNum = selectedOrder.order_number;
     const address = selectedOrder.delivery_address || t("adminStore.orders.noAddress");
     const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-    const clientPhone = (selectedOrder.customer_phone ?? "").replace(/\D/g, "");
+    const clientPhone = buildCustomerPhoneDigits(
+      selectedOrder.customer_phone,
+      selectedOrder.customer_phone_prefix,
+    );
     const clientName = selectedOrder.customer_name;
 
     if (driverMode === "link") {
@@ -884,7 +898,9 @@ export function StoreOrdersManager({ limit, compact = false }: StoreOrdersManage
                 cell: (order) => (
                   <div className="space-y-1">
                     <p className="font-medium text-slate-900">{order.customer_name}</p>
-                    <p className="text-xs text-slate-500">{order.customer_phone || t("adminStore.orders.noPhone")}</p>
+                    <p className="text-xs text-slate-500">
+                      {formatCustomerPhone(order.customer_phone, order.customer_phone_prefix) || t("adminStore.orders.noPhone")}
+                    </p>
                   </div>
                 ),
               },
@@ -965,7 +981,9 @@ export function StoreOrdersManager({ limit, compact = false }: StoreOrdersManage
                   <div>
                     <p className="font-medium text-slate-900">{order.order_number}</p>
                     <p className="text-sm text-slate-500">{order.customer_name}</p>
-                    <p className="text-sm text-slate-500">{order.customer_phone || t("adminStore.orders.noPhone")}</p>
+                    <p className="text-sm text-slate-500">
+                      {formatCustomerPhone(order.customer_phone, order.customer_phone_prefix) || t("adminStore.orders.noPhone")}
+                    </p>
                   </div>
                   <p className="font-semibold text-slate-900">{formatCurrency(order.total, currency, t)}</p>
                 </div>
@@ -1070,7 +1088,7 @@ export function StoreOrdersManager({ limit, compact = false }: StoreOrdersManage
                       <OrderMetaRow label={t("adminStore.orders.labels.name")} value={selectedOrder.customer_name} />
                       <OrderMetaRow
                         label={t("adminStore.orders.labels.phone")}
-                        value={selectedOrder.customer_phone || t("adminStore.orders.noPhone")}
+                        value={formatCustomerPhone(selectedOrder.customer_phone, selectedOrder.customer_phone_prefix) || t("adminStore.orders.noPhone")}
                       />
                       <OrderMetaRow
                         label={t("adminStore.orders.labels.email")}
@@ -1465,7 +1483,10 @@ export function StoreOrdersManager({ limit, compact = false }: StoreOrdersManage
                             <Button
                               variant="outline"
                               onClick={() => {
-                                const clientPhone = selectedOrder.customer_phone!.replace(/\D/g, "");
+                                const clientPhone = buildCustomerPhoneDigits(
+                                  selectedOrder.customer_phone,
+                                  selectedOrder.customer_phone_prefix,
+                                );
                                 const msg = `🚚 Tu pedido *${selectedOrder.order_number}* está en camino.\n🔗 Seguimiento: ${driverLink.trim()}`;
                                 window.open(`https://wa.me/${clientPhone}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
                               }}

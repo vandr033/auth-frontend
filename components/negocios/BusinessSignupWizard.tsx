@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,7 @@ import {
 import { BusinessPricingBuilder } from "@/components/negocios/BusinessPricingBuilder";
 import { resolveApiUrl } from "@/lib/api-url";
 import { notify } from "@/lib/notify";
+import { DEFAULT_COUNTRY_CODE, formatDialCode } from "@/lib/phone-country";
 import {
   calculateBusinessPricing,
   formatBsAmount,
@@ -91,6 +93,8 @@ export function BusinessSignupWizard() {
     businessType: "",
     ownerName: "",
     email: "",
+    phonePrefix: "591",
+    countryCode: DEFAULT_COUNTRY_CODE,
     phone: "",
     password: "",
     slug: "",
@@ -204,6 +208,8 @@ export function BusinessSignupWizard() {
           businessType: form.businessType,
           ownerName: form.ownerName,
           email: form.email,
+          phonePrefix: form.phonePrefix,
+          countryCode: form.countryCode,
           phone: form.phone,
           password: form.password,
           slug: buildSlug(form.slug || form.businessName),
@@ -372,13 +378,19 @@ export function BusinessSignupWizard() {
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="phone">Teléfono / WhatsApp</Label>
-                          <Input
-                            id="phone"
-                            value={form.phone}
-                            onChange={(event) =>
-                              setForm((current) => ({ ...current, phone: event.target.value }))
+                          <PhoneInput
+                            phoneNumber={form.phone}
+                            phonePrefix={form.phonePrefix}
+                            countryCode={form.countryCode}
+                            defaultCountry={form.countryCode}
+                            onChange={(value) =>
+                              setForm((current) => ({
+                                ...current,
+                                phone: value.phoneNumber,
+                                phonePrefix: value.phonePrefix,
+                                countryCode: value.countryCode,
+                              }))
                             }
-                            placeholder="59170000000"
                           />
                         </div>
                       </div>
@@ -439,7 +451,9 @@ export function BusinessSignupWizard() {
                         <p className="mt-2 text-sm leading-6 text-slate-700">
                           {form.ownerName} · {form.email}
                         </p>
-                        <p className="text-sm leading-6 text-slate-700">{form.phone}</p>
+                        <p className="text-sm leading-6 text-slate-700">
+                          {form.phone ? `${formatDialCode(form.phonePrefix)} ${form.phone}`.trim() : ""}
+                        </p>
                         <p className="mt-3 text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
                           /{buildSlug(form.slug || form.businessName)}
                         </p>

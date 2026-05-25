@@ -218,6 +218,7 @@ export type AdminCommerceOrder = {
   id: string;
   order_number: string;
   customer_name: string;
+  customer_phone_prefix?: string | null;
   customer_phone?: string | null;
   customer_email?: string | null;
   payment_method: "CASH" | "QR" | "MANUAL";

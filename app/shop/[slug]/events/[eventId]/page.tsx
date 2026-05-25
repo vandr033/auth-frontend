@@ -299,12 +299,6 @@ export default function ShopEventDetailPage() {
     return Object.keys(errors).length === 0;
   }, [paidGuestEmail, paidGuestFullName, paidGuestPhoneNumber, paidGuestPhonePrefix, paidGuestTosAccepted, t]);
 
-  const paidGuestPhoneFullValue = React.useMemo(() => {
-    const local = paidGuestPhoneNumber.trim();
-    if (!local) return "";
-    return `+${paidGuestPhonePrefix}${local}`;
-  }, [paidGuestPhoneNumber, paidGuestPhonePrefix]);
-
   const otpSection = freeSubmitResult?.otpSection;
   const otpAvailableChannels = React.useMemo(() => {
     if (!otpSection?.show) return [] as Array<"email" | "phone">;
@@ -361,11 +355,14 @@ export default function ShopEventDetailPage() {
       if (otpChannel === "email") {
         await sendLoginEmailOtp(freeSubmitContact.email);
       } else {
-        const phoneTarget = buildOtpPhoneTarget(freeSubmitContact);
-        if (!phoneTarget) {
+        if (!freeSubmitContact.phoneNumber.trim() || !freeSubmitContact.phonePrefix.trim()) {
           throw new Error(t("freeEventReg.account.sendOtpError"));
         }
-        await sendPhoneOtp(phoneTarget);
+        await sendPhoneOtp({
+          phoneNumber: freeSubmitContact.phoneNumber,
+          phonePrefix: freeSubmitContact.phonePrefix,
+          countryCode: freeSubmitContact.countryCode,
+        });
       }
       startCooldown();
       setOtpSuccess(t("freeEventReg.account.resendSuccess"));
@@ -375,7 +372,6 @@ export default function ShopEventDetailPage() {
       setOtpBusy(false);
     }
   }, [
-    buildOtpPhoneTarget,
     canResend,
     freeSubmitContact,
     freeSubmitResult?.otpSection?.show,
@@ -401,11 +397,14 @@ export default function ShopEventDetailPage() {
       if (otpChannel === "email") {
         await verifyLoginEmailOtp(freeSubmitContact.email, otpCode.trim());
       } else {
-        const phoneTarget = buildOtpPhoneTarget(freeSubmitContact);
-        if (!phoneTarget) {
+        if (!freeSubmitContact.phoneNumber.trim() || !freeSubmitContact.phonePrefix.trim()) {
           throw new Error(t("freeEventReg.account.verifyError"));
         }
-        await verifyPhoneOtp(phoneTarget, otpCode.trim());
+        await verifyPhoneOtp({
+          phoneNumber: freeSubmitContact.phoneNumber,
+          phonePrefix: freeSubmitContact.phonePrefix,
+          countryCode: freeSubmitContact.countryCode,
+        }, otpCode.trim());
       }
       setOtpSuccess(t("freeEventReg.account.verifySuccess"));
       await loadData();
@@ -415,7 +414,6 @@ export default function ShopEventDetailPage() {
       setOtpBusy(false);
     }
   }, [
-    buildOtpPhoneTarget,
     freeSubmitContact,
     freeSubmitResult?.otpSection?.show,
     loadData,
@@ -1172,18 +1170,14 @@ export default function ShopEventDetailPage() {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-text-muted">{t("shopGroup.guestCheckout.fields.phone")}</label>
                 <PhoneInput
-                  value={paidGuestPhoneFullValue}
+                  phoneNumber={paidGuestPhoneNumber}
+                  phonePrefix={paidGuestPhonePrefix}
+                  countryCode={paidGuestCountryCode}
                   defaultCountry={paidGuestCountryCode}
-                  onChange={(fullNumber, dialCode, countryCode) => {
-                    const prefix = dialCode.replace("+", "");
-                    setPaidGuestCountryCode(countryCode ?? DEFAULT_COUNTRY_CODE);
-                    setPaidGuestPhonePrefix(prefix);
-                    const stripped = fullNumber.startsWith(dialCode)
-                      ? fullNumber.slice(dialCode.length)
-                      : fullNumber.startsWith(prefix)
-                        ? fullNumber.slice(prefix.length)
-                        : fullNumber;
-                    setPaidGuestPhoneNumber(stripped.trim());
+                  onChange={(value) => {
+                    setPaidGuestCountryCode(value.countryCode ?? DEFAULT_COUNTRY_CODE);
+                    setPaidGuestPhonePrefix(value.phonePrefix);
+                    setPaidGuestPhoneNumber(value.phoneNumber.trim());
                   }}
                   disabled={paidGuestHasPendingCode}
                 />

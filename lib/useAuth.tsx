@@ -39,6 +39,12 @@ export type PhoneOtpVerificationResult = {
   needsProfileCompletion: boolean;
 };
 
+export type PhoneContact = {
+  phoneNumber: string;
+  phonePrefix: string;
+  countryCode?: string;
+};
+
 export type EmailRegistrationVerificationResult = {
   preRegToken?: string;
   existingAccount: boolean;
@@ -57,8 +63,8 @@ type AuthContextValue = {
   verifyLoginEmailOtp: (email: string, code: string) => Promise<EmailOtpVerificationResult>;
 
   // Phone OTP login (clients)
-  sendPhoneOtp: (phoneNumber: string) => Promise<void>;
-  verifyPhoneOtp: (phoneNumber: string, code: string) => Promise<PhoneOtpVerificationResult>;
+  sendPhoneOtp: (phone: PhoneContact) => Promise<void>;
+  verifyPhoneOtp: (phone: PhoneContact, code: string) => Promise<PhoneOtpVerificationResult>;
 
   // Sign out
   signOut: () => Promise<void>;
@@ -80,8 +86,9 @@ type AuthContextValue = {
   // Phone registration (Better Auth plugin)
   completeCustomerPhoneProfile: (
     first_name: string,
+    phoneNumber: string,
+    phone_prefix: string,
     last_name?: string,
-    phone_prefix?: string,
     country_code?: string,
   ) => Promise<void>;
 
@@ -89,12 +96,10 @@ type AuthContextValue = {
   updateProfile: (data: { first_name?: string; last_name?: string }) => Promise<void>;
   sendEmailChangeOtp: (newEmail: string) => Promise<void>;
   verifyEmailChange: (newEmail: string, code: string) => Promise<void>;
-  sendPhoneChangeOtp: (newPhone: string) => Promise<void>;
+  sendPhoneChangeOtp: (phone: PhoneContact) => Promise<void>;
   verifyPhoneChange: (
-    newPhone: string,
+    phone: PhoneContact,
     code: string,
-    phone_prefix?: string,
-    country_code?: string,
   ) => Promise<void>;
 
   // Admin sign in (password-based, kept for admin/superadmin)
@@ -359,11 +364,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   // ── Phone OTP (login/register via Better Auth plugin) ──
-  const sendPhoneOtp = useCallback(async (phoneNumber: string) => {
+  const sendPhoneOtp = useCallback(async (phone: PhoneContact) => {
     setLoading(true);
     setError(null);
     try {
-      await apiPost("/v1/auth/customer/login/phone/start", { phoneNumber });
+      await apiPost("/v1/auth/customer/login/phone/start", {
+        phoneNumber: phone.phoneNumber,
+        phonePrefix: phone.phonePrefix,
+        countryCode: phone.countryCode,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : authT("authErrors.sendOtp");
       setError(message);
@@ -374,11 +383,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const verifyPhoneOtp = useCallback(
-    async (phoneNumber: string, code: string) => {
+    async (phone: PhoneContact, code: string) => {
       setLoading(true);
       setError(null);
       try {
-        await apiPost("/v1/auth/customer/login/phone/verify", { phoneNumber, code });
+        await apiPost("/v1/auth/customer/login/phone/verify", {
+          phoneNumber: phone.phoneNumber,
+          phonePrefix: phone.phonePrefix,
+          countryCode: phone.countryCode,
+          code,
+        });
         const currentUser = await refreshSession();
         const needsProfileCompletion = userNeedsProfileCompletion(currentUser);
         return {
@@ -546,8 +560,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const completeCustomerPhoneProfile = useCallback(
     async (
       first_name: string,
+      phoneNumber: string,
+      phone_prefix: string,
       last_name?: string,
-      phone_prefix?: string,
       country_code?: string,
     ) => {
       setLoading(true);
@@ -555,6 +570,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await apiPost("/v1/auth/customer/complete-phone", {
           first_name,
+          phoneNumber,
           last_name,
           phone_prefix,
           country_code,
@@ -622,11 +638,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refreshSession],
   );
 
-  const sendPhoneChangeOtp = useCallback(async (newPhone: string) => {
+  const sendPhoneChangeOtp = useCallback(async (newPhone: PhoneContact) => {
     setLoading(true);
     setError(null);
     try {
-      await apiPost("/v1/auth/me/phone/start", { phoneNumber: newPhone });
+      await apiPost("/v1/auth/me/phone/start", {
+        phoneNumber: newPhone.phoneNumber,
+        phonePrefix: newPhone.phonePrefix,
+        countryCode: newPhone.countryCode,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : authT("authErrors.sendVerification");
       setError(message);
@@ -637,15 +657,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const verifyPhoneChange = useCallback(
-    async (newPhone: string, code: string, phone_prefix?: string, country_code?: string) => {
+    async (newPhone: PhoneContact, code: string) => {
       setLoading(true);
       setError(null);
       try {
         await apiPost("/v1/auth/me/phone/verify", {
-          phoneNumber: newPhone,
+          phoneNumber: newPhone.phoneNumber,
+          phonePrefix: newPhone.phonePrefix,
+          countryCode: newPhone.countryCode,
           code,
-          phone_prefix,
-          country_code,
         });
         await refreshSession();
       } catch (err) {

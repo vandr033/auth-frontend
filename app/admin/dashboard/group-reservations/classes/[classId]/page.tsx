@@ -68,13 +68,24 @@ import {
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ProofAssetPreview } from "@/components/ui/proof-asset-preview";
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Table,
     TableBody,
@@ -1330,11 +1341,14 @@ export default function GroupClassDetailPage() {
                     }
                 }}
             >
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>{t("adminGroup.classes.addMember")}</DialogTitle>
+                        <DialogDescription>
+                            {t("adminBookings.searchCustomer")}
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-1">
+                    <div className="space-y-5 py-1">
                         <Tabs value={addMemberMode} onValueChange={(value) => setAddMemberMode(value as "existing" | "new")}>
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="existing">{t("adminBookings.existingClient")}</TabsTrigger>
@@ -1343,77 +1357,102 @@ export default function GroupClassDetailPage() {
                         </Tabs>
 
                         {addMemberMode === "existing" ? (
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-slate-700">
-                                    {t("adminBookings.searchCustomer")}
-                                </label>
-                                <input
-                                    type="text"
-                                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-admin-brand"
-                                    placeholder={t("adminBookings.searchCustomer")}
-                                    value={addMemberSearch}
-                                    onChange={(e) => void handleAddMemberSearchChange(e.target.value)}
-                                />
+                            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-medium text-slate-700">
+                                        {t("adminBookings.searchCustomer")}
+                                    </Label>
+                                    <Input
+                                        type="text"
+                                        placeholder={t("adminBookings.searchCustomer")}
+                                        value={addMemberSearch}
+                                        onChange={(e) => void handleAddMemberSearchChange(e.target.value)}
+                                    />
+                                </div>
                                 {addMemberSearching ? (
-                                    <p className="flex items-center gap-1.5 text-xs text-slate-500">
-                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    <p className="flex items-center gap-2 text-xs text-slate-500">
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                         {t("common.loading")}
                                     </p>
                                 ) : addMemberCustomers.length > 0 ? (
-                                    <ul className="max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-sm">
-                                        {addMemberCustomers.map((customer) => (
-                                            <li key={customer.id}>
+                                    <div className="space-y-2">
+                                        {addMemberCustomers.map((customer) => {
+                                            const isSelected = addMemberSelected?.id === customer.id;
+                                            const phone = customer.phone
+                                                ? `${customer.phonePrefix ? `+${customer.phonePrefix} ` : ""}${customer.phone}`
+                                                : null;
+
+                                            return (
                                                 <button
+                                                    key={customer.id}
                                                     type="button"
-                                                    className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${addMemberSelected?.id === customer.id ? "bg-admin-brand-soft font-medium text-admin-brand" : "text-slate-800"}`}
+                                                    className={`w-full rounded-lg border px-3 py-3 text-left transition ${
+                                                        isSelected
+                                                            ? "border-admin-brand bg-admin-brand-soft/60 shadow-sm"
+                                                            : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                                                    }`}
                                                     onClick={() => {
                                                         setAddMemberSelected(customer);
                                                         setAddMemberSearch(customer.name || customer.email || "");
                                                         setAddMemberCustomers([]);
                                                     }}
                                                 >
-                                                    <span className="font-medium">{customer.name || t("adminGroup.fields.name")}</span>
-                                                    {customer.email ? (
-                                                        <span className="ml-2 text-xs text-slate-500">{customer.email}</span>
-                                                    ) : null}
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-sm font-semibold text-slate-900">
+                                                                {customer.name || t("adminGroup.fields.name")}
+                                                            </p>
+                                                            {customer.email ? (
+                                                                <p className="truncate text-xs text-slate-500">{customer.email}</p>
+                                                            ) : null}
+                                                            {phone ? (
+                                                                <p className="truncate text-xs text-slate-500">{phone}</p>
+                                                            ) : null}
+                                                        </div>
+                                                        {isSelected ? (
+                                                            <span className="rounded-full bg-admin-brand px-2 py-0.5 text-[11px] font-semibold text-white">
+                                                                ✓
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
                                                 </button>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                            );
+                                        })}
+                                    </div>
                                 ) : addMemberSearch.trim() && !addMemberSearching ? (
                                     <p className="text-xs text-slate-500">{t("adminBookings.noCustomersFound")}</p>
-                                ) : null}
+                                ) : (
+                                    <p className="text-xs text-slate-500">{t("adminBookings.searchCustomer")}</p>
+                                )}
                                 {addMemberSelected ? (
-                                    <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
-                                        ✓ {addMemberSelected.name || addMemberSelected.email}
-                                    </p>
+                                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                                        <p className="font-semibold">✓ {addMemberSelected.name || addMemberSelected.email}</p>
+                                        {addMemberSelected.email ? <p>{addMemberSelected.email}</p> : null}
+                                    </div>
                                 ) : null}
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-slate-700">{t("adminGroup.fields.name")}</label>
-                                    <input
+                            <div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-2">
+                                <div className="space-y-1.5 sm:col-span-2">
+                                    <Label className="text-xs font-medium text-slate-700">{t("adminGroup.fields.name")}</Label>
+                                    <Input
                                         type="text"
-                                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
                                         value={addMemberNewName}
                                         onChange={(e) => setAddMemberNewName(e.target.value)}
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-slate-700">{t("adminSettings.email")}</label>
-                                    <input
+                                    <Label className="text-xs font-medium text-slate-700">{t("adminSettings.email")}</Label>
+                                    <Input
                                         type="email"
-                                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
                                         value={addMemberNewEmail}
                                         onChange={(e) => setAddMemberNewEmail(e.target.value)}
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-slate-700">{t("adminSettings.phone")}</label>
-                                    <input
+                                    <Label className="text-xs font-medium text-slate-700">{t("adminSettings.phone")}</Label>
+                                    <Input
                                         type="text"
-                                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
                                         value={addMemberNewPhone}
                                         onChange={(e) => setAddMemberNewPhone(e.target.value)}
                                     />
@@ -1422,53 +1461,59 @@ export default function GroupClassDetailPage() {
                         )}
 
                         {groupClass.price_cents > 0 ? (
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-slate-700">
-                                    {t("adminBookings.paymentMethod")}
-                                </label>
-                                <select
-                                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900"
-                                    value={addMemberPaymentMethod}
-                                    onChange={(e) => setAddMemberPaymentMethod(e.target.value as "NONE" | "CASH" | "QR")}
-                                >
-                                    <option value="CASH">{t("adminBookings.paymentCash")}</option>
-                                    <option value="QR">{t("adminBookings.paymentQr")}</option>
-                                    <option value="NONE">{t("adminBookings.notSpecified")}</option>
-                                </select>
-                                <label className="flex cursor-pointer items-center gap-2 pt-1 text-sm text-slate-700">
-                                    <input
-                                        type="checkbox"
-                                        className="h-4 w-4 rounded border-slate-300"
-                                        checked={addMemberMarkAsPaid}
-                                        onChange={(e) => setAddMemberMarkAsPaid(e.target.checked)}
-                                    />
-                                    {t("adminBookings.markAsPaid")}
-                                </label>
-                            </div>
-                        ) : null}
+                            <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+                                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs font-medium text-slate-700">
+                                            {t("adminBookings.paymentMethod")}
+                                        </Label>
+                                        <Select
+                                            value={addMemberPaymentMethod}
+                                            onValueChange={(value) => setAddMemberPaymentMethod(value as "NONE" | "CASH" | "QR")}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="CASH">{t("adminBookings.paymentCash")}</SelectItem>
+                                                <SelectItem value="QR">{t("adminBookings.paymentQr")}</SelectItem>
+                                                <SelectItem value="NONE">{t("adminBookings.notSpecified")}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                        <Checkbox
+                                            checked={addMemberMarkAsPaid}
+                                            onCheckedChange={(checked) => setAddMemberMarkAsPaid(checked === true)}
+                                        />
+                                        {t("adminBookings.markAsPaid")}
+                                    </label>
+                                </div>
 
-                        {groupClass.price_cents > 0 && addMemberPaymentMethod === "QR" ? (
-                            <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
-                                <p className="text-xs font-medium text-slate-700">{t("adminBookings.uploadQrProof")}</p>
-                                <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    {addMemberUploadingQr ? t("common.loading") : t("adminBookings.uploadQrProof")}
-                                    <input
-                                        type="file"
-                                        accept="image/png,image/jpeg,image/webp,application/pdf"
-                                        className="hidden"
-                                        onChange={(e) => void handleAddMemberQrUpload(e.target.files?.[0] ?? null)}
-                                        disabled={addMemberUploadingQr}
-                                    />
-                                </label>
-                                {addMemberQrProofUrl ? (
-                                    <button
-                                        type="button"
-                                        className="text-xs font-medium text-admin-brand underline-offset-4 hover:underline"
-                                        onClick={() => setQrProofDialog(addMemberQrProofUrl)}
-                                    >
-                                        {t("adminBookings.viewUploadedQrProof")}
-                                    </button>
+                                {addMemberPaymentMethod === "QR" ? (
+                                    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                        <p className="text-xs font-medium text-slate-700">{t("adminBookings.uploadQrProof")}</p>
+                                        <label className="inline-flex cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                            <Upload className="mr-2 h-4 w-4" />
+                                            {addMemberUploadingQr ? t("common.loading") : t("adminBookings.uploadQrProof")}
+                                            <input
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp,application/pdf"
+                                                className="hidden"
+                                                onChange={(e) => void handleAddMemberQrUpload(e.target.files?.[0] ?? null)}
+                                                disabled={addMemberUploadingQr}
+                                            />
+                                        </label>
+                                        {addMemberQrProofUrl ? (
+                                            <button
+                                                type="button"
+                                                className="text-xs font-medium text-admin-brand underline-offset-4 hover:underline"
+                                                onClick={() => setQrProofDialog(addMemberQrProofUrl)}
+                                            >
+                                                {t("adminBookings.viewUploadedQrProof")}
+                                            </button>
+                                        ) : null}
+                                    </div>
                                 ) : null}
                             </div>
                         ) : null}

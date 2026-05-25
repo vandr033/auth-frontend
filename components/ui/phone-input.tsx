@@ -5,12 +5,15 @@ import React from "react";
 import { CountryPhoneSelect } from "@/components/ui/country-phone-select";
 import {
   DEFAULT_COUNTRY_CODE,
-  splitPhoneValue,
+  normalizePhoneSelection,
+  type NormalizedPhoneSelection,
 } from "@/lib/phone-country";
 
 interface PhoneInputProps {
-  value: string;
-  onChange: (fullNumber: string, dialCode: string, countryCode?: string) => void;
+  phoneNumber: string;
+  phonePrefix?: string;
+  countryCode?: string;
+  onChange: (value: NormalizedPhoneSelection) => void;
   defaultCountry?: string;
   placeholder?: string;
   className?: string;
@@ -18,7 +21,9 @@ interface PhoneInputProps {
 }
 
 export function PhoneInput({
-  value,
+  phoneNumber,
+  phonePrefix,
+  countryCode,
   onChange,
   defaultCountry,
   placeholder,
@@ -27,12 +32,13 @@ export function PhoneInput({
 }: PhoneInputProps) {
   const selection = React.useMemo(
     () =>
-      splitPhoneValue({
-        value,
-        countryCode: defaultCountry,
+      normalizePhoneSelection({
+        countryCode,
+        phonePrefix,
+        phoneNumber,
         fallbackCountryCode: defaultCountry || DEFAULT_COUNTRY_CODE,
       }),
-    [defaultCountry, value],
+    [countryCode, defaultCountry, phoneNumber, phonePrefix],
   );
 
   return (
@@ -45,7 +51,7 @@ export function PhoneInput({
       phoneNumber={selection.phoneNumber}
       defaultCountryCode={defaultCountry || DEFAULT_COUNTRY_CODE}
       onChange={(nextValue) => {
-        onChange(nextValue.fullPhone, nextValue.dialCode, nextValue.countryCode);
+        onChange(nextValue);
       }}
     />
   );

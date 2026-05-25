@@ -163,9 +163,6 @@ export function FreeEventRegistrationForm({
     { value: "PREFER_NOT_TO_SAY", label: t("freeEventReg.genderOptions.preferNotToSay") },
   ];
 
-  // Build the full phone value for PhoneInput — only prepend dial code when there's a local number
-  const phoneFullValue = phoneNumber.trim() ? `+${phonePrefix}${phoneNumber}` : "";
-
   return (
     <>
       <div className="space-y-3">
@@ -217,20 +214,14 @@ export function FreeEventRegistrationForm({
         <div>
           <label className="mb-1 block text-xs font-medium text-text-muted">{t("freeEventReg.phoneNumber")} *</label>
           <PhoneInput
-            value={phoneFullValue}
+            phoneNumber={phoneNumber}
+            phonePrefix={phonePrefix}
+            countryCode={phoneCountryCode}
             defaultCountry={phoneCountryCode}
-            onChange={(fullNumber, dialCode, countryCode) => {
-              // dialCode is like "+591"; strip the "+" for our phonePrefix field
-              const prefix = dialCode.replace("+", "");
-              setPhoneCountryCode(countryCode ?? DEFAULT_COUNTRY_CODE);
-              setPhonePrefix(prefix);
-              // Strip the dial code from the full number to get just the local digits
-              const stripped = fullNumber.startsWith(dialCode)
-                ? fullNumber.slice(dialCode.length)
-                : fullNumber.startsWith(prefix)
-                  ? fullNumber.slice(prefix.length)
-                  : fullNumber;
-              setPhoneNumber(stripped.trim());
+            onChange={(value) => {
+              setPhoneCountryCode(value.countryCode ?? DEFAULT_COUNTRY_CODE);
+              setPhonePrefix(value.phonePrefix);
+              setPhoneNumber(value.phoneNumber.trim());
             }}
           />
           {errors.phoneNumber && <p className="mt-1 text-xs text-rose-600">{errors.phoneNumber}</p>}

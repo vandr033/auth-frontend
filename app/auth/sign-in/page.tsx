@@ -9,7 +9,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, KeyRound, Sparkles } from "lucide-react";
 import { useOtpResendTimer } from "@/lib/auth/otpResend";
 import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
-import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
+import { DEFAULT_COUNTRY_CODE, formatDialCode } from "@/lib/phone-country";
 
 type Method = null | "email" | "phone";
 type Step = "method" | "otp";
@@ -37,7 +37,7 @@ function SignInPageInner() {
 
   // Phone state
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [dialCode, setDialCode] = useState("");
+  const [phonePrefix, setPhonePrefix] = useState("591");
   const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
 
   // OTP state
@@ -69,14 +69,15 @@ function SignInPageInner() {
   };
 
   const handleBack = () => {
-    setMethod(null);
-    setStep("method");
-    setEmail("");
-    setPhoneNumber("");
-    setCountryCode(DEFAULT_COUNTRY_CODE);
-    setOtpCode("");
-    setOtpSent(false);
-    setLocalError(null);
+      setMethod(null);
+      setStep("method");
+      setEmail("");
+      setPhoneNumber("");
+      setPhonePrefix("591");
+      setCountryCode(DEFAULT_COUNTRY_CODE);
+      setOtpCode("");
+      setOtpSent(false);
+      setLocalError(null);
   };
 
   const handleSendOtp = async () => {
@@ -86,7 +87,11 @@ function SignInPageInner() {
       if (method === "email") {
         await sendLoginEmailOtp(email);
       } else {
-        await sendPhoneOtp(phoneNumber);
+        await sendPhoneOtp({
+          phoneNumber,
+          phonePrefix,
+          countryCode,
+        });
       }
       setOtpSent(true);
       setHasRequestedOtp(true);
@@ -128,13 +133,17 @@ function SignInPageInner() {
           return;
         }
       } else {
-        const result = await verifyPhoneOtp(phoneNumber, otpCode);
+        const result = await verifyPhoneOtp({
+          phoneNumber,
+          phonePrefix,
+          countryCode,
+        }, otpCode);
         if (result.needsProfileCompletion) {
           router.push(
             buildRegisterProfileUrl({
               mode: "phone",
-              phone: phoneNumber,
-              ...(dialCode ? { dialCode } : {}),
+              phoneNumber,
+              ...(phonePrefix ? { phonePrefix } : {}),
               ...(countryCode ? { countryCode } : {}),
             }),
           );
@@ -150,6 +159,7 @@ function SignInPageInner() {
   };
 
   const displayError = localError || error;
+  const phoneDisplay = phoneNumber ? `${formatDialCode(phonePrefix)} ${phoneNumber}`.trim() : "";
 
   // ── Method Selection Screen ──
   if (step === "method") {
@@ -235,7 +245,7 @@ function SignInPageInner() {
           </h1>
           <p className="mt-2 text-sm text-slate-500">
             {otpSent
-              ? t("auth.signIn.sentCodeTo", { target: method === "email" ? email : phoneNumber })
+              ? t("auth.signIn.sentCodeTo", { target: method === "email" ? email : phoneDisplay })
               : method === "email"
                 ? t("auth.signIn.emailCodeHint")
                 : t("auth.signIn.phoneCodeHint")}
@@ -256,12 +266,14 @@ function SignInPageInner() {
                 />
               ) : (
                 <PhoneInput
-                  value={phoneNumber}
+                  phoneNumber={phoneNumber}
+                  phonePrefix={phonePrefix}
+                  countryCode={countryCode}
                   defaultCountry={countryCode}
-                  onChange={(full, dial, nextCountryCode) => {
-                    setPhoneNumber(full);
-                    setDialCode(dial);
-                    setCountryCode(nextCountryCode ?? DEFAULT_COUNTRY_CODE);
+                  onChange={(value) => {
+                    setPhoneNumber(value.phoneNumber);
+                    setPhonePrefix(value.phonePrefix);
+                    setCountryCode(value.countryCode || DEFAULT_COUNTRY_CODE);
                   }}
                 />
               )}

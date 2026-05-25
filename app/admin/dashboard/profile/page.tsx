@@ -56,7 +56,7 @@ export default function AdminProfilePage() {
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
     const [phonePrefix, setPhonePrefix] = useState("591");
-    const [phone, setPhone] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
     const [changingPassword, setChangingPassword] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -77,7 +77,7 @@ export default function AdminProfilePage() {
                     setDisplayName(data.display_name || "");
                     setBio(data.bio || "");
                     setPhonePrefix(data.user.phone_prefix || "591");
-                    setPhone(data.user.phoneNumber || "");
+                    setPhoneNumber(data.user.phoneNumber || "");
                     return;
                 }
 
@@ -88,7 +88,7 @@ export default function AdminProfilePage() {
                 setDisplayName("");
                 setBio("");
                 setPhonePrefix(data.phone_prefix || "591");
-                setPhone(data.phoneNumber || "");
+                setPhoneNumber(data.phoneNumber || "");
             } catch (err: unknown) {
                 void notify.error(err instanceof Error ? err.message : t("staffProfile.loadError"));
             } finally {
@@ -110,8 +110,8 @@ export default function AdminProfilePage() {
                     last_name: lastName.trim(),
                     display_name: displayName.trim(),
                     bio: bio.trim(),
-                    phone_prefix: phonePrefix.trim(),
-                    phone: phone.trim(),
+                    phonePrefix: phonePrefix.trim(),
+                    phoneNumber: phoneNumber.trim(),
                 });
                 setUserProfile(updated.user as UserSelfProfile);
                 setFirstName(updated.user.first_name || "");
@@ -119,19 +119,19 @@ export default function AdminProfilePage() {
                 setDisplayName(updated.display_name || "");
                 setBio(updated.bio || "");
                 setPhonePrefix(updated.user.phone_prefix || "591");
-                setPhone(updated.user.phoneNumber || "");
+                setPhoneNumber(updated.user.phoneNumber || "");
             } else {
                 const updated = await updateMyUserProfile({
                     first_name: firstName.trim(),
                     last_name: lastName.trim(),
-                    phone_prefix: phonePrefix.trim(),
-                    phone: phone.trim(),
+                    phonePrefix: phonePrefix.trim(),
+                    phoneNumber: phoneNumber.trim(),
                 });
                 setUserProfile(updated);
                 setFirstName(updated.first_name || "");
                 setLastName(updated.last_name || "");
                 setPhonePrefix(updated.phone_prefix || "591");
-                setPhone(updated.phoneNumber || "");
+                setPhoneNumber(updated.phoneNumber || "");
             }
 
             await notify.success(t("staffProfile.saveSuccess"));
@@ -249,8 +249,8 @@ export default function AdminProfilePage() {
                             <Label htmlFor="profile-phone">{t("staffProfile.phone")}</Label>
                             <Input
                                 id="profile-phone"
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
                                 disabled={saving}
                             />
                         </div>

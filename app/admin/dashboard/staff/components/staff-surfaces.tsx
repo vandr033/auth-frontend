@@ -70,8 +70,8 @@ type StaffBookableFilter = "all" | "bookable" | "not-bookable";
 interface StaffFormData {
     email: string;
     role: "OWNER" | "ADMIN" | "STAFF";
-    phone_prefix: string;
-    phone: string;
+    phonePrefix: string;
+    phoneNumber: string;
     display_name: string;
     bio: string;
     is_bookable: boolean;
@@ -84,8 +84,8 @@ interface StaffFormData {
 const initialFormData: StaffFormData = {
     email: "",
     role: "STAFF",
-    phone_prefix: "591",
-    phone: "",
+    phonePrefix: "591",
+    phoneNumber: "",
     display_name: "",
     bio: "",
     is_bookable: true,
@@ -255,8 +255,8 @@ function buildEditableFormData(member: StaffMember): StaffFormData {
     return {
         email: member.user?.email || "",
         role: "STAFF",
-        phone_prefix: member.user?.phone_prefix || "591",
-        phone: member.user?.phoneNumber || "",
+        phonePrefix: member.user?.phone_prefix || "591",
+        phoneNumber: member.user?.phoneNumber || "",
         display_name: member.display_name,
         bio: member.bio || "",
         is_bookable: member.is_bookable,
@@ -831,8 +831,8 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                 saved = await updateStaffMember(staffId, {
                     ...basePayload,
                     email: formData.email.trim(),
-                    phone_prefix: formData.phone_prefix.trim() || undefined,
-                    phone: formData.phone.trim() || undefined,
+                    phonePrefix: formData.phonePrefix.trim() || undefined,
+                    phoneNumber: formData.phoneNumber.trim() || undefined,
                 });
                 if (canAssignServices) {
                     await updateStaffMemberServices(staffId, formData.service_ids);
@@ -842,8 +842,8 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                     ...basePayload,
                     email: formData.email.trim(),
                     role: canManageRoles ? formData.role : "STAFF",
-                    phone_prefix: formData.phone_prefix.trim() || undefined,
-                    phone: formData.phone.trim() || undefined,
+                    phonePrefix: formData.phonePrefix.trim() || undefined,
+                    phoneNumber: formData.phoneNumber.trim() || undefined,
                     service_ids: canAssignServices ? formData.service_ids : [],
                     ...(formData.start_date ? { start_date: formData.start_date } : {}),
                     ...(formData.end_date ? { end_date: formData.end_date } : {}),
@@ -958,8 +958,8 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                                     <Label htmlFor="phone_prefix">{t("superAdminShops.countryCode")}</Label>
                                     <Input
                                         id="phone_prefix"
-                                        value={formData.phone_prefix}
-                                        onChange={(event) => setFormData((current) => ({ ...current, phone_prefix: event.target.value }))}
+                                        value={formData.phonePrefix}
+                                        onChange={(event) => setFormData((current) => ({ ...current, phonePrefix: event.target.value }))}
                                         placeholder="591"
                                     />
                                 </div>
@@ -967,8 +967,8 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                                     <Label htmlFor="phone">{t("adminCustomers.phone")}</Label>
                                     <Input
                                         id="phone"
-                                        value={formData.phone}
-                                        onChange={(event) => setFormData((current) => ({ ...current, phone: event.target.value }))}
+                                        value={formData.phoneNumber}
+                                        onChange={(event) => setFormData((current) => ({ ...current, phoneNumber: event.target.value }))}
                                         placeholder="70000000"
                                     />
                                 </div>
@@ -1020,8 +1020,8 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                                     <Label htmlFor="phone_prefix">{t("superAdminShops.countryCode")}</Label>
                                     <Input
                                         id="phone_prefix"
-                                        value={formData.phone_prefix}
-                                        onChange={(event) => setFormData((current) => ({ ...current, phone_prefix: event.target.value }))}
+                                        value={formData.phonePrefix}
+                                        onChange={(event) => setFormData((current) => ({ ...current, phonePrefix: event.target.value }))}
                                         placeholder="591"
                                     />
                                 </div>
@@ -1029,8 +1029,8 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
                                     <Label htmlFor="phone">{t("adminCustomers.phone")}</Label>
                                     <Input
                                         id="phone"
-                                        value={formData.phone}
-                                        onChange={(event) => setFormData((current) => ({ ...current, phone: event.target.value }))}
+                                        value={formData.phoneNumber}
+                                        onChange={(event) => setFormData((current) => ({ ...current, phoneNumber: event.target.value }))}
                                         placeholder="70000000"
                                     />
                                 </div>

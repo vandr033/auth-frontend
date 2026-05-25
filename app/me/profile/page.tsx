@@ -184,7 +184,11 @@ function ProfilePageContent() {
         await sendEmailChangeOtp(newContactValue);
         setStatus(t("meProfile.emailCodeSent"));
       } else {
-        await sendPhoneChangeOtp(newContactValue);
+        await sendPhoneChangeOtp({
+          phoneNumber: newPhoneNumber,
+          phonePrefix: newPhonePrefix,
+          countryCode: newPhoneCountryCode,
+        });
         setStatus(t("meProfile.phoneCodeSent"));
       }
       setOtpSent(true);
@@ -204,7 +208,11 @@ function ProfilePageContent() {
         await verifyEmailChange(newContactValue, otpCode);
         setStatus(t("meProfile.emailUpdated"));
       } else {
-        await verifyPhoneChange(newContactValue, otpCode, newPhonePrefix, newPhoneCountryCode);
+        await verifyPhoneChange({
+          phoneNumber: newPhoneNumber,
+          phonePrefix: newPhonePrefix,
+          countryCode: newPhoneCountryCode,
+        }, otpCode);
         setStatus(t("meProfile.phoneUpdated"));
       }
       setOtpFlow(null);

@@ -9,7 +9,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Mail, Phone, ArrowLeft, Loader2, UserPlus, Sparkles } from "lucide-react";
 import { useOtpResendTimer } from "@/lib/auth/otpResend";
 import { sanitizeInternalRedirectTarget } from "@/app/lib/shop-context";
-import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
+import { DEFAULT_COUNTRY_CODE, formatDialCode } from "@/lib/phone-country";
 
 type Method = null | "email" | "phone";
 type FlowStep = "method" | "contact" | "otp" | "profile" | "done" | "redirecting";
@@ -43,7 +43,7 @@ function RegisterPageInner() {
 
   // Phone state
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [dialCode, setDialCode] = useState("");
+  const [phonePrefix, setPhonePrefix] = useState("591");
   const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [otpCode, setOtpCode] = useState("");
   const [hasRequestedOtp, setHasRequestedOtp] = useState(false);
@@ -85,8 +85,12 @@ function RegisterPageInner() {
     if (presetMode === "phone") {
       setMethod("phone");
       setStep("profile");
-      setPhoneNumber(searchParams?.get("phone") ?? "");
-      setDialCode(searchParams?.get("dialCode") ?? "");
+      setPhoneNumber(searchParams?.get("phoneNumber") ?? searchParams?.get("phone") ?? "");
+      setPhonePrefix(
+        searchParams?.get("phonePrefix")
+          ?? searchParams?.get("dialCode")?.replace("+", "")
+          ?? "591",
+      );
       setCountryCode(searchParams?.get("countryCode") ?? DEFAULT_COUNTRY_CODE);
       setProfileCompletionMode("session");
       setLocalError(null);
@@ -125,7 +129,7 @@ function RegisterPageInner() {
       setStep("method");
       setEmail("");
       setPhoneNumber("");
-      setDialCode("");
+      setPhonePrefix("591");
       setCountryCode(DEFAULT_COUNTRY_CODE);
     } else if (step === "otp") {
       setStep("contact");
@@ -198,7 +202,11 @@ function RegisterPageInner() {
     setSending(true);
     setLocalError(null);
     try {
-      await sendPhoneOtp(phoneNumber);
+      await sendPhoneOtp({
+        phoneNumber,
+        phonePrefix,
+        countryCode,
+      });
       setStep("otp");
       setHasRequestedOtp(true);
       startCooldown();
@@ -224,7 +232,11 @@ function RegisterPageInner() {
     setSending(true);
     setLocalError(null);
     try {
-      const result = await verifyPhoneOtp(phoneNumber, otpCode);
+      const result = await verifyPhoneOtp({
+        phoneNumber,
+        phonePrefix,
+        countryCode,
+      }, otpCode);
       if (result.needsProfileCompletion) {
         setStep("profile");
       } else {
@@ -241,9 +253,13 @@ function RegisterPageInner() {
     setSending(true);
     setLocalError(null);
     try {
-      // Extract prefix digits from dialCode (e.g. "+961" → "961")
-      const prefix = dialCode.replace("+", "");
-      await completeCustomerPhoneProfile(firstName, lastName, prefix, countryCode || undefined);
+      await completeCustomerPhoneProfile(
+        firstName,
+        phoneNumber,
+        phonePrefix,
+        lastName,
+        countryCode || undefined,
+      );
       setStep("done");
       setTimeout(() => router.push(redirect), 1500);
     } catch (err) {
@@ -361,7 +377,8 @@ function RegisterPageInner() {
         : t("auth.register.phoneCodeHint");
     }
     if (step === "otp") {
-      return t("auth.register.sentCodeTo", { target: method === "email" ? email : phoneNumber });
+      const phoneDisplay = phoneNumber ? `${formatDialCode(phonePrefix)} ${phoneNumber}`.trim() : "";
+      return t("auth.register.sentCodeTo", { target: method === "email" ? email : phoneDisplay });
     }
     if (step === "profile") return t("auth.register.profileHint");
     return "";
@@ -404,12 +421,14 @@ function RegisterPageInner() {
                 />
               ) : (
                 <PhoneInput
-                  value={phoneNumber}
+                  phoneNumber={phoneNumber}
+                  phonePrefix={phonePrefix}
+                  countryCode={countryCode}
                   defaultCountry={countryCode}
-                  onChange={(full, dial, nextCountryCode) => {
-                    setPhoneNumber(full);
-                    setDialCode(dial);
-                    setCountryCode(nextCountryCode ?? DEFAULT_COUNTRY_CODE);
+                  onChange={(value) => {
+                    setPhoneNumber(value.phoneNumber);
+                    setPhonePrefix(value.phonePrefix);
+                    setCountryCode(value.countryCode || DEFAULT_COUNTRY_CODE);
                   }}
                 />
               )}

@@ -614,7 +614,8 @@ export interface CreateBookingData {
     customer: {
         full_name: string;
         email?: string;
-        phone?: string;
+        phoneNumber?: string;
+        phonePrefix?: string;
     };
     notes?: string;
     is_paid?: boolean;
@@ -648,7 +649,8 @@ export interface CreateRecurringBookingData {
     customer: {
         full_name: string;
         email?: string;
-        phone?: string;
+        phoneNumber?: string;
+        phonePrefix?: string;
     };
     notes?: string;
     sessions: RecurringBookingSessionData[];
@@ -843,8 +845,8 @@ export async function getMyUserProfile(): Promise<UserSelfProfile> {
 export async function updateMyUserProfile(payload: {
     first_name?: string;
     last_name?: string;
-    phone?: string;
-    phone_prefix?: string;
+    phoneNumber?: string;
+    phonePrefix?: string;
 }): Promise<UserSelfProfile> {
     const response = await apiFetch<{ data: { user: UserSelfProfile } }>("/api/v1/auth/me", {
         method: "PUT",
@@ -863,8 +865,8 @@ export async function updateMyStaffProfile(payload: {
     bio?: string;
     first_name?: string;
     last_name?: string;
-    phone?: string;
-    phone_prefix?: string;
+    phoneNumber?: string;
+    phonePrefix?: string;
 }): Promise<StaffSelfProfile> {
     const response = await apiFetch<{ data: StaffSelfProfile }>("/api/admin/staff/me", {
         method: "PUT",
@@ -886,8 +888,8 @@ export async function getStaffById(staffId: number): Promise<StaffMember> {
 export interface SaveStaffPayload {
     email?: string;
     role?: "OWNER" | "ADMIN" | "STAFF";
-    phone_prefix?: string;
-    phone?: string;
+    phonePrefix?: string;
+    phoneNumber?: string;
     display_name: string;
     bio?: string;
     image_url?: string;
