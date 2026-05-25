@@ -13,9 +13,10 @@ interface ServicesGridProps {
     slug: string;
     currency?: string | null;
     maxItems?: number;
+    canBookOnline: boolean;
 }
 
-export function ServicesGrid({ categories, services, slug, currency, maxItems }: ServicesGridProps) {
+export function ServicesGrid({ categories, services, slug, currency, maxItems, canBookOnline }: ServicesGridProps) {
     const t = useT();
     const displayServices = maxItems ? services.slice(0, maxItems) : services;
 
@@ -75,13 +76,15 @@ export function ServicesGrid({ categories, services, slug, currency, maxItems }:
                                         {service.description}
                                     </p>
                                 )}
-                                <div className="mt-4 pt-2">
-                                    <PrimaryButton asChild className="w-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                        <Link href={`/shop/${slug}/book?serviceId=${service.id}`} className="block">
-                                            {t('shopServices.book')}
-                                        </Link>
-                                    </PrimaryButton>
-                                </div>
+                                {canBookOnline ? (
+                                    <div className="mt-4 pt-2">
+                                        <PrimaryButton asChild className="w-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                            <Link href={`/shop/${slug}/book?serviceId=${service.id}`} className="block">
+                                                {t('shopServices.book')}
+                                            </Link>
+                                        </PrimaryButton>
+                                    </div>
+                                ) : null}
                             </div>
                         ))}
                     </div>

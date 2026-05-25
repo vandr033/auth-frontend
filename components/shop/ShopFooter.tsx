@@ -20,7 +20,7 @@ const ALL_NAV_LINKS = (slug: string, t: (key: string) => string) => [
 ];
 
 export function ShopFooter() {
-    const { company, socialLinks, slug, footerConfig } = useShop();
+    const { company, socialLinks, slug, footerConfig, canBookOnline } = useShop();
     const t = useT();
 
     if (!company) return null;
@@ -36,7 +36,7 @@ export function ShopFooter() {
         if (link.key === "services" && !publicFeatures.servicesVisible) return false;
         if (link.key === "events" && !publicFeatures.eventsVisible) return false;
         if (link.key === "classes" && !publicFeatures.classesVisible) return false;
-        if (link.key === "book" && !publicFeatures.bookingsEnabled) return false;
+        if (link.key === "book" && !canBookOnline) return false;
         const found = config.nav_links.find((n) => n.key === link.key);
         // If not in config, default to enabled
         return found ? found.enabled : true;

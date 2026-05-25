@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Calendar } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useShop } from "@/app/shop/contexts/ShopContext";
-import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 
 interface FloatingBookCTAProps {
     slug: string;
@@ -12,10 +11,9 @@ interface FloatingBookCTAProps {
 
 export function FloatingBookCTA({ slug }: FloatingBookCTAProps) {
     const t = useT();
-    const { company, publicFeatures, isShopActive } = useShop();
-    const bookingEnabled = getShopPublicFeatures(company).bookingsEnabled || publicFeatures.bookingsEnabled;
+    const { canBookOnline } = useShop();
 
-    if (!isShopActive || !bookingEnabled) {
+    if (!canBookOnline) {
         return null;
     }
 

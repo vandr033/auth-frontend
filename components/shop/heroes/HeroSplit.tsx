@@ -22,9 +22,10 @@ interface HeroSplitProps {
     slug: string;
     homeCTAButtons?: HomeCTAButton[] | null;
     publicFeatures?: ShopPublicFeatureVisibility;
+    canBookOnline?: boolean;
 }
 
-export function HeroSplit({ company, reviewStats, slug, homeCTAButtons, publicFeatures }: HeroSplitProps) {
+export function HeroSplit({ company, reviewStats, slug, homeCTAButtons, publicFeatures, canBookOnline }: HeroSplitProps) {
     const t = useT();
     const resolvedPublicFeatures = publicFeatures ?? getShopPublicFeatures(company);
     return (
@@ -59,9 +60,10 @@ export function HeroSplit({ company, reviewStats, slug, homeCTAButtons, publicFe
                     slug={slug}
                     buttons={homeCTAButtons}
                     publicFeatures={resolvedPublicFeatures}
+                    canBookOnline={canBookOnline}
                     className="mt-8 flex flex-wrap gap-3"
                     defaultContent={
-                        resolvedPublicFeatures.bookingsEnabled ? (
+                        canBookOnline ? (
                             <PrimaryButton asChild className="bg-white px-8 py-4 text-lg font-bold text-brand hover:bg-white/90">
                                 <Link href={`/shop/${slug}/book`}>
                                     {t('common.bookNow')}

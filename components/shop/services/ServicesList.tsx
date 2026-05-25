@@ -15,9 +15,10 @@ interface ServicesListProps {
     slug: string;
     currency?: string | null;
     maxItems?: number;
+    canBookOnline: boolean;
 }
 
-export function ServicesList({ categories, services, slug, currency, maxItems }: ServicesListProps) {
+export function ServicesList({ categories, services, slug, currency, maxItems, canBookOnline }: ServicesListProps) {
     const t = useT();
     const displayServices = maxItems ? services.slice(0, maxItems) : services;
     const [expandedCategories, setExpandedCategories] = useState<Set<number>>(
@@ -107,9 +108,11 @@ export function ServicesList({ categories, services, slug, currency, maxItems }:
                                                     {service.description}
                                                 </p>
                                             )}
-                                            <PrimaryButton asChild className="px-6">
-                                                <Link href={`/shop/${slug}/book?serviceId=${service.id}`}>{t('shopServices.book')}</Link>
-                                            </PrimaryButton>
+                                            {canBookOnline ? (
+                                                <PrimaryButton asChild className="px-6">
+                                                    <Link href={`/shop/${slug}/book?serviceId=${service.id}`}>{t('shopServices.book')}</Link>
+                                                </PrimaryButton>
+                                            ) : null}
                                         </div>
                                     )}
                                 </div>

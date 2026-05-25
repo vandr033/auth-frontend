@@ -39,6 +39,7 @@ import { DEFAULT_LOCALE, getLocaleCookie, I18nProvider, translate } from "@/lib/
 import { applyMainSiteTheme } from "@/theme/mainSiteTheme";
 import { getShopSlugFromParams } from "@/app/lib/shop-context";
 import { getShopPublicFeatures } from "@/lib/storefront/public-features";
+import { canShopAcceptBookings } from "@/lib/storefront/booking-availability";
 import {
     normalizeShopData,
     resolvePublicApiUrl,
@@ -70,6 +71,7 @@ type ShopContextValue = {
     announcementBanners: AnnouncementBanner[] | null;
     footerConfig: FooterConfig | null;
     publicFeatures: ShopPublicFeatureVisibility;
+    canBookOnline: boolean;
     loading: boolean;
     error: string | null;
     slug: string;
@@ -215,18 +217,20 @@ export function ShopProvider({
                 : isAvailabilityDateValid && Date.now() <= availableUntilMs;
             const isShopActive = Boolean(data?.company?.is_active ?? true) && withinAvailabilityWindow;
             const publicFeatures = getShopPublicFeatures(data?.company ?? null);
+            const services = data?.services ?? [];
+            const staff = data?.staff ?? [];
 
             return {
                 company: data?.company ?? null,
                 availableUntil,
                 isShopActive,
                 categories: data?.categories ?? [],
-                services: data?.services ?? [],
+                services,
                 commerceStore: data?.commerceStore ?? null,
                 commercePointsOfSale: data?.commercePointsOfSale ?? [],
                 commerceCategories: data?.commerceCategories ?? [],
                 commerceProducts: data?.commerceProducts ?? [],
-                staff: data?.staff ?? [],
+                staff,
                 hours: data?.hours ?? [],
                 settings: data?.settings ?? null,
                 theme: data?.theme ?? defaultTheme,
@@ -241,6 +245,13 @@ export function ShopProvider({
                 announcementBanners: data?.theme?.announcement_banners ?? null,
                 footerConfig: data?.theme?.footer_config ?? null,
                 publicFeatures,
+                canBookOnline: canShopAcceptBookings({
+                    company: data?.company ?? null,
+                    publicFeatures,
+                    isShopActive,
+                    services,
+                    staff,
+                }),
                 loading,
                 error,
                 slug,

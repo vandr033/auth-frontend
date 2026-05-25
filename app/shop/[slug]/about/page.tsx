@@ -22,6 +22,7 @@ export default function AboutPage() {
         slug,
         isShopActive,
         publicFeatures,
+        canBookOnline,
     } = useShop();
     const t = useT();
 
@@ -88,7 +89,7 @@ export default function AboutPage() {
                         </p>
                     )}
                     <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                        {publicFeatures.bookingsEnabled ? (
+                        {canBookOnline ? (
                             <PrimaryButton asChild>
                                 <Link href={`/shop/${slug}/book`}>{t('common.bookNow')}</Link>
                             </PrimaryButton>

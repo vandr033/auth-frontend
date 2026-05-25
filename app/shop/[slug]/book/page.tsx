@@ -38,7 +38,6 @@ import { appendShopParam, buildSignInRedirectPath } from "@/app/lib/shop-context
 import { parseMarketplaceBookingHandoff } from "@/lib/marketplace/handoff";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
-import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 
 // Helper to resolve API URL (duplicate of logic in ShopContext, consider exported helper)
 const resolveApiUrl = (url: string) => {
@@ -486,8 +485,34 @@ function StaffStep({
     };
 
     const people = staffList.filter(s => s.resource_type !== 'ROOM' && s.resource_type !== 'EQUIPMENT');
-    const roomsAndEquipment = staffList.filter(s => s.resource_type === 'ROOM' || s.resource_type === 'EQUIPMENT');
     const peopleOptions = people.length > 0 ? [anyAvailableOption, ...people] : [];
+    const rooms = staffList.filter(s => s.resource_type === 'ROOM');
+    const equipment = staffList.filter(s => s.resource_type === 'EQUIPMENT');
+    const sectionCount = [peopleOptions.length, rooms.length, equipment.length].filter((count) => count > 0).length;
+    const shouldShowSectionHeadings = sectionCount > 1;
+    const sections = [
+        peopleOptions.length > 0
+            ? {
+                key: "people",
+                title: t('shopBooking.ourPeopleSection'),
+                items: peopleOptions,
+              }
+            : null,
+        rooms.length > 0
+            ? {
+                key: "rooms",
+                title: t('shopBooking.ourRoomsSection'),
+                items: rooms,
+              }
+            : null,
+        equipment.length > 0
+            ? {
+                key: "equipment",
+                title: t('shopBooking.ourEquipmentSection'),
+                items: equipment,
+              }
+            : null,
+    ].filter((section): section is { key: string; title: string; items: SelectedStaff[] } => Boolean(section));
 
     function StaffGrid({ items }: { items: SelectedStaff[] }) {
         return (
@@ -556,7 +581,7 @@ function StaffStep({
             <div>
                 <h2 className="text-2xl font-bold text-text-main">{t('shopBooking.selectStaffTitle')}</h2>
                 <p className="text-text-muted">{t('shopBooking.selectStaffSubtitle')}</p>
-                {hasStaffAvailable && (
+                {peopleOptions.length > 0 && (
                     <p className="text-xs text-text-muted mt-1.5">
                         {t('shopBooking.anyAvailableExplanation', { label: staffLabel.toLowerCase() })}
                     </p>
@@ -565,24 +590,16 @@ function StaffStep({
 
             {hasStaffAvailable ? (
                 <div className="space-y-8">
-                    {peopleOptions.length > 0 && (
-                        <div className="space-y-3">
-                            {roomsAndEquipment.length > 0 && (
+                    {sections.map((section) => (
+                        <div key={section.key} className="space-y-3">
+                            {shouldShowSectionHeadings ? (
                                 <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
-                                    {t('shopBooking.staffSection')}
+                                    {section.title}
                                 </h3>
-                            )}
-                            <StaffGrid items={peopleOptions} />
+                            ) : null}
+                            <StaffGrid items={section.items} />
                         </div>
-                    )}
-                    {roomsAndEquipment.length > 0 && (
-                        <div className="space-y-3">
-                            <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
-                                {t('shopBooking.roomsEquipmentSection')}
-                            </h3>
-                            <StaffGrid items={roomsAndEquipment} />
-                        </div>
-                    )}
+                    ))}
                 </div>
             ) : (
                 <p className="text-center text-text-muted py-8">{t('shopBooking.noStaffAvailable', { label: staffLabel.toLowerCase() })}</p>
@@ -1436,11 +1453,11 @@ export default function BookingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, loading: authLoading } = useAuth();
-    const { company, services, staff, categories, settings, loading, error, slug, isShopActive, publicFeatures } = useShop();
+    const { company, services, staff, categories, settings, loading, error, slug, isShopActive, canBookOnline } = useShop();
     const t = useT();
     const api = useApi();
     const inviteToken = searchParams?.get("invite")?.trim() || "";
-    const bookingEnabled = getShopPublicFeatures(company).bookingsEnabled || publicFeatures.bookingsEnabled;
+    const bookingEnabled = canBookOnline;
     const searchParamsString = searchParams?.toString() || "";
     const marketplaceHandoff = useMemo(
         () => parseMarketplaceBookingHandoff(new URLSearchParams(searchParamsString)),

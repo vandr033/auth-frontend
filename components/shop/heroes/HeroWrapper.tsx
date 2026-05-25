@@ -7,7 +7,7 @@ import { HeroSplit } from "./HeroSplit";
 import { HeroMinimal } from "./HeroMinimal";
 
 export function HeroWrapper() {
-    const { company, reviewStats, socialLinks, heroVariant, slug, homeCTAButtons } = useShop();
+    const { company, reviewStats, socialLinks, heroVariant, slug, homeCTAButtons, canBookOnline } = useShop();
 
     if (!company) return null;
 
@@ -18,6 +18,7 @@ export function HeroWrapper() {
         slug,
         homeCTAButtons,
         publicFeatures: getShopPublicFeatures(company),
+        canBookOnline,
     };
 
     switch (heroVariant) {

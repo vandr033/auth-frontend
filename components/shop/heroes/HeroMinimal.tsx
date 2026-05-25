@@ -21,9 +21,10 @@ interface HeroMinimalProps {
     slug: string;
     homeCTAButtons?: HomeCTAButton[] | null;
     publicFeatures?: ShopPublicFeatureVisibility;
+    canBookOnline?: boolean;
 }
 
-export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons, publicFeatures }: HeroMinimalProps) {
+export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons, publicFeatures, canBookOnline }: HeroMinimalProps) {
     const t = useT();
     const resolvedPublicFeatures = publicFeatures ?? getShopPublicFeatures(company);
     return (
@@ -65,9 +66,10 @@ export function HeroMinimal({ company, reviewStats, slug, homeCTAButtons, public
                     slug={slug}
                     buttons={homeCTAButtons}
                     publicFeatures={resolvedPublicFeatures}
+                    canBookOnline={canBookOnline}
                     className="mt-10 flex flex-wrap items-center justify-center gap-3"
                     defaultContent={
-                        resolvedPublicFeatures.bookingsEnabled ? (
+                        canBookOnline ? (
                             <PrimaryButton asChild className="px-10 py-4 text-lg">
                                 <Link href={`/shop/${slug}/book`}>
                                     {t('common.bookNow')}

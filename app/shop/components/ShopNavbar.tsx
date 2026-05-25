@@ -17,7 +17,6 @@ import { getImageUrl } from "@/utils/image-url";
 import { SocialIcons } from "@/components/shop/SocialIcons";
 import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { getShopPublicFeatures } from "@/lib/storefront/public-features";
 import {
     appendShopParam,
     buildSignInRedirectFromCurrentLocation,
@@ -56,7 +55,7 @@ export function ShopNavbar() {
     const currentPathname = pathname ?? "";
     const router = useRouter();
     const { isAuthenticated, user, signOut, loading } = useAuth();
-    const { company, slug, socialLinks, loading: shopLoading, isShopActive, announcementBanners } = useShop();
+    const { company, slug, socialLinks, loading: shopLoading, announcementBanners, publicFeatures, canBookOnline } = useShop();
     const t = useT();
 
     const [open, setOpen] = useState(false);
@@ -71,7 +70,6 @@ export function ShopNavbar() {
     const groupReservationsHref = appendShopParam("/me/group-reservations", resolvedShopSlug);
     const ordersHref = resolvedShopSlug ? `/shop/${resolvedShopSlug}/me/orders` : "/me/orders";
     const userDisplayName = getDisplayName(user);
-    const publicFeatures = getShopPublicFeatures(company);
     const showGroupReservationsLink = publicFeatures.eventsVisible || publicFeatures.classesVisible;
 
     const navLinks = [
@@ -285,7 +283,7 @@ export function ShopNavbar() {
                 {/* Desktop Actions */}
                 <div className="hidden items-center gap-3 md:flex">
                     <SocialIcons socialLinks={socialLinks} iconSize={16} className="gap-2" />
-                    {isShopActive && publicFeatures.bookingsEnabled ? (
+                    {canBookOnline ? (
                         <Button asChild className="rounded-md bg-brand px-6 py-2 text-white shadow-card transition hover:bg-brand-hover">
                             <Link href={`${basePath}/book`}>
                                 {t('shopNav.book')}
@@ -298,7 +296,7 @@ export function ShopNavbar() {
 
                 {/* Mobile Actions */}
                 <div className="flex items-center gap-2 md:hidden">
-                    {isShopActive && publicFeatures.bookingsEnabled ? (
+                    {canBookOnline ? (
                         <Button asChild className="rounded-md bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-hover">
                             <Link href={`${basePath}/book`}>
                                 {t('shopNav.bookShort')}
@@ -356,7 +354,7 @@ export function ShopNavbar() {
                                 <Separator className="border-surface-border" />
 
                                 {/* Book Now */}
-                                {isShopActive && publicFeatures.bookingsEnabled ? (
+                                {canBookOnline ? (
                                     <Button asChild className="w-full rounded-md bg-brand px-4 py-2 text-white shadow-card hover:bg-brand-hover">
                                         <Link href={`${basePath}/book`} onClick={() => setOpen(false)}>
                                             {t('shopNav.book')}

@@ -12,11 +12,11 @@ interface ServicesWrapperProps {
 }
 
 export function ServicesWrapper({ maxItems, categories: propCategories, services: propServices }: ServicesWrapperProps) {
-    const { categories: ctxCategories, services: ctxServices, servicesVariant, slug, company } = useShop();
+    const { categories: ctxCategories, services: ctxServices, servicesVariant, slug, company, canBookOnline } = useShop();
 
     const categories = propCategories ?? ctxCategories;
     const services = propServices ?? ctxServices;
-    const props = { categories, services, slug, currency: company?.currency, maxItems };
+    const props = { categories, services, slug, currency: company?.currency, maxItems, canBookOnline };
 
     switch (servicesVariant) {
         case "services-list":

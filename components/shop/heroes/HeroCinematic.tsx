@@ -24,9 +24,10 @@ interface HeroCinematicProps {
     slug: string;
     homeCTAButtons?: HomeCTAButton[] | null;
     publicFeatures?: ShopPublicFeatureVisibility;
+    canBookOnline?: boolean;
 }
 
-export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTAButtons, publicFeatures }: HeroCinematicProps) {
+export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTAButtons, publicFeatures, canBookOnline }: HeroCinematicProps) {
     const t = useT();
     const resolvedPublicFeatures = publicFeatures ?? getShopPublicFeatures(company);
     return (
@@ -81,10 +82,11 @@ export function HeroCinematic({ company, reviewStats, socialLinks, slug, homeCTA
                     slug={slug}
                     buttons={homeCTAButtons}
                     publicFeatures={resolvedPublicFeatures}
+                    canBookOnline={canBookOnline}
                     className="mt-4 flex flex-wrap items-center justify-center gap-4"
                     defaultContent={
                         <>
-                            {resolvedPublicFeatures.bookingsEnabled ? (
+                            {canBookOnline ? (
                                 <PrimaryButton asChild className="min-w-[180px] px-8 py-4 text-lg">
                                     <Link href={`/shop/${slug}/book`}>
                                         {t('common.bookNow')}

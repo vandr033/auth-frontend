@@ -37,6 +37,7 @@ interface HeroCTAButtonsProps {
     /** Custom buttons from PRO config. When null/undefined, renders the default fallback. */
     buttons: HomeCTAButton[] | null | undefined;
     publicFeatures: ShopPublicFeatureVisibility;
+    canBookOnline?: boolean;
     /** Used only when buttons is null — renders the hero's default hardcoded CTAs */
     defaultContent: React.ReactNode;
     /** CSS class applied to the container div */
@@ -52,6 +53,7 @@ export function HeroCTAButtons({
     slug,
     buttons,
     publicFeatures,
+    canBookOnline = publicFeatures.bookingsEnabled,
     defaultContent,
     className,
 }: HeroCTAButtonsProps) {
@@ -60,7 +62,17 @@ export function HeroCTAButtons({
     }
 
     const sorted = [...buttons]
-        .filter((b) => b.enabled && isShopDestinationVisible(b.destination, publicFeatures))
+        .filter((b) => {
+            if (!b.enabled || !isShopDestinationVisible(b.destination, publicFeatures)) {
+                return false;
+            }
+
+            if (b.destination === "booking" && !canBookOnline) {
+                return false;
+            }
+
+            return true;
+        })
         .sort((a, b) => a.order - b.order);
 
     if (sorted.length === 0) {
