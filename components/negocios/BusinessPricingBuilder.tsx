@@ -511,125 +511,129 @@ export function BusinessPricingBuilder({
         <aside
           className={cn(
             "relative min-w-0 border border-black bg-black p-4 text-white sm:p-5",
-            !compact && "xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto",
+            !compact && "xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-hidden",
           )}
         >
-          <div className="pointer-events-none absolute right-4 top-4 max-w-[9rem] bg-biz-yellow px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-black shadow-[0_14px_28px_rgba(0,0,0,0.18)]">
-            {pricing.firstMonthFree ? "Primer mes gratis" : `${pricing.trialLengthDays} días`}
-          </div>
-
-          <div className="relative min-w-0 pr-28">
-            <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-yellow">
-              Tu resumen
-            </p>
-            <h4 className="mt-2 text-balance font-business-display text-[clamp(1.7rem,3vw,2.4rem)] uppercase leading-[0.94] tracking-[-0.03em]">
-              Plan mezclado, precio claro.
-            </h4>
-            <p className="mt-2 text-sm leading-6 text-white/[0.76]">
-              {bundleMessage}
-            </p>
-            {isPricingLoading ? (
-              <p className="mt-2 text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.45]">
-                Actualizando precios...
-              </p>
-            ) : null}
-          </div>
-
-          <div className="relative mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <div className="border border-white/10 bg-white/[0.06] p-3.5">
-              <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
-                Hoy pagás
-              </p>
-              <p className="mt-2 font-business-display text-[clamp(1.8rem,4vw,2.5rem)] uppercase leading-none text-biz-yellow">
-                0 Bs
-              </p>
-            </div>
-            <div className="border border-white/10 bg-white/[0.06] p-3.5">
-              <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
-                {pricing.firstMonthFree ? "Después del mes gratis" : "Después de la prueba"}
-              </p>
-              <p className="mt-2 font-business-display text-[clamp(1.8rem,4vw,2.5rem)] uppercase leading-none text-white">
-                {formatBsAmount(pricing.finalMonthly)}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 border border-white/10 bg-white/[0.06] p-3.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex max-w-full items-center gap-2 whitespace-normal break-words border border-white/[0.16] bg-white/[0.10] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-white">
-                {pricing.selectedItemCount} selecciones
-              </span>
-              <span className="inline-flex max-w-full items-center gap-2 whitespace-normal break-words border border-white/[0.16] bg-white/[0.10] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-white">
-                {value.billingCycle === "annual" ? "Modo anual" : "Modo mensual"}
-              </span>
+          <div className={cn("flex flex-col", !compact && "xl:h-full xl:min-h-0")}>
+            <div className="pointer-events-none absolute right-4 top-4 max-w-[9rem] bg-biz-yellow px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-black shadow-[0_14px_28px_rgba(0,0,0,0.18)]">
+              {pricing.firstMonthFree ? "Primer mes gratis" : `${pricing.trialLengthDays} días`}
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {pricing.selectedProducts.length > 0 ? (
-                pricing.selectedProducts.map((item) => (
-                  <span
-                    key={item}
-                    className="inline-flex max-w-full items-center whitespace-normal break-words bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-black"
-                  >
-                    {item}
-                  </span>
-                ))
-              ) : (
-                <p className="text-sm leading-6 text-white/[0.68]">
-                  Todavía no elegiste productos.
+            <div className="relative min-w-0 pr-28">
+              <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-yellow">
+                Tu resumen
+              </p>
+              <h4 className="mt-2 text-balance font-business-display text-[clamp(1.7rem,3vw,2.4rem)] uppercase leading-[0.94] tracking-[-0.03em]">
+                Plan mezclado, precio claro.
+              </h4>
+              <p className="mt-2 text-sm leading-6 text-white/[0.76]">
+                {bundleMessage}
+              </p>
+              {isPricingLoading ? (
+                <p className="mt-2 text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.45]">
+                  Actualizando precios...
                 </p>
-              )}
+              ) : null}
             </div>
-          </div>
 
-          {pricing.validationErrors.length > 0 ? (
-            <div className="mt-4 border border-biz-yellow/30 bg-biz-yellow/[0.12] p-3.5 text-sm text-biz-yellow">
-              {pricing.validationErrors.map((error) => (
-                <p key={error}>{error}</p>
-              ))}
+            <div className="relative mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="border border-white/10 bg-white/[0.06] p-3.5">
+                <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
+                  Hoy pagás
+                </p>
+                <p className="mt-2 font-business-display text-[clamp(1.8rem,4vw,2.5rem)] uppercase leading-none text-biz-yellow">
+                  0 Bs
+                </p>
+              </div>
+              <div className="border border-white/10 bg-white/[0.06] p-3.5">
+                <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
+                  {pricing.firstMonthFree ? "Después del mes gratis" : "Después de la prueba"}
+                </p>
+                <p className="mt-2 font-business-display text-[clamp(1.8rem,4vw,2.5rem)] uppercase leading-none text-white">
+                  {formatBsAmount(pricing.finalMonthly)}
+                </p>
+              </div>
             </div>
-          ) : null}
 
-          <div className="mt-4">
-            <SummaryRow
-              label={pricing.firstMonthFree ? "Primer mes" : "Prueba"}
-              value={pricing.firstMonthFree ? "Gratis" : `${pricing.trialLengthDays} días`}
-            />
-            <SummaryRow label="Subtotal mensual" value={formatBsAmount(pricing.subtotalMonthly)} />
-            <SummaryRow
-              label="Descuento por bundle"
-              value={
-                pricing.bundleDiscountPercent > 0
-                  ? `-${formatBsAmount(pricing.bundleDiscountAmount)} (${pricing.bundleDiscountPercent}%)`
-                  : formatBsAmount(0)
-              }
-              dimmed={pricing.bundleDiscountPercent === 0}
-            />
-            <SummaryRow
-              label="Descuento anual"
-              value={
-                pricing.annualDiscountPercent > 0
-                  ? `-${formatBsAmount(pricing.annualDiscountAmount)} (${pricing.annualDiscountPercent}%)`
-                  : formatBsAmount(0)
-              }
-              dimmed={pricing.annualDiscountPercent === 0}
-            />
-            <SummaryRow label="Equivalente anual" value={formatBsAmount(pricing.finalAnnualEquivalent)} />
-          </div>
+            <div className={cn("mt-4 space-y-4", !compact && "xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-1")}>
+              <div className="border border-white/10 bg-white/[0.06] p-3.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex max-w-full items-center gap-2 whitespace-normal break-words border border-white/[0.16] bg-white/[0.10] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-white">
+                    {pricing.selectedItemCount} selecciones
+                  </span>
+                  <span className="inline-flex max-w-full items-center gap-2 whitespace-normal break-words border border-white/[0.16] bg-white/[0.10] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-white">
+                    {value.billingCycle === "annual" ? "Modo anual" : "Modo mensual"}
+                  </span>
+                </div>
 
-          <div className="mt-5 space-y-3">
-            <Button
-              asChild
-              className="h-12 w-full rounded-none bg-biz-yellow text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-[#edf222]"
-            >
-              <Link href={ctaHref}>{ctaLabel}</Link>
-            </Button>
-            <Link
-              href="/negocios#productos"
-              className="inline-flex h-12 w-full items-center justify-center border border-white/[0.14] text-[11px] font-black uppercase tracking-[0.08em] text-white transition-colors hover:bg-white hover:text-black"
-            >
-              Ver productos
-            </Link>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {pricing.selectedProducts.length > 0 ? (
+                    pricing.selectedProducts.map((item) => (
+                      <span
+                        key={item}
+                        className="inline-flex max-w-full items-center whitespace-normal break-words bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-black"
+                      >
+                        {item}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm leading-6 text-white/[0.68]">
+                      Todavía no elegiste productos.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {pricing.validationErrors.length > 0 ? (
+                <div className="border border-biz-yellow/30 bg-biz-yellow/[0.12] p-3.5 text-sm text-biz-yellow">
+                  {pricing.validationErrors.map((error) => (
+                    <p key={error}>{error}</p>
+                  ))}
+                </div>
+              ) : null}
+
+              <div>
+                <SummaryRow
+                  label={pricing.firstMonthFree ? "Primer mes" : "Prueba"}
+                  value={pricing.firstMonthFree ? "Gratis" : `${pricing.trialLengthDays} días`}
+                />
+                <SummaryRow label="Subtotal mensual" value={formatBsAmount(pricing.subtotalMonthly)} />
+                <SummaryRow
+                  label="Descuento por bundle"
+                  value={
+                    pricing.bundleDiscountPercent > 0
+                      ? `-${formatBsAmount(pricing.bundleDiscountAmount)} (${pricing.bundleDiscountPercent}%)`
+                      : formatBsAmount(0)
+                  }
+                  dimmed={pricing.bundleDiscountPercent === 0}
+                />
+                <SummaryRow
+                  label="Descuento anual"
+                  value={
+                    pricing.annualDiscountPercent > 0
+                      ? `-${formatBsAmount(pricing.annualDiscountAmount)} (${pricing.annualDiscountPercent}%)`
+                      : formatBsAmount(0)
+                  }
+                  dimmed={pricing.annualDiscountPercent === 0}
+                />
+                <SummaryRow label="Equivalente anual" value={formatBsAmount(pricing.finalAnnualEquivalent)} />
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3 border-t border-white/10 pt-4">
+              <Button
+                asChild
+                className="h-12 w-full rounded-none bg-biz-yellow text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-[#edf222]"
+              >
+                <Link href={ctaHref}>{ctaLabel}</Link>
+              </Button>
+              <Link
+                href="/negocios#productos"
+                className="inline-flex h-12 w-full items-center justify-center border border-white/[0.14] text-[11px] font-black uppercase tracking-[0.08em] text-white transition-colors hover:bg-white hover:text-black"
+              >
+                Ver productos
+              </Link>
+            </div>
           </div>
         </aside>
       </div>

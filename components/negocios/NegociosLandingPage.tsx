@@ -452,19 +452,27 @@ export function NegociosLandingPage() {
     () => applyPricingConfigToCatalog(pricingConfig),
     [pricingConfig],
   );
-  const billboardTiers = useMemo(
-    () => [
-      ...pricingConfig.discounts.bundleTiers.map((tier) => ({
-        label: tier.label,
-        value: `${tier.discountPercent}%`,
-      })),
-      {
-        label: "Contrato anual",
-        value: `+${pricingConfig.discounts.annualDiscountPercent}% adicional`,
-      },
-    ],
-    [pricingConfig],
-  );
+  const bundleDiscountTiers = useMemo(() => {
+    const seen = new Set<string>();
+
+    return pricingConfig.discounts.bundleTiers.filter((tier) => {
+      const key = `${tier.minSelectedItems}-${tier.discountPercent}-${tier.label.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [pricingConfig]);
+  const annualDiscountPercent = pricingConfig.discounts.annualDiscountPercent;
+  const heroTrialLabel = pricing.firstMonthFree
+    ? "Primer mes gratis"
+    : `${pricing.trialLengthDays} días de prueba`;
+  const heroAfterTrialLabel = pricing.firstMonthFree
+    ? "Después del mes gratis"
+    : "Después de la prueba";
+  const heroBundleMessage =
+    pricing.bundleDiscountPercent > 0
+      ? `Tu combinación actual ya activa ${pricing.bundleDiscountPercent}% de ahorro por combo.`
+      : "Sumá productos y extras para destrabar ahorro por combo sin meterte en un paquete cerrado.";
 
   useEffect(() => {
     setSelection((current) => {
@@ -481,197 +489,280 @@ export function NegociosLandingPage() {
     <main className="bg-biz-surface text-biz-heading-dark">
       <section
         id="inicio"
-        className="relative isolate overflow-hidden border-b border-black/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(231,56,134,0.12),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(250,255,54,0.24),transparent_18%),linear-gradient(180deg,#f3f3f3_0%,#f6f2ed_100%)] lg:min-h-[calc(100svh-3.5rem)]"
+        className="relative isolate overflow-hidden border-b border-black/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(231,56,134,0.12),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(250,255,54,0.24),transparent_18%),linear-gradient(180deg,#f3f3f3_0%,#f6f2ed_100%)] lg:min-h-[calc(100svh-6rem)]"
       >
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-[6%] top-16 h-28 w-44 rotate-[-6deg] border border-black/[0.08] bg-white/[0.45]" />
-          <div className="absolute right-[8%] top-24 h-20 w-32 bg-biz-sky-surge/[0.12] blur-3xl" />
-          <div className="absolute bottom-10 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-biz-barbie-pink/[0.16] blur-3xl" />
+          <div className="absolute right-[8%] top-16 h-20 w-32 bg-biz-sky-surge/[0.12] blur-3xl" />
+          <div className="absolute bottom-6 left-1/2 h-36 w-36 -translate-x-1/2 rounded-full bg-biz-barbie-pink/[0.14] blur-3xl" />
         </div>
 
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-8 lg:grid-cols-[0.98fr_1.02fr] lg:px-10 lg:py-10">
-          <div className="relative z-10 max-w-[620px]">
-            <div className="flex flex-wrap gap-3">
-              <span className="bg-biz-yellow px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black">
-                {pricing.firstMonthFree ? "Primer mes gratis" : `${pricing.trialLengthDays} días de prueba`}
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-8 sm:py-10 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-start lg:px-10 lg:py-8 xl:gap-12 xl:py-10">
+          <div className="relative z-10 flex max-w-[39rem] flex-col gap-5 lg:gap-6">
+            <div className="flex flex-wrap gap-2.5">
+              <span className="inline-flex items-center border border-black bg-biz-yellow px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black shadow-[0_12px_20px_rgba(15,23,42,0.08)]">
+                {heroTrialLabel}
               </span>
-              <span className="border border-black/[0.1] bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black">
+              <span className="inline-flex items-center border border-black/[0.1] bg-white/90 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black">
                 Modular desde el día uno
               </span>
             </div>
 
-            <SectionEyebrow className="mt-7 text-biz-barbie-pink">
-              Editorial pop premium
-            </SectionEyebrow>
-            <h1 className="mt-3 font-business-display text-[clamp(3.25rem,7vw,6.1rem)] uppercase leading-[0.84] tracking-[-0.04em]">
-              ARMÁ TU SISTEMA.
-            </h1>
-            <p className="mt-4 max-w-[32rem] text-[0.98rem] leading-7 text-slate-700 sm:text-[1.04rem]">
-              Elegís Reservas, Eventos, Clases y los módulos extra que te convienen. Priconpri te deja probar todo el flujo con una configuración comercial viva, sin romper la lógica real de tu negocio.
-            </p>
-            <p className="mt-3 max-w-[34rem] text-sm leading-6 text-slate-600">
-              {NEGOCIOS_HERO_COPY.description}
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button
-                asChild
-                className="h-12 rounded-none bg-biz-cta-primary px-6 text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-cta-hover"
-              >
-                <Link href="/negocios/crear-cuenta">{NEGOCIOS_HERO_COPY.primaryCta}</Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                className="h-12 rounded-none border-black bg-transparent px-6 text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
-              >
-                <Link href="#productos">{NEGOCIOS_HERO_COPY.secondaryCta}</Link>
-              </Button>
+            <div className="space-y-3">
+              <SectionEyebrow className="text-biz-barbie-pink">
+                Editorial pop premium
+              </SectionEyebrow>
+              <div className="space-y-3.5">
+                <h1 className="max-w-[8ch] font-business-display text-[clamp(3.25rem,7vw,6.15rem)] uppercase leading-[0.84] tracking-[-0.04em]">
+                  ARMÁ TU SISTEMA.
+                </h1>
+                <p className="max-w-[31rem] text-[clamp(1rem,1.55vw,1.14rem)] leading-7 text-slate-700">
+                  Elegís Reservas, Eventos, Clases y los extras que te convienen. Armás un sistema a medida, lo probás gratis por un mes y activás solo lo que necesitás.
+                </p>
+                <p className="max-w-[34rem] text-sm leading-6 text-slate-600">
+                  Ves una lógica comercial real desde el primer clic, con configuración viva, precio estimado y una página premium lista para vender más.
+                </p>
+              </div>
             </div>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-3">
-              <div className="border border-black bg-white p-4">
-                <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+            <div className="space-y-2.5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Button
+                  asChild
+                  className="h-12 rounded-none bg-biz-cta-primary px-6 text-[11px] font-black uppercase tracking-[0.08em] text-white shadow-[0_18px_26px_rgba(231,56,134,0.26)] transition-transform hover:-translate-y-0.5 hover:bg-biz-cta-hover"
+                >
+                  <Link href="/negocios/crear-cuenta">
+                    {NEGOCIOS_HERO_COPY.primaryCta}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-12 rounded-none border-black bg-white/70 px-6 text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
+                >
+                  <Link href="#productos">{NEGOCIOS_HERO_COPY.secondaryCta}</Link>
+                </Button>
+              </div>
+              <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                Sin tarjeta. Armás tu combinación y la activás cuando te cierre.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-px overflow-hidden border border-black bg-black/[0.12] sm:grid-cols-3">
+              <div className="bg-white p-3.5">
+                <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
                   Base activa
                 </p>
-                <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-none">
-                  {sanitizedSelection.coreSelections.length}
-                </p>
+                <div className="mt-2.5 flex items-end justify-between gap-3">
+                  <p className="font-business-display text-[2rem] uppercase leading-none">
+                    {sanitizedSelection.coreSelections.length}
+                  </p>
+                  <p className="max-w-[8ch] text-right text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                    {sanitizedSelection.coreSelections.length === 1 ? "producto core" : "productos core"}
+                  </p>
+                </div>
               </div>
-              <div className="border border-black bg-white p-4">
-                <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+              <div className="bg-white p-3.5">
+                <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
                   Extras
                 </p>
-                <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-none">
-                  {sanitizedSelection.addOns.length}
-                </p>
+                <div className="mt-2.5 flex items-end justify-between gap-3">
+                  <p className="font-business-display text-[2rem] uppercase leading-none">
+                    {sanitizedSelection.addOns.length}
+                  </p>
+                  <p className="max-w-[8ch] text-right text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                    {sanitizedSelection.addOns.length === 1 ? "módulo pro" : "módulos pro"}
+                  </p>
+                </div>
               </div>
-              <div className="border border-black bg-black p-4 text-white">
-                <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
-                  Después gratis
+              <div className="col-span-2 bg-black p-3.5 text-white sm:col-span-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
+                  {heroAfterTrialLabel}
                 </p>
-                <p className="mt-3 font-business-display text-[2.4rem] uppercase leading-none text-biz-yellow">
-                  {formatBsAmount(pricing.finalMonthly)}
-                </p>
+                <div className="mt-2.5 flex items-end justify-between gap-3">
+                  <p className="font-business-display text-[1.9rem] uppercase leading-none text-biz-yellow">
+                    {formatBsAmount(pricing.finalMonthly)}
+                  </p>
+                  <p className="max-w-[9ch] text-right text-[10px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
+                    {selection.billingCycle === "annual" ? "modo anual" : "modo mensual"}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[580px]">
-            <div className="relative min-h-[390px]">
-              <div className="absolute left-0 top-8 h-[250px] w-[61%] rotate-[-2deg] border border-black bg-white p-5 shadow-[0_24px_46px_rgba(15,23,42,0.12)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-bebas text-[14px] uppercase tracking-[0.16em] text-biz-barbie-pink">
-                      Selección actual
-                    </p>
-                    <p className="mt-2 font-business-display text-[clamp(2rem,3vw,2.9rem)] uppercase leading-[0.92]">
-                      Tu sistema.
-                    </p>
-                  </div>
-                  <span className="border border-black/[0.1] bg-biz-yellow px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-black">
-                    Modular
-                  </span>
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-2">
-                  {pricing.selectedProducts.map((item) => (
-                    <span
-                      key={item}
-                      className="inline-flex border border-black/[0.08] bg-black/[0.03] px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="mt-5 border border-black/[0.08] bg-black/[0.03] p-4">
-                  <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
-                    Lógica de selección
+          <div className="relative mx-auto w-full max-w-[43rem] min-w-0">
+            <div className="relative border border-black bg-white p-5 shadow-[0_24px_46px_rgba(15,23,42,0.12)] sm:p-6 lg:min-h-[28rem] lg:pr-[16.75rem] lg:rotate-[-0.5deg]">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 space-y-2">
+                  <p className="font-bebas text-[14px] uppercase tracking-[0.16em] text-biz-barbie-pink">
+                    Configuración viva
                   </p>
-                  <p className="mt-3 text-sm leading-6 text-slate-700">
-                    Primero activás un producto principal. Después sumás extras, combo y anual según lo que necesités.
-                  </p>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
-                      Mensual estimado
+                      Tu sistema
                     </p>
-                    <p className="mt-2 font-bebas text-[2rem] uppercase tracking-[0.04em] text-biz-barbie-pink">
-                      {formatBsAmount(pricing.finalMonthly)}
+                    <p className="mt-1 max-w-[10ch] font-business-display text-[clamp(1.9rem,3vw,2.7rem)] uppercase leading-[0.9]">
+                      Base + extras, bien configurado.
                     </p>
                   </div>
-                  <Link
-                    href="#pricing"
-                    className="inline-flex h-11 items-center justify-center gap-2 border border-black px-4 text-[11px] font-black uppercase tracking-[0.08em] text-black transition-colors hover:bg-black hover:text-white"
-                  >
-                    Calcular
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
+                </div>
+                <span className="inline-flex items-center border border-black/[0.1] bg-biz-yellow px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-black">
+                  {selection.billingCycle === "annual" ? "Modo anual" : "Modo mensual"}
+                </span>
+              </div>
+
+              <div className="mt-5 min-w-0 space-y-4">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                    Productos elegidos
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {pricing.selectedProducts.map((item) => (
+                      <span
+                        key={item}
+                        className="inline-flex border border-black/[0.08] bg-black/[0.03] px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <div className="border border-black/[0.08] bg-black/[0.02] p-3.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      Producto activo
+                    </p>
+                    <p className="mt-2 font-bebas text-[1.75rem] uppercase tracking-[0.04em] text-black">
+                      {sanitizedSelection.coreSelections.length}
+                    </p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      {sanitizedSelection.coreSelections.length === 1 ? "producto core" : "productos core"}
+                    </p>
+                  </div>
+                  <div className="border border-black/[0.08] bg-black/[0.02] p-3.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      Extras elegidos
+                    </p>
+                    <p className="mt-2 font-bebas text-[1.75rem] uppercase tracking-[0.04em] text-black">
+                      {sanitizedSelection.addOns.length}
+                    </p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      {sanitizedSelection.addOns.length === 1 ? "módulo pro" : "módulos pro"}
+                    </p>
+                  </div>
+                  <div className="border border-black/[0.08] bg-black/[0.02] p-3.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      Ahorro bundle
+                    </p>
+                    <p className="mt-2 font-bebas text-[1.75rem] uppercase tracking-[0.04em] text-biz-barbie-pink">
+                      {pricing.bundleDiscountPercent > 0 ? `-${pricing.bundleDiscountPercent}%` : "0%"}
+                    </p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      según productos core
+                    </p>
+                  </div>
+                  <div className="border border-black/[0.08] bg-black/[0.02] p-3.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      Mensual estimado
+                    </p>
+                    <p className="mt-2 font-bebas text-[1.75rem] uppercase tracking-[0.04em] text-black">
+                      {formatBsAmount(pricing.finalMonthly)}
+                    </p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      después del mes gratis
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-black/[0.08] pt-4">
+                  <div className="flex flex-col items-start gap-2.5">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                        Cómo se arma
+                      </p>
+                      <p className="mt-1 max-w-[30rem] text-sm leading-6 text-slate-700">
+                        Elegís tu core, sumás extras y el descuento se ajusta solo.
+                      </p>
+                      {pricingLoading ? (
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">
+                          Actualizando precios...
+                        </p>
+                      ) : null}
+                    </div>
+                    <Link
+                      href="#pricing"
+                      className="inline-flex h-11 shrink-0 items-center justify-center gap-2 border border-black px-5 text-[11px] font-black uppercase tracking-[0.08em] text-black transition-colors hover:bg-black hover:text-white"
+                    >
+                      Calcular precio
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
                 </div>
               </div>
 
-              <div className="absolute bottom-0 right-0 z-10 w-[66%] rotate-[1.5deg] border border-black bg-black p-5 text-white shadow-[0_28px_52px_rgba(5,5,5,0.22)]">
-                <div className="flex items-start justify-between gap-4">
+              <div className="mt-4 min-w-0 border border-black bg-black p-4 text-white shadow-[0_24px_44px_rgba(5,5,5,0.16)] sm:p-5 lg:absolute lg:bottom-5 lg:right-5 lg:mt-0 lg:w-[14.5rem]">
+                <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-bebas text-[14px] uppercase tracking-[0.16em] text-biz-yellow">
                       Resumen premium
                     </p>
-                    <p className="mt-2 font-business-display text-[clamp(2rem,4vw,3.1rem)] uppercase leading-[0.9]">
+                    <p className="mt-2 font-business-display text-[clamp(1.65rem,2.6vw,2.3rem)] uppercase leading-[0.9]">
                       Hoy pagás 0 Bs.
                     </p>
                   </div>
-                  <span className="border border-white/[0.14] bg-white/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-white">
+                  <span className="inline-flex items-center border border-white/[0.14] bg-white/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-white">
                     {selection.billingCycle === "annual" ? "Anual" : "Mensual"}
                   </span>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="border border-white/[0.12] bg-white/[0.06] p-4">
-                    <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
+                <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
+                  <div className="border border-white/[0.12] bg-white/[0.06] p-3.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
                       {pricing.firstMonthFree ? "Primer mes" : "Prueba"}
                     </p>
-                    <p className="mt-2 font-bebas text-[2rem] uppercase tracking-[0.04em] text-biz-yellow">
+                    <p className="mt-2 font-bebas text-[1.75rem] uppercase tracking-[0.04em] text-biz-yellow">
                       {pricing.firstMonthFree ? "Gratis" : `${pricing.trialLengthDays} días`}
                     </p>
                   </div>
-                  <div className="border border-white/[0.12] bg-white/[0.06] p-4">
-                    <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
-                      Después
+                  <div className="border border-white/[0.12] bg-white/[0.06] p-3.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
+                      {heroAfterTrialLabel}
                     </p>
-                    <p className="mt-2 font-bebas text-[2rem] uppercase tracking-[0.04em] text-white">
+                    <p className="mt-2 font-bebas text-[1.75rem] uppercase tracking-[0.04em] text-white">
                       {formatBsAmount(pricing.finalMonthly)}
                     </p>
                   </div>
                 </div>
 
-                <p className="mt-4 max-w-[24ch] text-sm leading-6 text-white/[0.76]">
-                  Bundle, anual y prueba gratis se calculan automáticamente cuando llegás al configurador real.
+                <div className="mt-3 border border-white/[0.12] bg-white/[0.05] p-3.5">
+                  <div className="flex items-center justify-between gap-3 text-[10px] font-black uppercase tracking-[0.08em]">
+                    <span className="text-white/[0.58]">Selecciones</span>
+                    <span className="text-white">{pricing.selectedItemCount}</span>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between gap-3 text-[10px] font-black uppercase tracking-[0.08em]">
+                    <span className="text-white/[0.58]">Ahorro bundle</span>
+                    <span className={pricing.bundleDiscountPercent > 0 ? "text-biz-yellow" : "text-white"}>
+                      {pricing.bundleDiscountPercent > 0 ? `-${pricing.bundleDiscountPercent}%` : "0%"}
+                    </span>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between gap-3 text-[10px] font-black uppercase tracking-[0.08em]">
+                    <span className="text-white/[0.58]">Equivalente anual</span>
+                    <span className="text-white">{formatBsAmount(pricing.finalAnnualEquivalent)}</span>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-[12px] leading-5 text-white/[0.74]">
+                  {heroBundleMessage}
                 </p>
-              </div>
-
-              <div className="absolute right-10 top-2 z-20 rotate-[2deg] bg-biz-yellow px-4 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black shadow-[0_18px_34px_rgba(0,0,0,0.14)]">
-                {pricing.firstMonthFree ? "Primer mes gratis" : `${pricing.trialLengthDays} días`}
-              </div>
-
-              <div className="absolute bottom-20 left-[30%] z-0 hidden h-[160px] w-[160px] border border-black/[0.08] bg-white/[0.5] p-2 lg:block">
-                <Image
-                  src="/assets/priconpri/mascot.webp"
-                  alt="Mascota Priconpri"
-                  width={160}
-                  height={160}
-                  className="h-full w-full object-contain"
-                  priority
-                />
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="productos" className="border-b border-black/[0.08] bg-white px-6 py-12 lg:px-10 lg:py-16">
+      <section id="productos" className="scroll-mt-20 border-b border-black/[0.08] bg-white px-6 py-12 lg:px-10 lg:py-16">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-8 xl:grid-cols-[0.64fr_1.36fr]">
             <div className="max-w-[30rem]">
@@ -725,7 +816,7 @@ export function NegociosLandingPage() {
 
       <section
         id="addons"
-        className="border-b border-black/[0.08] bg-[linear-gradient(180deg,#f6f2ed_0%,#eef7fb_100%)] px-6 py-12 lg:px-10 lg:py-16"
+        className="scroll-mt-20 border-b border-black/[0.08] bg-[linear-gradient(180deg,#f6f2ed_0%,#eef7fb_100%)] px-6 py-12 lg:px-10 lg:py-16"
       >
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-8 xl:grid-cols-[0.62fr_1.38fr]">
@@ -752,7 +843,7 @@ export function NegociosLandingPage() {
 
       <section
         id="pricing"
-        className="border-b border-black/[0.08] bg-[linear-gradient(180deg,#ece8e3_0%,#f7f4ef_100%)] px-6 py-12 lg:px-10 lg:py-16"
+        className="scroll-mt-20 border-b border-black/[0.08] bg-[linear-gradient(180deg,#ece8e3_0%,#f7f4ef_100%)] px-6 py-12 lg:px-10 lg:py-16"
       >
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr] xl:items-end">
@@ -780,51 +871,100 @@ export function NegociosLandingPage() {
         </div>
       </section>
 
-      <section id="bundle" className="border-b border-black bg-biz-yellow px-6 py-12 lg:px-10 lg:py-14">
+      <section id="bundle" className="scroll-mt-20 border-b border-black bg-biz-yellow px-6 py-12 lg:px-10 lg:py-14">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-8 xl:grid-cols-[0.84fr_1.16fr]">
+          <div className="grid gap-8 xl:grid-cols-[0.76fr_1.24fr] xl:items-start">
             <div className="max-w-[34rem]">
               <SectionEyebrow className="text-black">
                 MIENTRAS MÁS SUMÁS, MÁS AHORRÁS.
               </SectionEyebrow>
               <h2 className="mt-3 font-business-display text-[clamp(2.7rem,5.8vw,4.8rem)] uppercase leading-[0.84] tracking-[-0.04em] text-black">
-                El descuento también es parte del diseño del plan.
+                EL DESCUENTO TAMBIÉN ES PARTE DEL PLAN.
               </h2>
               <p className="mt-4 max-w-[30rem] text-[1rem] leading-7 text-black/80">
-                Bundle y anual no son notas al pie. Son una parte importante de cómo escala tu sistema cuando sumás más operación.
+                Cuando combinás más productos, el precio mejora automáticamente. Y si elegís contrato anual, sumás un descuento adicional.
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {billboardTiers.map((tier, index) => (
-                <article
-                  key={tier.label}
-                  className={cn(
-                    "border border-black p-4",
-                    index % 2 === 0 ? "bg-white text-black" : "bg-black text-white",
-                    index === 1 && "sm:translate-y-3",
-                    index === 4 && "sm:col-span-2 xl:col-span-1",
-                  )}
-                >
-                  <p
-                    className={cn(
-                      "text-[11px] font-black uppercase tracking-[0.08em]",
-                      index % 2 === 0 ? "text-slate-500" : "text-white/[0.58]",
-                    )}
-                  >
-                    {tier.label}
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+              <article className="min-w-0 border border-black bg-white p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black pb-4">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                      Tu combo mejora así
+                    </p>
+                    <p className="mt-2 font-business-display text-[clamp(1.9rem,3vw,2.8rem)] uppercase leading-[0.92] tracking-[-0.03em] text-black">
+                      Descuento bundle
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center border border-black bg-biz-yellow px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-black">
+                    automático
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {bundleDiscountTiers.map((tier, index) => (
+                    <div
+                      key={tier.label}
+                      className={cn(
+                        "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-black p-4",
+                        index === 0 ? "bg-[#f8f6f1]" : "bg-white",
+                        index === 1 && "lg:translate-x-3",
+                        index === 2 && "lg:translate-x-6",
+                        index >= 3 && "lg:translate-x-9",
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                          {tier.label}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">
+                          Descuento por cantidad de productos core activos.
+                        </p>
+                      </div>
+                      <p className="font-bebas text-[2.5rem] uppercase leading-none tracking-[0.04em] text-black">
+                        {tier.discountPercent}%
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="flex min-w-0 flex-col justify-between border border-black bg-black p-5 text-white sm:p-6">
+                <div>
+                  <p className="font-bebas text-[14px] uppercase tracking-[0.16em] text-biz-yellow">
+                    Contrato anual
                   </p>
-                  <p className="mt-3 font-business-display text-[clamp(1.9rem,3vw,2.9rem)] uppercase leading-[0.9] tracking-[-0.03em]">
-                    {tier.value}
+                  <p className="mt-3 font-business-display text-[clamp(2rem,3.2vw,3rem)] uppercase leading-[0.9] tracking-[-0.03em] text-white">
+                    +{annualDiscountPercent}% adicional
                   </p>
-                </article>
-              ))}
+                  <p className="mt-4 text-sm leading-6 text-white/[0.76]">
+                    Este descuento se suma encima del ahorro bundle cuando elegís facturación anual.
+                  </p>
+                </div>
+
+                <div className="mt-5 border border-white/[0.12] bg-white/[0.06] p-4">
+                  <p className="text-[11px] font-black uppercase tracking-[0.08em] text-white/[0.58]">
+                    Cómo leerlo
+                  </p>
+                  <div className="mt-3 space-y-3 text-[11px] font-black uppercase tracking-[0.08em]">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-white/[0.58]">Bundle</span>
+                      <span className="text-white">según productos core</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-white/[0.58]">Anual</span>
+                      <span className="text-biz-yellow">extra sobre el bundle</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="sectores" className="border-b border-black/[0.08] bg-white px-6 py-12 lg:px-10 lg:py-16">
+      <section id="sectores" className="scroll-mt-20 border-b border-black/[0.08] bg-white px-6 py-12 lg:px-10 lg:py-16">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-4 xl:grid-cols-12">
             <article className="border border-black bg-black p-5 text-white xl:col-span-4 xl:row-span-2 sm:p-6">
@@ -856,7 +996,7 @@ export function NegociosLandingPage() {
         </div>
       </section>
 
-      <section id="como-funciona" className="border-b border-black/[0.08] bg-[#f5f3ef] px-6 py-12 lg:px-10 lg:py-[3.75rem]">
+      <section id="como-funciona" className="scroll-mt-20 border-b border-black/[0.08] bg-[#f5f3ef] px-6 py-12 lg:px-10 lg:py-[3.75rem]">
         <div className="mx-auto max-w-7xl">
           <SectionEyebrow className="text-slate-500">EMPEZAR ES SIMPLE.</SectionEyebrow>
           <h2 className="mt-3 max-w-[16ch] font-business-display text-[clamp(2.4rem,4.8vw,4rem)] uppercase leading-[0.9] tracking-[-0.04em]">
