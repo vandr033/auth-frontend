@@ -10,9 +10,12 @@ import {
     Eye,
     ImageIcon,
     Loader2,
+    PencilLine,
+    Plus,
     RefreshCcw,
     Send,
     Ticket,
+    Trash2,
     Upload,
     UserPlus,
     Users,
@@ -44,6 +47,7 @@ import {
     unconfirmGroupClassEnrollment,
     uploadAdminQrProof,
     uploadAdminImage,
+    updateGroupEnrollmentInstallments,
     updateGroupClass,
     type CustomerRecord,
     type GroupAttendanceRow,
@@ -55,6 +59,7 @@ import {
     type GroupPaymentStatus,
     type GroupTicket,
     type StaffMember,
+    type UpdateGroupEnrollmentInstallmentInput,
 } from "@/app/admin/lib/adminApi";
 import { AdminPageHeader } from "@/app/admin/dashboard/components/AdminPageHeader";
 import { AdminSectionCard } from "@/app/admin/dashboard/components/AdminSectionCard";
@@ -71,6 +76,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { ProofAssetPreview } from "@/components/ui/proof-asset-preview";
 import {
     Dialog,
@@ -157,6 +163,38 @@ function fromGroupClass(groupClass: GroupClass): ClassFormState {
     };
 }
 
+type EditableInstallmentDraft = {
+    id?: number;
+    due_date: string;
+    amount_input: string;
+    payment_status: GroupPaymentStatus;
+    payment_method: "NONE" | "CASH" | "QR";
+};
+
+function toDateInputValue(value?: string | null): string {
+    return value ? value.slice(0, 10) : "";
+}
+
+function buildEditableInstallmentDrafts(
+    plan: GroupEnrollmentInstallmentPlan,
+): EditableInstallmentDraft[] {
+    return plan.installments.map((installment) => ({
+        id: installment.id,
+        due_date: toDateInputValue(installment.due_date),
+        amount_input: formatCurrencyInputFromCents(installment.amount_cents),
+        payment_status: installment.payment_status,
+        payment_method: installment.payment_method,
+    }));
+}
+
+function addMonthToDateInput(value?: string | null): string {
+    const base = value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+        ? new Date(`${value}T00:00:00Z`)
+        : new Date();
+    base.setUTCMonth(base.getUTCMonth() + 1);
+    return base.toISOString().slice(0, 10);
+}
+
 export default function GroupClassDetailPage() {
     const t = useT();
     const params = useParams<{ classId: string }>();
@@ -190,7 +228,10 @@ export default function GroupClassDetailPage() {
     const [qrProofDialog, setQrProofDialog] = useState<string | null>(null);
     const [installmentPlanDialog, setInstallmentPlanDialog] = useState<GroupEnrollmentInstallmentPlan | null>(null);
     const [installmentPlanLoading, setInstallmentPlanLoading] = useState(false);
+    const [installmentPlanSaving, setInstallmentPlanSaving] = useState(false);
     const [installmentActionKey, setInstallmentActionKey] = useState<string | null>(null);
+    const [installmentEditMode, setInstallmentEditMode] = useState(false);
+    const [installmentDrafts, setInstallmentDrafts] = useState<EditableInstallmentDraft[]>([]);
 
     // Add Member dialog
     const [addMemberOpen, setAddMemberOpen] = useState(false);
@@ -202,6 +243,8 @@ export default function GroupClassDetailPage() {
     const [addMemberNewName, setAddMemberNewName] = useState("");
     const [addMemberNewEmail, setAddMemberNewEmail] = useState("");
     const [addMemberNewPhone, setAddMemberNewPhone] = useState("");
+    const [addMemberNewPhonePrefix, setAddMemberNewPhonePrefix] = useState("591");
+    const [addMemberNewCountryCode, setAddMemberNewCountryCode] = useState("BO");
     const [addMemberPaymentMethod, setAddMemberPaymentMethod] = useState<"NONE" | "CASH" | "QR">("CASH");
     const [addMemberMarkAsPaid, setAddMemberMarkAsPaid] = useState(false);
     const [addMemberQrProofUrl, setAddMemberQrProofUrl] = useState<string | null>(null);
@@ -515,19 +558,127 @@ export default function GroupClassDetailPage() {
         }
     };
 
-    const refreshInstallmentPlanDialog = useCallback(async (enrollmentId: number) => {
+    const refreshInstallmentPlanDialog = useCallback(async (
+        enrollmentId: number,
+        options?: { startEditing?: boolean },
+    ) => {
         const plan = await listGroupEnrollmentInstallments(enrollmentId);
         setInstallmentPlanDialog(plan);
+        setInstallmentDrafts(buildEditableInstallmentDrafts(plan));
+        setInstallmentEditMode(options?.startEditing === true);
     }, []);
 
-    const handleOpenInstallmentPlan = async (enrollmentId: number) => {
+    const handleOpenInstallmentPlan = async (
+        enrollmentId: number,
+        options?: { startEditing?: boolean },
+    ) => {
         setInstallmentPlanLoading(true);
         try {
-            await refreshInstallmentPlanDialog(enrollmentId);
+            await refreshInstallmentPlanDialog(enrollmentId, options);
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.loadError"));
         } finally {
             setInstallmentPlanLoading(false);
+        }
+    };
+
+    const handleStartInstallmentEditing = () => {
+        if (!installmentPlanDialog) return;
+        setInstallmentDrafts(buildEditableInstallmentDrafts(installmentPlanDialog));
+        setInstallmentEditMode(true);
+    };
+
+    const handleCancelInstallmentEditing = () => {
+        if (installmentPlanDialog) {
+            setInstallmentDrafts(buildEditableInstallmentDrafts(installmentPlanDialog));
+        }
+        setInstallmentEditMode(false);
+    };
+
+    const handleInstallmentDraftChange = (
+        index: number,
+        updater: (current: EditableInstallmentDraft) => EditableInstallmentDraft,
+    ) => {
+        setInstallmentDrafts((current) =>
+            current.map((draft, draftIndex) => (draftIndex === index ? updater(draft) : draft)),
+        );
+    };
+
+    const handleAddInstallmentDraft = () => {
+        const lastDraft = installmentDrafts[installmentDrafts.length - 1];
+        setInstallmentDrafts((current) => [
+            ...current,
+            {
+                due_date: addMonthToDateInput(lastDraft?.due_date),
+                amount_input: lastDraft?.amount_input || formatCurrencyInputFromCents(groupClass?.price_cents ?? 0),
+                payment_status: "UNPAID",
+                payment_method: "NONE",
+            },
+        ]);
+    };
+
+    const handleRemoveInstallmentDraft = (index: number) => {
+        setInstallmentDrafts((current) => current.filter((_, draftIndex) => draftIndex !== index));
+    };
+
+    const handleSaveInstallmentPlan = async () => {
+        if (!installmentPlanDialog) return;
+
+        const payload: UpdateGroupEnrollmentInstallmentInput[] = [];
+        for (const [index, draft] of installmentDrafts.entries()) {
+            if (!draft.due_date) {
+                await notify.warning(
+                    t("adminGroup.payments.installmentDueDateRequired", { number: index + 1 }),
+                );
+                return;
+            }
+
+            const amountCents = parseCurrencyInputToCents(draft.amount_input);
+            if (amountCents === null) {
+                await notify.warning(
+                    t("adminGroup.payments.installmentAmountInvalid", { number: index + 1 }),
+                );
+                return;
+            }
+
+            if (
+                (draft.payment_status === "PENDING_CONFIRMATION" || draft.payment_status === "REJECTED")
+                && draft.payment_method !== "QR"
+            ) {
+                await notify.warning(
+                    t("adminGroup.payments.installmentQrStatusRequiresQr", { number: index + 1 }),
+                );
+                return;
+            }
+
+            if (draft.payment_status === "PAID" && amountCents > 0 && draft.payment_method === "NONE") {
+                await notify.warning(
+                    t("adminGroup.payments.installmentPaidMethodRequired", { number: index + 1 }),
+                );
+                return;
+            }
+
+            payload.push({
+                ...(draft.id ? { id: draft.id } : {}),
+                due_date: draft.due_date,
+                amount_cents: amountCents,
+                payment_status: draft.payment_status,
+                payment_method: draft.payment_method,
+            });
+        }
+
+        setInstallmentPlanSaving(true);
+        try {
+            const updatedPlan = await updateGroupEnrollmentInstallments(installmentPlanDialog.enrollment.id, payload);
+            setInstallmentPlanDialog(updatedPlan);
+            setInstallmentDrafts(buildEditableInstallmentDrafts(updatedPlan));
+            setInstallmentEditMode(false);
+            await notify.success(t("adminGroup.payments.planUpdated"));
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.payments.planUpdateError"));
+        } finally {
+            setInstallmentPlanSaving(false);
         }
     };
 
@@ -601,6 +752,8 @@ export default function GroupClassDetailPage() {
         setAddMemberNewName("");
         setAddMemberNewEmail("");
         setAddMemberNewPhone("");
+        setAddMemberNewPhonePrefix("591");
+        setAddMemberNewCountryCode("BO");
         setAddMemberPaymentMethod("CASH");
         setAddMemberMarkAsPaid(false);
         setAddMemberQrProofUrl(null);
@@ -656,7 +809,7 @@ export default function GroupClassDetailPage() {
 
         setAddMemberBusy(true);
         try {
-            await adminCreateGroupClassEnrollment(groupClass.id, {
+            const createdEnrollment = await adminCreateGroupClassEnrollment(groupClass.id, {
                 ...(addMemberMode === "existing"
                     ? { customer_id: addMemberSelected?.id }
                     : {
@@ -664,6 +817,8 @@ export default function GroupClassDetailPage() {
                             name: addMemberNewName.trim(),
                             email: addMemberNewEmail.trim(),
                             phone: addMemberNewPhone.trim(),
+                            phone_prefix: addMemberNewPhonePrefix,
+                            country_code: addMemberNewCountryCode,
                         },
                     }),
                 payment_method: groupClass.price_cents === 0 ? "NONE" : addMemberPaymentMethod,
@@ -673,6 +828,9 @@ export default function GroupClassDetailPage() {
             await notify.success(t("adminGroup.classes.memberAdded"));
             resetAddMemberDialog();
             await loadData();
+            if (createdEnrollment.pricing_mode === "FULL_COURSE") {
+                await handleOpenInstallmentPlan(createdEnrollment.id, { startEditing: true });
+            }
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
         } finally {
@@ -1181,7 +1339,11 @@ export default function GroupClassDetailPage() {
             <Dialog
                 open={!!installmentPlanDialog}
                 onOpenChange={(open) => {
-                    if (!open) setInstallmentPlanDialog(null);
+                    if (!open) {
+                        setInstallmentPlanDialog(null);
+                        setInstallmentDrafts([]);
+                        setInstallmentEditMode(false);
+                    }
                 }}
             >
                 <DialogContent className="max-w-2xl">
@@ -1203,111 +1365,258 @@ export default function GroupClassDetailPage() {
                                     })}
                                 </p>
                             </div>
+                            <div className="flex flex-wrap justify-end gap-2">
+                                {installmentEditMode ? (
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleAddInstallmentDraft}
+                                            disabled={installmentPlanSaving}
+                                        >
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            {t("adminGroup.payments.addInstallment")}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleCancelInstallmentEditing}
+                                            disabled={installmentPlanSaving}
+                                        >
+                                            {t("common.cancel")}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => void handleSaveInstallmentPlan()}
+                                            disabled={installmentPlanSaving}
+                                        >
+                                            {installmentPlanSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                            {t("adminGroup.payments.savePlan")}
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button size="sm" variant="outline" onClick={handleStartInstallmentEditing}>
+                                        <PencilLine className="mr-2 h-4 w-4" />
+                                        {t("adminGroup.payments.editPlan")}
+                                    </Button>
+                                )}
+                            </div>
                             {!canSendInstallmentReminders ? (
                                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                                     Los recordatorios automáticos de cuotas requieren Clases Pro y Mensajería Pro.
                                 </div>
                             ) : null}
-                            {installmentPlanDialog.installments.map((installment) => (
-                                <div key={installment.id} className="space-y-3 rounded-xl border border-slate-200 p-4">
-                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div>
+                            {installmentEditMode
+                                ? installmentDrafts.map((draft, index) => (
+                                    <div key={draft.id ?? `new-${index}`} className="space-y-3 rounded-xl border border-slate-200 p-4">
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
                                             <p className="font-medium text-slate-900">
                                                 {t("adminGroup.payments.installmentNumber", {
-                                                    number: installment.installment_number,
+                                                    number: index + 1,
                                                 })}
                                             </p>
-                                            <p className="text-sm text-slate-600">
-                                                {t("adminGroup.payments.installmentMeta", {
-                                                    due: formatDate(installment.due_date),
-                                                    amount: formatMoneyFromCents(
-                                                        installment.amount_cents,
-                                                        currency,
-                                                    ),
-                                                })}
-                                            </p>
-                                            {installment.last_reminder_at ? (
-                                                <p className="text-xs text-slate-500">
-                                                    {t("adminGroup.payments.lastReminder")}:{" "}
-                                                    {formatDateTime(installment.last_reminder_at)} ·{" "}
-                                                    {installment.last_reminder_channel || ""}
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleRemoveInstallmentDraft(index)}
+                                                disabled={installmentPlanSaving || installmentDrafts.length <= 1}
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                {t("adminGroup.payments.removeInstallment")}
+                                            </Button>
+                                        </div>
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs font-medium text-slate-700">
+                                                    {t("adminGroup.payments.installmentDueDate")}
+                                                </Label>
+                                                <Input
+                                                    type="date"
+                                                    value={draft.due_date}
+                                                    onChange={(event) =>
+                                                        handleInstallmentDraftChange(index, (current) => ({
+                                                            ...current,
+                                                            due_date: event.target.value,
+                                                        }))
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs font-medium text-slate-700">
+                                                    {t("adminGroup.payments.installmentAmount")}
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={draft.amount_input}
+                                                    onChange={(event) =>
+                                                        handleInstallmentDraftChange(index, (current) => ({
+                                                            ...current,
+                                                            amount_input: event.target.value,
+                                                        }))
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs font-medium text-slate-700">
+                                                    {t("adminGroup.payments.paymentStatus")}
+                                                </Label>
+                                                <Select
+                                                    value={draft.payment_status}
+                                                    onValueChange={(value) =>
+                                                        handleInstallmentDraftChange(index, (current) => ({
+                                                            ...current,
+                                                            payment_status: value as GroupPaymentStatus,
+                                                            payment_method:
+                                                                value === "PENDING_CONFIRMATION" || value === "REJECTED"
+                                                                    ? "QR"
+                                                                    : value === "PAID" && current.payment_method === "NONE"
+                                                                        ? "CASH"
+                                                                        : current.payment_method,
+                                                        }))
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="UNPAID">{t("adminGroup.paymentStatus.unpaid")}</SelectItem>
+                                                        <SelectItem value="PENDING_CONFIRMATION">{t("adminGroup.paymentStatus.pendingConfirmation")}</SelectItem>
+                                                        <SelectItem value="PAID">{t("adminGroup.paymentStatus.paid")}</SelectItem>
+                                                        <SelectItem value="REJECTED">{t("adminGroup.paymentStatus.rejected")}</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs font-medium text-slate-700">
+                                                    {t("adminBookings.paymentMethod")}
+                                                </Label>
+                                                <Select
+                                                    value={draft.payment_method}
+                                                    onValueChange={(value) =>
+                                                        handleInstallmentDraftChange(index, (current) => ({
+                                                            ...current,
+                                                            payment_method: value as "NONE" | "CASH" | "QR",
+                                                            payment_status:
+                                                                value !== "QR"
+                                                                && (current.payment_status === "PENDING_CONFIRMATION" || current.payment_status === "REJECTED")
+                                                                    ? "UNPAID"
+                                                                    : current.payment_status,
+                                                        }))
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="NONE">{t("adminBookings.notSpecified")}</SelectItem>
+                                                        <SelectItem value="CASH">{t("adminBookings.paymentCash")}</SelectItem>
+                                                        <SelectItem value="QR">{t("adminBookings.paymentQr")}</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                                : installmentPlanDialog.installments.map((installment) => (
+                                    <div key={installment.id} className="space-y-3 rounded-xl border border-slate-200 p-4">
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <div>
+                                                <p className="font-medium text-slate-900">
+                                                    {t("adminGroup.payments.installmentNumber", {
+                                                        number: installment.installment_number,
+                                                    })}
                                                 </p>
+                                                <p className="text-sm text-slate-600">
+                                                    {t("adminGroup.payments.installmentMeta", {
+                                                        due: formatDate(installment.due_date),
+                                                        amount: formatMoneyFromCents(
+                                                            installment.amount_cents,
+                                                            currency,
+                                                        ),
+                                                    })}
+                                                </p>
+                                                {installment.last_reminder_at ? (
+                                                    <p className="text-xs text-slate-500">
+                                                        {t("adminGroup.payments.lastReminder")}:{" "}
+                                                        {formatDateTime(installment.last_reminder_at)} ·{" "}
+                                                        {installment.last_reminder_channel || ""}
+                                                    </p>
+                                                ) : null}
+                                            </div>
+                                            <GroupPaymentStatusBadge status={installment.payment_status} />
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {installment.qr_proof_image_url ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        setQrProofDialog(installment.qr_proof_image_url!)
+                                                    }
+                                                >
+                                                    <Eye className="mr-1 h-3 w-3" />
+                                                    {t("adminGroup.actions.viewQrProof")}
+                                                </Button>
+                                            ) : null}
+                                            {installment.payment_status === "PENDING_CONFIRMATION" ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        void handleInstallmentConfirmQr(
+                                                            installmentPlanDialog.enrollment.id,
+                                                            installment.id,
+                                                        )
+                                                    }
+                                                    disabled={installmentActionKey === `confirm:${installment.id}`}
+                                                >
+                                                    {installmentActionKey === `confirm:${installment.id}` ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : null}
+                                                    {t("adminGroup.payments.confirmQr")}
+                                                </Button>
+                                            ) : null}
+                                            {installment.payment_status !== "PAID" ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        void handleInstallmentMarkCashPaid(
+                                                            installmentPlanDialog.enrollment.id,
+                                                            installment.id,
+                                                        )
+                                                    }
+                                                    disabled={installmentActionKey === `cash:${installment.id}`}
+                                                >
+                                                    {installmentActionKey === `cash:${installment.id}` ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : null}
+                                                    {t("adminGroup.payments.markCashPaid")}
+                                                </Button>
+                                            ) : null}
+                                            {installment.payment_status !== "PAID" ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        void handleInstallmentReminder(
+                                                            installmentPlanDialog.enrollment.id,
+                                                            installment.id,
+                                                        )
+                                                    }
+                                                    disabled={installmentActionKey === `reminder:${installment.id}` || !canSendInstallmentReminders}
+                                                >
+                                                    {installmentActionKey === `reminder:${installment.id}` ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Send className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    {t("adminGroup.payments.sendReminder")}
+                                                </Button>
                                             ) : null}
                                         </div>
-                                        <GroupPaymentStatusBadge status={installment.payment_status} />
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {installment.qr_proof_image_url ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    setQrProofDialog(installment.qr_proof_image_url!)
-                                                }
-                                            >
-                                                <Eye className="mr-1 h-3 w-3" />
-                                                {t("adminGroup.actions.viewQrProof")}
-                                            </Button>
-                                        ) : null}
-                                        {installment.payment_status === "PENDING_CONFIRMATION" ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    void handleInstallmentConfirmQr(
-                                                        installmentPlanDialog.enrollment.id,
-                                                        installment.id,
-                                                    )
-                                                }
-                                                disabled={installmentActionKey === `confirm:${installment.id}`}
-                                            >
-                                                {installmentActionKey === `confirm:${installment.id}` ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : null}
-                                                {t("adminGroup.payments.confirmQr")}
-                                            </Button>
-                                        ) : null}
-                                        {installment.payment_status !== "PAID" ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    void handleInstallmentMarkCashPaid(
-                                                        installmentPlanDialog.enrollment.id,
-                                                        installment.id,
-                                                    )
-                                                }
-                                                disabled={installmentActionKey === `cash:${installment.id}`}
-                                            >
-                                                {installmentActionKey === `cash:${installment.id}` ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : null}
-                                                {t("adminGroup.payments.markCashPaid")}
-                                            </Button>
-                                        ) : null}
-                                        {installment.payment_status !== "PAID" ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    void handleInstallmentReminder(
-                                                        installmentPlanDialog.enrollment.id,
-                                                        installment.id,
-                                                    )
-                                                }
-                                                disabled={installmentActionKey === `reminder:${installment.id}` || !canSendInstallmentReminders}
-                                            >
-                                                {installmentActionKey === `reminder:${installment.id}` ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Send className="mr-2 h-4 w-4" />
-                                                )}
-                                                {t("adminGroup.payments.sendReminder")}
-                                            </Button>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     ) : null}
                 </DialogContent>
@@ -1451,10 +1760,17 @@ export default function GroupClassDetailPage() {
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label className="text-xs font-medium text-slate-700">{t("adminSettings.phone")}</Label>
-                                    <Input
-                                        type="text"
-                                        value={addMemberNewPhone}
-                                        onChange={(e) => setAddMemberNewPhone(e.target.value)}
+                                    <PhoneInput
+                                        phoneNumber={addMemberNewPhone}
+                                        phonePrefix={addMemberNewPhonePrefix}
+                                        countryCode={addMemberNewCountryCode}
+                                        defaultCountry="BO"
+                                        placeholder={t("common.phoneNumber")}
+                                        onChange={(value) => {
+                                            setAddMemberNewPhone(value.phoneNumber);
+                                            setAddMemberNewPhonePrefix(value.phonePrefix);
+                                            setAddMemberNewCountryCode(value.countryCode);
+                                        }}
                                     />
                                 </div>
                             </div>

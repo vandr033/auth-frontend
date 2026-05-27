@@ -1475,6 +1475,14 @@ export interface GroupEnrollmentInstallment {
     reminder_logs?: InstallmentReminderLogRow[];
 }
 
+export interface UpdateGroupEnrollmentInstallmentInput {
+    id?: number;
+    due_date: string;
+    amount_cents: number;
+    payment_status: GroupPaymentStatus;
+    payment_method: GroupPaymentMethod;
+}
+
 export interface GroupInstallmentPlanSummary {
     total_installments: number;
     paid_count: number;
@@ -2172,6 +2180,8 @@ export async function adminCreateGroupClassEnrollment(
             name: string;
             email: string;
             phone: string;
+            phone_prefix?: string;
+            country_code?: string;
         };
         payment_method: "NONE" | "CASH" | "QR";
         mark_as_paid: boolean;
@@ -2208,6 +2218,20 @@ export async function confirmGroupClassEnrollmentPayment(enrollmentId: number): 
 
 export async function listGroupEnrollmentInstallments(enrollmentId: number): Promise<GroupEnrollmentInstallmentPlan> {
     const response = await apiFetch<{ data: GroupEnrollmentInstallmentPlan }>(`/api/admin/group/classes/enrollments/${enrollmentId}/installments`);
+    return response.data;
+}
+
+export async function updateGroupEnrollmentInstallments(
+    enrollmentId: number,
+    installments: UpdateGroupEnrollmentInstallmentInput[],
+): Promise<GroupEnrollmentInstallmentPlan> {
+    const response = await apiFetch<{ data: GroupEnrollmentInstallmentPlan }>(
+        `/api/admin/group/classes/enrollments/${enrollmentId}/installments`,
+        {
+            method: "PUT",
+            body: JSON.stringify({ installments }),
+        },
+    );
     return response.data;
 }
 
