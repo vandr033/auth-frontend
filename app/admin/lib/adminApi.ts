@@ -349,6 +349,28 @@ export async function getCustomers(
     return response.data;
 }
 
+export async function getCustomerByKey(customerKey: string): Promise<CustomerRecord> {
+    const response = await apiFetch<{ data: CustomerRecord }>(`/api/admin/customers/${encodeURIComponent(customerKey)}`);
+    return response.data;
+}
+
+export interface UpdateCustomerRecordInput {
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    phone_prefix?: string | null;
+    country_code?: string | null;
+    notes?: string | null;
+}
+
+export async function updateCustomerByKey(customerKey: string, input: UpdateCustomerRecordInput): Promise<CustomerRecord> {
+    const response = await apiFetch<{ data: CustomerRecord }>(`/api/admin/customers/${encodeURIComponent(customerKey)}`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+    });
+    return response.data;
+}
+
 export interface InterestCaptureLead {
     id: string;
     source: "EVENT" | "CLASS";
@@ -1430,6 +1452,7 @@ export interface GroupClassEnrollment {
     company_id: number;
     group_class_id: number;
     customer_profile_id: number | null;
+    customer_key?: string;
     user_id: string;
     pricing_mode: GroupPricingMode;
     price_cents_snapshot: number;
@@ -1447,6 +1470,7 @@ export interface GroupClassEnrollment {
         name: string | null;
         email: string | null;
         phoneNumber: string | null;
+        phone_prefix?: string | null;
     };
 }
 
@@ -2178,8 +2202,8 @@ export async function adminCreateGroupClassEnrollment(
         customer_id?: number;
         new_member?: {
             name: string;
-            email: string;
-            phone: string;
+            email?: string;
+            phone?: string;
             phone_prefix?: string;
             country_code?: string;
         };

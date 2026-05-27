@@ -2255,7 +2255,7 @@ const en = {
       addMember: "Add member",
       memberAdded: "Member added successfully.",
       newMemberOption: "New member",
-      newMemberRequired: "Complete name, email, and phone to create the new member.",
+      newMemberRequired: "Complete the name and at least an email or phone to create the new member.",
       fullCourseInstallmentsNote: "This is a full-course class. Installments will be generated automatically for this member.",
     },
     recurrence: {

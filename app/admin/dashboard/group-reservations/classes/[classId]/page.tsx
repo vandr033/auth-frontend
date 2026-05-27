@@ -206,6 +206,7 @@ export default function GroupClassDetailPage() {
     const capabilities = companyUser?.company?.capabilities;
     const hasClassesPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CLASES_PRO");
     const hasMessagingPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "MENSAJERIA_PRO");
+    const canViewCustomerProfiles = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CRM_BASE");
     const canSendInstallmentReminders = hasClassesPro && hasMessagingPro;
 
     const [activeTab, setActiveTab] = useState("overview");
@@ -796,7 +797,7 @@ export default function GroupClassDetailPage() {
 
         if (addMemberMode === "existing" && !addMemberSelected) return;
         if (addMemberMode === "new") {
-            if (!addMemberNewName.trim() || !addMemberNewEmail.trim() || !addMemberNewPhone.trim()) {
+            if (!addMemberNewName.trim() || (!addMemberNewEmail.trim() && !addMemberNewPhone.trim())) {
                 await notify.warning(t("adminGroup.classes.newMemberRequired"));
                 return;
             }
@@ -815,8 +816,8 @@ export default function GroupClassDetailPage() {
                     : {
                         new_member: {
                             name: addMemberNewName.trim(),
-                            email: addMemberNewEmail.trim(),
-                            phone: addMemberNewPhone.trim(),
+                            email: addMemberNewEmail.trim() || undefined,
+                            phone: addMemberNewPhone.trim() || undefined,
                             phone_prefix: addMemberNewPhonePrefix,
                             country_code: addMemberNewCountryCode,
                         },
@@ -1168,10 +1169,23 @@ export default function GroupClassDetailPage() {
                                 <TableBody>
                                     {enrollments.map((enrollment) => {
                                         const ticket = ticketByEnrollmentId.get(enrollment.id);
+                                        const phone = enrollment.user?.phoneNumber
+                                            ? `${enrollment.user.phone_prefix ? `+${enrollment.user.phone_prefix} ` : ""}${enrollment.user.phoneNumber}`
+                                            : null;
                                         return (
                                             <TableRow key={enrollment.id}>
                                                 <TableCell>
-                                                    {enrollment.user?.name || enrollment.user?.email || enrollment.user_id}
+                                                    <div className="space-y-1">
+                                                        <div className="font-medium text-slate-900">
+                                                            {enrollment.user?.name || enrollment.user?.email || enrollment.user_id}
+                                                        </div>
+                                                        {enrollment.user?.email ? (
+                                                            <div className="text-xs text-slate-500">{enrollment.user.email}</div>
+                                                        ) : null}
+                                                        {phone ? (
+                                                            <div className="text-xs text-slate-500">{phone}</div>
+                                                        ) : null}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <GroupBookingStatusBadge status={enrollment.status} />
@@ -1244,6 +1258,13 @@ export default function GroupClassDetailPage() {
                                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                                             ) : null}
                                                             {t("adminGroup.payments.viewPlan")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {canViewCustomerProfiles && enrollment.customer_key ? (
+                                                        <Button size="sm" variant="outline" asChild>
+                                                            <Link href={`/admin/dashboard/customers/${encodeURIComponent(enrollment.customer_key)}`}>
+                                                                {t("adminCustomers.viewProfile")}
+                                                            </Link>
                                                         </Button>
                                                     ) : null}
                                                     {canUseAdvanced &&

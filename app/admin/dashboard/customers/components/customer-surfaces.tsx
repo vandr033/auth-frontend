@@ -22,12 +22,14 @@ import {
     type CustomerSegmentKey,
     downloadCustomerImportTemplate,
     downloadCustomersExport,
+    getCustomerByKey,
     getCustomerGroupPayments,
     getCustomerHistory,
     getCustomers,
     getInterestCaptureLeads,
     importCustomersFile,
     sendMassCustomerMessage,
+    updateCustomerByKey,
     type CustomerGroupPaymentsResponse,
     type CustomerHistoryItem,
     type CustomerRecord,
@@ -60,6 +62,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrencyFromCents } from "@/lib/currency";
@@ -134,6 +137,22 @@ function buildWhatsAppUrl(phone: string | null, phonePrefix: string | null) {
     if (!phone) return null;
     const digits = `${phonePrefix || ""}${phone}`.replace(/\D/g, "");
     return digits ? `https://wa.me/${digits}` : null;
+}
+
+function isTemporaryCustomerEmail(email?: string | null) {
+    const normalized = (email || "").trim().toLowerCase();
+    return normalized.endsWith("@tmppriconpri.com") || normalized.endsWith("@temp.priconpri.com");
+}
+
+function buildCustomerProfileDraft(customer: CustomerRecord | null) {
+    return {
+        name: customer?.name || "",
+        email: isTemporaryCustomerEmail(customer?.email) ? "" : (customer?.email || ""),
+        phone: customer?.phone || "",
+        phonePrefix: customer?.phonePrefix || "591",
+        countryCode: "BO",
+        notes: customer?.notes || "",
+    };
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -1318,6 +1337,9 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
     const [groupPaymentsData, setGroupPaymentsData] = useState<CustomerGroupPaymentsResponse | null>(null);
     const [groupPaymentsLoading, setGroupPaymentsLoading] = useState(false);
     const [groupPaymentsError, setGroupPaymentsError] = useState<string | null>(null);
+    const [editingProfile, setEditingProfile] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [profileDraft, setProfileDraft] = useState(() => buildCustomerProfileDraft(null));
 
     const loadCustomerHistory = useCallback(async (targetCustomerKey: string, page: number, append: boolean) => {
         setHistoryLoading(true);
@@ -1355,16 +1377,7 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
             setLoading(true);
             setError(null);
             try {
-                const rows = await getCustomers();
-                const selectedCustomer = rows.find((row) => row.customerKey === normalizedCustomerKey) || null;
-                if (!selectedCustomer) {
-                    if (isMounted) {
-                        setCustomer(null);
-                        setError(t("adminCustomers.customerNotFound"));
-                    }
-                    return;
-                }
-
+                const selectedCustomer = await getCustomerByKey(normalizedCustomerKey);
                 if (isMounted) {
                     setCustomer(selectedCustomer);
                 }
@@ -1391,7 +1404,39 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
         };
     }, [loadCustomerGroupPayments, loadCustomerHistory, normalizedCustomerKey, t]);
 
+    useEffect(() => {
+        setProfileDraft(buildCustomerProfileDraft(customer));
+    }, [customer]);
+
+    const visibleCustomerEmail = customer && !isTemporaryCustomerEmail(customer.email) ? customer.email : null;
     const favoriteContactUrl = customer ? buildWhatsAppUrl(customer.phone, customer.phonePrefix) : null;
+
+    const handleSaveProfile = useCallback(async () => {
+        if (!customer) return;
+        if (!profileDraft.name.trim() || (!profileDraft.email.trim() && !profileDraft.phone.trim())) {
+            await notify.warning(t("adminGroup.classes.newMemberRequired"));
+            return;
+        }
+
+        setSavingProfile(true);
+        try {
+            const updatedCustomer = await updateCustomerByKey(customer.customerKey, {
+                name: profileDraft.name.trim(),
+                email: profileDraft.email.trim() || null,
+                phone: profileDraft.phone.trim() || null,
+                phone_prefix: profileDraft.phone.trim() ? profileDraft.phonePrefix : null,
+                country_code: profileDraft.phone.trim() ? profileDraft.countryCode : null,
+                notes: profileDraft.notes.trim() || null,
+            });
+            setCustomer(updatedCustomer);
+            setEditingProfile(false);
+            await notify.success(t("common.success"));
+        } catch (saveError: unknown) {
+            await notify.error(saveError instanceof Error ? saveError.message : t("common.error"));
+        } finally {
+            setSavingProfile(false);
+        }
+    }, [customer, profileDraft, t]);
 
     if (loading) {
         return (
@@ -1428,14 +1473,14 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
             <AdminPageHeader
                 title={customer.name}
                 subtitle={t("adminCustomers.profileSubtitle")}
-                meta={customer.email || notAvailable}
+                meta={visibleCustomerEmail || notAvailable}
                 actions={(
                     <>
                         <Button asChild variant="outline">
                             <Link href="/admin/dashboard/customers">{t("adminCustomers.backToRecords")}</Link>
                         </Button>
-                        {customer.email ? (
-                            <Button type="button" variant="outline" onClick={() => { window.location.href = `mailto:${customer.email}`; }}>
+                        {visibleCustomerEmail ? (
+                            <Button type="button" variant="outline" onClick={() => { window.location.href = `mailto:${visibleCustomerEmail}`; }}>
                                 <Mail className="mr-2 h-4 w-4" />
                                 {t("adminCustomers.sendEmail")}
                             </Button>
@@ -1472,16 +1517,80 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                     title={t("adminCustomers.profileSectionTitle")}
                     description={t("adminCustomers.profileSectionDescription")}
                     contentClassName="grid gap-4 sm:grid-cols-2"
+                    actions={customer.userId ? (
+                        editingProfile ? (
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setProfileDraft(buildCustomerProfileDraft(customer));
+                                        setEditingProfile(false);
+                                    }}
+                                    disabled={savingProfile}
+                                >
+                                    {t("common.cancel")}
+                                </Button>
+                                <Button type="button" onClick={() => void handleSaveProfile()} disabled={savingProfile}>
+                                    {savingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    {savingProfile ? t("common.saving") : t("common.save")}
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button type="button" variant="outline" onClick={() => setEditingProfile(true)}>
+                                {t("common.edit")}
+                            </Button>
+                        )
+                    ) : null}
                 >
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.email")}</p>
-                            <p className="mt-1 text-sm text-slate-800">{customer.email || notAvailable}</p>
+                            {editingProfile ? (
+                                <Input
+                                    type="email"
+                                    className="mt-1"
+                                    value={profileDraft.email}
+                                    onChange={(event) => setProfileDraft((current) => ({ ...current, email: event.target.value }))}
+                                    placeholder={t("common.optional")}
+                                />
+                            ) : (
+                                <p className="mt-1 text-sm text-slate-800">{visibleCustomerEmail || notAvailable}</p>
+                            )}
                         </div>
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.phone")}</p>
-                            <p className="mt-1 text-sm text-slate-800">
-                                {customer.phone ? `${customer.phonePrefix ? `+${customer.phonePrefix} ` : ""}${customer.phone}` : notAvailable}
-                            </p>
+                            {editingProfile ? (
+                                <div className="mt-1">
+                                    <PhoneInput
+                                        phoneNumber={profileDraft.phone}
+                                        phonePrefix={profileDraft.phonePrefix}
+                                        countryCode={profileDraft.countryCode}
+                                        onChange={(value) => setProfileDraft((current) => ({
+                                            ...current,
+                                            phone: value.phoneNumber,
+                                            phonePrefix: value.phonePrefix,
+                                            countryCode: value.countryCode,
+                                        }))}
+                                    />
+                                </div>
+                            ) : (
+                                <p className="mt-1 text-sm text-slate-800">
+                                    {customer.phone ? `${customer.phonePrefix ? `+${customer.phonePrefix} ` : ""}${customer.phone}` : notAvailable}
+                                </p>
+                            )}
+                        </div>
+                        <div className="sm:col-span-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.name")}</p>
+                            {editingProfile ? (
+                                <Input
+                                    type="text"
+                                    className="mt-1"
+                                    value={profileDraft.name}
+                                    onChange={(event) => setProfileDraft((current) => ({ ...current, name: event.target.value }))}
+                                />
+                            ) : (
+                                <p className="mt-1 text-sm text-slate-800">{customer.name}</p>
+                            )}
                         </div>
                         {hasCrmPro ? (
                             <div>
@@ -1504,12 +1613,21 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                                 </p>
                             </div>
                         </div>
-                        {customer.notes ? (
-                            <div className="sm:col-span-2">
-                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.notes")}</p>
+                        <div className="sm:col-span-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.notes")}</p>
+                            {editingProfile ? (
+                                <textarea
+                                    className="mt-1 min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    value={profileDraft.notes}
+                                    onChange={(event) => setProfileDraft((current) => ({ ...current, notes: event.target.value }))}
+                                    placeholder={t("common.optional")}
+                                />
+                            ) : customer.notes ? (
                                 <p className="mt-1 text-sm text-slate-800">{customer.notes}</p>
-                            </div>
-                        ) : null}
+                            ) : (
+                                <p className="mt-1 text-sm text-slate-500">{notAvailable}</p>
+                            )}
+                        </div>
                 </AdminSectionCard>
 
                 <AdminSectionCard

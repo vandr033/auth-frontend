@@ -2246,7 +2246,7 @@ const es: TranslationKeys = {
       addMember: "Agregar miembro",
       memberAdded: "Miembro agregado exitosamente.",
       newMemberOption: "Nuevo miembro",
-      newMemberRequired: "Completa nombre, correo y teléfono para crear el nuevo miembro.",
+      newMemberRequired: "Completa el nombre y al menos un correo o teléfono para crear el nuevo miembro.",
       fullCourseInstallmentsNote: "Esta es una clase de curso completo. Las cuotas se generarán automáticamente para este miembro.",
     },
     recurrence: {
