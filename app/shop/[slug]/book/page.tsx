@@ -668,21 +668,36 @@ function DateTimeStep({
     const hasLoadedDates = React.useRef(false);
     const prefillSlotAppliedRef = React.useRef(false);
     const latestSlotsRequestIdRef = React.useRef(0);
+    const blockedIntervalsCacheRef = React.useRef<{ key: string; value: BlockedSlotInterval[] }>({
+        key: "",
+        value: [],
+    });
     const api = useApi();
     const selectedServiceIds = useMemo(
         () => selectedServices.map((service) => service.id).join(","),
         [selectedServices],
     );
-    const effectiveBlockedIntervals = useMemo(
-        () => blockedIntervals ?? [],
-        [blockedIntervals],
-    );
     const blockedIntervalsKey = useMemo(
         () =>
-            effectiveBlockedIntervals
+            (blockedIntervals ?? [])
                 .map((interval) => `${interval.startAt.toISOString()}-${interval.endAt.toISOString()}`)
                 .join("|"),
-        [effectiveBlockedIntervals],
+        [blockedIntervals],
+    );
+    const effectiveBlockedIntervals = useMemo(
+        () => {
+            if (blockedIntervalsCacheRef.current.key === blockedIntervalsKey) {
+                return blockedIntervalsCacheRef.current.value;
+            }
+
+            const nextValue = blockedIntervals ?? [];
+            blockedIntervalsCacheRef.current = {
+                key: blockedIntervalsKey,
+                value: nextValue,
+            };
+            return nextValue;
+        },
+        [blockedIntervals, blockedIntervalsKey],
     );
     const selectedStaffId = selectedStaff?.id === "any" ? "" : selectedStaff?.id ?? "";
     const selectedSecondaryStaffId = selectedSecondaryStaff?.id ?? "";
@@ -2198,6 +2213,47 @@ export default function BookingPage() {
         }));
     }, [scheduleItems]);
 
+    const handleActiveScheduleSlotSelect = React.useCallback((slot: SelectedSlot) => {
+        if (!activeScheduleItem) return;
+        selectSlot(activeScheduleItem, slot);
+    }, [activeScheduleItem, selectSlot]);
+
+    const handleActiveScheduleDateSelect = React.useCallback((date: string) => {
+        if (!activeScheduleItem) return;
+
+        setSubmitError(null);
+        setScheduleDates((prev) => ({
+            ...prev,
+            [activeScheduleItem.key]: date,
+        }));
+        setBooking((current) => {
+            const currentSlot = current.groupSlots[activeScheduleItem.key];
+            if (!currentSlot || currentSlot.date === date) {
+                return current;
+            }
+
+            const nextGroupSlots = {
+                ...current.groupSlots,
+                [activeScheduleItem.key]: null,
+            };
+            const firstItem = scheduleItems[0];
+            const firstSlot = firstItem ? nextGroupSlots[firstItem.key] : null;
+
+            return {
+                ...current,
+                groupSlots: nextGroupSlots,
+                slot: firstSlot
+                    ? {
+                        date: firstSlot.date,
+                        time: firstSlot.time,
+                        staff_id: firstSlot.staff_id,
+                        staff_name: firstSlot.staff_name,
+                    }
+                    : null,
+            };
+        });
+    }, [activeScheduleItem, scheduleItems]);
+
     const nextStep = () => {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
 
@@ -2764,41 +2820,9 @@ export default function BookingPage() {
                                     selectedStaff={getSchedulingStaffForItem(activeScheduleItem)}
                                     selectedSecondaryStaff={activeScheduleItem.group.fixedSecondaryStaff}
                                     selectedSlot={booking.groupSlots[activeScheduleItem.key]}
-                                    onSelectSlot={(slot) => selectSlot(activeScheduleItem, slot)}
+                                    onSelectSlot={handleActiveScheduleSlotSelect}
                                     selectedDate={scheduleDates[activeScheduleItem.key] ?? null}
-                                    onSelectDate={(date) => {
-                                        setSubmitError(null);
-                                        setScheduleDates((prev) => ({
-                                            ...prev,
-                                            [activeScheduleItem.key]: date,
-                                        }));
-                                        setBooking((current) => {
-                                            const currentSlot = current.groupSlots[activeScheduleItem.key];
-                                            if (!currentSlot || currentSlot.date === date) {
-                                                return current;
-                                            }
-
-                                            const nextGroupSlots = {
-                                                ...current.groupSlots,
-                                                [activeScheduleItem.key]: null,
-                                            };
-                                            const firstItem = scheduleItems[0];
-                                            const firstSlot = firstItem ? nextGroupSlots[firstItem.key] : null;
-
-                                            return {
-                                                ...current,
-                                                groupSlots: nextGroupSlots,
-                                                slot: firstSlot
-                                                    ? {
-                                                        date: firstSlot.date,
-                                                        time: firstSlot.time,
-                                                        staff_id: firstSlot.staff_id,
-                                                        staff_name: firstSlot.staff_name,
-                                                    }
-                                                    : null,
-                                            };
-                                        });
-                                    }}
+                                    onSelectDate={handleActiveScheduleDateSelect}
                                     timezone={company.timezone}
                                     preferredSlotTime={activeScheduleItem.group.isMultiSession ? null : preselectedSlotTime}
                                     marketplacePrefillEnabled={isMarketplaceSource && !activeScheduleItem.group.isMultiSession}
