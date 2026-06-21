@@ -110,20 +110,27 @@ const FEATURE_CAPABILITY_MAP: Partial<Record<PlanFeatureKey, ProductCapability>>
     GROUP_ADVANCED: "EVENTOS_PRO",
 };
 
+const FEATURE_CAPABILITY_ANY_OF: Partial<Record<PlanFeatureKey, ProductCapability[]>> = {
+    GROUP_ADVANCED: ["EVENTOS_PRO", "CLASES_PRO"],
+};
+
 export function canUseEntitledFeature(
     source: CapabilityCarrier | CompanyCapabilities,
     feature: PlanFeatureKey,
 ): boolean {
     const capabilities = getCompanyCapabilities(source);
     const mappedCapability = FEATURE_CAPABILITY_MAP[feature];
+    const anyOfCapabilities = FEATURE_CAPABILITY_ANY_OF[feature];
     const productCapabilities = capabilities?.productCapabilities;
 
-    if (
-        mappedCapability &&
-        productCapabilities &&
-        Object.keys(productCapabilities).length > 0
-    ) {
-        return productCapabilities[mappedCapability] === true;
+    if (productCapabilities && Object.keys(productCapabilities).length > 0) {
+        if (anyOfCapabilities && anyOfCapabilities.length > 0) {
+            return anyOfCapabilities.some((capability) => productCapabilities[capability] === true);
+        }
+
+        if (mappedCapability) {
+            return productCapabilities[mappedCapability] === true;
+        }
     }
 
     return capabilities?.features?.[feature] === true;
