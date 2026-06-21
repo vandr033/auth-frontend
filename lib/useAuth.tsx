@@ -56,7 +56,7 @@ type AuthContextValue = {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
-  refreshSession: () => Promise<AuthUser | null>;
+  refreshSession: (options?: { background?: boolean }) => Promise<AuthUser | null>;
 
   // Email OTP login (clients)
   sendLoginEmailOtp: (email: string) => Promise<void>;
@@ -116,6 +116,87 @@ const toRecord = (value: unknown): Record<string, unknown> | null => {
 const toStringOrUndefined = (value: unknown): string | undefined =>
   typeof value === "string" ? value : undefined;
 
+type ComparableValue =
+  | null
+  | string
+  | number
+  | boolean
+  | ComparableValue[]
+  | { [key: string]: ComparableValue };
+
+const AUTH_USER_CORE_KEYS = [
+  "id",
+  "email",
+  "name",
+  "first_name",
+  "last_name",
+  "image",
+  "country_code",
+  "phoneNumber",
+  "phone_prefix",
+  "is_super_admin",
+  "emailVerified",
+  "phoneNumberVerified",
+] as const;
+
+function normalizeComparableValue(value: unknown): ComparableValue | undefined {
+  if (value == null) return null;
+  if (
+    typeof value === "string"
+    || typeof value === "number"
+    || typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const normalizedItems: ComparableValue[] = [];
+    for (const item of value) {
+      const normalizedItem = normalizeComparableValue(item);
+      if (normalizedItem === undefined) return undefined;
+      normalizedItems.push(normalizedItem);
+    }
+    return normalizedItems;
+  }
+
+  const record = toRecord(value);
+  if (!record) return undefined;
+
+  const normalizedRecord: Record<string, ComparableValue> = {};
+  for (const key of Object.keys(record).sort()) {
+    const normalizedEntry = normalizeComparableValue(record[key]);
+    if (normalizedEntry !== undefined) {
+      normalizedRecord[key] = normalizedEntry;
+    }
+  }
+
+  return normalizedRecord;
+}
+
+function areComparableValuesEqual(left: ComparableValue, right: ComparableValue): boolean {
+  if (left === right) return true;
+  if (left == null || right == null) return left === right;
+  if (typeof left !== typeof right) return false;
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right)) return false;
+    if (left.length !== right.length) return false;
+    return left.every((item, index) => areComparableValuesEqual(item, right[index]!));
+  }
+
+  if (typeof left === "object" && typeof right === "object") {
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    if (leftKeys.length !== rightKeys.length) return false;
+    return leftKeys.every((key) =>
+      Object.prototype.hasOwnProperty.call(right, key)
+      && areComparableValuesEqual(left[key]!, right[key]!),
+    );
+  }
+
+  return false;
+}
+
 const getErrorMessage = (data: unknown, status: number): string => {
   const payload = toRecord(data);
   if (!payload) return `Request failed with status ${status}`;
@@ -165,6 +246,32 @@ const extractUser = (payload: unknown): AuthUser | null => {
       null,
   };
 };
+
+function normalizeAuthUser(user: AuthUser | null): ComparableValue {
+  if (!user) return null;
+
+  const userRecord = user as Record<string, unknown>;
+  const normalizedUser: Record<string, ComparableValue> = {};
+  const coreKeySet = new Set<string>(AUTH_USER_CORE_KEYS);
+
+  for (const key of AUTH_USER_CORE_KEYS) {
+    normalizedUser[key] = normalizeComparableValue(userRecord[key]) ?? null;
+  }
+
+  for (const key of Object.keys(userRecord).sort()) {
+    if (coreKeySet.has(key)) continue;
+    const normalizedExtra = normalizeComparableValue(userRecord[key]);
+    if (normalizedExtra !== undefined) {
+      normalizedUser[key] = normalizedExtra;
+    }
+  }
+
+  return normalizedUser;
+}
+
+function areAuthUsersEqual(left: AuthUser | null, right: AuthUser | null): boolean {
+  return areComparableValuesEqual(normalizeAuthUser(left), normalizeAuthUser(right));
+}
 
 export const userNeedsProfileCompletion = (user: AuthUser | null): boolean => {
   if (!user) return true;
@@ -248,8 +355,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshSession = useCallback(async () => {
-    setLoading(true);
+  const refreshSession = useCallback(async (options?: { background?: boolean }) => {
+    const background = options?.background ?? false;
+    if (!background) {
+      setLoading((current) => (current ? current : true));
+    }
+
     try {
       const response = await fetch(resolveApiUrl("/auth/get-session"), {
         method: "GET",
@@ -260,26 +371,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(data?.error || data?.message || authT("authErrors.fetchSession"));
       }
       const currentUser = extractUser(data);
-      setUser(currentUser);
-      setError(null);
+
+      setUser((previousUser) =>
+        areAuthUsersEqual(previousUser, currentUser) ? previousUser : currentUser,
+      );
+      setError((previousError) => (previousError === null ? previousError : null));
       return currentUser;
     } catch (err) {
       const message = err instanceof Error ? err.message : authT("authErrors.fetchSession");
-      setError(message);
-      setUser(null);
+      setError((previousError) => (previousError === message ? previousError : message));
+      setUser((previousUser) => (previousUser === null ? previousUser : null));
       return null;
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading((current) => (current ? false : current));
+      }
     }
   }, []);
 
   useEffect(() => { void refreshSession(); }, [refreshSession]);
   useEffect(() => {
-    const intervalId = setInterval(() => { void refreshSession(); }, 2 * 60 * 1000);
+    const intervalId = setInterval(() => { void refreshSession({ background: true }); }, 2 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, [refreshSession]);
   useEffect(() => {
-    const handleFocus = () => { void refreshSession(); };
+    const handleFocus = () => { void refreshSession({ background: true }); };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, [refreshSession]);

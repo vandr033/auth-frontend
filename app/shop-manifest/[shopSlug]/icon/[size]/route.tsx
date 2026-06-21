@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { ImageResponse } from "next/og";
 
 import {
@@ -62,7 +63,7 @@ export async function GET(_: Request, { params }: RouteContext) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: branding.themeColor || DEFAULT_PWA_THEME_COLOR,
+                    background: logoDataUrl ? "transparent" : branding.themeColor || DEFAULT_PWA_THEME_COLOR,
                     position: "relative",
                     overflow: "hidden",
                 }}

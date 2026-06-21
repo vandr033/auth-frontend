@@ -201,25 +201,28 @@ export default function SuperAdminLayout({
                 <div className="flex h-[100dvh] flex-col">
                     {/* Logo / Title */}
                     <div className="flex min-h-20 items-center justify-between border-b border-white/10 px-4">
-                        <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-admin-brand shadow-sm shadow-black/20">
-                                <Shield className="h-5 w-5" />
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-admin-brand/15 ring-1 ring-admin-brand/25 shadow-sm shadow-black/20">
+                                <Shield className="h-[18px] w-[18px] text-admin-brand" />
                             </div>
-                            <div className="flex flex-col">
+                            <div className="flex min-w-0 flex-col">
                                 <Image
-                                    src="/assets/priconpri/logo-horizontal-pink-outline.webp"
+                                    src="/assets/priconpri/wordmark-stacked.webp"
                                     alt="PriConPri"
                                     width={600}
                                     height={370}
-                                    className="mb-0.5 h-3.5 w-auto"
+                                    className="mb-1 h-8 w-auto"
                                     priority
                                 />
-                                <span className="font-semibold text-sm">
-                                    {t("adminNav.superAdmin")}
-                                </span>
-                                <span className="text-xs text-white/[0.48]">
-                                    {t("superAdminLayout.systemManagement")}
-                                </span>
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span className="truncate text-xs font-semibold uppercase tracking-[0.12em] text-white/92">
+                                        {t("adminNav.superAdmin")}
+                                    </span>
+                                    <span className="h-1 w-1 shrink-0 rounded-full bg-admin-brand/75" />
+                                    <span className="truncate text-[11px] text-white/[0.48]">
+                                        {t("superAdminLayout.systemManagement")}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <button

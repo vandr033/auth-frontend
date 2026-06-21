@@ -146,6 +146,57 @@ const loadPendingBookingIntent = (): PendingBookingIntent | null => {
 };
 
 type BrowseMode = "service-first" | "staff-first";
+type EnabledBookingPaymentMethod = Exclude<BookingState["paymentMethod"], "NONE">;
+
+function getEnabledBookingPaymentMethods(
+    settings: ShopSettings | null | undefined,
+): EnabledBookingPaymentMethod[] {
+    const methods: EnabledBookingPaymentMethod[] = [];
+
+    if (settings?.allow_cash_payment) {
+        methods.push("CASH");
+    }
+
+    if (settings?.allow_qr_payment) {
+        methods.push("QR");
+    }
+
+    return methods;
+}
+
+function resolveBookingPaymentMethod(params: {
+    totalPrice: number;
+    enabledPaymentMethods: EnabledBookingPaymentMethod[];
+    currentPaymentMethod: BookingState["paymentMethod"];
+}): BookingState["paymentMethod"] {
+    if (params.totalPrice <= 0 || params.enabledPaymentMethods.length === 0) {
+        return "NONE";
+    }
+
+    if (
+        params.currentPaymentMethod !== "NONE" &&
+        params.enabledPaymentMethods.includes(params.currentPaymentMethod)
+    ) {
+        return params.currentPaymentMethod;
+    }
+
+    return params.enabledPaymentMethods[0];
+}
+
+function shouldShowBookingQrProofUpload(params: {
+    totalPrice: number;
+    enabledPaymentMethods: EnabledBookingPaymentMethod[];
+    paymentMethod: BookingState["paymentMethod"];
+}): boolean {
+    if (params.totalPrice <= 0 || params.paymentMethod !== "QR") {
+        return false;
+    }
+
+    return !(
+        params.enabledPaymentMethods.length === 1 &&
+        params.enabledPaymentMethods[0] === "QR"
+    );
+}
 
 type BookingScheduleItem = {
     key: string;
@@ -1204,6 +1255,21 @@ function ConfirmStep({
 }) {
     const t = useT();
     const { totalPrice, totalDuration } = calculateBookingTotals(booking.services);
+    const enabledPaymentMethods = getEnabledBookingPaymentMethods(settings);
+    const resolvedPaymentMethod = resolveBookingPaymentMethod({
+        totalPrice,
+        enabledPaymentMethods,
+        currentPaymentMethod: booking.paymentMethod,
+    });
+    const showPaymentSection = totalPrice > 0 && enabledPaymentMethods.length > 0;
+    const showPaymentMethodOptions = enabledPaymentMethods.length > 1;
+    const showQrProofUpload = shouldShowBookingQrProofUpload({
+        totalPrice,
+        enabledPaymentMethods,
+        paymentMethod: resolvedPaymentMethod,
+    });
+    const qrProofOptional = settings?.require_comprobante_for_qr === false;
+    const qrImageUrl = settings?.qr_image_url ?? null;
     const orderedSlots = [...scheduledSlots].sort((left, right) => {
         const leftAt = new Date(`${left.date}T${left.time}:00`).getTime();
         const rightAt = new Date(`${right.date}T${right.time}:00`).getTime();
@@ -1287,140 +1353,153 @@ function ConfirmStep({
             </div>
 
             {/* Payment Method */}
-            {(settings?.allow_cash_payment || settings?.allow_qr_payment) && (
+            {showPaymentSection && (
                 <div>
                     <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3 flex items-center gap-2">
                         <CreditCard className="h-4 w-4" />
                         {t('shopBooking.payment')}
                     </h3>
                     <div className="space-y-3">
-                        {settings?.allow_cash_payment && (
-                            <label
-                                className={cn(
-                                    "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all min-h-[56px]",
-                                    booking.paymentMethod === "CASH"
-                                        ? "border-brand bg-brand/5"
-                                        : "border-surface-border hover:border-brand/40"
-                                )}
-                            >
-                                <input
-                                    type="radio"
-                                    name="payment"
-                                    checked={booking.paymentMethod === "CASH"}
-                                    onChange={() => onChangePayment("CASH")}
-                                    className="sr-only"
-                                />
-                                <div
-                                    className={cn(
-                                        "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                                        booking.paymentMethod === "CASH" ? "border-brand" : "border-surface-border"
-                                    )}
-                                >
-                                    {booking.paymentMethod === "CASH" && (
-                                        <div className="h-2.5 w-2.5 rounded-full bg-brand" />
-                                    )}
-                                </div>
-                                <span className="font-medium text-text-main">{t('shopBooking.payCash')}</span>
-                            </label>
-                        )}
-                        {settings?.allow_qr_payment && (
+                        {showPaymentMethodOptions ? (
                             <>
-                                <label
-                                    className={cn(
-                                        "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all min-h-[56px]",
-                                        booking.paymentMethod === "QR"
-                                            ? "border-brand bg-brand/5"
-                                            : "border-surface-border hover:border-brand/40"
-                                    )}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="payment"
-                                        checked={booking.paymentMethod === "QR"}
-                                        onChange={() => onChangePayment("QR")}
-                                        className="sr-only"
-                                    />
-                                    <div
+                                {enabledPaymentMethods.includes("CASH") && (
+                                    <label
                                         className={cn(
-                                            "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                                            booking.paymentMethod === "QR" ? "border-brand" : "border-surface-border"
+                                            "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all min-h-[56px]",
+                                            resolvedPaymentMethod === "CASH"
+                                                ? "border-brand bg-brand/5"
+                                                : "border-surface-border hover:border-brand/40"
                                         )}
                                     >
-                                        {booking.paymentMethod === "QR" && (
-                                            <div className="h-2.5 w-2.5 rounded-full bg-brand" />
-                                        )}
-                                    </div>
-                                    <span className="font-medium text-text-main">{t('shopBooking.payQR')}</span>
-                                </label>
-
-                                {booking.paymentMethod === "QR" && (
-                                    <div className="mt-2 pl-3 ml-3 border-l-2 border-brand/20 space-y-4">
-                                        {/* Company QR Display */}
-                                        {settings.qr_image_url ? (
-                                            <div className="bg-section p-4 rounded-lg flex flex-col items-center">
-                                                <p className="text-sm font-medium text-text-main mb-2">{t('shopBooking.scanToPay')}</p>
-                                                <div className="relative w-48 h-48 bg-surface rounded-lg shadow-sm border border-surface-border p-2">
-                                                    <img
-                                                        src={getImageUrl(settings.qr_image_url) || undefined}
-                                                        alt={t('shopBooking.companyQrCode')}
-                                                        className="w-full h-full object-contain"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="p-4 bg-amber-50 text-amber-700 text-sm rounded-lg">
-                                                {t('shopBooking.qrNotUploaded')}
-                                            </div>
-                                        )}
-
-                                        {/* Proof Upload */}
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-medium text-text-main">
-                                                {t('shopBooking.uploadProofLabel')}
-                                                {settings?.require_comprobante_for_qr === false && (
-                                                    <span className="ml-1 text-xs font-normal text-text-muted">({t('shopBooking.optional')})</span>
-                                                )}
-                                            </label>
-
-                                            <div className="flex items-center gap-4">
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() => document.getElementById('qr-proof-upload')?.click()}
-                                                    className="w-full sm:w-auto"
-                                                >
-                                                    <Upload className="h-4 w-4 mr-2" />
-                                                    {qrProofFile ? t('shopBooking.changeFile') : t('shopBooking.uploadFile')}
-                                                </Button>
-                                                <input
-                                                    id="qr-proof-upload"
-                                                    type="file"
-                                                    accept="image/png,image/jpeg,image/webp,application/pdf"
-                                                    className="hidden"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0] || null;
-                                                        onChangeProof(file);
-                                                    }}
-                                                />
-                                                {qrProofFile && (
-                                                    <QrProofPreview
-                                                        file={qrProofFile}
-                                                        alt={t('shopBooking.uploadProofLabel')}
-                                                        removeLabel={t('shopBooking.removeProof')}
-                                                        onRemove={() => onChangeProof(null)}
-                                                    />
-                                                )}
-                                            </div>
-                                            {!qrProofFile && (
-                                                <p className="text-xs text-text-muted">
-                                                    {settings?.require_comprobante_for_qr === false
-                                                        ? t('shopBooking.uploadProofHintOptional')
-                                                        : t('shopBooking.uploadProofHint')}
-                                                </p>
+                                        <input
+                                            type="radio"
+                                            name="payment"
+                                            checked={resolvedPaymentMethod === "CASH"}
+                                            onChange={() => onChangePayment("CASH")}
+                                            className="sr-only"
+                                        />
+                                        <div
+                                            className={cn(
+                                                "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                                                resolvedPaymentMethod === "CASH" ? "border-brand" : "border-surface-border"
+                                            )}
+                                        >
+                                            {resolvedPaymentMethod === "CASH" && (
+                                                <div className="h-2.5 w-2.5 rounded-full bg-brand" />
                                             )}
                                         </div>
-                                    </div>
+                                        <span className="font-medium text-text-main">{t('shopBooking.payCash')}</span>
+                                    </label>
+                                )}
+                                {enabledPaymentMethods.includes("QR") && (
+                                    <label
+                                        className={cn(
+                                            "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all min-h-[56px]",
+                                            resolvedPaymentMethod === "QR"
+                                                ? "border-brand bg-brand/5"
+                                                : "border-surface-border hover:border-brand/40"
+                                        )}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="payment"
+                                            checked={resolvedPaymentMethod === "QR"}
+                                            onChange={() => onChangePayment("QR")}
+                                            className="sr-only"
+                                        />
+                                        <div
+                                            className={cn(
+                                                "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                                                resolvedPaymentMethod === "QR" ? "border-brand" : "border-surface-border"
+                                            )}
+                                        >
+                                            {resolvedPaymentMethod === "QR" && (
+                                                <div className="h-2.5 w-2.5 rounded-full bg-brand" />
+                                            )}
+                                        </div>
+                                        <span className="font-medium text-text-main">{t('shopBooking.payQR')}</span>
+                                    </label>
                                 )}
                             </>
+                        ) : (
+                            <div className="rounded-xl border border-surface-border bg-section px-4 py-3 text-sm font-medium text-text-main">
+                                {resolvedPaymentMethod === "QR" ? t("shopBooking.payQR") : t("shopBooking.payCash")}
+                            </div>
+                        )}
+
+                        {resolvedPaymentMethod === "QR" && (
+                            <div
+                                className={cn(
+                                    "space-y-4",
+                                    showPaymentMethodOptions && "mt-2 ml-3 border-l-2 border-brand/20 pl-3"
+                                )}
+                            >
+                                {/* Company QR Display */}
+                                {qrImageUrl ? (
+                                    <div className="bg-section p-4 rounded-lg flex flex-col items-center">
+                                        <p className="text-sm font-medium text-text-main mb-2">{t('shopBooking.scanToPay')}</p>
+                                        <div className="relative w-48 h-48 bg-surface rounded-lg shadow-sm border border-surface-border p-2">
+                                            <img
+                                                src={getImageUrl(qrImageUrl) || undefined}
+                                                alt={t('shopBooking.companyQrCode')}
+                                                className="w-full h-full object-contain"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-amber-50 text-amber-700 text-sm rounded-lg">
+                                        {t('shopBooking.qrNotUploaded')}
+                                    </div>
+                                )}
+
+                                {/* Proof Upload */}
+                                {showQrProofUpload && (
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-text-main">
+                                            {t('shopBooking.uploadProofLabel')}
+                                            {qrProofOptional && (
+                                                <span className="ml-1 text-xs font-normal text-text-muted">({t('shopBooking.optional')})</span>
+                                            )}
+                                        </label>
+
+                                        <div className="flex items-center gap-4">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => document.getElementById('qr-proof-upload')?.click()}
+                                                className="w-full sm:w-auto"
+                                            >
+                                                <Upload className="h-4 w-4 mr-2" />
+                                                {qrProofFile ? t('shopBooking.changeFile') : t('shopBooking.uploadFile')}
+                                            </Button>
+                                            <input
+                                                id="qr-proof-upload"
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp,application/pdf"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0] || null;
+                                                    onChangeProof(file);
+                                                }}
+                                            />
+                                            {qrProofFile && (
+                                                <QrProofPreview
+                                                    file={qrProofFile}
+                                                    alt={t('shopBooking.uploadProofLabel')}
+                                                    removeLabel={t('shopBooking.removeProof')}
+                                                    onRemove={() => onChangeProof(null)}
+                                                />
+                                            )}
+                                        </div>
+                                        {!qrProofFile && (
+                                            <p className="text-xs text-text-muted">
+                                                {qrProofOptional
+                                                    ? t('shopBooking.uploadProofHintOptional')
+                                                    : t('shopBooking.uploadProofHint')}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
@@ -1529,6 +1608,32 @@ export default function BookingPage() {
     const [browseMode, setBrowseMode] = useState<BrowseMode>(
         preselectedStaffId ? "staff-first" : "service-first"
     );
+    const bookingTotals = useMemo(
+        () => calculateBookingTotals(booking.services),
+        [booking.services],
+    );
+    const enabledPaymentMethods = useMemo(
+        () => getEnabledBookingPaymentMethods(settings),
+        [settings],
+    );
+    const resolvedPaymentMethod = useMemo(
+        () =>
+            resolveBookingPaymentMethod({
+                totalPrice: bookingTotals.totalPrice,
+                enabledPaymentMethods,
+                currentPaymentMethod: booking.paymentMethod,
+            }),
+        [booking.paymentMethod, bookingTotals.totalPrice, enabledPaymentMethods],
+    );
+    const showQrProofUpload = useMemo(
+        () =>
+            shouldShowBookingQrProofUpload({
+                totalPrice: bookingTotals.totalPrice,
+                enabledPaymentMethods,
+                paymentMethod: resolvedPaymentMethod,
+            }),
+        [bookingTotals.totalPrice, enabledPaymentMethods, resolvedPaymentMethod],
+    );
 
     useEffect(() => {
         setShowMarketplacePrefillBanner(isMarketplaceSource && hasMarketplacePrefillData);
@@ -1543,6 +1648,25 @@ export default function BookingPage() {
         if (selectedDate || !preselectedDate) return;
         setSelectedDate(preselectedDate);
     }, [preselectedDate, selectedDate]);
+
+    useEffect(() => {
+        setBooking((current) => {
+            const nextPaymentMethod = resolveBookingPaymentMethod({
+                totalPrice: bookingTotals.totalPrice,
+                enabledPaymentMethods,
+                currentPaymentMethod: current.paymentMethod,
+            });
+
+            if (current.paymentMethod === nextPaymentMethod) {
+                return current;
+            }
+
+            return {
+                ...current,
+                paymentMethod: nextPaymentMethod,
+            };
+        });
+    }, [bookingTotals.totalPrice, enabledPaymentMethods]);
 
     useEffect(() => {
         if (!inviteToken) {
@@ -2409,12 +2533,12 @@ export default function BookingPage() {
         }
 
         let qrProofUrl: string | undefined = undefined;
-        if (booking.paymentMethod === 'QR') {
+        if (resolvedPaymentMethod === 'QR') {
             const requireComprobante = settings?.require_comprobante_for_qr !== false;
-            if (requireComprobante && !qrProofFile) {
+            if (showQrProofUpload && requireComprobante && !qrProofFile) {
                 throw new Error(t('shopBooking.qrProofRequired'));
             }
-            if (qrProofFile) {
+            if (showQrProofUpload && qrProofFile) {
                 qrProofUrl = await uploadQrProof(qrProofFile, company.id);
             }
         }
@@ -2464,7 +2588,7 @@ export default function BookingPage() {
             start_at: bookingGroupsPayload.length === 1 && "start_at" in bookingGroupsPayload[0]
                 ? bookingGroupsPayload[0].start_at
                 : undefined,
-            payment_method: booking.paymentMethod,
+            payment_method: resolvedPaymentMethod,
             notes: booking.notes,
             qr_proof_image_url: qrProofUrl,
             booking_source: bookingSource,

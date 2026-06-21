@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { HomeNavbar } from "@/app/components/home-navbar";
+import { PRICONPRI_METADATA_ICONS } from "@/lib/pwa/priconpriIcons";
 
 export const metadata: Metadata = {
   title: "PriConPri",
@@ -11,13 +12,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "PriConPri",
   },
-  icons: {
-    icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-  },
+  icons: PRICONPRI_METADATA_ICONS,
 };
 
 export default function HomeLayout({ children }: { children: ReactNode }) {

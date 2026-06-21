@@ -46,6 +46,149 @@ type SessionPayload = {
     activeCompanyId?: number | null;
 };
 
+type ComparableValue =
+    | null
+    | string
+    | number
+    | boolean
+    | ComparableValue[]
+    | { [key: string]: ComparableValue };
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== "object") return null;
+    return value as Record<string, unknown>;
+}
+
+function normalizeComparableValue(value: unknown): ComparableValue | undefined {
+    if (value == null) return null;
+    if (
+        typeof value === "string"
+        || typeof value === "number"
+        || typeof value === "boolean"
+    ) {
+        return value;
+    }
+
+    if (Array.isArray(value)) {
+        const normalizedItems: ComparableValue[] = [];
+        for (const item of value) {
+            const normalizedItem = normalizeComparableValue(item);
+            if (normalizedItem === undefined) return undefined;
+            normalizedItems.push(normalizedItem);
+        }
+        return normalizedItems;
+    }
+
+    const record = toRecord(value);
+    if (!record) return undefined;
+
+    const normalizedRecord: Record<string, ComparableValue> = {};
+    for (const key of Object.keys(record).sort()) {
+        const normalizedEntry = normalizeComparableValue(record[key]);
+        if (normalizedEntry !== undefined) {
+            normalizedRecord[key] = normalizedEntry;
+        }
+    }
+
+    return normalizedRecord;
+}
+
+function areComparableValuesEqual(left: ComparableValue, right: ComparableValue): boolean {
+    if (left === right) return true;
+    if (left == null || right == null) return left === right;
+    if (typeof left !== typeof right) return false;
+
+    if (Array.isArray(left) || Array.isArray(right)) {
+        if (!Array.isArray(left) || !Array.isArray(right)) return false;
+        if (left.length !== right.length) return false;
+        return left.every((item, index) => areComparableValuesEqual(item, right[index]!));
+    }
+
+    if (typeof left === "object" && typeof right === "object") {
+        const leftKeys = Object.keys(left);
+        const rightKeys = Object.keys(right);
+        if (leftKeys.length !== rightKeys.length) return false;
+        return leftKeys.every((key) =>
+            Object.prototype.hasOwnProperty.call(right, key)
+            && areComparableValuesEqual(left[key]!, right[key]!),
+        );
+    }
+
+    return false;
+}
+
+function normalizeAdminUser(user: AdminUser | null): ComparableValue {
+    if (!user) return null;
+
+    const userRecord = toRecord(user) ?? {};
+
+    return {
+        id: normalizeComparableValue(userRecord.id) ?? null,
+        email: normalizeComparableValue(userRecord.email) ?? null,
+        name: normalizeComparableValue(userRecord.name) ?? null,
+        image: normalizeComparableValue(userRecord.image) ?? null,
+        first_name: normalizeComparableValue(userRecord.first_name ?? userRecord.firstName) ?? null,
+        last_name: normalizeComparableValue(userRecord.last_name ?? userRecord.lastName) ?? null,
+        is_super_admin: normalizeComparableValue(userRecord.is_super_admin ?? userRecord.isSuperAdmin) ?? null,
+        must_change_password: normalizeComparableValue(
+            userRecord.must_change_password ?? userRecord.mustChangePassword,
+        ) ?? null,
+    };
+}
+
+function normalizeCompany(company?: CompanyUser["company"] | null): ComparableValue {
+    if (!company) return null;
+
+    const companyRecord = toRecord(company) ?? {};
+
+    return {
+        id: normalizeComparableValue(companyRecord.id) ?? null,
+        slug: normalizeComparableValue(companyRecord.slug) ?? null,
+        name: normalizeComparableValue(companyRecord.name) ?? null,
+        currency: normalizeComparableValue(companyRecord.currency) ?? null,
+        default_language: normalizeComparableValue(
+            companyRecord.default_language ?? companyRecord.defaultLanguage,
+        ) ?? null,
+        availableUntil: normalizeComparableValue(
+            companyRecord.availableUntil ?? companyRecord.available_until,
+        ) ?? null,
+        plan: normalizeComparableValue(companyRecord.plan) ?? null,
+        capabilities: normalizeComparableValue(companyRecord.capabilities) ?? null,
+    };
+}
+
+function normalizeCompanyUser(companyUser: CompanyUser | null): ComparableValue {
+    if (!companyUser) return null;
+
+    const companyUserRecord = toRecord(companyUser) ?? {};
+
+    return {
+        id: normalizeComparableValue(companyUserRecord.id) ?? null,
+        company_id: normalizeComparableValue(
+            companyUserRecord.company_id ?? companyUserRecord.companyId,
+        ) ?? null,
+        user_id: normalizeComparableValue(companyUserRecord.user_id ?? companyUserRecord.userId) ?? null,
+        role: normalizeComparableValue(companyUserRecord.role) ?? null,
+        company: normalizeCompany((companyUserRecord.company as CompanyUser["company"] | undefined) ?? null),
+    };
+}
+
+function normalizeCompanyUsers(companyUsers: CompanyUser[]): ComparableValue {
+    return companyUsers.map((companyUser) => normalizeCompanyUser(companyUser));
+}
+
+function areAdminUsersEqual(left: AdminUser | null, right: AdminUser | null): boolean {
+    return areComparableValuesEqual(normalizeAdminUser(left), normalizeAdminUser(right));
+}
+
+function areCompanyUsersEqual(left: CompanyUser[], right: CompanyUser[]): boolean {
+    return areComparableValuesEqual(normalizeCompanyUsers(left), normalizeCompanyUsers(right));
+}
+
+function areCompanyUserRecordsEqual(left: CompanyUser | null, right: CompanyUser | null): boolean {
+    return areComparableValuesEqual(normalizeCompanyUser(left), normalizeCompanyUser(right));
+}
+
 function normalizeCompanyContext(payload?: SessionPayload | null) {
     const companyUsers = Array.isArray(payload?.companyUsers)
         ? payload?.companyUsers ?? []
@@ -131,8 +274,36 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const applySessionState = useCallback((nextState: {
+        user: AdminUser | null;
+        companyUsers: CompanyUser[];
+        companyUser: CompanyUser | null;
+        activeCompanyId: number | null;
+    }) => {
+        setUser((previousUser) =>
+            areAdminUsersEqual(previousUser, nextState.user) ? previousUser : nextState.user,
+        );
+        setCompanyUsers((previousCompanyUsers) =>
+            areCompanyUsersEqual(previousCompanyUsers, nextState.companyUsers)
+                ? previousCompanyUsers
+                : nextState.companyUsers,
+        );
+        setCompanyUser((previousCompanyUser) =>
+            areCompanyUserRecordsEqual(previousCompanyUser, nextState.companyUser)
+                ? previousCompanyUser
+                : nextState.companyUser,
+        );
+        setActiveCompanyId((previousActiveCompanyId) =>
+            previousActiveCompanyId === nextState.activeCompanyId
+                ? previousActiveCompanyId
+                : nextState.activeCompanyId,
+        );
+    }, []);
+
     const refreshSession = useCallback(async (background = false) => {
-        if (!background) setLoading(true);
+        if (!background) {
+            setLoading((current) => (current ? current : true));
+        }
         try {
             const response = await fetch(resolveApiUrl("/admin/auth/session"), {
                 method: "GET",
@@ -142,30 +313,38 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             const data = await response.json().catch(() => null);
 
             if (!response.ok || !data?.data?.user) {
-                setUser(null);
-                setCompanyUsers([]);
-                setCompanyUser(null);
-                setActiveCompanyId(null);
-                setError(null);
+                applySessionState({
+                    user: null,
+                    companyUsers: [],
+                    companyUser: null,
+                    activeCompanyId: null,
+                });
+                setError((previousError) => (previousError === null ? previousError : null));
                 return;
             }
 
             const normalized = normalizeCompanyContext(data.data as SessionPayload);
-            setUser((data.data as SessionPayload).user ?? null);
-            setCompanyUsers(normalized.companyUsers);
-            setCompanyUser(normalized.activeCompanyUser);
-            setActiveCompanyId(normalized.activeCompanyId);
-            setError(null);
+            applySessionState({
+                user: (data.data as SessionPayload).user ?? null,
+                companyUsers: normalized.companyUsers,
+                companyUser: normalized.activeCompanyUser,
+                activeCompanyId: normalized.activeCompanyId,
+            });
+            setError((previousError) => (previousError === null ? previousError : null));
         } catch {
-            setUser(null);
-            setCompanyUsers([]);
-            setCompanyUser(null);
-            setActiveCompanyId(null);
-            setError(null); // Don't show error for session check
+            applySessionState({
+                user: null,
+                companyUsers: [],
+                companyUser: null,
+                activeCompanyId: null,
+            });
+            setError((previousError) => (previousError === null ? previousError : null)); // Don't show error for session check
         } finally {
-            if (!background) setLoading(false);
+            if (!background) {
+                setLoading((current) => (current ? false : current));
+            }
         }
-    }, []);
+    }, [applySessionState]);
 
     // Initial session check
     useEffect(() => {
@@ -205,11 +384,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                     };
                 }>("/admin/auth/sign-in", { email, password });
 
-                setUser(result.data.user);
                 const normalized = normalizeCompanyContext(result.data);
-                setCompanyUsers(normalized.companyUsers);
-                setCompanyUser(normalized.activeCompanyUser);
-                setActiveCompanyId(normalized.activeCompanyId);
+                applySessionState({
+                    user: result.data.user,
+                    companyUsers: normalized.companyUsers,
+                    companyUser: normalized.activeCompanyUser,
+                    activeCompanyId: normalized.activeCompanyId,
+                });
                 return { user: result.data.user, companyUser: result.data.companyUser ?? null };
             } catch (err) {
                 const message = err instanceof Error ? err.message : "Unable to sign in";
@@ -219,18 +400,20 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                 setLoading(false);
             }
         },
-        [],
+        [applySessionState],
     );
 
     const signOut = useCallback(async () => {
         setLoading(true);
         try {
             await apiPost("/admin/auth/sign-out");
-            setUser(null);
-            setCompanyUsers([]);
-            setCompanyUser(null);
-            setActiveCompanyId(null);
-            setError(null);
+            applySessionState({
+                user: null,
+                companyUsers: [],
+                companyUser: null,
+                activeCompanyId: null,
+            });
+            setError((previousError) => (previousError === null ? previousError : null));
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unable to sign out";
             setError(message);
@@ -238,7 +421,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [applySessionState]);
 
     const switchActiveShop = useCallback(async (companyId: number) => {
         if (!companyId || companyId === activeCompanyId) return;
@@ -260,9 +443,12 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                 activeCompanyId: result.data?.activeCompanyId ?? companyId,
             });
 
-            setCompanyUsers(normalized.companyUsers);
-            setCompanyUser(normalized.activeCompanyUser);
-            setActiveCompanyId(normalized.activeCompanyId);
+            applySessionState({
+                user,
+                companyUsers: normalized.companyUsers,
+                companyUser: normalized.activeCompanyUser,
+                activeCompanyId: normalized.activeCompanyId,
+            });
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unable to switch shop";
             setError(message);
@@ -270,7 +456,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsSwitchingShop(false);
         }
-    }, [activeCompanyId, companyUsers]);
+    }, [activeCompanyId, applySessionState, companyUsers, user]);
 
     const value = useMemo<AdminAuthContextValue>(
         () => ({

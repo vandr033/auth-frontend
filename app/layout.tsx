@@ -19,6 +19,7 @@ import { AuthProvider } from "@/lib/useAuth";
 import { I18nProvider } from "@/lib/i18n";
 import { DevServiceWorkerCleanup } from "@/components/DevServiceWorkerCleanup";
 import { FeedbackProvider } from "@/components/ui/feedback-provider";
+import { PRICONPRI_METADATA_ICONS } from "@/lib/pwa/priconpriIcons";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -118,13 +119,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "PriConPri",
   },
-  icons: {
-    icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-  },
+  icons: PRICONPRI_METADATA_ICONS,
 };
 
 export const viewport: Viewport = {

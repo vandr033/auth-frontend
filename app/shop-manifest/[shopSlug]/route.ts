@@ -17,7 +17,7 @@ type ShopManifestResponse = {
     start_url: string;
     scope: string;
     display: "standalone";
-    background_color: "#ffffff";
+    background_color: string;
     theme_color: string;
     icons: ManifestIcon[];
 };
@@ -51,7 +51,7 @@ export async function GET(_: Request, { params }: RouteContext) {
         start_url: `/shop/${shop.slug}`,
         scope: `/shop/${shop.slug}`,
         display: "standalone",
-        background_color: "#ffffff",
+        background_color: shop.themeColor || DEFAULT_PWA_THEME_COLOR,
         theme_color: shop.themeColor || DEFAULT_PWA_THEME_COLOR,
         icons,
     };

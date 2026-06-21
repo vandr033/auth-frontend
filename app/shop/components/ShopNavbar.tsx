@@ -252,23 +252,38 @@ export function ShopNavbar() {
         >
             <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
                 {/* Logo & Company Name */}
-                <Link href={basePath} className="flex items-center gap-3">
+                <Link href={basePath} className="flex min-w-0 max-w-[15rem] items-center gap-3 sm:max-w-[19rem]">
                     {company?.logo_url ? (
-                        <img
-                            src={getImageUrl(company.logo_url) || undefined}
-                            alt={`${company.name} logo`}
-                            width={32}
-                            height={32}
-                            className="rounded-md h-8 w-8 object-cover"
-                        />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-surface-border/70 bg-page shadow-sm">
+                            <img
+                                src={getImageUrl(company.logo_url) || undefined}
+                                alt={`${company.name} logo`}
+                                width={40}
+                                height={40}
+                                className="h-full w-full rounded-[0.7rem] object-contain p-1"
+                            />
+                        </div>
                     ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand text-white font-bold text-sm">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white font-bold text-sm shadow-sm">
                             {company?.name?.charAt(0) || "S"}
                         </div>
                     )}
-                    <span className="text-lg font-semibold text-text-main">
-                        {company?.name || "Shop"}
-                    </span>
+                    <div className="min-w-0">
+                        <span className="block truncate text-sm font-semibold leading-tight text-text-main sm:text-base">
+                            {company?.name || "Shop"}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-text-muted/80">
+                            <img
+                                src="/assets/priconpri/mascot.webp"
+                                alt=""
+                                aria-hidden="true"
+                                width={14}
+                                height={14}
+                                className="h-3.5 w-3.5 shrink-0 object-contain opacity-85"
+                            />
+                            <span className="truncate">by PriConPri</span>
+                        </span>
+                    </div>
                 </Link>
 
                 {/* Desktop Navigation */}

@@ -3,7 +3,7 @@ import withPWAInit from "next-pwa";
 
 const isPwaEnabled =
   process.env.NODE_ENV === "production" &&
-  process.env.ENABLE_PWA === "true";
+  process.env.ENABLE_PWA !== "false";
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
       // Backend API images (production) - update hostname as needed
       {
         protocol: "https",
-        hostname: "api.yourdomain.com",
+        hostname: "api.priconpri.com",
         pathname: "/api/uploads/**",
       },
     ],
