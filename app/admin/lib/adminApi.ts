@@ -580,6 +580,12 @@ export type GroupEventMassMessagePayload = {
     selected_targets?: GroupEventMassMessageTarget[];
 };
 
+export type GroupClassMassMessagePayload = {
+    message: string;
+    delivery_mode?: GroupEventMassMessageDeliveryMode;
+    selected_targets?: Array<{ id: number }>;
+};
+
 export async function importCustomersFile(file: File): Promise<CustomerImportResult> {
     const formData = new FormData();
     formData.append("file", file);
@@ -1723,6 +1729,7 @@ export interface GroupTicket {
     resend_count?: number;
     last_sent_at?: string | null;
     qr_token?: string;
+    qr_image_url?: string;
     created_at: string;
     updated_at: string;
     event_booking?: {
@@ -2087,6 +2094,20 @@ export async function sendGroupEventMassMessage(
 ): Promise<MassCustomerMessageResult> {
     const response = await apiFetch<{ data: MassCustomerMessageResult }>(
         `/api/admin/group/events/${eventId}/mass-message`,
+        {
+            method: "POST",
+            body: JSON.stringify(payload),
+        },
+    );
+    return response.data;
+}
+
+export async function sendGroupClassMassMessage(
+    classId: number,
+    payload: GroupClassMassMessagePayload,
+): Promise<MassCustomerMessageResult> {
+    const response = await apiFetch<{ data: MassCustomerMessageResult }>(
+        `/api/admin/group/classes/${classId}/mass-message`,
         {
             method: "POST",
             body: JSON.stringify(payload),

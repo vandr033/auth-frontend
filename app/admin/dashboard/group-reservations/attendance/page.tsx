@@ -5,6 +5,14 @@ import { Copy, Link2, Loader2, RefreshCcw } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -63,6 +71,16 @@ type SessionPublicAttendanceDraft = {
     attendance_access_code_configured: boolean;
 };
 
+type PendingClassScanState = {
+    ticketCode: string;
+    ticket: GroupTicket;
+    classId: number;
+    selectedSessionId: string;
+    autoMatched: boolean;
+};
+
+const CLASS_SCAN_WINDOW_MS = 30 * 60 * 1000;
+
 function normalizeScannedTicketValue(rawValue: string): string {
     const trimmed = rawValue.trim();
     if (!trimmed) return "";
@@ -88,11 +106,24 @@ function normalizeScannedTicketValue(rawValue: string): string {
     return trimmed;
 }
 
+function findNearestSessionWithinWindow(classSessions: GroupClassSession[], now = Date.now()): GroupClassSession | null {
+    const candidates = classSessions
+        .filter((session) => Math.abs(new Date(session.start_at).getTime() - now) <= CLASS_SCAN_WINDOW_MS)
+        .sort(
+            (left, right) =>
+                Math.abs(new Date(left.start_at).getTime() - now)
+                - Math.abs(new Date(right.start_at).getTime() - now),
+        );
+
+    return candidates[0] ?? null;
+}
+
 export default function GroupAttendancePage() {
     const t = useT();
     const searchParams = useSearchParams();
     const { canUseAdvanced, canUseClasses, canUseEvents, getRequiredPlan } = useGroupReservationsAccess();
     const { companyUser } = useAdminAuth();
+    const hasAnyGroupAccess = canUseClasses || canUseEvents;
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -115,6 +146,7 @@ export default function GroupAttendancePage() {
     const [eventTicketCode, setEventTicketCode] = useState("");
     const [ticketCode, setTicketCode] = useState("");
     const [scanResult, setScanResult] = useState<ScanResultState>(null);
+    const [pendingClassScan, setPendingClassScan] = useState<PendingClassScanState | null>(null);
     const preselectedSessionId = searchParams?.get("sessionId") ?? null;
     const preselectedEventId = searchParams?.get("eventId") ?? null;
 
@@ -129,7 +161,7 @@ export default function GroupAttendancePage() {
             ]);
 
             const sessionsByClass = await Promise.all(
-                classesData.map((item) => listGroupClassSessions(item.id, { upcoming: true })),
+                classesData.map((item) => listGroupClassSessions(item.id)),
             );
             const sessionRows = sessionsByClass.flat();
 
@@ -139,6 +171,11 @@ export default function GroupAttendancePage() {
             setSessions(sessionRows);
             setTickets(ticketsData);
         } catch (error) {
+            setSummary((current) => current ?? {
+                total_rows: 0,
+                event_checked_in: 0,
+                class_checked_in: 0,
+            });
             await notify.error(error instanceof Error ? error.message : t("adminGroup.loadError"));
         } finally {
             setLoading(false);
@@ -162,12 +199,12 @@ export default function GroupAttendancePage() {
     }, [t]);
 
     useEffect(() => {
-        if (!canUseAdvanced) return;
+        if (!hasAnyGroupAccess) return;
         void loadData();
-    }, [canUseAdvanced, loadData]);
+    }, [hasAnyGroupAccess, loadData]);
 
     useEffect(() => {
-        if (!canUseAdvanced) return;
+        if (!hasAnyGroupAccess) return;
 
         if (preselectedSessionId) {
             const session = sessions.find((s) => String(s.id) === preselectedSessionId);
@@ -180,7 +217,7 @@ export default function GroupAttendancePage() {
         if (preselectedEventId && events.some((event) => String(event.id) === preselectedEventId)) {
             setSelectedEventId((current) => (current ? current : preselectedEventId));
         }
-    }, [canUseAdvanced, events, preselectedEventId, preselectedSessionId, sessions]);
+    }, [events, hasAnyGroupAccess, preselectedEventId, preselectedSessionId, sessions]);
 
     const filteredSessions = selectedClassId
         ? sessions.filter((s) => String(s.group_class_id) === selectedClassId)
@@ -236,6 +273,108 @@ export default function GroupAttendancePage() {
             });
         }
     }, [selectedSessionId]);
+
+    const pendingClassSessions = useMemo(() => {
+        if (!pendingClassScan) return [];
+
+        return sessions
+            .filter((session) => session.group_class_id === pendingClassScan.classId)
+            .sort(
+                (left, right) => new Date(left.start_at).getTime() - new Date(right.start_at).getTime(),
+            );
+    }, [pendingClassScan, sessions]);
+
+    const submitTicketScan = useCallback(async (
+        normalizedCode: string,
+        options?: {
+            classSessionId?: number;
+            eventId?: number;
+            method?: "QR_SCAN" | "MANUAL";
+        },
+    ) => {
+        setSubmitting(true);
+        try {
+            const result = await checkInGroupByTicketCode({
+                ticket_code: normalizedCode,
+                method: options?.method ?? "QR_SCAN",
+                class_session_id: options?.classSessionId,
+                event_id: options?.eventId,
+            });
+
+            const status: ScanResultKind = result.scan_status === "VALID"
+                ? "valid"
+                : result.scan_status === "ALREADY_USED"
+                    ? "already_used"
+                    : "invalid";
+            const message = status === "valid"
+                ? t("adminGroup.attendance.valid")
+                : status === "already_used"
+                    ? t("adminGroup.attendance.alreadyUsed")
+                    : t("adminGroup.attendance.invalid");
+
+            setScanResult({ status, message: result.reason ? `${message} (${result.reason})` : message });
+            setTicketCode(normalizedCode);
+            setPendingClassScan(null);
+
+            if (options?.classSessionId) {
+                const session = sessions.find((item) => item.id === options.classSessionId);
+                if (session) {
+                    setSelectedClassId(String(session.group_class_id));
+                    setSelectedSessionId(String(session.id));
+                }
+            }
+
+            await loadData();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : t("adminGroup.attendance.invalid");
+            const status: ScanResultKind =
+                message.toLowerCase().includes("already") ? "already_used" : "invalid";
+            setScanResult({ status, message });
+            await notify.error(message);
+        } finally {
+            setSubmitting(false);
+        }
+    }, [loadData, sessions, t]);
+
+    const prepareClassTicketScan = useCallback(async (normalizedCode: string, ticket: GroupTicket) => {
+        const classId = ticket.class_enrollment?.group_class?.id;
+        if (!classId) {
+            await submitTicketScan(normalizedCode, {
+                classSessionId: selectedSessionId ? Number.parseInt(selectedSessionId, 10) : undefined,
+                method: "QR_SCAN",
+            });
+            return;
+        }
+
+        const classSessions = sessions.filter((session) => session.group_class_id === classId);
+        if (classSessions.length === 0) {
+            const message = "Esta clase no tiene sesiones disponibles para registrar asistencia.";
+            setScanResult({ status: "invalid", message });
+            await notify.warning(message);
+            return;
+        }
+
+        const autoMatchedSession = findNearestSessionWithinWindow(classSessions);
+        const currentSelectionIsValid =
+            selectedSessionId.length > 0
+            && classSessions.some((session) => String(session.id) === selectedSessionId);
+        const nextSessionId = autoMatchedSession
+            ? String(autoMatchedSession.id)
+            : currentSelectionIsValid
+                ? selectedSessionId
+                : "";
+
+        setSelectedClassId(String(classId));
+        setSelectedSessionId(nextSessionId);
+        setTicketCode(normalizedCode);
+        setPendingClassScan({
+            ticketCode: normalizedCode,
+            ticket,
+            classId,
+            selectedSessionId: nextSessionId,
+            autoMatched: Boolean(autoMatchedSession),
+        });
+    }, [selectedSessionId, sessions, submitTicketScan]);
 
     const handleEventCheckIn = async () => {
         const normalizedCode = normalizeScannedTicketValue(eventTicketCode);
@@ -379,38 +518,17 @@ export default function GroupAttendancePage() {
             return;
         }
 
-        setSubmitting(true);
-        try {
-            const result = await checkInGroupByTicketCode({
-                ticket_code: normalizedCode,
-                method: "QR_SCAN",
-                class_session_id: selectedSessionId ? Number.parseInt(selectedSessionId, 10) : undefined,
-                event_id: selectedEventId ? Number.parseInt(selectedEventId, 10) : undefined,
-            });
-
-            const status: ScanResultKind = result.scan_status === "VALID"
-                ? "valid"
-                : result.scan_status === "ALREADY_USED"
-                    ? "already_used"
-                    : "invalid";
-            const message = status === "valid"
-                ? t("adminGroup.attendance.valid")
-                : status === "already_used"
-                    ? t("adminGroup.attendance.alreadyUsed")
-                    : t("adminGroup.attendance.invalid");
-
-            setScanResult({ status, message: result.reason ? `${message} (${result.reason})` : message });
-            setTicketCode(normalizedCode);
-            await loadData();
-        } catch (error) {
-            const message = error instanceof Error ? error.message : t("adminGroup.attendance.invalid");
-            const status: ScanResultKind =
-                message.toLowerCase().includes("already") ? "already_used" : "invalid";
-            setScanResult({ status, message });
-            await notify.error(message);
-        } finally {
-            setSubmitting(false);
+        const localTicket = tickets.find((ticket) => ticket.ticket_code === normalizedCode);
+        if (localTicket?.group_class_enrollment_id) {
+            await prepareClassTicketScan(normalizedCode, localTicket);
+            return;
         }
+
+        await submitTicketScan(normalizedCode, {
+            classSessionId: selectedSessionId ? Number.parseInt(selectedSessionId, 10) : undefined,
+            eventId: selectedEventId ? Number.parseInt(selectedEventId, 10) : undefined,
+            method: "QR_SCAN",
+        });
     };
 
     const handleLiveCameraDetection = async (rawValue: string) => {
@@ -418,6 +536,18 @@ export default function GroupAttendancePage() {
         if (!normalizedCode) return;
         setTicketCode(normalizedCode);
         await handleTicketScan(normalizedCode);
+    };
+
+    const handleConfirmPendingClassScan = async () => {
+        if (!pendingClassScan?.selectedSessionId) {
+            await notify.warning("Selecciona una sesión para completar la asistencia.");
+            return;
+        }
+
+        await submitTicketScan(pendingClassScan.ticketCode, {
+            classSessionId: Number.parseInt(pendingClassScan.selectedSessionId, 10),
+            method: "QR_SCAN",
+        });
     };
 
     const handleResendTicket = async (ticketCodeValue: string) => {
@@ -484,13 +614,13 @@ export default function GroupAttendancePage() {
             });
     }, [selectedSession, sessionAttendanceByUserId, sessionEnrollments]);
 
-    if (!canUseAdvanced) {
-        const requiredPlan = getRequiredPlan("GROUP_ADVANCED");
+    if (!hasAnyGroupAccess) {
+        const requiredPlan = getRequiredPlan(canUseClasses ? "GROUP_CLASSES" : "GROUP_EVENTS");
         return (
             <PlanUpgradeNotice
                 title={t("planEnforcement.featureLockedTitle")}
                 message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
-                feature="GROUP_ADVANCED"
+                feature={canUseClasses ? "GROUP_CLASSES" : "GROUP_EVENTS"}
                 requiredPlan={requiredPlan}
                 fullPage
             />
@@ -538,61 +668,66 @@ export default function GroupAttendancePage() {
                     </div>
 
                     <div className="grid gap-4 lg:grid-cols-3">
-                        <Card className="border-slate-200">
-                            <CardHeader>
-                                <CardTitle className="text-base">{t("adminGroup.attendance.scanByTicket")}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <LiveQrScanner
-                                    onDetected={handleLiveCameraDetection}
-                                    disabled={submitting}
-                                    title={t("adminGroup.attendance.liveScannerTitle")}
-                                    subtitle={t("adminGroup.attendance.liveScannerSubtitle")}
-                                    startLabel={t("adminGroup.attendance.startCamera")}
-                                    stopLabel={t("adminGroup.attendance.stopCamera")}
-                                    unsupportedLabel={t("adminGroup.attendance.cameraUnsupported")}
-                                    unavailableLabel={t("adminGroup.attendance.cameraUnavailable")}
-                                    idleLabel={t("adminGroup.attendance.cameraIdle")}
-                                />
-                                <Label>{t("adminGroup.fields.ticketCode")}</Label>
-                                <Input value={ticketCode} onChange={(e) => setTicketCode(e.target.value)} />
-                                <Button className="w-full" onClick={() => void handleTicketScan()} disabled={submitting}>
-                                    {t("adminGroup.attendance.scan")}
-                                </Button>
-                            </CardContent>
-                        </Card>
+                        {canUseAdvanced ? (
+                            <Card className="border-slate-200">
+                                <CardHeader>
+                                    <CardTitle className="text-base">{t("adminGroup.attendance.scanByTicket")}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <LiveQrScanner
+                                        onDetected={handleLiveCameraDetection}
+                                        disabled={submitting}
+                                        title={t("adminGroup.attendance.liveScannerTitle")}
+                                        subtitle={t("adminGroup.attendance.liveScannerSubtitle")}
+                                        startLabel={t("adminGroup.attendance.startCamera")}
+                                        stopLabel={t("adminGroup.attendance.stopCamera")}
+                                        unsupportedLabel={t("adminGroup.attendance.cameraUnsupported")}
+                                        unavailableLabel={t("adminGroup.attendance.cameraUnavailable")}
+                                        idleLabel={t("adminGroup.attendance.cameraIdle")}
+                                    />
+                                    <Label>{t("adminGroup.fields.ticketCode")}</Label>
+                                    <Input value={ticketCode} onChange={(e) => setTicketCode(e.target.value)} />
+                                    <Button className="w-full" onClick={() => void handleTicketScan()} disabled={submitting}>
+                                        {t("adminGroup.attendance.scan")}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ) : null}
 
-                        <Card className="border-slate-200">
-                            <CardHeader>
-                                <CardTitle className="text-base">{t("adminGroup.attendance.manualEventCheckIn")}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <Label>{t("adminGroup.fields.event")}</Label>
-                                <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={t("adminGroup.attendance.selectEvent")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {events.map((event) => (
-                                            <SelectItem key={event.id} value={String(event.id)}>
-                                                {event.title}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Label>{t("adminGroup.fields.ticketCode")}</Label>
-                                <Input
-                                    value={eventTicketCode}
-                                    placeholder={t("adminGroup.attendance.ticketCodePlaceholder")}
-                                    onChange={(e) => setEventTicketCode(e.target.value)}
-                                />
-                                <Button className="w-full" variant="outline" onClick={() => void handleEventCheckIn()} disabled={submitting}>
-                                    {t("adminGroup.attendance.checkIn")}
-                                </Button>
-                            </CardContent>
-                        </Card>
+                        {canUseEvents ? (
+                            <Card className="border-slate-200">
+                                <CardHeader>
+                                    <CardTitle className="text-base">{t("adminGroup.attendance.manualEventCheckIn")}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                    <Label>{t("adminGroup.fields.event")}</Label>
+                                    <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder={t("adminGroup.attendance.selectEvent")} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {events.map((event) => (
+                                                <SelectItem key={event.id} value={String(event.id)}>
+                                                    {event.title}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Label>{t("adminGroup.fields.ticketCode")}</Label>
+                                    <Input
+                                        value={eventTicketCode}
+                                        placeholder={t("adminGroup.attendance.ticketCodePlaceholder")}
+                                        onChange={(e) => setEventTicketCode(e.target.value)}
+                                    />
+                                    <Button className="w-full" variant="outline" onClick={() => void handleEventCheckIn()} disabled={submitting}>
+                                        {t("adminGroup.attendance.checkIn")}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ) : null}
 
-                        <Card className="border-slate-200">
+                        {canUseClasses ? (
+                            <Card className="border-slate-200">
                             <CardHeader>
                                 <CardTitle className="text-base">{t("adminGroup.attendance.manualSessionCheckIn")}</CardTitle>
                             </CardHeader>
@@ -736,88 +871,91 @@ export default function GroupAttendancePage() {
                                 <p className="text-sm text-slate-500">{t("adminGroup.attendance.sessionRosterSubtitle")}</p>
                             </CardContent>
                         </Card>
+                        ) : null}
                     </div>
 
-                    <Card className="border-slate-200">
-                        <CardHeader>
-                            <CardTitle className="text-base">{t("adminGroup.attendance.sessionRosterTitle")}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {!selectedSession ? (
-                                <p className="text-sm text-slate-500">{t("adminGroup.attendance.noSessionSelected")}</p>
-                            ) : sessionRosterLoading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <Loader2 className="h-5 w-5 animate-spin text-admin-brand" />
-                                </div>
-                            ) : sessionRoster.length === 0 ? (
-                                <p className="text-sm text-slate-500">{t("adminGroup.attendance.noRegisteredUsers")}</p>
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>{t("adminGroup.fields.name")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.email")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.phone")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.status")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.actions")}</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {sessionRoster.map(({ enrollment, attendance, status }) => (
-                                            <TableRow key={enrollment.id}>
-                                                <TableCell className="font-medium">
-                                                    {enrollment.user?.name || enrollment.user?.email || enrollment.user_id}
-                                                </TableCell>
-                                                <TableCell>{enrollment.user?.email || "—"}</TableCell>
-                                                <TableCell>{enrollment.user?.phoneNumber || "—"}</TableCell>
-                                                <TableCell>
-                                                    <div className="space-y-1">
-                                                        <span
-                                                            className={
-                                                                status === "SHOW"
-                                                                    ? "text-sm font-medium text-emerald-700"
-                                                                    : status === "NO_SHOW"
-                                                                        ? "text-sm font-medium text-rose-700"
-                                                                        : "text-sm font-medium text-slate-500"
-                                                            }
-                                                        >
-                                                            {status === "SHOW"
-                                                                ? t("adminGroup.attendance.statusShow")
-                                                                : status === "NO_SHOW"
-                                                                    ? t("adminGroup.attendance.statusNoShow")
-                                                                    : t("adminGroup.attendance.statusUnmarked")}
-                                                        </span>
-                                                        {attendance?.checked_in_at ? (
-                                                            <p className="text-xs text-slate-500">
-                                                                {formatDateTime(attendance.checked_in_at)}
-                                                            </p>
-                                                        ) : null}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="flex gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => void handleSessionAttendanceStatus(enrollment.user_id, "SHOW")}
-                                                        disabled={submitting}
-                                                    >
-                                                        {t("adminGroup.attendance.markShow")}
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => void handleSessionAttendanceStatus(enrollment.user_id, "NO_SHOW")}
-                                                        disabled={submitting}
-                                                    >
-                                                        {t("adminGroup.attendance.markNoShow")}
-                                                    </Button>
-                                                </TableCell>
+                    {canUseClasses ? (
+                        <Card className="border-slate-200">
+                            <CardHeader>
+                                <CardTitle className="text-base">{t("adminGroup.attendance.sessionRosterTitle")}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {!selectedSession ? (
+                                    <p className="text-sm text-slate-500">{t("adminGroup.attendance.noSessionSelected")}</p>
+                                ) : sessionRosterLoading ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <Loader2 className="h-5 w-5 animate-spin text-admin-brand" />
+                                    </div>
+                                ) : sessionRoster.length === 0 ? (
+                                    <p className="text-sm text-slate-500">{t("adminGroup.attendance.noRegisteredUsers")}</p>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.email")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.phone")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.status")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.actions")}</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            )}
-                        </CardContent>
-                    </Card>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {sessionRoster.map(({ enrollment, attendance, status }) => (
+                                                <TableRow key={enrollment.id}>
+                                                    <TableCell className="font-medium">
+                                                        {enrollment.user?.name || enrollment.user?.email || enrollment.user_id}
+                                                    </TableCell>
+                                                    <TableCell>{enrollment.user?.email || "—"}</TableCell>
+                                                    <TableCell>{enrollment.user?.phoneNumber || "—"}</TableCell>
+                                                    <TableCell>
+                                                        <div className="space-y-1">
+                                                            <span
+                                                                className={
+                                                                    status === "SHOW"
+                                                                        ? "text-sm font-medium text-emerald-700"
+                                                                        : status === "NO_SHOW"
+                                                                            ? "text-sm font-medium text-rose-700"
+                                                                            : "text-sm font-medium text-slate-500"
+                                                                }
+                                                            >
+                                                                {status === "SHOW"
+                                                                    ? t("adminGroup.attendance.statusShow")
+                                                                    : status === "NO_SHOW"
+                                                                        ? t("adminGroup.attendance.statusNoShow")
+                                                                        : t("adminGroup.attendance.statusUnmarked")}
+                                                            </span>
+                                                            {attendance?.checked_in_at ? (
+                                                                <p className="text-xs text-slate-500">
+                                                                    {formatDateTime(attendance.checked_in_at)}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="flex gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => void handleSessionAttendanceStatus(enrollment.user_id, "SHOW")}
+                                                            disabled={submitting}
+                                                        >
+                                                            {t("adminGroup.attendance.markShow")}
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => void handleSessionAttendanceStatus(enrollment.user_id, "NO_SHOW")}
+                                                            disabled={submitting}
+                                                        >
+                                                            {t("adminGroup.attendance.markNoShow")}
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ) : null}
 
                     <Card className="border-slate-200">
                         <CardHeader>
@@ -842,79 +980,162 @@ export default function GroupAttendancePage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200">
-                        <CardHeader>
-                            <CardTitle className="text-base">{t("adminGroup.ticket.latestTickets")}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {latestTickets.length === 0 ? (
-                                <p className="text-sm text-slate-500">{t("adminGroup.ticket.none")}</p>
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>{t("adminGroup.fields.ticketCode")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.status")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.validity")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.subject")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.name")}</TableHead>
-                                            <TableHead>{t("adminGroup.fields.actions")}</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {latestTickets.map((ticket) => {
-                                            const subject = ticket.event_booking?.group_event?.title
-                                                || ticket.class_enrollment?.group_class?.title
-                                                || "—";
-                                            const customer = ticket.holder_name
-                                                || ticket.holder_email
-                                                || ticket.holder_phone
-                                                || ticket.event_booking?.user?.name
-                                                || ticket.event_booking?.user?.email
-                                                || ticket.class_enrollment?.user?.name
-                                                || ticket.class_enrollment?.user?.email
-                                                || "—";
-                                            return (
-                                                <TableRow key={ticket.id}>
-                                                    <TableCell>{ticket.ticket_code}</TableCell>
-                                                    <TableCell>
-                                                        <GroupTicketStatusBadge status={ticket.status} />
-                                                    </TableCell>
-                                                    <TableCell className="text-xs">
-                                                        {formatDateTime(ticket.valid_from)}
-                                                        <br />
-                                                        {formatDateTime(ticket.valid_until)}
-                                                    </TableCell>
-                                                    <TableCell>{subject}</TableCell>
-                                                    <TableCell>{customer}</TableCell>
-                                                    <TableCell className="flex gap-2">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            disabled={submitting || ticket.status === "CANCELLED" || ticket.status === "EXPIRED"}
-                                                            onClick={() => void handleResendTicket(ticket.ticket_code)}
-                                                        >
-                                                            {t("adminGroup.actions.resendTicket")}
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            disabled={submitting || ticket.status === "CANCELLED"}
-                                                            onClick={() => void handleCancelTicket(ticket.ticket_code)}
-                                                        >
-                                                            {t("adminGroup.actions.cancelTicket")}
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            )}
-                        </CardContent>
-                    </Card>
+                    {canUseAdvanced ? (
+                        <Card className="border-slate-200">
+                            <CardHeader>
+                                <CardTitle className="text-base">{t("adminGroup.ticket.latestTickets")}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {latestTickets.length === 0 ? (
+                                    <p className="text-sm text-slate-500">{t("adminGroup.ticket.none")}</p>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>{t("adminGroup.fields.ticketCode")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.status")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.validity")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.subject")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                                <TableHead>{t("adminGroup.fields.actions")}</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {latestTickets.map((ticket) => {
+                                                const subject = ticket.event_booking?.group_event?.title
+                                                    || ticket.class_enrollment?.group_class?.title
+                                                    || "—";
+                                                const customer = ticket.holder_name
+                                                    || ticket.holder_email
+                                                    || ticket.holder_phone
+                                                    || ticket.event_booking?.user?.name
+                                                    || ticket.event_booking?.user?.email
+                                                    || ticket.class_enrollment?.user?.name
+                                                    || ticket.class_enrollment?.user?.email
+                                                    || "—";
+                                                return (
+                                                    <TableRow key={ticket.id}>
+                                                        <TableCell>{ticket.ticket_code}</TableCell>
+                                                        <TableCell>
+                                                            <GroupTicketStatusBadge status={ticket.status} />
+                                                        </TableCell>
+                                                        <TableCell className="text-xs">
+                                                            {formatDateTime(ticket.valid_from)}
+                                                            <br />
+                                                            {formatDateTime(ticket.valid_until)}
+                                                        </TableCell>
+                                                        <TableCell>{subject}</TableCell>
+                                                        <TableCell>{customer}</TableCell>
+                                                        <TableCell className="flex gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                disabled={submitting || ticket.status === "CANCELLED" || ticket.status === "EXPIRED"}
+                                                                onClick={() => void handleResendTicket(ticket.ticket_code)}
+                                                            >
+                                                                {t("adminGroup.actions.resendTicket")}
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                disabled={submitting || ticket.status === "CANCELLED"}
+                                                                onClick={() => void handleCancelTicket(ticket.ticket_code)}
+                                                            >
+                                                                {t("adminGroup.actions.cancelTicket")}
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ) : null}
                 </>
             )}
+
+            <Dialog
+                open={pendingClassScan !== null}
+                onOpenChange={(open) => {
+                    if (!open && !submitting) {
+                        setPendingClassScan(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Confirmar asistencia de clase</DialogTitle>
+                        <DialogDescription>
+                            {pendingClassScan?.autoMatched
+                                ? "Encontramos una sesión dentro de la ventana de 30 minutos. Revisa y confirma la asistencia."
+                                : "No hay una sesión activa en este momento. Selecciona la sesión correcta antes de marcar asistencia."}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {pendingClassScan ? (
+                        <div className="space-y-4">
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                                <p>
+                                    <span className="font-medium">{t("adminGroup.fields.class")}:</span>{" "}
+                                    {pendingClassScan.ticket.class_enrollment?.group_class?.title || "—"}
+                                </p>
+                                <p>
+                                    <span className="font-medium">{t("adminGroup.fields.name")}:</span>{" "}
+                                    {pendingClassScan.ticket.class_enrollment?.user?.name
+                                        || pendingClassScan.ticket.class_enrollment?.user?.email
+                                        || pendingClassScan.ticket.ticket_code}
+                                </p>
+                                <p>
+                                    <span className="font-medium">{t("adminGroup.fields.ticketCode")}:</span>{" "}
+                                    {pendingClassScan.ticketCode}
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>{t("adminGroup.fields.session")}</Label>
+                                <Select
+                                    value={pendingClassScan.selectedSessionId}
+                                    onValueChange={(value) => {
+                                        setPendingClassScan((current) => current ? {
+                                            ...current,
+                                            selectedSessionId: value,
+                                        } : current);
+                                        setSelectedClassId(String(pendingClassScan.classId));
+                                        setSelectedSessionId(value);
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t("adminGroup.attendance.selectSession")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {pendingClassSessions.map((session) => (
+                                            <SelectItem key={session.id} value={String(session.id)}>
+                                                {formatDateTime(session.start_at)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setPendingClassScan(null)} disabled={submitting}>
+                            {t("common.cancel")}
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => void handleConfirmPendingClassScan()}
+                            disabled={submitting || !pendingClassScan?.selectedSessionId}
+                        >
+                            {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Marcar asistencia
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

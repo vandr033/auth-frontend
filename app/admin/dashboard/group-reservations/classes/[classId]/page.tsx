@@ -8,10 +8,13 @@ import {
     ArrowLeft,
     CalendarClock,
     Copy,
+    Download,
     Eye,
     ImageIcon,
     Link2,
     Loader2,
+    Mail,
+    MessageCircle,
     PencilLine,
     Plus,
     RefreshCcw,
@@ -44,6 +47,7 @@ import {
     listGroupTickets,
     markGroupEnrollmentInstallmentPaid,
     rotateGroupClassSessionPublicAttendance,
+    sendGroupClassMassMessage,
     sendGroupInstallmentReminder,
     confirmGroupEnrollmentInstallmentQr,
     setGroupClassStatus,
@@ -59,6 +63,7 @@ import {
     type GroupClass,
     type GroupClassEnrollment,
     type GroupClassSession,
+    type GroupEventMassMessageDeliveryMode,
     type GroupEnrollmentInstallmentPlan,
     type GroupPaymentStatus,
     type GroupTicket,
@@ -87,6 +92,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
@@ -207,6 +213,23 @@ function addMonthToDateInput(value?: string | null): string {
     return base.toISOString().slice(0, 10);
 }
 
+function buildWhatsAppUrl(phone: string | null | undefined, phonePrefix: string | null | undefined): string | null {
+    if (!phone) return null;
+    const digits = `${phonePrefix || ""}${phone}`.replace(/\D/g, "");
+    return digits ? `https://wa.me/${digits}` : null;
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+}
+
 export default function GroupClassDetailPage() {
     const t = useT();
     const params = useParams<{ classId: string }>();
@@ -218,6 +241,7 @@ export default function GroupClassDetailPage() {
     const capabilities = companyUser?.company?.capabilities;
     const hasClassesPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CLASES_PRO");
     const hasMessagingPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "MENSAJERIA_PRO");
+    const canBulkMessaging = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "MENSAJERIA_BULK_WHATSAPP");
     const canViewCustomerProfiles = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CRM_BASE");
     const canSendInstallmentReminders = hasClassesPro && hasMessagingPro;
 
@@ -249,6 +273,12 @@ export default function GroupClassDetailPage() {
     const [sessionPublicAttendanceSavingId, setSessionPublicAttendanceSavingId] = useState<number | null>(null);
     const [sessionPublicAttendanceRotatingId, setSessionPublicAttendanceRotatingId] = useState<number | null>(null);
     const [sessionPublicAttendanceCopiedId, setSessionPublicAttendanceCopiedId] = useState<number | null>(null);
+    const [ticketQrDialog, setTicketQrDialog] = useState<GroupTicket | null>(null);
+    const [ticketQrDownloadKey, setTicketQrDownloadKey] = useState<string | null>(null);
+    const [massMessageOpen, setMassMessageOpen] = useState(false);
+    const [massMessageBody, setMassMessageBody] = useState("");
+    const [massMessageSending, setMassMessageSending] = useState(false);
+    const [massMessageDeliveryMode, setMassMessageDeliveryMode] = useState<GroupEventMassMessageDeliveryMode>("BOTH");
 
     // Add Member dialog
     const [addMemberOpen, setAddMemberOpen] = useState(false);
@@ -389,6 +419,11 @@ export default function GroupClassDetailPage() {
             enrollment.status === "CONFIRMED" && new Date(enrollment.valid_until).getTime() >= now,
         );
     }, [enrollments]);
+
+    const massMessageRecipients = useMemo(
+        () => enrollments.filter((enrollment) => enrollment.status !== "CANCELLED"),
+        [enrollments],
+    );
 
     const assignedStaff = useMemo(() => {
         if (!groupClass?.staff_assignments) return [];
@@ -875,6 +910,68 @@ export default function GroupClassDetailPage() {
             await notify.success(t("adminGroup.ticket.resent"));
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        }
+    };
+
+    const handleDownloadTicketQr = async (ticket: GroupTicket) => {
+        if (!ticket.qr_image_url) {
+            await notify.warning("Este ticket todavía no tiene un QR disponible.");
+            return;
+        }
+
+        setTicketQrDownloadKey(ticket.ticket_code);
+        try {
+            const response = await fetch(ticket.qr_image_url);
+            if (!response.ok) {
+                throw new Error(`No se pudo descargar el QR (${response.status})`);
+            }
+
+            const blob = await response.blob();
+            const classSlug = groupClass?.slug || `clase-${classId}`;
+            downloadBlob(blob, `${classSlug}-ticket-${ticket.ticket_code}.png`);
+        } catch (error) {
+            window.open(ticket.qr_image_url, "_blank", "noopener,noreferrer");
+            await notify.warning(error instanceof Error ? error.message : "Abrimos el QR en otra pestaña para que puedas guardarlo.");
+        } finally {
+            setTicketQrDownloadKey(null);
+        }
+    };
+
+    const handleSendMassMessage = async () => {
+        if (!groupClass) return;
+        if (!canBulkMessaging) {
+            await notify.warning("La mensajería masiva requiere Mensajería Pro.");
+            return;
+        }
+
+        const message = massMessageBody.trim();
+        if (!message) {
+            await notify.warning("Escribe el mensaje antes de enviarlo.");
+            return;
+        }
+
+        if (massMessageRecipients.length === 0) {
+            await notify.warning("No hay estudiantes activos para enviar este mensaje.");
+            return;
+        }
+
+        setMassMessageSending(true);
+        try {
+            const result = await sendGroupClassMassMessage(groupClass.id, {
+                message,
+                delivery_mode: massMessageDeliveryMode,
+                selected_targets: massMessageRecipients.map((recipient) => ({ id: recipient.id })),
+            });
+
+            await notify.success(
+                `Enviados: ${result.sent_total}. WhatsApp: ${result.sent_whatsapp}. Email: ${result.sent_email}. Sin contacto: ${result.skipped_no_contact}. Fallidos: ${result.failed}.`,
+            );
+            setMassMessageBody("");
+            setMassMessageOpen(false);
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : "No se pudo enviar el mensaje masivo.");
+        } finally {
+            setMassMessageSending(false);
         }
     };
 
@@ -1392,10 +1489,23 @@ export default function GroupClassDetailPage() {
                         title={t("adminGroup.classes.enrollmentsTitle")}
                         description={`${attendanceSummary.enrollments} ${t("adminGroup.classes.enrollments").toLowerCase()}`}
                         actions={
-                            <Button size="sm" onClick={() => setAddMemberOpen(true)}>
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                {t("adminGroup.classes.addMember")}
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                                {canBulkMessaging ? (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setMassMessageOpen(true)}
+                                        disabled={massMessageRecipients.length === 0}
+                                    >
+                                        <Send className="mr-2 h-4 w-4" />
+                                        Enviar mensaje masivo
+                                    </Button>
+                                ) : null}
+                                <Button size="sm" onClick={() => setAddMemberOpen(true)}>
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    {t("adminGroup.classes.addMember")}
+                                </Button>
+                            </div>
                         }
                     >
                         {enrollments.length === 0 ? (
@@ -1418,6 +1528,11 @@ export default function GroupClassDetailPage() {
                                         const phone = enrollment.user?.phoneNumber
                                             ? `${enrollment.user.phone_prefix ? `+${enrollment.user.phone_prefix} ` : ""}${enrollment.user.phoneNumber}`
                                             : null;
+                                        const whatsappUrl = buildWhatsAppUrl(
+                                            enrollment.user?.phoneNumber,
+                                            enrollment.user?.phone_prefix,
+                                        );
+                                        const email = enrollment.user?.email?.trim() || null;
                                         return (
                                             <TableRow key={enrollment.id}>
                                                 <TableCell>
@@ -1550,6 +1665,38 @@ export default function GroupClassDetailPage() {
                                                             onClick={() => void handleResendTicket(ticket.ticket_code)}
                                                         >
                                                             {t("adminGroup.ticket.resend")}
+                                                        </Button>
+                                                    ) : null}
+                                                    {ticket?.qr_image_url ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => setTicketQrDialog(ticket)}
+                                                        >
+                                                            <Eye className="mr-1 h-3 w-3" />
+                                                            Ver QR ticket
+                                                        </Button>
+                                                    ) : null}
+                                                    {whatsappUrl ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => window.open(whatsappUrl, "_blank", "noopener,noreferrer")}
+                                                        >
+                                                            <MessageCircle className="mr-1 h-3 w-3" />
+                                                            WhatsApp
+                                                        </Button>
+                                                    ) : null}
+                                                    {email ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => {
+                                                                window.location.href = `mailto:${email}`;
+                                                            }}
+                                                        >
+                                                            <Mail className="mr-1 h-3 w-3" />
+                                                            Email
                                                         </Button>
                                                     ) : null}
                                                     {enrollment.qr_proof_image_url ? (
@@ -1905,6 +2052,133 @@ export default function GroupClassDetailPage() {
                                 ))}
                         </div>
                     ) : null}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={!!ticketQrDialog}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setTicketQrDialog(null);
+                    }
+                }}
+            >
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>QR del ticket</DialogTitle>
+                        <DialogDescription>
+                            Usa este QR para revisar o descargar el ticket vigente del estudiante.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {ticketQrDialog?.qr_image_url ? (
+                        <div className="space-y-4">
+                            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+                                <img
+                                    src={ticketQrDialog.qr_image_url}
+                                    alt={`QR ticket ${ticketQrDialog.ticket_code}`}
+                                    className="mx-auto h-auto w-full max-w-[280px]"
+                                />
+                            </div>
+                            <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                <p>
+                                    <span className="font-medium">{t("adminGroup.fields.ticketCode")}:</span>{" "}
+                                    {ticketQrDialog.ticket_code}
+                                </p>
+                                <p>
+                                    <span className="font-medium">{t("adminGroup.fields.name")}:</span>{" "}
+                                    {ticketQrDialog.class_enrollment?.user?.name
+                                        || ticketQrDialog.class_enrollment?.user?.email
+                                        || "—"}
+                                </p>
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => void handleDownloadTicketQr(ticketQrDialog)}
+                                    disabled={ticketQrDownloadKey === ticketQrDialog.ticket_code}
+                                >
+                                    {ticketQrDownloadKey === ticketQrDialog.ticket_code ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Download className="mr-2 h-4 w-4" />
+                                    )}
+                                    Descargar QR
+                                </Button>
+                            </DialogFooter>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-slate-500">Este ticket no tiene un QR disponible.</p>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={massMessageOpen} onOpenChange={setMassMessageOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Enviar mensaje masivo</DialogTitle>
+                        <DialogDescription>
+                            Se enviará al grupo actual de inscripciones activas y pendientes de esta clase.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={massMessageDeliveryMode === "WHATSAPP" ? "default" : "outline"}
+                                onClick={() => setMassMessageDeliveryMode("WHATSAPP")}
+                            >
+                                WhatsApp
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={massMessageDeliveryMode === "EMAIL" ? "default" : "outline"}
+                                onClick={() => setMassMessageDeliveryMode("EMAIL")}
+                            >
+                                Email
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={massMessageDeliveryMode === "BOTH" ? "default" : "outline"}
+                                onClick={() => setMassMessageDeliveryMode("BOTH")}
+                            >
+                                Ambos
+                            </Button>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Mensaje</Label>
+                            <textarea
+                                value={massMessageBody}
+                                onChange={(event) => setMassMessageBody(event.target.value)}
+                                rows={7}
+                                maxLength={1500}
+                                placeholder="Escribe el mensaje que recibirán los estudiantes."
+                                className="admin-textarea min-h-36 resize-y"
+                            />
+                            <p className="text-xs text-slate-500">
+                                Alcance actual: {massMessageRecipients.length} inscripciones.
+                            </p>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setMassMessageOpen(false)} disabled={massMessageSending}>
+                            {t("common.cancel")}
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => void handleSendMassMessage()}
+                            disabled={massMessageSending || !massMessageBody.trim() || massMessageRecipients.length === 0}
+                        >
+                            {massMessageSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                            Enviar mensaje
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
