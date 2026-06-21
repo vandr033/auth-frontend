@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Copy, Link2, Loader2, RefreshCcw } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
     Table,
     TableBody,
@@ -23,6 +24,7 @@ import { useGroupReservationsAccess } from "../lib/useGroupReservationsAccess";
 import { GroupTicketStatusBadge } from "../components/GroupBadges";
 import { LiveQrScanner } from "../components/LiveQrScanner";
 import { formatDateTime } from "../lib/format";
+import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
     checkInGroupByTicketCode,
     cancelGroupTicket,
@@ -34,7 +36,9 @@ import {
     listGroupEvents,
     listGroupTickets,
     resendGroupTicket,
+    rotateGroupClassSessionPublicAttendance,
     setGroupClassSessionAttendanceStatus,
+    updateGroupClassSessionPublicAttendance,
     type GroupAttendanceRow,
     type GroupAttendanceSummary,
     type GroupClass,
@@ -51,6 +55,13 @@ type ScanResultState = {
     message: string;
 } | null;
 type SessionRosterStatus = "SHOW" | "NO_SHOW" | "UNMARKED";
+
+type SessionPublicAttendanceDraft = {
+    public_attendance_enabled: boolean;
+    attendance_access_code_enabled: boolean;
+    attendance_access_code: string;
+    attendance_access_code_configured: boolean;
+};
 
 function normalizeScannedTicketValue(rawValue: string): string {
     const trimmed = rawValue.trim();
@@ -81,6 +92,7 @@ export default function GroupAttendancePage() {
     const t = useT();
     const searchParams = useSearchParams();
     const { canUseAdvanced, canUseClasses, canUseEvents, getRequiredPlan } = useGroupReservationsAccess();
+    const { companyUser } = useAdminAuth();
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -92,6 +104,10 @@ export default function GroupAttendancePage() {
     const [sessionEnrollments, setSessionEnrollments] = useState<GroupClassEnrollment[]>([]);
     const [sessionAttendanceRows, setSessionAttendanceRows] = useState<GroupAttendanceRow[]>([]);
     const [sessionRosterLoading, setSessionRosterLoading] = useState(false);
+    const [sessionPublicAttendanceDraft, setSessionPublicAttendanceDraft] = useState<SessionPublicAttendanceDraft | null>(null);
+    const [sessionPublicAttendanceSaving, setSessionPublicAttendanceSaving] = useState(false);
+    const [sessionPublicAttendanceRotating, setSessionPublicAttendanceRotating] = useState(false);
+    const [sessionPublicAttendanceCopied, setSessionPublicAttendanceCopied] = useState(false);
 
     const [selectedEventId, setSelectedEventId] = useState<string>("");
     const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -185,6 +201,42 @@ export default function GroupAttendancePage() {
         void loadSessionRoster(Number.parseInt(selectedClassId, 10), Number.parseInt(selectedSessionId, 10));
     }, [loadSessionRoster, selectedClassId, selectedSessionId]);
 
+    useEffect(() => {
+        if (!selectedSession) {
+            setSessionPublicAttendanceDraft(null);
+            return;
+        }
+
+        setSessionPublicAttendanceDraft({
+            public_attendance_enabled: selectedSession.public_attendance_enabled,
+            attendance_access_code_enabled: selectedSession.attendance_access_code_enabled,
+            attendance_access_code: "",
+            attendance_access_code_configured: Boolean(selectedSession.attendance_access_code_configured),
+        });
+        setSessionPublicAttendanceCopied(false);
+    }, [selectedSession]);
+
+    const buildPublicAttendanceUrl = useCallback((session: GroupClassSession) => {
+        const companySlug = companyUser?.company?.slug;
+        if (!companySlug || !session.attendance_public_token) return null;
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        return `${origin}/shop/${companySlug}/classes/attendance/${session.attendance_public_token}`;
+    }, [companyUser?.company?.slug]);
+
+    const replaceSession = useCallback((nextSession: GroupClassSession) => {
+        setSessions((current) =>
+            current.map((session) => (session.id === nextSession.id ? nextSession : session)),
+        );
+        if (String(nextSession.id) === selectedSessionId) {
+            setSessionPublicAttendanceDraft({
+                public_attendance_enabled: nextSession.public_attendance_enabled,
+                attendance_access_code_enabled: nextSession.attendance_access_code_enabled,
+                attendance_access_code: "",
+                attendance_access_code_configured: Boolean(nextSession.attendance_access_code_configured),
+            });
+        }
+    }, [selectedSessionId]);
+
     const handleEventCheckIn = async () => {
         const normalizedCode = normalizeScannedTicketValue(eventTicketCode);
         if (!selectedEventId || !normalizedCode) {
@@ -249,6 +301,74 @@ export default function GroupAttendancePage() {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.attendance.updateStatusError"));
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleSaveSessionPublicAttendance = async () => {
+        if (!selectedSession || !sessionPublicAttendanceDraft) {
+            await notify.warning(t("adminGroup.attendance.noSessionSelected"));
+            return;
+        }
+        if (
+            sessionPublicAttendanceDraft.attendance_access_code_enabled
+            && !sessionPublicAttendanceDraft.attendance_access_code.trim()
+            && !sessionPublicAttendanceDraft.attendance_access_code_configured
+        ) {
+            await notify.warning("Ingresa un codigo de acceso para activar la proteccion.");
+            return;
+        }
+
+        setSessionPublicAttendanceSaving(true);
+        try {
+            const updated = await updateGroupClassSessionPublicAttendance(selectedSession.id, {
+                public_attendance_enabled: sessionPublicAttendanceDraft.public_attendance_enabled,
+                attendance_access_code_enabled: sessionPublicAttendanceDraft.attendance_access_code_enabled,
+                attendance_access_code: sessionPublicAttendanceDraft.attendance_access_code.trim() || null,
+            });
+            replaceSession(updated);
+            await notify.success("Configuracion de asistencia publica guardada.");
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : "No se pudo guardar la configuracion.");
+        } finally {
+            setSessionPublicAttendanceSaving(false);
+        }
+    };
+
+    const handleRotateSessionPublicAttendance = async () => {
+        if (!selectedSession) {
+            await notify.warning(t("adminGroup.attendance.noSessionSelected"));
+            return;
+        }
+        setSessionPublicAttendanceRotating(true);
+        try {
+            const updated = await rotateGroupClassSessionPublicAttendance(selectedSession.id);
+            replaceSession(updated);
+            await notify.success("Link de asistencia rotado.");
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : "No se pudo rotar el link.");
+        } finally {
+            setSessionPublicAttendanceRotating(false);
+        }
+    };
+
+    const handleCopySessionPublicAttendance = async () => {
+        if (!selectedSession) {
+            await notify.warning(t("adminGroup.attendance.noSessionSelected"));
+            return;
+        }
+        const url = buildPublicAttendanceUrl(selectedSession);
+        if (!url) {
+            await notify.warning("Guarda y habilita el link antes de copiarlo.");
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(url);
+            setSessionPublicAttendanceCopied(true);
+            await notify.success("Link de asistencia copiado.");
+            window.setTimeout(() => setSessionPublicAttendanceCopied(false), 2000);
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : "No se pudo copiar el link.");
         }
     };
 
@@ -516,6 +636,103 @@ export default function GroupAttendancePage() {
                                         <p><span className="font-medium">{t("adminGroup.attendance.registeredCount")}:</span> {sessionRoster.length}</p>
                                     </div>
                                 )}
+                                {selectedSession && sessionPublicAttendanceDraft ? (
+                                    <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
+                                        <div className="flex flex-wrap gap-2 text-xs">
+                                            <span className={`inline-flex items-center rounded-full px-2 py-1 font-medium ${
+                                                sessionPublicAttendanceDraft.public_attendance_enabled
+                                                    ? "bg-emerald-50 text-emerald-700"
+                                                    : "bg-slate-200 text-slate-600"
+                                            }`}>
+                                                <Link2 className="mr-1 h-3 w-3" />
+                                                {sessionPublicAttendanceDraft.public_attendance_enabled ? "Link activo" : "Link desactivado"}
+                                            </span>
+                                            {sessionPublicAttendanceDraft.attendance_access_code_enabled ? (
+                                                <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 font-medium text-amber-700">
+                                                    Ingresar codigo de acceso
+                                                </span>
+                                            ) : null}
+                                            {sessionPublicAttendanceDraft.attendance_access_code_configured ? (
+                                                <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-1 font-medium text-sky-700">
+                                                    Codigo guardado
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <Label className="text-sm text-slate-700">Habilitar link de asistencia</Label>
+                                            <Switch
+                                                checked={sessionPublicAttendanceDraft.public_attendance_enabled}
+                                                onCheckedChange={(checked) =>
+                                                    setSessionPublicAttendanceDraft((current) => current ? {
+                                                        ...current,
+                                                        public_attendance_enabled: checked,
+                                                    } : current)
+                                                }
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <Label className="text-sm text-slate-700">Ingresar codigo de acceso</Label>
+                                            <Switch
+                                                checked={sessionPublicAttendanceDraft.attendance_access_code_enabled}
+                                                onCheckedChange={(checked) =>
+                                                    setSessionPublicAttendanceDraft((current) => current ? {
+                                                        ...current,
+                                                        attendance_access_code_enabled: checked,
+                                                    } : current)
+                                                }
+                                            />
+                                        </div>
+                                        <Input
+                                            value={sessionPublicAttendanceDraft.attendance_access_code}
+                                            onChange={(e) =>
+                                                setSessionPublicAttendanceDraft((current) => current ? {
+                                                    ...current,
+                                                    attendance_access_code: e.target.value,
+                                                } : current)
+                                            }
+                                            placeholder={
+                                                sessionPublicAttendanceDraft.attendance_access_code_configured
+                                                    ? "Dejar en blanco para mantener el codigo actual"
+                                                    : "Codigo de acceso"
+                                            }
+                                            disabled={!sessionPublicAttendanceDraft.attendance_access_code_enabled}
+                                        />
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => void handleCopySessionPublicAttendance()}
+                                                disabled={!selectedSession.attendance_public_token}
+                                            >
+                                                <Copy className="mr-1 h-3 w-3" />
+                                                {sessionPublicAttendanceCopied ? "Copiado" : "Copiar link"}
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => void handleRotateSessionPublicAttendance()}
+                                                disabled={sessionPublicAttendanceRotating}
+                                            >
+                                                {sessionPublicAttendanceRotating ? (
+                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <RefreshCcw className="mr-1 h-3 w-3" />
+                                                )}
+                                                Rotar link
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => void handleSaveSessionPublicAttendance()}
+                                                disabled={sessionPublicAttendanceSaving}
+                                            >
+                                                {sessionPublicAttendanceSaving ? (
+                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                ) : null}
+                                                Guardar
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : null}
                                 <p className="text-sm text-slate-500">{t("adminGroup.attendance.sessionRosterSubtitle")}</p>
                             </CardContent>
                         </Card>

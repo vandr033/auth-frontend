@@ -8,6 +8,7 @@ export type GroupInstallmentDerivedStatus = GroupPaymentStatus | "OVERDUE";
 export type GroupPricingMode = "PER_SESSION" | "WEEKLY_PASS" | "MONTHLY_PASS" | "FULL_COURSE";
 export type GroupRecurrenceType = "WEEKLY" | "MONTHLY" | "CUSTOM";
 export type GroupStaffRole = "INSTRUCTOR" | "ASSISTANT";
+export type GroupEnrollmentSource = "PUBLIC_CHECKOUT" | "ADMIN_CREATE" | "PUBLIC_ATTENDANCE_LINK";
 
 export interface GroupStaffAssignment {
   id: number;
@@ -147,6 +148,11 @@ export interface PublicGroupClassEnrollment {
   payment_method: GroupPaymentMethod;
   payment_status: GroupPaymentStatus;
   qr_proof_image_url: string | null;
+  source?: GroupEnrollmentSource;
+  is_admin_sponsored?: boolean;
+  sponsorship_reason?: string | null;
+  sponsored_by_group_class_session_id?: number | null;
+  sponsored_by_admin_user_id?: string | null;
   valid_from: string;
   valid_until: string;
   created_at: string;
@@ -256,6 +262,89 @@ export interface CapturePublicEventInterestResult {
   already_interested: boolean;
 }
 
+export interface PublicSessionAttendanceState {
+  token: string;
+  company: {
+    id: number;
+    name: string;
+    slug: string;
+    timezone?: string | null;
+    currency?: string | null;
+  };
+  group_class: {
+    id: number;
+    title: string;
+    slug: string;
+    description: string | null;
+    status: GroupItemStatus;
+    pricing_mode: GroupPricingMode;
+    price_cents: number;
+    monthly_price_cents?: number | null;
+    recurrence_start_date: string;
+    recurrence_end_date: string | null;
+    start_time?: string | null;
+    location_text?: string | null;
+    max_capacity_per_session?: number;
+    cover_image_url?: string | null;
+    thumbnail_url?: string | null;
+  };
+  session: {
+    id: number;
+    start_at: string;
+    end_at: string;
+    status: GroupItemStatus;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
+    public_attendance_enabled: boolean;
+    requires_access_code: boolean;
+  };
+  is_authenticated: boolean;
+  already_checked_in: boolean;
+  attendance: {
+    id: number;
+    checked_in_at: string | null;
+    checked_in_method: "QR_SCAN" | "MANUAL" | "PUBLIC_LINK" | null;
+    enrollment_id: number | null;
+    created_at: string;
+  } | null;
+  profile: {
+    full_name: string | null;
+    email: string | null;
+    country_code: string | null;
+    phone_prefix: string | null;
+    phone_number: string | null;
+    profile_locked: boolean;
+    missing_profile_fields: string[];
+  };
+}
+
+export interface PublicSessionAttendanceSubmitResult {
+  outcome: "already_checked_in" | "checked_in_existing_enrollment" | "sponsored_enrollment_created_and_checked_in";
+  attendance: {
+    id: number;
+    checked_in_at: string | null;
+    checked_in_method: "QR_SCAN" | "MANUAL" | "PUBLIC_LINK" | null;
+    enrollment_id: number | null;
+    created_at: string;
+  };
+  enrollment: {
+    id: number;
+    group_class_id: number;
+    pricing_mode: GroupPricingMode;
+    price_cents_snapshot: number;
+    status: GroupBookingStatus;
+    payment_method: GroupPaymentMethod;
+    payment_status: GroupPaymentStatus;
+    valid_from: string;
+    valid_until: string;
+    is_admin_sponsored: boolean;
+    source: GroupEnrollmentSource;
+    sponsorship_reason: string | null;
+  } | null;
+  ticket_queued: boolean;
+  sponsored_enrollment_created: boolean;
+}
+
 type ApiEnvelope<T> = {
   code: number;
   error: boolean;
@@ -343,6 +432,58 @@ export async function getPublicClassById(companyId: number, classId: number): Pr
 export async function listPublicClassSessions(companyId: number, classId: number): Promise<PublicGroupClassSession[]> {
   const query = buildQuery({ company_id: companyId });
   return groupFetch<PublicGroupClassSession[]>(`/group/classes/${classId}/sessions${query}`);
+}
+
+export async function getPublicSessionAttendanceState(token: string): Promise<PublicSessionAttendanceState> {
+  return groupFetch<PublicSessionAttendanceState>(`/group/classes/sessions/attendance/${token}`);
+}
+
+export async function startPublicSessionAttendance(
+  token: string,
+  payload: PublicSessionAttendanceStartInput,
+): Promise<PublicSessionAttendanceStartResult> {
+  return groupFetch<PublicSessionAttendanceStartResult>(`/group/classes/sessions/attendance/${token}/start`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resendPublicSessionAttendance(
+  token: string,
+  payload: PublicSessionAttendanceResendInput,
+): Promise<PublicSessionAttendanceStartResult> {
+  return groupFetch<PublicSessionAttendanceStartResult>(`/group/classes/sessions/attendance/${token}/resend`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyPublicSessionAttendance(
+  token: string,
+  payload: PublicSessionAttendanceVerifyInput,
+): Promise<PublicSessionAttendanceVerifyResult> {
+  return groupFetch<PublicSessionAttendanceVerifyResult>(`/group/classes/sessions/attendance/${token}/verify`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function submitPublicSessionAttendance(
+  token: string,
+  payload: {
+    checkout_session_id?: string;
+    access_code?: string | null;
+    full_name?: string;
+    email?: string;
+    countryCode?: string;
+    phonePrefix?: string;
+    phoneNumber?: string;
+  },
+): Promise<PublicSessionAttendanceSubmitResult> {
+  return groupFetch<PublicSessionAttendanceSubmitResult>(`/group/classes/sessions/attendance/${token}/submit`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function createPublicEventBooking(payload: {
@@ -489,6 +630,23 @@ export interface ClassGuestEnrollmentVerifyInput {
 export type ClassGuestEnrollmentVerifyResult = PaidEventGuestCheckoutVerifyResult & {
   interestCaptured?: boolean;
 };
+
+export interface PublicSessionAttendanceStartInput {
+  full_name: string;
+  email: string;
+  countryCode?: string;
+  phonePrefix: string;
+  phoneNumber: string;
+}
+export type PublicSessionAttendanceStartResult = ClassGuestEnrollmentStartResult;
+export interface PublicSessionAttendanceResendInput {
+  checkout_session_id: string;
+}
+export interface PublicSessionAttendanceVerifyInput {
+  checkout_session_id: string;
+  code: string;
+}
+export type PublicSessionAttendanceVerifyResult = PaidEventGuestCheckoutVerifyResult;
 
 export async function startClassGuestEnrollment(
   classId: number,

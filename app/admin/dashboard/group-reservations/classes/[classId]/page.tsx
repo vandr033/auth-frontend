@@ -7,8 +7,10 @@ import { useParams } from "next/navigation";
 import {
     ArrowLeft,
     CalendarClock,
+    Copy,
     Eye,
     ImageIcon,
+    Link2,
     Loader2,
     PencilLine,
     Plus,
@@ -41,6 +43,7 @@ import {
     listGroupClassSessions,
     listGroupTickets,
     markGroupEnrollmentInstallmentPaid,
+    rotateGroupClassSessionPublicAttendance,
     sendGroupInstallmentReminder,
     confirmGroupEnrollmentInstallmentQr,
     setGroupClassStatus,
@@ -49,6 +52,7 @@ import {
     uploadAdminImage,
     updateGroupEnrollmentInstallments,
     updateGroupClass,
+    updateGroupClassSessionPublicAttendance,
     type CustomerRecord,
     type GroupAttendanceRow,
     type AdminCompanyLocation,
@@ -78,6 +82,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { ProofAssetPreview } from "@/components/ui/proof-asset-preview";
+import { Switch } from "@/components/ui/switch";
 import {
     Dialog,
     DialogContent,
@@ -171,6 +176,13 @@ type EditableInstallmentDraft = {
     payment_method: "NONE" | "CASH" | "QR";
 };
 
+type SessionPublicAttendanceDraft = {
+    public_attendance_enabled: boolean;
+    attendance_access_code_enabled: boolean;
+    attendance_access_code: string;
+    attendance_access_code_configured: boolean;
+};
+
 function toDateInputValue(value?: string | null): string {
     return value ? value.slice(0, 10) : "";
 }
@@ -214,6 +226,7 @@ export default function GroupClassDetailPage() {
     const [saving, setSaving] = useState(false);
     const [groupClass, setGroupClass] = useState<GroupClass | null>(null);
     const [sessions, setSessions] = useState<GroupClassSession[]>([]);
+    const [sessionAttendanceDrafts, setSessionAttendanceDrafts] = useState<Record<number, SessionPublicAttendanceDraft>>({});
     const [enrollments, setEnrollments] = useState<GroupClassEnrollment[]>([]);
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [tickets, setTickets] = useState<GroupTicket[]>([]);
@@ -233,6 +246,9 @@ export default function GroupClassDetailPage() {
     const [installmentActionKey, setInstallmentActionKey] = useState<string | null>(null);
     const [installmentEditMode, setInstallmentEditMode] = useState(false);
     const [installmentDrafts, setInstallmentDrafts] = useState<EditableInstallmentDraft[]>([]);
+    const [sessionPublicAttendanceSavingId, setSessionPublicAttendanceSavingId] = useState<number | null>(null);
+    const [sessionPublicAttendanceRotatingId, setSessionPublicAttendanceRotatingId] = useState<number | null>(null);
+    const [sessionPublicAttendanceCopiedId, setSessionPublicAttendanceCopiedId] = useState<number | null>(null);
 
     // Add Member dialog
     const [addMemberOpen, setAddMemberOpen] = useState(false);
@@ -283,6 +299,19 @@ export default function GroupClassDetailPage() {
                 location_text: mapped.location_text.trim() || defaultLocationText,
             });
             setSessions(sessionsData);
+            setSessionAttendanceDrafts(
+                Object.fromEntries(
+                    sessionsData.map((session) => [
+                        session.id,
+                        {
+                            public_attendance_enabled: session.public_attendance_enabled,
+                            attendance_access_code_enabled: session.attendance_access_code_enabled,
+                            attendance_access_code: "",
+                            attendance_access_code_configured: Boolean(session.attendance_access_code_configured),
+                        },
+                    ]),
+                ),
+            );
             setEnrollments(enrollmentsData);
             setStaff(staffData);
             setTickets(ticketsData);
@@ -322,6 +351,37 @@ export default function GroupClassDetailPage() {
         });
         return map;
     }, [tickets]);
+
+    const buildPublicAttendanceUrl = useCallback((session: GroupClassSession) => {
+        const companySlug = companyUser?.company?.slug;
+        if (!companySlug || !session.attendance_public_token) return null;
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        return `${origin}/shop/${companySlug}/classes/attendance/${session.attendance_public_token}`;
+    }, [companyUser?.company?.slug]);
+
+    const replaceSession = useCallback((nextSession: GroupClassSession) => {
+        setSessions((current) =>
+            current.map((session) => (session.id === nextSession.id ? nextSession : session)),
+        );
+        setSessionAttendanceDrafts((current) => ({
+            ...current,
+            [nextSession.id]: {
+                public_attendance_enabled: nextSession.public_attendance_enabled,
+                attendance_access_code_enabled: nextSession.attendance_access_code_enabled,
+                attendance_access_code: "",
+                attendance_access_code_configured: Boolean(nextSession.attendance_access_code_configured),
+            },
+        }));
+    }, []);
+
+    const getSessionAttendanceDraft = useCallback((session: GroupClassSession): SessionPublicAttendanceDraft => {
+        return sessionAttendanceDrafts[session.id] ?? {
+            public_attendance_enabled: session.public_attendance_enabled,
+            attendance_access_code_enabled: session.attendance_access_code_enabled,
+            attendance_access_code: "",
+            attendance_access_code_configured: Boolean(session.attendance_access_code_configured),
+        };
+    }, [sessionAttendanceDrafts]);
 
     const activePassHolders = useMemo(() => {
         const now = Date.now();
@@ -534,6 +594,80 @@ export default function GroupClassDetailPage() {
             await loadData();
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.classes.cancelSessionError"));
+        }
+    };
+
+    const handleSessionAttendanceDraftChange = (
+        sessionId: number,
+        updater: (current: SessionPublicAttendanceDraft) => SessionPublicAttendanceDraft,
+    ) => {
+        const session = sessions.find((item) => item.id === sessionId);
+        if (!session) return;
+        setSessionAttendanceDrafts((current) => ({
+            ...current,
+            [sessionId]: updater(
+                current[sessionId] ?? {
+                    public_attendance_enabled: session.public_attendance_enabled,
+                    attendance_access_code_enabled: session.attendance_access_code_enabled,
+                    attendance_access_code: "",
+                    attendance_access_code_configured: Boolean(session.attendance_access_code_configured),
+                },
+            ),
+        }));
+    };
+
+    const handleSaveSessionPublicAttendance = async (sessionId: number) => {
+        const session = sessions.find((item) => item.id === sessionId);
+        if (!session) return;
+        const draft = getSessionAttendanceDraft(session);
+        if (draft.attendance_access_code_enabled && !draft.attendance_access_code.trim() && !draft.attendance_access_code_configured) {
+            await notify.warning("Ingresa un codigo de acceso para activar la proteccion.");
+            return;
+        }
+
+        setSessionPublicAttendanceSavingId(sessionId);
+        try {
+            const updated = await updateGroupClassSessionPublicAttendance(sessionId, {
+                public_attendance_enabled: draft.public_attendance_enabled,
+                attendance_access_code_enabled: draft.attendance_access_code_enabled,
+                attendance_access_code: draft.attendance_access_code.trim() || null,
+            });
+            replaceSession(updated);
+            await notify.success("Configuracion de asistencia publica guardada.");
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : "No se pudo guardar la configuracion.");
+        } finally {
+            setSessionPublicAttendanceSavingId(null);
+        }
+    };
+
+    const handleRotateSessionPublicAttendance = async (sessionId: number) => {
+        setSessionPublicAttendanceRotatingId(sessionId);
+        try {
+            const updated = await rotateGroupClassSessionPublicAttendance(sessionId);
+            replaceSession(updated);
+            await notify.success("Link de asistencia rotado.");
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : "No se pudo rotar el link.");
+        } finally {
+            setSessionPublicAttendanceRotatingId(null);
+        }
+    };
+
+    const handleCopySessionPublicAttendance = async (session: GroupClassSession) => {
+        const url = buildPublicAttendanceUrl(session);
+        if (!url) {
+            await notify.warning("Guarda y habilita el link antes de copiarlo.");
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(url);
+            setSessionPublicAttendanceCopiedId(session.id);
+            await notify.success("Link de asistencia copiado.");
+            window.setTimeout(() => setSessionPublicAttendanceCopiedId((current) => (current === session.id ? null : current)), 2000);
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : "No se pudo copiar el link.");
         }
     };
 
@@ -1097,44 +1231,156 @@ export default function GroupClassDetailPage() {
                                         <TableHead>{t("adminGroup.fields.endAt")}</TableHead>
                                         <TableHead>{t("adminGroup.fields.capacity")}</TableHead>
                                         <TableHead>{t("adminGroup.fields.occupancy")}</TableHead>
+                                        <TableHead>Asistencia publica</TableHead>
                                         <TableHead>{t("adminGroup.fields.status")}</TableHead>
                                         <TableHead>{t("adminGroup.fields.actions")}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {sessions.map((session) => (
-                                        <TableRow key={session.id}>
-                                            <TableCell>{formatDateTime(session.start_at)}</TableCell>
-                                            <TableCell>{formatDateTime(session.end_at)}</TableCell>
-                                            <TableCell>
-                                                {session.max_capacity ?? groupClass.max_capacity_per_session}
-                                            </TableCell>
-                                            <TableCell>{session.booked_count ?? 0}</TableCell>
-                                            <TableCell>
-                                                <GroupStatusBadge status={session.status} />
-                                            </TableCell>
-                                            <TableCell className="flex flex-wrap gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    type="button"
-                                                    onClick={() => void loadSessionAttendance(session.id)}
-                                                >
-                                                    {t("adminGroup.actions.viewAttendance")}
-                                                </Button>
-                                                {!session.cancelled_at ? (
+                                    {sessions.map((session) => {
+                                        const draft = getSessionAttendanceDraft(session);
+                                        return (
+                                            <TableRow key={session.id}>
+                                                <TableCell>{formatDateTime(session.start_at)}</TableCell>
+                                                <TableCell>{formatDateTime(session.end_at)}</TableCell>
+                                                <TableCell>
+                                                    {session.max_capacity ?? groupClass.max_capacity_per_session}
+                                                </TableCell>
+                                                <TableCell>{session.booked_count ?? 0}</TableCell>
+                                                <TableCell className="min-w-[340px]">
+                                                    <div className="space-y-3 rounded-lg border border-slate-200 p-3">
+                                                        <div className="flex flex-wrap gap-2 text-xs">
+                                                            <span className={`inline-flex items-center rounded-full px-2 py-1 font-medium ${
+                                                                draft.public_attendance_enabled
+                                                                    ? "bg-emerald-50 text-emerald-700"
+                                                                    : "bg-slate-100 text-slate-600"
+                                                            }`}>
+                                                                <Link2 className="mr-1 h-3 w-3" />
+                                                                {draft.public_attendance_enabled ? "Link activo" : "Link desactivado"}
+                                                            </span>
+                                                            {draft.attendance_access_code_enabled ? (
+                                                                <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 font-medium text-amber-700">
+                                                                    Ingresar codigo de acceso
+                                                                </span>
+                                                            ) : null}
+                                                            {draft.attendance_access_code_configured ? (
+                                                                <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-1 font-medium text-sky-700">
+                                                                    Codigo guardado
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <Label className="text-xs font-medium text-slate-700">
+                                                                Habilitar link de asistencia
+                                                            </Label>
+                                                            <Switch
+                                                                checked={draft.public_attendance_enabled}
+                                                                onCheckedChange={(checked) =>
+                                                                    handleSessionAttendanceDraftChange(session.id, (current) => ({
+                                                                        ...current,
+                                                                        public_attendance_enabled: checked,
+                                                                    }))
+                                                                }
+                                                            />
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <Label className="text-xs font-medium text-slate-700">
+                                                                Ingresar codigo de acceso
+                                                            </Label>
+                                                            <Switch
+                                                                checked={draft.attendance_access_code_enabled}
+                                                                onCheckedChange={(checked) =>
+                                                                    handleSessionAttendanceDraftChange(session.id, (current) => ({
+                                                                        ...current,
+                                                                        attendance_access_code_enabled: checked,
+                                                                    }))
+                                                                }
+                                                            />
+                                                        </div>
+
+                                                        <Input
+                                                            value={draft.attendance_access_code}
+                                                            onChange={(event) =>
+                                                                handleSessionAttendanceDraftChange(session.id, (current) => ({
+                                                                    ...current,
+                                                                    attendance_access_code: event.target.value,
+                                                                }))
+                                                            }
+                                                            placeholder={
+                                                                draft.attendance_access_code_configured
+                                                                    ? "Dejar en blanco para mantener el codigo actual"
+                                                                    : "Codigo de acceso"
+                                                            }
+                                                            disabled={!draft.attendance_access_code_enabled}
+                                                        />
+
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                type="button"
+                                                                onClick={() => void handleCopySessionPublicAttendance(session)}
+                                                                disabled={!session.attendance_public_token}
+                                                            >
+                                                                <Copy className="mr-1 h-3 w-3" />
+                                                                {sessionPublicAttendanceCopiedId === session.id ? "Copiado" : "Copiar link"}
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                type="button"
+                                                                onClick={() => void handleRotateSessionPublicAttendance(session.id)}
+                                                                disabled={sessionPublicAttendanceRotatingId === session.id}
+                                                            >
+                                                                {sessionPublicAttendanceRotatingId === session.id ? (
+                                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                                ) : (
+                                                                    <RefreshCcw className="mr-1 h-3 w-3" />
+                                                                )}
+                                                                Rotar link
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                type="button"
+                                                                onClick={() => void handleSaveSessionPublicAttendance(session.id)}
+                                                                disabled={sessionPublicAttendanceSavingId === session.id}
+                                                            >
+                                                                {sessionPublicAttendanceSavingId === session.id ? (
+                                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                                ) : null}
+                                                                Guardar
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <GroupStatusBadge status={session.status} />
+                                                </TableCell>
+                                                <TableCell className="flex flex-wrap gap-2">
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
                                                         type="button"
-                                                        onClick={() => void handleCancelSession(session.id)}
+                                                        onClick={() => void loadSessionAttendance(session.id)}
                                                     >
-                                                        {t("adminGroup.actions.cancelSession")}
+                                                        {t("adminGroup.actions.viewAttendance")}
                                                     </Button>
-                                                ) : null}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                                    {!session.cancelled_at ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            type="button"
+                                                            onClick={() => void handleCancelSession(session.id)}
+                                                        >
+                                                            {t("adminGroup.actions.cancelSession")}
+                                                        </Button>
+                                                    ) : null}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         )}
@@ -1176,8 +1422,15 @@ export default function GroupClassDetailPage() {
                                             <TableRow key={enrollment.id}>
                                                 <TableCell>
                                                     <div className="space-y-1">
-                                                        <div className="font-medium text-slate-900">
-                                                            {enrollment.user?.name || enrollment.user?.email || enrollment.user_id}
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <div className="font-medium text-slate-900">
+                                                                {enrollment.user?.name || enrollment.user?.email || enrollment.user_id}
+                                                            </div>
+                                                            {enrollment.is_admin_sponsored ? (
+                                                                <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                                                    Patrocinado por el negocio
+                                                                </span>
+                                                            ) : null}
                                                         </div>
                                                         {enrollment.user?.email ? (
                                                             <div className="text-xs text-slate-500">{enrollment.user.email}</div>
@@ -1185,15 +1438,27 @@ export default function GroupClassDetailPage() {
                                                         {phone ? (
                                                             <div className="text-xs text-slate-500">{phone}</div>
                                                         ) : null}
+                                                        {enrollment.source === "PUBLIC_ATTENDANCE_LINK" ? (
+                                                            <div className="text-[11px] text-slate-500">
+                                                                Alta automatica por link publico de asistencia
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <GroupBookingStatusBadge status={enrollment.status} />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <GroupPaymentStatusBadge
-                                                        status={enrollment.payment_status as GroupPaymentStatus}
-                                                    />
+                                                    <div className="space-y-1">
+                                                        <GroupPaymentStatusBadge
+                                                            status={enrollment.payment_status as GroupPaymentStatus}
+                                                        />
+                                                        {enrollment.is_admin_sponsored ? (
+                                                            <div className="text-[11px] text-slate-500">
+                                                                No genera deuda ni cobro pendiente
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-xs">
                                                     {formatDateTime(enrollment.valid_from)}

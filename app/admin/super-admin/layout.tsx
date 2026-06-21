@@ -126,6 +126,11 @@ export default function SuperAdminLayout({
             href: "/admin/super-admin/test-notifications",
             icon: <MessageSquare className="h-5 w-5" />,
         },
+        {
+            label: t("adminNav.waha"),
+            href: "/admin/super-admin/waha",
+            icon: <MessageSquare className="h-5 w-5" />,
+        },
     ];
 
     // Auth guard - must be super admin

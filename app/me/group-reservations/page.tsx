@@ -317,11 +317,15 @@ function GroupReservationsPageContent() {
                       {t("meGroupReservations.fields.validity")}: {formatGroupDate(enrollment.valid_from, locale)} - {formatGroupDate(enrollment.valid_until, locale)}
                     </p>
                     <p>
-                      {t("meGroupReservations.fields.paymentStatus")}: {t(`shopGroup.paymentStatus.${enrollment.payment_status}`)}
+                      {t("meGroupReservations.fields.paymentStatus")}: {enrollment.is_admin_sponsored
+                        ? "Patrocinado por el negocio"
+                        : t(`shopGroup.paymentStatus.${enrollment.payment_status}`)}
                     </p>
                     <p className="flex items-center gap-2">
                       <Ticket className="h-4 w-4" />
-                      {enrollment.status === "CONFIRMED"
+                      {enrollment.is_admin_sponsored
+                        ? "Inscripcion patrocinada activa"
+                        : enrollment.status === "CONFIRMED"
                         ? t("meGroupReservations.ticket.confirmedInfo")
                         : t("meGroupReservations.ticket.pendingInfo")}
                     </p>

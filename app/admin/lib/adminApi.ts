@@ -211,6 +211,63 @@ export async function getSuperAdminProductFeatures(): Promise<{
     return response.data;
 }
 
+export type SuperAdminWahaStatus =
+    | "CONNECTED"
+    | "DISCONNECTED"
+    | "QR"
+    | "STARTING"
+    | "ERROR";
+
+export type SuperAdminWahaState = {
+    session: string;
+    status: SuperAdminWahaStatus;
+    isConnected: boolean;
+    needsQr: boolean;
+    qr: string | null;
+    qrFormat?: "image" | "raw" | null;
+    account: Record<string, unknown> | null;
+    message: string;
+    lastCheckedAt: string;
+    sessionExists: boolean;
+    upstreamStatus: string | null;
+};
+
+export async function getSuperAdminWahaStatus(): Promise<SuperAdminWahaState> {
+    const response = await apiFetch<{ data: SuperAdminWahaState }>(
+        "/api/super-admin/waha/status",
+    );
+
+    return response.data;
+}
+
+export async function getSuperAdminWahaQr(): Promise<SuperAdminWahaState> {
+    const response = await apiFetch<{ data: SuperAdminWahaState }>(
+        "/api/super-admin/waha/qr",
+    );
+
+    return response.data;
+}
+
+async function postSuperAdminWahaAction(path: string): Promise<SuperAdminWahaState> {
+    const response = await apiFetch<{ data: SuperAdminWahaState }>(path, {
+        method: "POST",
+    });
+
+    return response.data;
+}
+
+export async function startSuperAdminWahaSession(): Promise<SuperAdminWahaState> {
+    return postSuperAdminWahaAction("/api/super-admin/waha/session/start");
+}
+
+export async function restartSuperAdminWahaSession(): Promise<SuperAdminWahaState> {
+    return postSuperAdminWahaAction("/api/super-admin/waha/session/restart");
+}
+
+export async function logoutSuperAdminWahaSession(): Promise<SuperAdminWahaState> {
+    return postSuperAdminWahaAction("/api/super-admin/waha/session/logout");
+}
+
 export type AdminUploadImageType =
     | "logo"
     | "hero_home"
@@ -1292,7 +1349,8 @@ export type GroupPricingMode = "PER_SESSION" | "WEEKLY_PASS" | "MONTHLY_PASS" | 
 export type GroupRecurrenceType = "WEEKLY" | "MONTHLY" | "CUSTOM";
 export type GroupStaffRole = "INSTRUCTOR" | "ASSISTANT";
 export type GroupTicketStatus = "ACTIVE" | "USED" | "CANCELLED" | "EXPIRED";
-export type GroupCheckInMethod = "QR_SCAN" | "MANUAL";
+export type GroupCheckInMethod = "QR_SCAN" | "MANUAL" | "PUBLIC_LINK";
+export type GroupEnrollmentSource = "PUBLIC_CHECKOUT" | "ADMIN_CREATE" | "PUBLIC_ATTENDANCE_LINK";
 
 export interface GroupStaffAssignment {
     id: number;
@@ -1350,6 +1408,13 @@ export interface GroupClassSession {
     end_at: string;
     status: GroupItemStatus;
     max_capacity_override: number | null;
+    public_attendance_enabled: boolean;
+    attendance_public_token: string | null;
+    attendance_public_token_created_at: string | null;
+    attendance_public_token_rotated_at: string | null;
+    attendance_access_code_enabled: boolean;
+    attendance_access_code_updated_at: string | null;
+    attendance_access_code_configured?: boolean;
     cancelled_at: string | null;
     cancel_reason: string | null;
     created_at: string;
@@ -1460,6 +1525,11 @@ export interface GroupClassEnrollment {
     payment_method: GroupPaymentMethod;
     payment_status: GroupPaymentStatus;
     qr_proof_image_url: string | null;
+    source?: GroupEnrollmentSource;
+    is_admin_sponsored?: boolean;
+    sponsorship_reason?: string | null;
+    sponsored_by_group_class_session_id?: number | null;
+    sponsored_by_admin_user_id?: string | null;
     valid_from: string;
     valid_until: string;
     created_at: string;
@@ -1505,6 +1575,12 @@ export interface UpdateGroupEnrollmentInstallmentInput {
     amount_cents: number;
     payment_status: GroupPaymentStatus;
     payment_method: GroupPaymentMethod;
+}
+
+export interface UpdateSessionPublicAttendancePayload {
+    public_attendance_enabled?: boolean;
+    attendance_access_code_enabled: boolean;
+    attendance_access_code?: string | null;
 }
 
 export interface GroupInstallmentPlanSummary {
@@ -2189,6 +2265,29 @@ export async function cancelGroupClassSession(sessionId: number, reason?: string
         method: "POST",
         body: JSON.stringify({ reason }),
     });
+}
+
+export async function getGroupClassSessionPublicAttendance(sessionId: number): Promise<GroupClassSession> {
+    const response = await apiFetch<{ data: GroupClassSession }>(`/api/admin/group/classes/sessions/${sessionId}/public-attendance`);
+    return response.data;
+}
+
+export async function updateGroupClassSessionPublicAttendance(
+    sessionId: number,
+    payload: UpdateSessionPublicAttendancePayload,
+): Promise<GroupClassSession> {
+    const response = await apiFetch<{ data: GroupClassSession }>(`/api/admin/group/classes/sessions/${sessionId}/public-attendance`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+    return response.data;
+}
+
+export async function rotateGroupClassSessionPublicAttendance(sessionId: number): Promise<GroupClassSession> {
+    const response = await apiFetch<{ data: GroupClassSession }>(`/api/admin/group/classes/sessions/${sessionId}/public-attendance/rotate`, {
+        method: "POST",
+    });
+    return response.data;
 }
 
 export async function listGroupClassEnrollments(classId: number): Promise<GroupClassEnrollment[]> {
