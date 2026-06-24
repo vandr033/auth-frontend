@@ -346,6 +346,16 @@ export default function BookingsPage() {
         }
     };
 
+    const handleBookingRescheduled = (updatedBooking: AdminBooking) => {
+        setBookings((prev) => prev.map((booking) => (
+            booking.id === updatedBooking.id ? updatedBooking : booking
+        )));
+
+        if (selectedBooking?.id === updatedBooking.id) {
+            setSelectedBooking(updatedBooking);
+        }
+    };
+
     const handleSendTodayReminders = useCallback(async () => {
         if (isSendingReminders) return;
         if (!canSendReminders) {
@@ -776,6 +786,7 @@ export default function BookingsPage() {
                 noShowNotificationUpgradeMessage={t("entitlements.requiresProduct", {
                     productName: transactionalMessagingRecommendation.requestLabel,
                 })}
+                onRescheduled={handleBookingRescheduled}
                 onRefresh={fetchBookings}
             />
         </AdminPageShell>

@@ -28,7 +28,7 @@ import {
     Scissors,
     Phone,
     Mail,
-    Pencil,
+    CalendarClock,
     Loader2,
     MessageSquareWarning,
 } from "lucide-react";
@@ -38,7 +38,7 @@ import { useI18n } from "@/lib/i18n";
 import { getDateLocale } from "@/lib/date-locale";
 import { notify } from "@/lib/notify";
 import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
-import { BookingEditDialog } from "./BookingEditDialog";
+import { BookingRescheduleDialog } from "./BookingRescheduleDialog";
 import { getBookingDisplayStatus } from "../lib/bookingStatus";
 import { formatCurrencyFromCents } from "@/lib/currency";
 
@@ -55,6 +55,7 @@ interface BookingDetailSheetProps {
     ) => Promise<void>;
     canSendNoShowNotification?: boolean;
     noShowNotificationUpgradeMessage?: string;
+    onRescheduled?: (booking: AdminBooking) => void;
     onRefresh?: () => void;
 }
 
@@ -76,6 +77,7 @@ export function BookingDetailSheet({
     onSendNoShowNotification,
     canSendNoShowNotification = true,
     noShowNotificationUpgradeMessage,
+    onRescheduled,
     onRefresh,
 }: BookingDetailSheetProps) {
     const { t, locale } = useI18n();
@@ -85,7 +87,7 @@ export function BookingDetailSheet({
     const hasPhone = customerPhone.length > 0;
     const hasEmail = customerEmail.length > 0;
     const hasContactMethod = hasPhone || hasEmail;
-    const [editOpen, setEditOpen] = useState(false);
+    const [rescheduleOpen, setRescheduleOpen] = useState(false);
     const [noShowPanelOpen, setNoShowPanelOpen] = useState(false);
     const [noShowSending, setNoShowSending] = useState(false);
     const [notifyCustomerOnNoShow, setNotifyCustomerOnNoShow] = useState(true);
@@ -192,11 +194,11 @@ export function BookingDetailSheet({
                 {canEdit && (
                     <Button
                         variant="outline"
-                        onClick={() => setEditOpen(true)}
+                        onClick={() => setRescheduleOpen(true)}
                         className="w-full"
                     >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        {t("adminBookings.editBooking")}
+                        <CalendarClock className="mr-2 h-4 w-4" />
+                        {t("adminBookings.changeDateTime")}
                     </Button>
                 )}
 
@@ -525,12 +527,12 @@ export function BookingDetailSheet({
                     <ActionButtons />
                 </div>
 
-                <BookingEditDialog
+                <BookingRescheduleDialog
                     booking={booking}
-                    isOpen={editOpen}
-                    currency={currency}
-                    onClose={() => setEditOpen(false)}
-                    onSaved={() => {
+                    isOpen={rescheduleOpen}
+                    onClose={() => setRescheduleOpen(false)}
+                    onSaved={(updatedBooking) => {
+                        onRescheduled?.(updatedBooking);
                         onRefresh?.();
                     }}
                 />

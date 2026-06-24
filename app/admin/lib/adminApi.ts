@@ -797,6 +797,57 @@ export async function updateBooking(id: number, data: UpdateBookingData): Promis
     return response.data;
 }
 
+export interface BookingRescheduleSuggestion {
+    date: string;
+    time: string;
+    start_at: string;
+    end_at: string;
+}
+
+export interface BookingRescheduleOptions {
+    timezone: string;
+    duration_minutes: number;
+    current_start_at: string;
+    current_end_at: string;
+    suggestions: BookingRescheduleSuggestion[];
+}
+
+export interface RescheduleBookingResponse {
+    booking: AdminBooking;
+    audit_log_id: number;
+    notification_attempts: {
+        total: number;
+        queued: number;
+    };
+}
+
+export async function getBookingRescheduleOptions(
+    bookingId: number,
+    params?: { date?: string },
+): Promise<BookingRescheduleOptions> {
+    const query = new URLSearchParams();
+    if (params?.date) query.set("date", params.date);
+    const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
+    const response = await apiFetch<{ data: BookingRescheduleOptions }>(
+        `/api/admin/bookings/${bookingId}/reschedule-options${suffix}`,
+    );
+    return response.data;
+}
+
+export async function rescheduleBooking(
+    bookingId: number,
+    data: { start_at: string; confirm_short_notice?: boolean },
+): Promise<RescheduleBookingResponse> {
+    const response = await apiFetch<{ data: RescheduleBookingResponse }>(
+        `/api/admin/bookings/${bookingId}/reschedule`,
+        {
+            method: "POST",
+            body: JSON.stringify(data),
+        },
+    );
+    return response.data;
+}
+
 export interface TodayReminderPreviewItem {
     booking_id: number;
     customer_name: string;
