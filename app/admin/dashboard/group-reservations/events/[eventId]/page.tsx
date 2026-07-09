@@ -695,6 +695,53 @@ export default function GroupEventDetailPage() {
         URL.revokeObjectURL(url);
     };
 
+    const exportAttendeesCsv = () => {
+        const headers = ["name", "email", "phone", "event", "status", "ticket_or_code", "created_at"];
+        let rows: string[][] = [];
+
+        if (event?.is_free) {
+            rows = freeRegistrations.map((reg) => [
+                `${reg.firstName} ${reg.lastName}`.trim(),
+                reg.email || "",
+                reg.phonePrefix && reg.phoneNumber ? `+${reg.phonePrefix}${reg.phoneNumber}` : "",
+                event?.title || "",
+                "REGISTERED",
+                reg.reservationCode ?? "",
+                reg.createdAt,
+            ]);
+        } else {
+            rows = bookings.map((booking) => {
+                const bookingTickets = ticketsByBookingId.get(booking.id) ?? [];
+                const ticketCodes = bookingTickets.map(t => t.ticket_code).join("; ");
+                return [
+                    booking.user?.name || booking.user?.email || booking.user_id,
+                    booking.user?.email || "",
+                    booking.user?.phoneNumber || "",
+                    event?.title || "",
+                    booking.status,
+                    ticketCodes,
+                    booking.created_at,
+                ];
+            });
+        }
+
+        const csv = [headers, ...rows]
+            .map((row) => row.map((cell) => {
+                const text = String(cell).replace(/"/g, '""');
+                return /[",\n]/.test(text) ? `"${text}"` : text;
+            }).join(","))
+            .join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `asistentes-evento-${eventId}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
     const sendMassMessageToTargets = async (
         targets: Array<{ source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION"; id: number }>,
         deliveryMode: GroupEventMassMessageDeliveryMode,
@@ -1331,8 +1378,14 @@ export default function GroupEventDetailPage() {
             </Card>
 
             <Card className="border-slate-200">
-                <CardHeader>
+                <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="text-base">{t("adminGroup.bookings.attendeesTitle")}</CardTitle>
+                    {bookings.length > 0 && (
+                        <Button size="sm" variant="outline" onClick={exportAttendeesCsv}>
+                            <Download className="mr-1.5 h-3.5 w-3.5" />
+                            Exportar CSV
+                        </Button>
+                    )}
                 </CardHeader>
                 <CardContent>
                     {bookings.length === 0 ? (
@@ -1479,8 +1532,14 @@ export default function GroupEventDetailPage() {
                 <>
                     {/* Free event participants */}
                     <Card className="border-slate-200">
-                        <CardHeader>
+                        <CardHeader className="flex-row items-center justify-between">
                             <CardTitle className="text-base">{t("adminGroup.freeReg.participantsTitle")} ({freeRegistrations.length})</CardTitle>
+                            {freeRegistrations.length > 0 && (
+                                <Button size="sm" variant="outline" onClick={exportAttendeesCsv}>
+                                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                                    Exportar CSV
+                                </Button>
+                            )}
                         </CardHeader>
                         <CardContent>
                             {freeRegistrations.length === 0 ? (

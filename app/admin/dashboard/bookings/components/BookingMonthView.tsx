@@ -36,6 +36,28 @@ const STATUS_DOT: Record<AdminBooking["status"], string> = {
     NO_SHOW: "bg-slate-500",
 };
 
+const SERVICE_COLORS = [
+    "border-l-rose-500",
+    "border-l-blue-500",
+    "border-l-emerald-500",
+    "border-l-amber-500",
+    "border-l-purple-500",
+    "border-l-cyan-500",
+    "border-l-fuchsia-500",
+    "border-l-lime-500",
+];
+
+const SERVICE_DOT_COLORS = [
+    "bg-rose-500",
+    "bg-blue-500",
+    "bg-emerald-500",
+    "bg-amber-500",
+    "bg-purple-500",
+    "bg-cyan-500",
+    "bg-fuchsia-500",
+    "bg-lime-500",
+];
+
 function dateKey(date: Date): string {
     return format(date, "yyyy-MM-dd");
 }
@@ -178,12 +200,18 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
                     <div className="space-y-2">
                         {selectedDayBookings.map((booking) => {
                             const displayStatus = getBookingDisplayStatus(booking);
+                            const service = booking.services[0];
+                            const serviceColorClass = service ? SERVICE_COLORS[service.id % SERVICE_COLORS.length] : "border-l-slate-400";
+                            
                             return (
                                 <button
                                     key={booking.id}
                                     type="button"
                                     onClick={() => onBookingClick(booking)}
-                                    className="w-full rounded-lg border border-admin-border bg-white px-3 py-2 text-left transition hover:border-admin-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand"
+                                    className={cn(
+                                        "w-full rounded-lg border-y border-r border-l-4 border-admin-border bg-white px-3 py-2 text-left transition hover:border-admin-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand",
+                                        serviceColorClass
+                                    )}
                                 >
                                     <div className="flex items-center justify-between gap-2">
                                         <p className="truncate text-sm font-semibold text-slate-950">
@@ -198,7 +226,7 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
                                         />
                                     </div>
                                     <p className="truncate text-xs text-slate-500">
-                                        {format(parseISO(booking.start_at), "h:mm a", { locale: dateFnsLocale })} · {booking.staff.name}
+                                        {format(parseISO(booking.start_at), "h:mm a", { locale: dateFnsLocale })} · {booking.staff.name} {service ? `· ${service.name}` : ''}
                                     </p>
                                 </button>
                             );

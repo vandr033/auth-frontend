@@ -17,7 +17,13 @@ import {
     X,
     Clock3,
     Users,
+    Download,
+    FileSpreadsheet,
+    FileText,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -160,6 +166,65 @@ export default function BookingsPage() {
         setStaffFilter("ALL");
         setStatusFilter("ALL");
         setShowCancelled(false);
+    };
+
+    const exportToXls = () => {
+        if (!visibleBookings || visibleBookings.length === 0) return;
+        
+        const data = visibleBookings.map((b) => ({
+            "ID": b.id,
+            "Cliente": b.customer.full_name,
+            "Email": b.customer.email,
+            "Teléfono": b.customer.phone,
+            "Estado": b.status,
+            "Fecha": format(new Date(b.start_at), "yyyy-MM-dd HH:mm"),
+            "Staff": b.staff.name,
+            "Servicios": b.services.map((s) => s.name).join(", "),
+            "Creado el": format(new Date(b.created_at), "yyyy-MM-dd HH:mm"),
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Reservas");
+        
+        XLSX.writeFile(workbook, `reservas_${format(new Date(), "yyyyMMdd_HHmm")}.xlsx`);
+    };
+
+    const exportToPdf = () => {
+        if (!visibleBookings || visibleBookings.length === 0) return;
+
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.setTextColor(37, 99, 235); // Priconpri brand color (blue)
+        doc.text("Priconpri - Reporte de Reservas", 14, 22);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Generado: ${format(new Date(), "yyyy-MM-dd HH:mm")}`, 14, 30);
+        
+        const tableColumn = ["Cliente", "Servicios", "Staff", "Fecha", "Estado"];
+        const tableRows: any[] = [];
+        
+        visibleBookings.forEach((b) => {
+            tableRows.push([
+                b.customer.full_name,
+                b.services.map((s) => s.name).join(", "),
+                b.staff.name,
+                format(new Date(b.start_at), "yyyy-MM-dd HH:mm"),
+                b.status
+            ]);
+        });
+        
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 40,
+            theme: "grid",
+            headStyles: { fillColor: [37, 99, 235] },
+        });
+        
+        doc.save(`reservas_${format(new Date(), "yyyyMMdd_HHmm")}.pdf`);
     };
 
     // Fetch staff, services, and hours on mount
@@ -726,6 +791,18 @@ export default function BookingsPage() {
                             </Button>
                         )}
                     </>
+                }
+                actions={
+                    <div className="flex w-full items-center gap-2 sm:w-auto">
+                        <Button variant="outline" size="sm" onClick={exportToXls} disabled={visibleBookings.length === 0}>
+                            <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
+                            XLS
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={exportToPdf} disabled={visibleBookings.length === 0}>
+                            <FileText className="mr-1.5 h-3.5 w-3.5" />
+                            PDF
+                        </Button>
+                    </div>
                 }
             />
 

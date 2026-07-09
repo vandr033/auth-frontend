@@ -32,6 +32,28 @@ const STAFF_COLORS = [
     { bg: "bg-admin-brand-soft", text: "text-admin-brand-soft-text", border: "border-admin-border-strong", dot: "bg-admin-brand" },
 ];
 
+const SERVICE_COLORS = [
+    "border-l-rose-500",
+    "border-l-blue-500",
+    "border-l-emerald-500",
+    "border-l-amber-500",
+    "border-l-purple-500",
+    "border-l-cyan-500",
+    "border-l-fuchsia-500",
+    "border-l-lime-500",
+];
+
+const SERVICE_DOT_COLORS = [
+    "bg-rose-500",
+    "bg-blue-500",
+    "bg-emerald-500",
+    "bg-amber-500",
+    "bg-purple-500",
+    "bg-cyan-500",
+    "bg-fuchsia-500",
+    "bg-lime-500",
+];
+
 const STATUS_BADGES: Record<string, string> = {
     PENDING: "bg-amber-500",
     CONFIRMED: "bg-emerald-500",
@@ -154,6 +176,23 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
         }));
     }, [bookings, staffColorMap]);
 
+    // Build service legend
+    const serviceLegend = useMemo(() => {
+        const seen = new Map<number, string>();
+        bookings.forEach(b => {
+            const svc = b.services[0];
+            if (svc && !seen.has(svc.id)) {
+                seen.set(svc.id, svc.name);
+            }
+        });
+        return Array.from(seen.entries()).map(([id, name]) => ({
+            id,
+            name,
+            colorClass: SERVICE_COLORS[id % SERVICE_COLORS.length],
+            dotClass: SERVICE_DOT_COLORS[id % SERVICE_DOT_COLORS.length],
+        }));
+    }, [bookings]);
+
     // Calculate earliest opening hour across all days with business hours
     const earliestOpenHour = useMemo(() => {
         if (businessHours.length === 0) return 8; // Default to 8 AM
@@ -219,20 +258,35 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
 
     return (
         <div className="admin-card flex h-full flex-col overflow-hidden">
-            {/* Staff Legend */}
-            {staffLegend.length > 1 && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-admin-border bg-admin-surface-subtle px-4 py-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                        {t("adminBookings.staff")}
-                    </span>
-                    {staffLegend.map((staff) => (
-                        <div key={staff.id} className="flex items-center gap-1.5">
-                            <div className={cn("w-2.5 h-2.5 rounded-full", staff.color.dot)} />
-                            <span className="text-xs font-medium text-slate-600">{staff.name}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
+            {/* Staff & Service Legend */}
+            <div className="flex flex-col border-b border-admin-border bg-admin-surface-subtle">
+                {staffLegend.length > 1 && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                            {t("adminBookings.staff")}
+                        </span>
+                        {staffLegend.map((staff) => (
+                            <div key={staff.id} className="flex items-center gap-1.5">
+                                <div className={cn("w-2.5 h-2.5 rounded-full", staff.color.dot)} />
+                                <span className="text-xs font-medium text-slate-600">{staff.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {serviceLegend.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-admin-border/50 px-4 py-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                            Services
+                        </span>
+                        {serviceLegend.map((service) => (
+                            <div key={service.id} className="flex items-center gap-1.5">
+                                <div className={cn("w-2.5 h-2.5 rounded-sm", service.dotClass)} />
+                                <span className="text-xs font-medium text-slate-600">{service.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* Calendar Surface - horizontal swipe on mobile instead of squeezed columns */}
             <div className="admin-scrollbar flex-1 min-h-0 overflow-x-auto">
@@ -381,9 +435,10 @@ export function BookingCalendarView({ bookings, currentDate, dayCount, onBooking
                                                     key={booking.id}
                                                     onClick={() => onBookingClick(booking)}
                                                     className={cn(
-                                                        "absolute overflow-hidden rounded-md border text-left text-xs shadow-sm ring-1 ring-white/70 transition-transform hover:z-10 hover:scale-[1.015] focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand",
+                                                        "absolute overflow-hidden rounded-md border-y border-r border-l-4 text-left text-xs shadow-sm ring-1 ring-white/70 transition-transform hover:z-10 hover:scale-[1.015] focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand",
                                                         compact ? "px-1.5 py-0.5" : "p-1.5",
-                                                        getStaffColor(booking.staff.id)
+                                                        getStaffColor(booking.staff.id),
+                                                        booking.services[0] ? SERVICE_COLORS[booking.services[0].id % SERVICE_COLORS.length] : "border-l-slate-400"
                                                     )}
                                                     style={getBookingStyle(booking, layout)}
                                                     title={`${booking.customer.full_name} — ${booking.services.map(s => s.name).join(", ")}`}
