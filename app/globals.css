@@ -195,6 +195,11 @@ html {
   color: var(--business-heading-dark);
 }
 
+:where(a, button, input, select, textarea, [role="button"]):focus-visible {
+  outline: 3px solid var(--business-yellow);
+  outline-offset: 3px;
+}
+
 /* Safe area insets for notch / home indicator */
 .app-shell {
   padding-top: env(safe-area-inset-top);

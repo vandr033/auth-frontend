@@ -100,7 +100,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
             />
           </Link>
 
-          <nav aria-label="Navegación principal de negocios" className="hidden items-center gap-6 lg:flex">
+          <nav aria-label={t("businessLanding.nav.primaryNavigation")} className="hidden items-center gap-6 lg:flex">
             {links.map((link) => (
               <a
                 key={link.id}
@@ -111,7 +111,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
                 }}
                 className="text-[12px] font-medium text-slate-900 transition-colors hover:text-black"
               >
-                {link.label}
+                {t(link.labelKey)}
               </a>
             ))}
           </nav>
@@ -168,7 +168,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
               href={loginHref}
               className="px-2 text-[10px] font-semibold tracking-[0.08em] text-black transition-colors hover:text-slate-700"
             >
-              INGRESAR
+              {t("businessLanding.nav.login")}
             </Link>
           )}
 
@@ -176,7 +176,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
             href="/negocios/crear-cuenta"
             className="inline-flex h-9 items-center justify-center rounded-sm bg-biz-cta-primary px-4 text-[10px] font-semibold tracking-[0.06em] text-white uppercase transition-colors hover:bg-biz-cta-hover"
           >
-            CREÁ TU CUENTA
+            {t("businessLanding.nav.createAccount")}
           </Link>
         </div>
 
@@ -188,7 +188,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
               <Button
                 variant="outline"
                 size="icon"
-                aria-label="Abrir menú de navegación"
+                aria-label={t("businessLanding.nav.openMenu")}
                 className="h-9 w-9 border-slate-300 text-slate-900"
               >
                 <Menu className="h-5 w-5" />
@@ -196,11 +196,11 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
             </SheetTrigger>
             <SheetContent side="right" className="w-[88vw] max-w-sm border-l border-slate-200 bg-white p-0">
               <SheetHeader className="border-b border-slate-200 px-5 py-4 text-left">
-                <SheetTitle className="text-sm font-semibold text-slate-900">Menú</SheetTitle>
+                <SheetTitle className="text-sm font-semibold text-slate-900">{t("businessLanding.nav.menu")}</SheetTitle>
               </SheetHeader>
 
               <div className="flex h-full flex-col gap-2 px-5 py-5">
-                <nav aria-label="Navegación de secciones de negocios" className="space-y-1">
+                <nav aria-label={t("businessLanding.nav.mobileNavigation")} className="space-y-1">
                   {links.map((link) => (
                     <a
                       key={`mobile-${link.id}`}
@@ -214,7 +214,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
                       }}
                       className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                     >
-                      {link.label}
+                      {t(link.labelKey)}
                     </a>
                   ))}
                 </nav>
@@ -260,7 +260,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
                     onClick={() => setMobileOpen(false)}
                     className="block rounded-md px-2 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
                   >
-                    INGRESAR
+                    {t("businessLanding.nav.login")}
                   </Link>
                 )}
 
@@ -271,7 +271,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
                     onClick={() => setMobileOpen(false)}
                     className="inline-flex h-10 w-full items-center justify-center rounded-sm bg-biz-cta-primary text-xs font-semibold tracking-[0.06em] text-white uppercase transition-colors hover:bg-biz-cta-hover"
                   >
-                    CREÁ TU CUENTA
+                    {t("businessLanding.nav.createAccount")}
                   </Link>
                 </div>
               </div>

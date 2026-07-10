@@ -10,12 +10,14 @@ import {
   negociosPlatformLinks,
 } from "@/components/negocios/negocios-links";
 import { buildSignInRedirectFromCurrentLocation } from "@/app/lib/shop-context";
+import { useT } from "@/lib/i18n";
 
 const instagramUrl = process.env.NEXT_PUBLIC_INSTAGRAM_URL || "#";
 const tiktokUrl = process.env.NEXT_PUBLIC_TIKTOK_URL || "#";
 const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_URL || "#";
 
 export function NegociosFooter() {
+  const t = useT();
   const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
 
   return (
@@ -31,7 +33,7 @@ export function NegociosFooter() {
               className="h-20 w-auto"
             />
             <p className="mt-4 max-w-[420px] text-sm leading-relaxed text-gray-600">
-              Productos modulares para reservas, eventos, clases y marca en negocios que viven de una experiencia premium.
+              {t("businessLanding.footer.description")}
             </p>
 
             <div className="mt-6 flex items-center gap-3">
@@ -39,7 +41,7 @@ export function NegociosFooter() {
                 href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Instagram"
+                aria-label={t("businessLanding.footer.instagram")}
                 className="rounded-full bg-black p-2 text-white transition hover:opacity-70"
               >
                 <FaInstagram className="h-4 w-4" />
@@ -48,7 +50,7 @@ export function NegociosFooter() {
                 href={tiktokUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="TikTok"
+                aria-label={t("businessLanding.footer.tiktok")}
                 className="rounded-full bg-black p-2 text-white transition hover:opacity-70"
               >
                 <FaTiktok className="h-4 w-4" />
@@ -57,7 +59,7 @@ export function NegociosFooter() {
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="WhatsApp"
+                aria-label={t("businessLanding.footer.whatsapp")}
                 className="rounded-full bg-black p-2 text-white transition hover:opacity-70"
               >
                 <FaWhatsapp className="h-4 w-4" />
@@ -66,37 +68,37 @@ export function NegociosFooter() {
           </div>
 
           <div>
-            <h3 className="mb-4 text-xs font-bold tracking-widest text-black uppercase">PLATAFORMA</h3>
-            <nav aria-label="Navegación de plataforma">
+            <h3 className="mb-4 text-xs font-bold tracking-widest text-black uppercase">{t("businessLanding.footer.platform")}</h3>
+            <nav aria-label={t("businessLanding.footer.platformNavigation")}>
               {negociosPlatformLinks.map((link) => (
                 <Link
                   key={`platform-${link.href}`}
                   href={link.href}
                   className="mb-2 block text-sm text-gray-600 transition hover:text-black"
                 >
-                  {link.label}
+                  {t(link.labelKey)}
                 </Link>
               ))}
             </nav>
           </div>
 
           <div>
-            <h3 className="mb-4 text-xs font-bold tracking-widest text-black uppercase">COMPAÑÍA</h3>
-            <nav aria-label="Navegación de compañía">
+            <h3 className="mb-4 text-xs font-bold tracking-widest text-black uppercase">{t("businessLanding.footer.company")}</h3>
+            <nav aria-label={t("businessLanding.footer.companyNavigation")}>
               {negociosCompanyLinks.map((link) => (
                 <Link
                   key={`company-${link.href}`}
                   href={link.href}
                   className="mb-2 block text-sm text-gray-600 transition hover:text-black"
                 >
-                  {link.label}
+                  {t(link.labelKey)}
                 </Link>
               ))}
               <Link href="/negocios/crear-cuenta" className="mb-2 block text-sm text-gray-600 transition hover:text-black">
-                Crear cuenta
+                {t("businessLanding.footer.createAccount")}
               </Link>
               <Link href={loginHref} className="mb-2 block text-sm text-gray-600 transition hover:text-black">
-                Ingresar
+                {t("businessLanding.footer.login")}
               </Link>
             </nav>
           </div>
@@ -104,8 +106,8 @@ export function NegociosFooter() {
 
         <div className="mt-12 border-t border-gray-200 pt-5">
           <div className="flex flex-col gap-3 text-[10px] tracking-[0.14em] text-gray-400 uppercase sm:flex-row sm:items-center sm:justify-between">
-            <p>© 2026 PRICONPRI. TODOS LOS DERECHOS RESERVADOS.</p>
-            <p>HECHO PARA NEGOCIOS QUE QUIEREN VENDER MEJOR.</p>
+            <p>{t("businessLanding.footer.copyright")}</p>
+            <p>{t("businessLanding.footer.tagline")}</p>
           </div>
         </div>
       </div>

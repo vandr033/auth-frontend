@@ -21,6 +21,7 @@ export type PricingBreakdown = {
   selectedItemCount: number;
   bundleDiscountPercent: number;
   bundleDiscountAmount: number;
+  finalMonthlyBeforeAnnual: number;
   annualDiscountPercent: number;
   annualDiscountAmount: number;
   finalMonthly: number;
@@ -102,6 +103,7 @@ export function calculateBusinessPricing(
 
   const bundleDiscountAmount = roundMoney(subtotalMonthly * (bundleDiscountPercent / 100));
   const afterBundle = subtotalMonthly - bundleDiscountAmount;
+  const finalMonthlyBeforeAnnual = roundMoney(afterBundle);
   const annualDiscountPercent =
     selection.billingCycle === "annual"
       ? clampPercent(pricingConfig.discounts.annualDiscountPercent)
@@ -122,6 +124,7 @@ export function calculateBusinessPricing(
     selectedItemCount,
     bundleDiscountPercent,
     bundleDiscountAmount,
+    finalMonthlyBeforeAnnual,
     annualDiscountPercent,
     annualDiscountAmount,
     finalMonthly,

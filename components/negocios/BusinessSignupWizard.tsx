@@ -26,6 +26,7 @@ import {
 } from "@/lib/negocios/pricing";
 import { usePublicBusinessPricing } from "@/lib/negocios/usePublicBusinessPricing";
 import {
+  DEFAULT_BUSINESS_PRICING_CONFIG,
   getDefaultTierForCoreProduct,
   type CoreTierSelection,
   type PublicAddOnKey,
@@ -83,7 +84,12 @@ function readErrorMessage(payload: SignupErrorPayload): string {
 }
 
 export function BusinessSignupWizard() {
-  const { pricingConfig, isLoading: pricingLoading } = usePublicBusinessPricing();
+  const {
+    pricingConfig,
+    isLoading: pricingLoading,
+    error: pricingError,
+    retry: retryPricing,
+  } = usePublicBusinessPricing();
   const [step, setStep] = useState(1);
   const [companyTypes, setCompanyTypes] = useState<CompanyTypeOption[]>(FALLBACK_COMPANY_TYPES);
   const [loadingTypes, setLoadingTypes] = useState(true);
@@ -114,13 +120,15 @@ export function BusinessSignupWizard() {
     billingCycle: "monthly",
   });
 
+  const pricingReady = Boolean(pricingConfig);
+  const effectivePricingConfig = pricingConfig ?? DEFAULT_BUSINESS_PRICING_CONFIG;
   const sanitizedSelection = useMemo(
-    () => sanitizePricingSelection(selection, pricingConfig),
-    [pricingConfig, selection],
+    () => sanitizePricingSelection(selection, effectivePricingConfig),
+    [effectivePricingConfig, selection],
   );
   const pricing = useMemo(
-    () => calculateBusinessPricing(sanitizedSelection, pricingConfig),
-    [pricingConfig, sanitizedSelection],
+    () => calculateBusinessPricing(sanitizedSelection, effectivePricingConfig),
+    [effectivePricingConfig, sanitizedSelection],
   );
 
   useEffect(() => {
@@ -159,6 +167,8 @@ export function BusinessSignupWizard() {
   }, []);
 
   useEffect(() => {
+    if (!pricingConfig) return;
+
     setSelection((current) => {
       const nextSelection = sanitizePricingSelection(current, pricingConfig);
       const hasChanged =
@@ -191,7 +201,7 @@ export function BusinessSignupWizard() {
     form.password.length >= 8 &&
     buildSlug(form.slug || form.businessName).length >= 2;
 
-  const canSubmit = canGoToProducts && pricing.validationErrors.length === 0;
+  const canSubmit = pricingReady && canGoToProducts && pricing.validationErrors.length === 0;
   const isProductsStep = step === 2;
 
   const handleSubmit = async () => {
@@ -290,6 +300,8 @@ export function BusinessSignupWizard() {
                 ctaLabel="Seguir a revisión"
                 pricingConfig={pricingConfig}
                 isPricingLoading={pricingLoading}
+                pricingError={pricingError}
+                onRetryPricing={retryPricing}
               />
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
@@ -303,7 +315,7 @@ export function BusinessSignupWizard() {
                 <Button
                   type="button"
                   onClick={() => setStep(3)}
-                  disabled={pricing.validationErrors.length > 0}
+                  disabled={!pricingReady || pricing.validationErrors.length > 0}
                   className="h-11 rounded-none bg-black text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink"
                 >
                   Seguir a revisión
@@ -441,6 +453,7 @@ export function BusinessSignupWizard() {
                 ) : null}
 
                 {step === 3 ? (
+                  pricingReady ? (
                   <div id="review" className="space-y-6">
                     <div className="grid gap-4 lg:grid-cols-2">
                       <div className="border border-black p-5">
@@ -535,6 +548,27 @@ export function BusinessSignupWizard() {
                       </Button>
                     </div>
                   </div>
+                  ) : (
+                    <div id="review" className="border border-black/10 bg-slate-50 p-6" role={pricingError ? "alert" : "status"}>
+                      <p className="font-bebas text-[15px] uppercase tracking-[0.14em] text-biz-barbie-pink">Precios vigentes</p>
+                      <h2 className="mt-2 font-heading text-2xl font-semibold text-black">
+                        {pricingLoading ? "Estamos cargando los precios actuales." : "No pudimos cargar los precios."}
+                      </h2>
+                      <p className="mt-3 max-w-[52ch] text-sm leading-6 text-slate-700">
+                        {pricingLoading ? "La revisión se habilita apenas tengamos la configuración pública." : pricingError ?? "Volvé a intentarlo para continuar."}
+                      </p>
+                      <div className="mt-5 flex flex-wrap gap-3">
+                        <Button type="button" variant="outline" onClick={() => setStep(2)} className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white">
+                          Volver a productos
+                        </Button>
+                        {!pricingLoading ? (
+                          <Button type="button" onClick={retryPricing} className="h-11 rounded-none bg-black text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink">
+                            Volver a intentar
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  )
                 ) : null}
               </CardContent>
             </Card>
@@ -560,16 +594,20 @@ export function BusinessSignupWizard() {
             <p className="font-bebas text-[15px] uppercase tracking-[0.14em] text-biz-yellow">
               Tu combinación actual
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {pricing.selectedProducts.map((product) => (
-                <span
-                  key={product}
-                  className="inline-flex bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black"
-                >
-                  {product}
-                </span>
-              ))}
-            </div>
+            {pricingReady ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {pricing.selectedProducts.map((product) => (
+                  <span
+                    key={product}
+                    className="inline-flex bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-black"
+                  >
+                    {product}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm leading-6 text-white/75">La combinación aparecerá cuando estén confirmados los precios vigentes.</p>
+            )}
             <p className="mt-5 text-sm leading-7 text-white/78">
               Si querés estimar con anual, podés cambiar el toggle en el paso 2. El alta sigue arrancando sin tarjeta y respeta la configuración pública actual.
             </p>

@@ -11,11 +11,32 @@ import {
 import { usePublicBusinessPricing } from "@/lib/negocios/usePublicBusinessPricing";
 
 export function ProductMarketingPage({ product }: { product: NegociosProductCard }) {
-  const { pricingConfig } = usePublicBusinessPricing();
-  const { allProducts } = useMemo(
-    () => applyPricingConfigToCatalog(pricingConfig),
+  const { pricingConfig, isLoading, error, retry } = usePublicBusinessPricing();
+  const catalog = useMemo(
+    () => (pricingConfig ? applyPricingConfigToCatalog(pricingConfig) : null),
     [pricingConfig],
   );
+  if (!pricingConfig || !catalog) {
+    return (
+      <main className="bg-biz-surface px-6 py-16 text-biz-heading-dark lg:px-10 lg:py-24">
+        <div className="mx-auto max-w-2xl border border-black bg-white p-6 sm:p-8" role={error ? "alert" : "status"}>
+          <p className="font-bebas text-[15px] uppercase tracking-[0.16em] text-biz-barbie-pink">Precios vigentes</p>
+          <h1 className="mt-3 font-heading text-3xl font-semibold tracking-[-0.03em]">
+            {isLoading ? "Cargando la información actual." : "No pudimos cargar la información."}
+          </h1>
+          <p className="mt-4 text-base leading-7 text-slate-700">
+            {isLoading ? "Estamos consultando la disponibilidad y el precio vigente." : error ?? "Volvé a intentarlo para consultar este producto."}
+          </p>
+          {!isLoading ? (
+            <button type="button" onClick={retry} className="mt-6 inline-flex min-h-11 items-center justify-center border border-black bg-black px-5 text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink">
+              Volver a intentar
+            </button>
+          ) : null}
+        </div>
+      </main>
+    );
+  }
+  const { allProducts } = catalog;
   const resolvedProduct =
     allProducts.find((item) => item.key === product.key) ?? product;
   const relatedProducts = allProducts.filter(

@@ -108,10 +108,9 @@ export function I18nProvider({
     ? (defaultLocale as Locale)
     : DEFAULT_LOCALE;
 
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    // Priority: cookie override > prop default > global default
-    return getLocaleCookie() ?? validDefault;
-  });
+  // Start from the server-safe default. The cookie is applied after hydration so
+  // a saved client preference cannot make the first client render differ from SSR.
+  const [locale, setLocaleState] = useState<Locale>(validDefault);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
@@ -120,7 +119,13 @@ export function I18nProvider({
     document.documentElement.lang = newLocale;
   }, []);
 
-  // Set html lang on mount
+  // Apply a saved language preference after hydration, then keep <html lang>
+  // synchronized with the active locale.
+  useEffect(() => {
+    const savedLocale = getLocaleCookie();
+    if (savedLocale) setLocaleState(savedLocale);
+  }, []);
+
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);

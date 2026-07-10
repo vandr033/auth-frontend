@@ -1,28 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
-  DEFAULT_BUSINESS_PRICING_CONFIG,
   fetchPublicBusinessPricingConfig,
   type BusinessPricingConfig,
 } from "@/lib/negocios/business-pricing";
 
 type UsePublicBusinessPricingResult = {
-  pricingConfig: BusinessPricingConfig;
+  pricingConfig: BusinessPricingConfig | null;
   isLoading: boolean;
   hasRemoteConfig: boolean;
+  error: string | null;
+  retry: () => void;
 };
 
 export function usePublicBusinessPricing(): UsePublicBusinessPricingResult {
-  const [pricingConfig, setPricingConfig] = useState<BusinessPricingConfig>(
-    DEFAULT_BUSINESS_PRICING_CONFIG,
-  );
+  const [pricingConfig, setPricingConfig] = useState<BusinessPricingConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasRemoteConfig, setHasRemoteConfig] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [requestKey, setRequestKey] = useState(0);
+
+  const retry = useCallback(() => {
+    setRequestKey((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
+    setIsLoading(true);
+    setError(null);
 
     void (async () => {
       try {
@@ -30,8 +37,14 @@ export function usePublicBusinessPricing(): UsePublicBusinessPricingResult {
         setPricingConfig(nextConfig);
         setHasRemoteConfig(true);
       } catch (error) {
-        console.error("No pudimos cargar el pricing público. Seguimos con defaults.", error);
+        if (controller.signal.aborted) return;
+
+        setPricingConfig(null);
+        setHasRemoteConfig(false);
+        setError("No pudimos cargar los precios vigentes.");
+        console.error("No pudimos cargar el pricing público.", error);
       } finally {
+        if (controller.signal.aborted) return;
         setIsLoading(false);
       }
     })();
@@ -39,11 +52,13 @@ export function usePublicBusinessPricing(): UsePublicBusinessPricingResult {
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [requestKey]);
 
   return {
     pricingConfig,
     isLoading,
     hasRemoteConfig,
+    error,
+    retry,
   };
 }
