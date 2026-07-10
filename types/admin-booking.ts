@@ -6,6 +6,7 @@ export interface AdminBooking {
     status: BookingStatus;
     start_at: string; // ISO String
     end_at: string;
+    created_at: string;
     customer: {
         id?: number;
         full_name: string;
