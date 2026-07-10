@@ -17,7 +17,6 @@ import {
     X,
     Clock3,
     Users,
-    Download,
     FileSpreadsheet,
     FileText,
 } from "lucide-react";
@@ -204,7 +203,7 @@ export default function BookingsPage() {
         doc.text(`Generado: ${format(new Date(), "yyyy-MM-dd HH:mm")}`, 14, 30);
         
         const tableColumn = ["Cliente", "Servicios", "Staff", "Fecha", "Estado"];
-        const tableRows: any[] = [];
+        const tableRows: string[][] = [];
         
         visibleBookings.forEach((b) => {
             tableRows.push([
