@@ -2,12 +2,15 @@ import {
   buildBusinessPricingProductMap,
   DEFAULT_BUSINESS_PRICING_CONFIG,
   getTierByKey,
+  isSelectableCoreProductKey,
+  isTierValidForCoreProduct,
   sanitizeCoreSelections,
   type BusinessPricingConfig,
   type CoreTierSelection,
   type PricingBillingCycle,
   type PublicAddOnKey,
   type PublicCoreProductKey,
+  type SelectableCoreProductKey,
 } from "@/lib/negocios/business-pricing";
 
 export type PricingSelection = {
@@ -32,6 +35,76 @@ export type PricingBreakdown = {
   selectedProducts: string[];
   validationErrors: string[];
 };
+
+const PUBLIC_ADD_ON_KEYS: PublicAddOnKey[] = [
+  "PERSONALIZACION_PRO",
+  "METRICAS",
+  "MENSAJERIA_PRO",
+  "CRM_PRO",
+];
+
+export function serializePricingSelection(selection: PricingSelection) {
+  return encodeURIComponent(
+    JSON.stringify({
+      coreSelections: selection.coreSelections,
+      addOns: Array.from(new Set(selection.addOns)),
+      billingCycle: selection.billingCycle,
+    }),
+  );
+}
+
+export function parsePricingSelection(
+  value: string | string[] | undefined,
+): PricingSelection | null {
+  const serialized = Array.isArray(value) ? value[0] : value;
+  if (!serialized) return null;
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(serialized)) as {
+      coreSelections?: unknown;
+      addOns?: unknown;
+      billingCycle?: unknown;
+    };
+
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const coreSelections = Array.isArray(parsed.coreSelections)
+      ? parsed.coreSelections.filter(
+          (selection): selection is CoreTierSelection =>
+            Boolean(selection) &&
+            typeof selection === "object" &&
+            isSelectableCoreProductKey(
+              (selection as { productKey?: unknown }).productKey as string,
+            ) &&
+            typeof (selection as { tierKey?: unknown }).tierKey === "string" &&
+            isTierValidForCoreProduct(
+              (selection as { productKey: SelectableCoreProductKey }).productKey,
+              (selection as { tierKey: CoreTierSelection["tierKey"] }).tierKey,
+            ),
+        )
+      : [];
+    const addOns = Array.isArray(parsed.addOns)
+      ? Array.from(
+          new Set(
+            parsed.addOns.filter(
+              (key): key is PublicAddOnKey =>
+                typeof key === "string" && PUBLIC_ADD_ON_KEYS.includes(key as PublicAddOnKey),
+            ),
+          ),
+        )
+      : [];
+
+    if (coreSelections.length === 0) return null;
+
+    return {
+      coreSelections,
+      addOns,
+      billingCycle: parsed.billingCycle === "annual" ? "annual" : "monthly",
+    };
+  } catch {
+    return null;
+  }
+}
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;

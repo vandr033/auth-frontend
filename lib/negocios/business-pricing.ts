@@ -1,6 +1,6 @@
 import { resolveApiUrl } from "@/lib/api-url";
 
-export type PublicCoreProductKey = "RESERVAS" | "EVENTOS" | "CLASES" | "TIENDA";
+export type PublicCoreProductKey = "RESERVAS" | "EVENTOS" | "CLASES" | "TIENDA" | "RESTAURANTE";
 export type SelectableCoreProductKey = PublicCoreProductKey;
 export type BusinessPricingCoreTierKey =
   | "RESERVAS_BASE"
@@ -10,7 +10,8 @@ export type BusinessPricingCoreTierKey =
   | "CLASES_BASE"
   | "CLASES_PRO"
   | "STORES_BASE"
-  | "STORES_PRO";
+  | "STORES_PRO"
+  | "RESTAURANTE_PRO";
 export type PublicAddOnKey =
   | "PERSONALIZACION_PRO"
   | "METRICAS"
@@ -258,6 +259,32 @@ export const DEFAULT_BUSINESS_PRICING_CONFIG: BusinessPricingConfig = {
       ],
     },
     {
+      key: "RESTAURANTE",
+      type: "CORE",
+      displayName: "Restaurante",
+      description: "Reservas de mesa, mesas, horarios de atención y menú digital para tu restaurante.",
+      monthlyPriceBs: 500,
+      isActive: true,
+      isComingSoon: false,
+      sortOrder: 5,
+      featureList: [],
+      tiers: [
+        {
+          tierKey: "RESTAURANTE_PRO",
+          label: "Pro",
+          monthlyPriceBs: 500,
+          featureList: [
+            "Reservas de mesa online",
+            "Mesas, áreas y turnos de servicio",
+            "Operación diaria de restaurante",
+            "Menú digital público",
+          ],
+          proUnlocks: [],
+          isDefault: true,
+        },
+      ],
+    },
+    {
       key: "PERSONALIZACION_PRO",
       type: "ADDON",
       displayName: "Personalización Pro",
@@ -340,12 +367,12 @@ export const DEFAULT_BUSINESS_PRICING_CONFIG: BusinessPricingConfig = {
       { minSelectedItems: 4, discountPercent: 20, label: "4+ productos", sortOrder: 4 },
     ],
     annualDiscountPercent: 15,
-    trialLengthDays: 30,
+    trialLengthDays: 7,
     firstMonthFree: true,
   },
 };
 
-const KNOWN_CORE_PRODUCTS: SelectableCoreProductKey[] = ["RESERVAS", "EVENTOS", "CLASES", "TIENDA"];
+const KNOWN_CORE_PRODUCTS: SelectableCoreProductKey[] = ["RESERVAS", "EVENTOS", "CLASES", "TIENDA", "RESTAURANTE"];
 const KNOWN_TIER_KEYS: BusinessPricingCoreTierKey[] = [
   "RESERVAS_BASE",
   "RESERVAS_PRO",
@@ -355,6 +382,7 @@ const KNOWN_TIER_KEYS: BusinessPricingCoreTierKey[] = [
   "CLASES_PRO",
   "STORES_BASE",
   "STORES_PRO",
+  "RESTAURANTE_PRO",
 ];
 
 function isKnownProductKey(value: unknown): value is BusinessPricingProductKey {
@@ -383,6 +411,7 @@ export function getDefaultTierForCoreProduct(productKey: SelectableCoreProductKe
   if (productKey === "RESERVAS") return "RESERVAS_BASE";
   if (productKey === "EVENTOS") return "EVENTOS_BASE";
   if (productKey === "CLASES") return "CLASES_BASE";
+  if (productKey === "RESTAURANTE") return "RESTAURANTE_PRO";
   return "STORES_BASE";
 }
 
@@ -398,6 +427,9 @@ export function isTierValidForCoreProduct(
   }
   if (productKey === "CLASES") {
     return tierKey === "CLASES_BASE" || tierKey === "CLASES_PRO";
+  }
+  if (productKey === "RESTAURANTE") {
+    return tierKey === "RESTAURANTE_PRO";
   }
   return tierKey === "STORES_BASE" || tierKey === "STORES_PRO";
 }

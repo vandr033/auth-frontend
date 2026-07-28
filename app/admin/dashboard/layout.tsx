@@ -25,6 +25,7 @@ import {
     GraduationCap,
     Sparkles,
     Store,
+    Utensils,
     Lock,
 } from "lucide-react";
 
@@ -59,6 +60,7 @@ const routeTitleOverrides: Array<{
     { prefix: "/admin/dashboard/business-settings", label: "adminNav.basicSettings", exact: true },
     { prefix: "/admin/dashboard/settings", label: "adminNav.bookingSettings", exact: true },
     { prefix: "/admin/dashboard/store", label: "adminNav.store" },
+    { prefix: "/admin/dashboard/restaurant", label: "adminNav.restaurant" },
     { prefix: "/admin/dashboard/customers/import-export", label: "adminNav.crmPro" },
     { prefix: "/admin/dashboard/customers/communications", label: "adminNav.messagingPro" },
     { prefix: "/admin/dashboard/reviews", label: "adminNav.metricsPro" },
@@ -87,6 +89,7 @@ const NAV_ICON_MAP: Record<AdminNavigationIconKey, ReactNode> = {
     messaging: <BellRing className="h-5 w-5 shrink-0" />,
     metrics: <BarChart3 className="h-5 w-5 shrink-0" />,
     storefront: <Store className="h-5 w-5 shrink-0" />,
+    restaurant: <Utensils className="h-5 w-5 shrink-0" />,
     customization: <Sparkles className="h-5 w-5 shrink-0" />,
     hours: <Clock className="h-5 w-5 shrink-0" />,
     staff: <Users className="h-5 w-5 shrink-0" />,

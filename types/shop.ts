@@ -60,6 +60,7 @@ export interface ShopCompany {
     our_story_text?: string;      // Full story for About page
     hero_overlay_text?: string;   // Hero overlay text for About page
     is_active: boolean;
+    restaurant_enabled?: boolean;
     company_type_id: number;
 }
 

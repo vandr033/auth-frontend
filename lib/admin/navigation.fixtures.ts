@@ -57,6 +57,7 @@ function getProductCodeFromTier(tierCode: ProductTierCode): ProductCode {
     if (tierCode.startsWith("EVENTOS")) return "EVENTOS";
     if (tierCode.startsWith("CLASES")) return "CLASES";
     if (tierCode.startsWith("STORES")) return "STORES";
+    if (tierCode.startsWith("RESTAURANTE")) return "RESTAURANTE";
     if (tierCode.startsWith("CRM")) return "CRM";
     if (tierCode.startsWith("MENSAJERIA")) return "MENSAJERIA";
     if (tierCode.startsWith("METRICAS")) return "METRICAS";

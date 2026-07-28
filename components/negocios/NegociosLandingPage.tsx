@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { BusinessPricingBuilder } from "@/components/negocios/BusinessPricingBuilder";
+import { BusinessSignupWizard } from "@/components/negocios/BusinessSignupWizard";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import {
@@ -75,6 +76,18 @@ export function NegociosLandingPage() {
     });
   }, [pricingConfig]);
 
+  const [accountStepOpen, setAccountStepOpen] = useState(false);
+
+  if (accountStepOpen) {
+    return (
+      <BusinessSignupWizard
+        initialSelection={selection}
+        afterProductSelection
+        onEditProducts={() => setAccountStepOpen(false)}
+      />
+    );
+  }
+
   return (
     <main className="bg-biz-surface text-biz-heading-dark">
       <section id="inicio" className="relative isolate overflow-hidden border-b border-black bg-biz-surface">
@@ -135,6 +148,8 @@ export function NegociosLandingPage() {
           <BusinessPricingBuilder
             value={selection}
             onChange={setSelection}
+            ctaLabel="Seguir con los datos de tu cuenta"
+            onComplete={() => setAccountStepOpen(true)}
             pricingConfig={pricingConfig}
             isPricingLoading={pricingLoading}
             pricingError={pricingError}

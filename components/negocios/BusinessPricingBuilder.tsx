@@ -9,6 +9,7 @@ import {
   BarChart3,
   CalendarDays,
   Check,
+  UtensilsCrossed,
   Dumbbell,
   MessageCircle,
   Sparkles,
@@ -56,6 +57,7 @@ type BusinessPricingBuilderProps = {
   isPricingLoading?: boolean;
   pricingError?: string | null;
   onRetryPricing?: () => void;
+  onComplete?: () => void;
 };
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
@@ -68,13 +70,14 @@ const PRODUCT_ICONS: Record<
   EVENTOS: Ticket,
   CLASES: Dumbbell,
   TIENDA: Store,
+  RESTAURANTE: UtensilsCrossed,
   PERSONALIZACION_PRO: SwatchBook,
   METRICAS: BarChart3,
   MENSAJERIA_PRO: MessageCircle,
   CRM_PRO: Users,
 };
 
-const PRODUCT_COPY_KEYS = {
+const PRODUCT_COPY_KEYS: Partial<Record<BusinessPricingProduct["key"], string>> = {
   RESERVAS: "reservations",
   EVENTOS: "events",
   CLASES: "classes",
@@ -83,7 +86,7 @@ const PRODUCT_COPY_KEYS = {
   METRICAS: "metrics",
   MENSAJERIA_PRO: "messagingPro",
   CRM_PRO: "crmPro",
-} as const;
+};
 
 function getProductCopy(t: Translate, product: BusinessPricingProduct) {
   const copyKey = PRODUCT_COPY_KEYS[product.key];
@@ -487,6 +490,7 @@ export function BusinessPricingBuilder({
   isPricingLoading = false,
   pricingError,
   onRetryPricing,
+  onComplete,
 }: BusinessPricingBuilderProps) {
   const t = useT();
   const resolvedCtaLabel = ctaLabel ?? t("businessLanding.pricing.actions.createAccount");
@@ -515,8 +519,16 @@ export function BusinessPricingBuilder({
   });
 
   const setCoreSelection = (selection: CoreTierSelection) => {
-    const nextSelections = value.coreSelections.filter((item) => item.productKey !== selection.productKey);
-    onChange({ ...value, coreSelections: [...nextSelections, selection] });
+    const selectionIndex = value.coreSelections.findIndex((item) => item.productKey === selection.productKey);
+    const nextSelections = [...value.coreSelections];
+
+    if (selectionIndex === -1) {
+      nextSelections.push(selection);
+    } else {
+      nextSelections[selectionIndex] = selection;
+    }
+
+    onChange({ ...value, coreSelections: nextSelections });
   };
 
   const toggleCoreProduct = (product: BusinessPricingProduct) => {
@@ -528,7 +540,10 @@ export function BusinessPricingBuilder({
       return;
     }
 
-    setCoreSelection({ productKey, tierKey: getDefaultTierForCoreProduct(productKey) });
+    onChange({
+      ...value,
+      coreSelections: [...value.coreSelections, { productKey, tierKey: getDefaultTierForCoreProduct(productKey) }],
+    });
   };
 
   const toggleAddOn = (key: PublicAddOnKey) => {
@@ -770,9 +785,15 @@ export function BusinessPricingBuilder({
                   <h4 className="mt-3 max-w-[16ch] font-heading text-balance text-[clamp(1.8rem,3.5vw,2.7rem)] font-semibold leading-[1.02] tracking-[-0.04em]">{t("businessLanding.pricing.steps.summary.readyTitle")}</h4>
                   <p className="mt-4 text-base leading-7 text-slate-700">{t("businessLanding.pricing.steps.summary.readyDescription")}</p>
                 </div>
-                <Button asChild className="mt-7 min-h-14 rounded-none bg-biz-cta-primary text-xs font-black uppercase tracking-[0.08em] text-white shadow-[0_8px_0_rgba(5,5,5,0.12)] transition-transform hover:bg-biz-cta-hover hover:shadow-[0_4px_0_rgba(5,5,5,0.12)] active:translate-y-1 active:shadow-none">
-                  <Link href={ctaHref}>{resolvedCtaLabel}<ArrowRight className="h-4 w-4" /></Link>
-                </Button>
+                {onComplete ? (
+                  <Button onClick={onComplete} className="mt-7 min-h-14 rounded-none bg-biz-cta-primary text-xs font-black uppercase tracking-[0.08em] text-white shadow-[0_8px_0_rgba(5,5,5,0.12)] transition-transform hover:bg-biz-cta-hover hover:shadow-[0_4px_0_rgba(5,5,5,0.12)] active:translate-y-1 active:shadow-none">
+                    {resolvedCtaLabel}<ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button asChild className="mt-7 min-h-14 rounded-none bg-biz-cta-primary text-xs font-black uppercase tracking-[0.08em] text-white shadow-[0_8px_0_rgba(5,5,5,0.12)] transition-transform hover:bg-biz-cta-hover hover:shadow-[0_4px_0_rgba(5,5,5,0.12)] active:translate-y-1 active:shadow-none">
+                    <Link href={ctaHref}>{resolvedCtaLabel}<ArrowRight className="h-4 w-4" /></Link>
+                  </Button>
+                )}
               </aside>
             </div>
           </section>

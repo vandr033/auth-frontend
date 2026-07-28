@@ -275,6 +275,7 @@ export type AdminUploadImageType =
     | "about_1"
     | "about_2"
     | "about_3"
+    | "restaurant_deposit_qr"
     | "staff"
     | "group_event_cover"
     | "group_event_thumbnail"
@@ -750,31 +751,7 @@ export async function createRecurringBookings(data: CreateRecurringBookingData):
 }
 
 export async function uploadAdminQrProof(file: File, companyId: number): Promise<string> {
-    const formData = new FormData();
-    formData.append("image", file);
-    formData.append("company_id", String(companyId));
-
-    const response = await fetch(resolveBackendUrl("/api/upload/qr"), {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-    });
-
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-        const message =
-            (typeof payload?.message === "string" && payload.message) ||
-            (typeof payload?.error === "string" && payload.error) ||
-            `Upload failed: ${response.status}`;
-        throw new Error(message);
-    }
-
-    const url = payload?.data?.url;
-    if (typeof url !== "string" || !url) {
-        throw new Error("Upload succeeded but no QR proof URL was returned");
-    }
-
-    return url;
+    return uploadAdminImage({ file, companyId, type: "restaurant_deposit_qr" });
 }
 
 export interface UpdateBookingData {
@@ -2713,3 +2690,66 @@ export async function sendWhatsappGroupMessage(eventId: number, groupId: number,
         body: JSON.stringify({ message }),
     });
 }
+
+// ─── Restaurant Lite ─────────────────────────────────────────────────────────
+export type RestaurantAccess = { entitled: boolean; enabled: boolean; plan: "STARTER" | "BUSINESS" | "PRO"; settings?: RestaurantSettings | null };
+export type RestaurantSettings = { id: number; company_id: number; average_dining_minutes: number; slot_interval_minutes: number; minimum_advance_minutes: number; maximum_advance_days: number; auto_confirm_reservations: boolean; allow_customer_cancellation: boolean; cancellation_limit_minutes: number; minimum_party_size: number; maximum_party_size: number; require_phone: boolean; require_email: boolean; allow_walk_ins: boolean; deposit_enabled: boolean; deposit_amount_cents: number; deposit_mode: "PER_PERSON" | "PER_TABLE"; deposit_qr_image_url: string | null; };
+export type RestaurantDiningArea = { id: number; company_id: number; name: string; description: string | null; sort_order: number; is_active: boolean; };
+export type RestaurantTable = { id: number; company_id: number; dining_area_id: number; name: string; minimum_seats: number; maximum_seats: number; sort_order: number; is_active: boolean; dining_area?: RestaurantDiningArea; };
+export type RestaurantServicePeriod = { id: number; company_id: number; day_of_week: number; name: string | null; start_time: string; end_time: string; sort_order: number; is_active: boolean; };
+
+async function restaurantRequest<T>(path: string, options?: RequestInit): Promise<T> { const response = await apiFetch<{ data: T }>(`/api/admin/restaurant${path}`, options); return response.data; }
+export const getRestaurantAccess = () => restaurantRequest<RestaurantAccess>("/access");
+export const updateRestaurantAccess = (enabled: boolean) => restaurantRequest<RestaurantAccess>("/access", { method: "PATCH", body: JSON.stringify({ enabled }) });
+export const getRestaurantSettings = () => restaurantRequest<RestaurantSettings>("/settings");
+export const updateRestaurantSettings = (input: Omit<RestaurantSettings, "id" | "company_id">) => restaurantRequest<RestaurantSettings>("/settings", { method: "PATCH", body: JSON.stringify(input) });
+export const listRestaurantDiningAreas = () => restaurantRequest<RestaurantDiningArea[]>("/dining-areas");
+export const createRestaurantDiningArea = (input: Partial<RestaurantDiningArea> & Pick<RestaurantDiningArea, "name">) => restaurantRequest<RestaurantDiningArea>("/dining-areas", { method: "POST", body: JSON.stringify(input) });
+export const updateRestaurantDiningArea = (id: number, input: Partial<RestaurantDiningArea>) => restaurantRequest<RestaurantDiningArea>(`/dining-areas/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+export const deleteRestaurantDiningArea = (id: number) => restaurantRequest<null>(`/dining-areas/${id}`, { method: "DELETE" });
+export const listRestaurantTables = () => restaurantRequest<RestaurantTable[]>("/tables");
+export const createRestaurantTable = (input: Omit<RestaurantTable, "id" | "company_id" | "dining_area">) => restaurantRequest<RestaurantTable>("/tables", { method: "POST", body: JSON.stringify(input) });
+export const updateRestaurantTable = (id: number, input: Partial<RestaurantTable>) => restaurantRequest<RestaurantTable>(`/tables/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+export const deleteRestaurantTable = (id: number) => restaurantRequest<null>(`/tables/${id}`, { method: "DELETE" });
+export const listRestaurantServicePeriods = () => restaurantRequest<RestaurantServicePeriod[]>("/service-periods");
+export const createRestaurantServicePeriod = (input: Omit<RestaurantServicePeriod, "id" | "company_id">) => restaurantRequest<RestaurantServicePeriod>("/service-periods", { method: "POST", body: JSON.stringify(input) });
+export const updateRestaurantServicePeriod = (id: number, input: Partial<RestaurantServicePeriod>) => restaurantRequest<RestaurantServicePeriod>(`/service-periods/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+export const deleteRestaurantServicePeriod = (id: number) => restaurantRequest<null>(`/service-periods/${id}`, { method: "DELETE" });
+
+export type RestaurantDietaryLabel = "VEGETARIAN" | "VEGAN" | "GLUTEN_FREE" | "SPICY" | "DAIRY_FREE" | "NUT_FREE";
+export type RestaurantAllergen = "GLUTEN" | "DAIRY" | "EGGS" | "PEANUTS" | "TREE_NUTS" | "SOY" | "FISH" | "SHELLFISH" | "SESAME";
+export type RestaurantMenuCategory = { id: number; company_id: number; name: string; description: string | null; image_url: string | null; sort_order: number; is_active: boolean; _count?: { items: number } };
+export type RestaurantMenuItem = { id: number; company_id: number; category_id: number; name: string; description: string | null; price: string | null; image_url: string | null; is_active: boolean; is_available: boolean; is_featured: boolean; sort_order: number; preparation_minutes: number | null; dietary_labels: RestaurantDietaryLabel[] | null; allergens: RestaurantAllergen[] | null; category?: RestaurantMenuCategory };
+export type RestaurantMenuItemInput = { category_id: number; name: string; description?: string | null; price?: string | null; is_active?: boolean; is_available?: boolean; is_featured?: boolean; sort_order?: number; preparation_minutes?: number | null; dietary_labels?: RestaurantDietaryLabel[]; allergens?: RestaurantAllergen[] };
+export const listRestaurantMenuCategories = () => restaurantRequest<RestaurantMenuCategory[]>("/menu/categories");
+export const createRestaurantMenuCategory = (input: Pick<RestaurantMenuCategory, "name"> & Partial<RestaurantMenuCategory>) => restaurantRequest<RestaurantMenuCategory>("/menu/categories", { method: "POST", body: JSON.stringify(input) });
+export const updateRestaurantMenuCategory = (id: number, input: Partial<RestaurantMenuCategory>) => restaurantRequest<RestaurantMenuCategory>(`/menu/categories/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+export const deleteRestaurantMenuCategory = (id: number) => restaurantRequest<null>(`/menu/categories/${id}`, { method: "DELETE" });
+export const reorderRestaurantMenuCategories = (items: Array<{ id: number; sortOrder: number }>) => restaurantRequest<null>("/menu/categories/reorder", { method: "PATCH", body: JSON.stringify({ items }) });
+export const listRestaurantMenuItems = () => restaurantRequest<{ items: RestaurantMenuItem[] }>("/menu/items");
+export const createRestaurantMenuItem = (input: RestaurantMenuItemInput) => restaurantRequest<RestaurantMenuItem>("/menu/items", { method: "POST", body: JSON.stringify(input) });
+export const updateRestaurantMenuItem = (id: number, input: Partial<RestaurantMenuItemInput>) => restaurantRequest<RestaurantMenuItem>(`/menu/items/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+export const deleteRestaurantMenuItem = (id: number) => restaurantRequest<null>(`/menu/items/${id}`, { method: "DELETE" });
+export const reorderRestaurantMenuItems = (items: Array<{ id: number; sortOrder: number }>) => restaurantRequest<null>("/menu/items/reorder", { method: "PATCH", body: JSON.stringify({ items }) });
+async function restaurantMenuImage(id: number, kind: "items" | "categories", file?: File): Promise<string | null> { const response = await fetch(resolveBackendUrl(`/api/admin/restaurant/menu/${kind}/${id}/image`), { method: file ? "POST" : "DELETE", credentials: "include", body: file ? (() => { const data = new FormData(); data.append("file", file); return data; })() : undefined }); const payload = await response.json().catch(() => null); if (!response.ok) throw normalizeApiError(payload, response.status, "No pudimos actualizar la imagen."); return payload?.data?.imageUrl ?? null; }
+export const uploadRestaurantMenuItemImage = (id: number, file: File) => restaurantMenuImage(id, "items", file);
+export const deleteRestaurantMenuItemImage = (id: number) => restaurantMenuImage(id, "items");
+export const uploadRestaurantMenuCategoryImage = (id: number, file: File) => restaurantMenuImage(id, "categories", file);
+export const deleteRestaurantMenuCategoryImage = (id: number) => restaurantMenuImage(id, "categories");
+
+export type RestaurantReservationStatus = "PENDING" | "CONFIRMED" | "ARRIVED" | "SEATED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
+export type RestaurantReservationSource = "ADMIN" | "PHONE" | "WHATSAPP" | "WALK_IN" | "ONLINE";
+export type RestaurantReservation = { id: number; reservation_code: string; reservation_date: string; start_time: string; end_time: string; party_size: number; customer_name: string; customer_phone: string | null; customer_email: string | null; deposit_amount_cents: number; deposit_mode: "PER_PERSON" | "PER_TABLE" | null; deposit_proof_image_url: string | null; notes: string | null; internal_notes: string | null; status: RestaurantReservationStatus; source: RestaurantReservationSource; seated_at: string | null; completed_at: string | null; cancelled_at: string | null; cancellation_reason: string | null; created_at: string; updated_at: string; table: RestaurantTable | null; };
+export type RestaurantDashboard = { date: string; summary: { reservations_today: number; guests_expected_today: number; pending: number; confirmed: number; arrived: number; seated: number; completed: number; cancelled: number; no_shows: number; available_tables: number; blocked_tables: number; }; upcoming_reservations: RestaurantReservation[]; tables: Array<RestaurantTable & { operational_status: "AVAILABLE" | "RESERVED" | "ARRIVED" | "SEATED" | "INACTIVE"; current_reservation: RestaurantReservation | null; next_reservation: RestaurantReservation | null; }> };
+export const getRestaurantDashboard = () => restaurantRequest<RestaurantDashboard>("/dashboard");
+export const listRestaurantReservations = (params: Record<string, string | number | undefined> = {}) => { const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => [key, String(value)])); return restaurantRequest<{ items: RestaurantReservation[]; pagination: { total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean } }>(`/reservations${query.size ? `?${query}` : ""}`); };
+export const getRestaurantReservation = (id: number) => restaurantRequest<RestaurantReservation>(`/reservations/${id}`);
+export const createRestaurantReservation = (input: Record<string, unknown>) => restaurantRequest<RestaurantReservation>("/reservations", { method: "POST", body: JSON.stringify(input) });
+export const updateRestaurantReservation = (id: number, input: Record<string, unknown>) => restaurantRequest<RestaurantReservation>(`/reservations/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+export const updateRestaurantReservationStatus = (id: number, status: RestaurantReservationStatus, reason?: string) => restaurantRequest<RestaurantReservation>(`/reservations/${id}/status`, { method: "POST", body: JSON.stringify({ status, reason }) });
+export const assignRestaurantReservationTable = (id: number, table_id: number | null, auto_assign = false) => restaurantRequest<RestaurantReservation>(`/reservations/${id}/assign-table`, { method: "POST", body: JSON.stringify({ table_id, auto_assign }) });
+export type RestaurantNotificationLog = { id: number; event: "RESTAURANT_RESERVATION_CREATED" | "RESTAURANT_RESERVATION_CONFIRMED" | "RESTAURANT_RESERVATION_UPDATED" | "RESTAURANT_RESERVATION_CANCELLED" | "RESTAURANT_RESERVATION_REMINDER"; channel: "EMAIL" | "WHATSAPP"; status: "PENDING" | "SENT" | "FAILED" | "SKIPPED"; trigger: "AUTOMATIC" | "MANUAL"; recipient: string | null; error_message: string | null; sent_at: string | null; created_at: string; };
+export const resendRestaurantReservationConfirmation = (id: number) => restaurantRequest<{ reservationId: number; results: Array<{ channel: "EMAIL" | "WHATSAPP"; status: "SENT" | "FAILED" | "SKIPPED"; reason?: string }> }>(`/reservations/${id}/resend-confirmation`, { method: "POST" });
+export const listRestaurantNotificationHistory = (id: number) => restaurantRequest<RestaurantNotificationLog[]>(`/reservations/${id}/notifications`);
+export type RestaurantMetrics = { range: { dateFrom: string; dateTo: string; timezone: string }; summary: { totalReservations: number; activeReservations: number; expectedGuests: number; servedGuests: number; cancelledReservations: number; noShowReservations: number; cancellationRate: number; noShowRate: number; averagePartySize: number; averageLeadTimeMinutes: number }; statusBreakdown: Array<{ status: RestaurantReservationStatus; count: number; guestCount: number }>; sourceBreakdown: Array<{ source: RestaurantReservationSource; reservationCount: number; guestCount: number; percentage: number }>; weekdayBreakdown: Array<{ weekday: number; reservationCount: number; guestCount: number }>; timeBreakdown: Array<{ time: string; reservationCount: number; guestCount: number }>; diningAreaBreakdown: Array<{ diningAreaId: number | null; name: string; reservationCount: number; guestCount: number; completedCount: number; cancellationCount: number; noShowCount: number }>; tableBreakdown: Array<{ tableId: number | null; name: string; reservationCount: number; completedCount: number; guestCount: number; noShowCount: number }>; busiestDate: { date: string; reservationCount: number; guestCount: number } | null; };
+export const getRestaurantMetrics = (params: { dateFrom?: string; dateTo?: string } = {}) => { const query = new URLSearchParams(Object.entries(params).filter(([, value]) => Boolean(value)).map(([key, value]) => [key, String(value)])); return restaurantRequest<RestaurantMetrics>(`/metrics${query.size ? `?${query}` : ""}`); };

@@ -1,5 +1,4 @@
-import type { CompanyCapabilities } from "@/lib/plans/capabilities";
-import type { PlanFeatureKey } from "@/lib/plans/capabilities";
+import { canUseEntitledFeature, type CompanyCapabilities, type PlanFeatureKey } from "@/lib/plans/capabilities";
 import { getProductAccessRecommendationForFeature } from "@/lib/product-access";
 import type { ProductAccessRecommendation, ProductCode, ProductTierCode } from "@/types/product-access";
 
@@ -31,7 +30,8 @@ export type AdminNavigationIconKey =
     | "customization"
     | "hours"
     | "staff"
-    | "profile";
+    | "profile"
+    | "restaurant";
 
 export type AdminNavigationItemId =
     | "dashboard"
@@ -52,7 +52,8 @@ export type AdminNavigationItemId =
     | "hours"
     | "staff"
     | "business-settings"
-    | "profile";
+    | "profile"
+    | "restaurant";
 
 export type AdminNavigationChildItem = {
     id: string;
@@ -115,6 +116,7 @@ type VisibilityContext = {
     hasMessagingPro: boolean;
     hasMetricsPro: boolean;
     hasCustomizationPlus: boolean;
+    hasRestaurant: boolean;
 };
 
 type AdminNavigationDefinition = {
@@ -197,6 +199,7 @@ function buildVisibilityContext(
         hasMessagingPro: hasTier(entitlements, "MENSAJERIA_PRO"),
         hasMetricsPro: hasTier(entitlements, "METRICAS_PRO"),
         hasCustomizationPlus: hasTier(entitlements, "PERSONALIZACION_PLUS"),
+        hasRestaurant: canUseEntitledFeature(entitlements, "RESTAURANT_MODULE"),
     };
 }
 
@@ -270,6 +273,22 @@ const NAVIGATION_DEFINITIONS: AdminNavigationDefinition[] = [
             },
         ],
         resolveState: (context) => (context.hasStores ? "active" : "hidden"),
+    },
+    {
+        id: "restaurant",
+        groupId: "products",
+        labelKey: "adminNav.restaurant",
+        href: "/admin/dashboard/restaurant",
+        iconKey: "restaurant",
+        roles: ["OWNER", "ADMIN"],
+        children: [
+            { id: "restaurant-operations", labelKey: "restaurant.nav.operations", href: "/admin/dashboard/restaurant" },
+            { id: "restaurant-reservations", labelKey: "restaurant.nav.reservations", href: "/admin/dashboard/restaurant/reservations" },
+            { id: "restaurant-menu", labelKey: "restaurant.nav.menu", href: "/admin/dashboard/restaurant/menu" },
+            { id: "restaurant-settings", labelKey: "restaurant.nav.settings", href: "/admin/dashboard/restaurant/settings" },
+            { id: "restaurant-tables", labelKey: "restaurant.nav.tables", href: "/admin/dashboard/restaurant/tables" },
+        ],
+        resolveState: (context) => (context.hasRestaurant ? "active" : "hidden"),
     },
     {
         id: "availability",

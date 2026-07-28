@@ -89,6 +89,14 @@ export const CORE_PRODUCT_DEFINITIONS: ProductCardDefinition[] = [
             { tierCode: "STORES_PRO", label: "Pro" },
         ],
     },
+    {
+        productCode: "RESTAURANTE",
+        title: "Restaurante",
+        description: "Reservas de mesa, áreas, turnos de servicio, operación diaria y menú digital.",
+        kind: "core",
+        defaultTierCode: "RESTAURANTE_PRO",
+        activeTierOptions: [{ tierCode: "RESTAURANTE_PRO", label: "Pro" }],
+    },
 ];
 
 export const ADD_ON_DEFINITIONS: ProductCardDefinition[] = [
@@ -314,6 +322,7 @@ export function deriveLegacyPlanCompatibility(state: ProductConfigFormState): Sh
 
     if (
         selectedTiers.has("RESERVAS_PRO") ||
+        selectedTiers.has("RESTAURANTE_PRO") ||
         selectedTiers.has("EVENTOS_BASE") ||
         selectedTiers.has("STORES_BASE") ||
         selectedTiers.has("STORES_PRO") ||

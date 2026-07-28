@@ -22,6 +22,7 @@ const REQUEST_LABELS: Record<ProductTierCode, string> = {
     CLASES_PRO: "Clases Pro",
     STORES_BASE: "Tienda",
     STORES_PRO: "Tienda Pro",
+    RESTAURANTE_PRO: "Restaurante",
     PERSONALIZACION_BASE: "Personalización Base",
     PERSONALIZACION_PLUS: "Personalización Pro",
     CRM_BASE: "CRM",
@@ -56,6 +57,7 @@ const FEATURE_ACCESS: Record<PlanFeatureKey, ProductAccessDefinition> = {
     GROUP_EVENTS: { productCode: "EVENTOS", tierCode: "EVENTOS_BASE", capability: "EVENTOS_BASE" },
     GROUP_CLASSES: { productCode: "CLASES", tierCode: "CLASES_BASE", capability: "CLASES_BASE" },
     GROUP_ADVANCED: { productCode: "EVENTOS", tierCode: "EVENTOS_PRO", capability: "EVENTOS_PRO" },
+    RESTAURANT_MODULE: { productCode: "RESTAURANTE", tierCode: "RESTAURANTE_PRO", capability: "RESTAURANT_MODULE" },
 };
 
 const CAPABILITY_ACCESS: Record<ProductCapability, ProductAccessDefinition> = {
@@ -66,6 +68,7 @@ const CAPABILITY_ACCESS: Record<ProductCapability, ProductAccessDefinition> = {
     EVENTOS_PRO: { productCode: "EVENTOS", tierCode: "EVENTOS_PRO", capability: "EVENTOS_PRO" },
     CLASES_BASE: { productCode: "CLASES", tierCode: "CLASES_BASE", capability: "CLASES_BASE" },
     CLASES_PRO: { productCode: "CLASES", tierCode: "CLASES_PRO", capability: "CLASES_PRO" },
+    RESTAURANT_MODULE: { productCode: "RESTAURANTE", tierCode: "RESTAURANTE_PRO", capability: "RESTAURANT_MODULE" },
     COMMERCE_ACCESS: { productCode: "STORES", tierCode: "STORES_BASE", capability: "COMMERCE_ACCESS" },
     COMMERCE_PRODUCTS: { productCode: "STORES", tierCode: "STORES_BASE", capability: "COMMERCE_PRODUCTS" },
     COMMERCE_CATEGORIES: { productCode: "STORES", tierCode: "STORES_BASE", capability: "COMMERCE_CATEGORIES" },

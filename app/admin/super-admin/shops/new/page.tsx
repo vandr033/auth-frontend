@@ -464,6 +464,7 @@ export default function NewShopPage() {
                 isMarketplaceVisible: formData.isMarketplaceVisible,
                 activeProducts: commercialPayload.activeProducts,
                 requestedProducts: commercialPayload.requestedProducts,
+                restaurantEnabled: commercialPayload.activeProducts.some((product) => product.productCode === "RESTAURANTE"),
                 note: formData.note.trim() || undefined,
                 owner: ownerPayload,
             };

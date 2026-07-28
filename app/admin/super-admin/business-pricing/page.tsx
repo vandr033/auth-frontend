@@ -91,7 +91,7 @@ export default function SuperAdminBusinessPricingPage() {
   const [productForms, setProductForms] = useState<ProductForm[]>([]);
   const [bundleTierForms, setBundleTierForms] = useState<BundleTierForm[]>([]);
   const [annualDiscountPercent, setAnnualDiscountPercent] = useState("15");
-  const [trialLengthDays, setTrialLengthDays] = useState("30");
+  const [trialLengthDays, setTrialLengthDays] = useState("7");
   const [firstMonthFree, setFirstMonthFree] = useState(true);
 
   const syncFromConfig = useCallback((config: SuperAdminBusinessPricingConfig) => {

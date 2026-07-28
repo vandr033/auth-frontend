@@ -18,6 +18,7 @@ export type ProductCode =
     | "EVENTOS"
     | "CLASES"
     | "STORES"
+    | "RESTAURANTE"
     | "PERSONALIZACION"
     | "CRM"
     | "MENSAJERIA"
@@ -32,6 +33,7 @@ export type ProductTierCode =
     | "CLASES_PRO"
     | "STORES_BASE"
     | "STORES_PRO"
+    | "RESTAURANTE_PRO"
     | "PERSONALIZACION_BASE"
     | "PERSONALIZACION_PLUS"
     | "CRM_BASE"
@@ -85,6 +87,7 @@ export interface SuperAdminShop {
     pricePaid?: string | number | null;
     availableUntil: string;
     isMarketplaceVisible: boolean;
+    restaurant_enabled?: boolean;
     logo_url?: string;
     is_active: boolean;
     company_type_id: number;
@@ -134,6 +137,7 @@ export interface CreateShopPayload {
     isMarketplaceVisible: boolean;
     activeProducts?: CommercialProductPayload[];
     requestedProducts?: RequestedProductPayload[];
+    restaurantEnabled?: boolean;
     note?: string;
     owner: {
         existingUserId?: string;

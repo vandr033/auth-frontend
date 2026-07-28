@@ -1,5 +1,12 @@
 import { BusinessSignupWizard } from "@/components/negocios/BusinessSignupWizard";
+import { parsePricingSelection } from "@/lib/negocios/pricing";
 
-export default function NegociosCrearCuentaPage() {
-  return <BusinessSignupWizard />;
+type NegociosCrearCuentaPageProps = {
+  searchParams: Promise<{ selection?: string | string[] }>;
+};
+
+export default async function NegociosCrearCuentaPage({ searchParams }: NegociosCrearCuentaPageProps) {
+  const { selection } = await searchParams;
+
+  return <BusinessSignupWizard initialSelection={parsePricingSelection(selection)} />;
 }

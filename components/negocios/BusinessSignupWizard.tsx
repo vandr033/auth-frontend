@@ -22,14 +22,13 @@ import { DEFAULT_COUNTRY_CODE, formatDialCode } from "@/lib/phone-country";
 import {
   calculateBusinessPricing,
   formatBsAmount,
+  type PricingSelection,
   sanitizePricingSelection,
 } from "@/lib/negocios/pricing";
 import { usePublicBusinessPricing } from "@/lib/negocios/usePublicBusinessPricing";
 import {
   DEFAULT_BUSINESS_PRICING_CONFIG,
   getDefaultTierForCoreProduct,
-  type CoreTierSelection,
-  type PublicAddOnKey,
 } from "@/lib/negocios/business-pricing";
 
 type CompanyTypeOption = {
@@ -83,7 +82,15 @@ function readErrorMessage(payload: SignupErrorPayload): string {
   return "No pudimos crear tu cuenta.";
 }
 
-export function BusinessSignupWizard() {
+export function BusinessSignupWizard({
+  initialSelection,
+  afterProductSelection = false,
+  onEditProducts,
+}: {
+  initialSelection?: PricingSelection | null;
+  afterProductSelection?: boolean;
+  onEditProducts?: () => void;
+}) {
   const {
     pricingConfig,
     isLoading: pricingLoading,
@@ -105,20 +112,19 @@ export function BusinessSignupWizard() {
     password: "",
     slug: "",
   });
-  const [selection, setSelection] = useState<{
-    coreSelections: CoreTierSelection[];
-    addOns: PublicAddOnKey[];
-    billingCycle: "monthly" | "annual";
-  }>({
-    coreSelections: [
-      {
-        productKey: "RESERVAS",
-        tierKey: getDefaultTierForCoreProduct("RESERVAS"),
+  const [selection, setSelection] = useState<PricingSelection>(
+    () =>
+      initialSelection ?? {
+        coreSelections: [
+          {
+            productKey: "RESERVAS",
+            tierKey: getDefaultTierForCoreProduct("RESERVAS"),
+          },
+        ],
+        addOns: [],
+        billingCycle: "monthly",
       },
-    ],
-    addOns: [],
-    billingCycle: "monthly",
-  });
+  );
 
   const pricingReady = Boolean(pricingConfig);
   const effectivePricingConfig = pricingConfig ?? DEFAULT_BUSINESS_PRICING_CONFIG;
@@ -202,7 +208,17 @@ export function BusinessSignupWizard() {
     buildSlug(form.slug || form.businessName).length >= 2;
 
   const canSubmit = pricingReady && canGoToProducts && pricing.validationErrors.length === 0;
-  const isProductsStep = step === 2;
+  const isProductsStep = !afterProductSelection && step === 2;
+  const progressSteps = afterProductSelection
+    ? [
+        { step: 1, label: "1. Datos de tu negocio" },
+        { step: 3, label: "2. Revisá tu prueba gratis" },
+      ]
+    : [
+        { step: 1, label: "1. Datos del negocio" },
+        { step: 2, label: "2. Elegí tus productos" },
+        { step: 3, label: "3. Revisá tu prueba gratis" },
+      ];
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -262,7 +278,7 @@ export function BusinessSignupWizard() {
         <section className={`min-w-0 space-y-6 ${isProductsStep ? "lg:col-span-1" : ""}`}>
           <div>
             <p className="font-bebas text-[16px] uppercase tracking-[0.18em] text-biz-barbie-pink">
-              /negocios/crear-cuenta
+            {afterProductSelection ? "Paso final / datos de tu cuenta" : "/negocios/crear-cuenta"}
             </p>
             <h1 className="mt-2 font-business-display text-[clamp(3rem,8vw,6.2rem)] uppercase leading-[0.84] tracking-[-0.03em] text-biz-heading-dark">
               Creá tu cuenta.
@@ -273,20 +289,16 @@ export function BusinessSignupWizard() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            {[
-              "1. Datos del negocio",
-              "2. Elegí tus productos",
-              "3. Revisá tu prueba gratis",
-            ].map((item, index) => (
+            {progressSteps.map((item) => (
               <span
-                key={item}
+                key={item.step}
                 className={`px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] ${
-                  step === index + 1
+                  step === item.step
                     ? "bg-black text-white"
                     : "border border-black/10 bg-white text-slate-500"
                 }`}
               >
-                {item}
+                {item.label}
               </span>
             ))}
           </div>
@@ -436,18 +448,29 @@ export function BusinessSignupWizard() {
                     <div className="flex flex-col gap-3 sm:flex-row">
                       <Button
                         type="button"
-                        onClick={() => setStep(2)}
+                        onClick={() => setStep(afterProductSelection ? 3 : 2)}
                         disabled={!canGoToProducts}
                         className="h-11 rounded-none bg-black text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink"
                       >
-                        Seguir a productos
+                        {afterProductSelection ? "Seguir a revisión" : "Seguir a productos"}
                       </Button>
-                      <Link
-                        href="/negocios"
-                        className="inline-flex h-11 items-center justify-center border border-black px-5 text-[11px] font-black uppercase tracking-[0.08em] text-black transition-colors hover:bg-black hover:text-white"
-                      >
-                        Volver a /negocios
-                      </Link>
+                      {afterProductSelection && onEditProducts ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={onEditProducts}
+                          className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
+                        >
+                          Editar productos
+                        </Button>
+                      ) : (
+                        <Link
+                          href="/negocios"
+                          className="inline-flex h-11 items-center justify-center border border-black px-5 text-[11px] font-black uppercase tracking-[0.08em] text-black transition-colors hover:bg-black hover:text-white"
+                        >
+                          Volver a /negocios
+                        </Link>
+                      )}
                     </div>
                   </>
                 ) : null}
@@ -531,10 +554,10 @@ export function BusinessSignupWizard() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setStep(2)}
+                        onClick={() => setStep(afterProductSelection ? 1 : 2)}
                         className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
                       >
-                        Volver a productos
+                        {afterProductSelection ? "Volver a datos" : "Volver a productos"}
                       </Button>
                       <Button
                         type="button"
@@ -558,8 +581,8 @@ export function BusinessSignupWizard() {
                         {pricingLoading ? "La revisión se habilita apenas tengamos la configuración pública." : pricingError ?? "Volvé a intentarlo para continuar."}
                       </p>
                       <div className="mt-5 flex flex-wrap gap-3">
-                        <Button type="button" variant="outline" onClick={() => setStep(2)} className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white">
-                          Volver a productos
+                        <Button type="button" variant="outline" onClick={() => setStep(afterProductSelection ? 1 : 2)} className="h-11 rounded-none border-black text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white">
+                          {afterProductSelection ? "Volver a datos" : "Volver a productos"}
                         </Button>
                         {!pricingLoading ? (
                           <Button type="button" onClick={retryPricing} className="h-11 rounded-none bg-black text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-biz-barbie-pink">

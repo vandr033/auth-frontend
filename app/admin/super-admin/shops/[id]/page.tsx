@@ -387,6 +387,7 @@ export default function EditShopPage() {
                 isMarketplaceVisible: formData.isMarketplaceVisible,
                 activeProducts: commercialPayload.activeProducts,
                 requestedProducts: commercialPayload.requestedProducts,
+                restaurantEnabled: commercialPayload.activeProducts.some((product) => product.productCode === "RESTAURANTE"),
                 note: formData.note.trim() || undefined,
             };
             // TODO(super-admin-shops): Persist optional map metadata once backend supports it:

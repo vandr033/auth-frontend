@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
-import { Menu, UserRound } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -64,16 +64,20 @@ export function ShopNavbar() {
 
     const resolvedShopSlug = company?.slug || slug;
     const basePath = `/shop/${resolvedShopSlug}`;
-    const profileHref = appendShopParam("/me/profile", resolvedShopSlug);
     const appointmentsHref = appendShopParam("/me/appointments", resolvedShopSlug);
     const reviewsHref = appendShopParam("/me/reviews", resolvedShopSlug);
+    const restaurantReservationsHref = `${basePath}/reservations`;
     const groupReservationsHref = appendShopParam("/me/group-reservations", resolvedShopSlug);
     const ordersHref = resolvedShopSlug ? `/shop/${resolvedShopSlug}/me/orders` : "/me/orders";
     const userDisplayName = getDisplayName(user);
     const showGroupReservationsLink = publicFeatures.eventsVisible || publicFeatures.classesVisible;
 
+    const restaurantEnabled = Boolean((company as { restaurant_enabled?: boolean } | null)?.restaurant_enabled);
+    const showAppointmentsLink = publicFeatures.servicesVisible;
     const navLinks = [
         { href: basePath, label: t('shopNav.home') },
+        ...(restaurantEnabled ? [{ href: `${basePath}/menu`, label: "Menú" }] : []),
+        ...(restaurantEnabled ? [{ href: `${basePath}/reserve`, label: t('restaurantReservations.reserveTable') }] : []),
         ...(publicFeatures.servicesVisible ? [{ href: `${basePath}/services`, label: t('shopNav.services') }] : []),
         ...(publicFeatures.commerceVisible ? [{ href: `${basePath}/store`, label: t('shopNav.store') }] : []),
         ...(publicFeatures.eventsVisible ? [{ href: `${basePath}/events`, label: t('shopNav.events') }] : []),
@@ -175,18 +179,8 @@ export function ShopNavbar() {
                                 )}
                             </div>
                         </div>
-                        <Link
-                            href={profileHref}
-                            className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
-                        >
-                            {t('shopNav.myProfile')}
-                        </Link>
-                        <Link
-                            href={appointmentsHref}
-                            className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
-                        >
-                            {t('shopNav.myAppointments')}
-                        </Link>
+                        {showAppointmentsLink ? <Link href={appointmentsHref} className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page">{t('shopNav.myAppointments')}</Link> : null}
+                        {restaurantEnabled ? <Link href={restaurantReservationsHref} className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page">Mis reservas</Link> : null}
                         <Link
                             href={reviewsHref}
                             className="block px-4 py-3 text-sm font-medium text-text-main transition hover:bg-page"
@@ -398,18 +392,15 @@ export function ShopNavbar() {
                                     </Button>
                                 ) : (
                                     <>
-                                        <Link href={profileHref} onClick={() => setOpen(false)}>
-                                            <Button variant="outline" className="w-full justify-start gap-2">
-                                                <UserRound className="h-4 w-4" />
-                                                {t('shopNav.myProfile')}
-                                            </Button>
-                                        </Link>
-                                        <Link href={appointmentsHref} onClick={() => setOpen(false)}>
+                                        {showAppointmentsLink ? <Link href={appointmentsHref} onClick={() => setOpen(false)}>
                                             <Button variant="outline" className="w-full justify-start gap-2">
                                                 <span className="h-2 w-2 rounded-full bg-brand" />
                                                 {t('shopNav.myAppointments')}
                                             </Button>
-                                        </Link>
+                                        </Link> : null}
+                                        {restaurantEnabled ? <Link href={restaurantReservationsHref} onClick={() => setOpen(false)}>
+                                            <Button variant="outline" className="w-full justify-start gap-2"><span className="h-2 w-2 rounded-full bg-brand" />Mis reservas</Button>
+                                        </Link> : null}
                                         <Link href={reviewsHref} onClick={() => setOpen(false)}>
                                             <Button variant="outline" className="w-full justify-start gap-2">
                                                 <span className="h-2 w-2 rounded-full bg-brand" />

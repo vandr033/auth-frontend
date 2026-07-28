@@ -27,7 +27,8 @@ export type PlanFeatureKey =
     | "OUTREACH_REACTIVATION_TOOLS"
     | "GROUP_EVENTS"
     | "GROUP_CLASSES"
-    | "GROUP_ADVANCED";
+    | "GROUP_ADVANCED"
+    | "RESTAURANT_MODULE";
 
 export type CompanyCapabilities = {
     version: 1;
@@ -108,6 +109,7 @@ const FEATURE_CAPABILITY_MAP: Partial<Record<PlanFeatureKey, ProductCapability>>
     GROUP_EVENTS: "EVENTOS_BASE",
     GROUP_CLASSES: "CLASES_BASE",
     GROUP_ADVANCED: "EVENTOS_PRO",
+    RESTAURANT_MODULE: "RESTAURANT_MODULE",
 };
 
 const FEATURE_CAPABILITY_ANY_OF: Partial<Record<PlanFeatureKey, ProductCapability[]>> = {
@@ -174,6 +176,7 @@ export const FEATURE_DESCRIPTION_KEY: Record<PlanFeatureKey, string> = {
     GROUP_EVENTS: "planEnforcement.desc.groupEvents",
     GROUP_CLASSES: "planEnforcement.desc.groupClasses",
     GROUP_ADVANCED: "planEnforcement.desc.groupAdvanced",
+    RESTAURANT_MODULE: "planEnforcement.desc.restaurantModule",
 };
 
 /**
@@ -202,4 +205,5 @@ export const FEATURE_LABEL_KEY: Record<PlanFeatureKey, string> = {
     GROUP_EVENTS: "planEnforcement.label.groupEvents",
     GROUP_CLASSES: "planEnforcement.label.groupClasses",
     GROUP_ADVANCED: "planEnforcement.label.groupAdvanced",
+    RESTAURANT_MODULE: "planEnforcement.label.restaurantModule",
 };

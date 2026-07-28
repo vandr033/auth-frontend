@@ -117,6 +117,40 @@ export const CORE_PRODUCTS: NegociosProductCard[] = [
     ctaLabel: "Crear mi cuenta gratis",
   },
   {
+    key: "RESTAURANTE",
+    kind: "core",
+    title: "Restaurante",
+    shortTitle: "Restaurante",
+    slug: "restaurante",
+    href: "/negocios/restaurante",
+    priceMonthly: 500,
+    tagline: "Para restaurantes que quieren ordenar mesas, turnos y reservas online.",
+    description:
+      "Gestioná reservas de mesa, áreas, horarios de servicio y menú digital desde una experiencia pensada para restaurantes.",
+    bullets: [
+      "Reservas de mesa online",
+      "Áreas y mesas",
+      "Turnos de servicio",
+      "Operación diaria",
+      "Menú digital público",
+      "Confirmaciones y disponibilidad",
+    ],
+    heroTitle: "Tu restaurante, sus mesas y sus reservas en un solo lugar.",
+    heroDescription:
+      "Recibí reservas online, organizá tu sala y publicá un menú digital que ayude a tus clientes a decidir.",
+    forWho:
+      "Para restaurantes, cafeterías y locales gastronómicos que necesitan una operación de mesas más clara y profesional.",
+    includedItems: [
+      "Reservas de mesa online",
+      "Áreas, mesas y capacidad",
+      "Horarios de servicio",
+      "Panel de operación diaria",
+      "Menú digital público",
+    ],
+    recommendedCombos: ["Mensajería / Recordatorios Pro", "Métricas", "CRM / Clientes Pro"],
+    ctaLabel: "Crear mi cuenta gratis",
+  },
+  {
     key: "CLASES",
     kind: "core",
     title: "Clases",
