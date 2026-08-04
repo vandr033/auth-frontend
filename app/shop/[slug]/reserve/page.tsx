@@ -182,18 +182,23 @@ export default function PublicRestaurantReservationPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const depositProofImageUrl = depositTotalCents > 0 && depositProofFile
-        ? await uploadPublicRestaurantDepositProof(slug, depositProofFile)
-        : null;
       const value = await createPublicRestaurantReservation(slug, {
         date,
         time,
         partySize,
         customer: { name, phone: phone || null, phonePrefix: phonePrefix || null, countryCode: phoneCountryCode || null, email: email || null },
         guests,
-        depositProofImageUrl,
         notes: notes || null,
       });
+      if (depositTotalCents > 0 && depositProofFile) {
+        try {
+          await uploadPublicRestaurantDepositProof(slug, value.reservation.code, depositProofFile);
+        } catch (error) {
+          setResult({ code: value.reservation.code, status: value.reservation.status });
+          setSubmitError("Tu reserva fue creada, pero no pudimos enviar el comprobante. Guardá tu código y volvé a intentarlo desde el detalle de la reserva.");
+          return;
+        }
+      }
       setDepositProofFile(null);
       setResult({ code: value.reservation.code, status: value.reservation.status });
     } catch (error: unknown) {

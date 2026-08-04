@@ -11,13 +11,17 @@ import { notify } from "@/lib/notify";
 import {
   createRestaurantDiningArea,
   createRestaurantTable,
+  createRestaurantTableCombination,
   deleteRestaurantDiningArea,
   deleteRestaurantTable,
+  deleteRestaurantTableCombination,
   getRestaurantAccess,
   listRestaurantDiningAreas,
   listRestaurantTables,
+  listRestaurantTableCombinations,
   type RestaurantDiningArea,
   type RestaurantTable,
+  type RestaurantTableCombination,
   updateRestaurantDiningArea,
   updateRestaurantTable,
 } from "@/app/admin/lib/adminApi";
@@ -49,6 +53,9 @@ export function RestaurantTablesManager() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [areas, setAreas] = useState<RestaurantDiningArea[]>([]);
   const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [combinations, setCombinations] = useState<RestaurantTableCombination[]>([]);
+  const [combinationName, setCombinationName] = useState("");
+  const [combinationTableIds, setCombinationTableIds] = useState<number[]>([]);
   const [areaDraft, setAreaDraft] = useState(newArea);
   const [tableDrafts, setTableDrafts] = useState<Record<number, typeof newTableDraft>>({});
   const [duplicateDraft, setDuplicateDraft] = useState<{ tableId: number; count: number } | null>(null);
@@ -63,9 +70,10 @@ export function RestaurantTablesManager() {
       const access = await getRestaurantAccess();
       setEnabled(access.enabled);
       if (access.enabled) {
-        const [nextAreas, nextTables] = await Promise.all([listRestaurantDiningAreas(), listRestaurantTables()]);
+        const [nextAreas, nextTables, nextCombinations] = await Promise.all([listRestaurantDiningAreas(), listRestaurantTables(), listRestaurantTableCombinations()]);
         setAreas(nextAreas);
         setTables(nextTables);
+        setCombinations(nextCombinations);
       }
     } catch (cause) {
       setError(errorMessage(cause));
@@ -165,6 +173,21 @@ export function RestaurantTablesManager() {
     }
   };
 
+  const addCombination = async () => {
+    if (!combinationName.trim() || combinationTableIds.length < 2) return;
+    try {
+      const areaId = tables.find((table) => combinationTableIds.includes(table.id))?.dining_area_id ?? null;
+      const created = await createRestaurantTableCombination({ name: combinationName.trim(), dining_area_id: areaId, table_ids: combinationTableIds });
+      setCombinations((current) => [...current, created]); setCombinationName(""); setCombinationTableIds([]);
+      await notify.success("Combinación creada.");
+    } catch (cause) { await notify.error(errorMessage(cause)); }
+  };
+
+  const removeCombination = async (id: number) => {
+    try { await deleteRestaurantTableCombination(id); setCombinations((current) => current.filter((item) => item.id !== id)); }
+    catch (cause) { await notify.error(errorMessage(cause)); }
+  };
+
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-admin-brand" /></div>;
   if (error) return <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">{error}</div>;
   if (!enabled) return <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-sm text-slate-600">{t("restaurant.moduleDisabled")}</div>;
@@ -213,5 +236,15 @@ export function RestaurantTablesManager() {
         </div>
       </section>;
     })}</div>}
+
+    <section className="space-y-4 border-t border-slate-200 pt-7">
+      <div><h2 className="text-lg font-semibold text-slate-900">Combinaciones de mesas</h2><p className="text-sm text-slate-600">Definí configuraciones permanentes que el piso puede activar temporalmente para una reserva.</p></div>
+      <div className="grid gap-3 rounded-xl bg-slate-50 p-4 md:grid-cols-[1fr_auto]">
+        <Input placeholder="Nombre de la combinación" value={combinationName} onChange={(event) => setCombinationName(event.target.value)}/>
+        <Button disabled={combinationTableIds.length < 2 || !combinationName.trim()} onClick={() => void addCombination()}><Plus className="mr-2 h-4 w-4"/>Crear combinación</Button>
+        <div className="grid gap-2 md:col-span-2 sm:grid-cols-2 lg:grid-cols-3">{tables.filter((table) => table.is_active).map((table) => <label key={table.id} className={`flex items-center gap-3 rounded-lg border p-3 text-sm ${combinationTableIds.includes(table.id) ? "border-admin-brand/50 bg-admin-brand/5" : "border-slate-200 bg-white"}`}><input type="checkbox" checked={combinationTableIds.includes(table.id)} onChange={(event) => setCombinationTableIds((current) => event.target.checked ? [...current, table.id] : current.filter((id) => id !== table.id))}/><span>{table.dining_area?.name} · {table.name}</span></label>)}</div>
+      </div>
+      {combinations.length ? <div className="grid gap-3 md:grid-cols-2">{combinations.map((combination) => <article key={combination.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4"><div><h3 className="font-semibold text-slate-900">{combination.name}</h3><p className="mt-1 text-sm text-slate-600">{combination.tables.map((item) => item.table.name).join(" + ")}</p></div><Button variant="ghost" size="icon" onClick={() => void removeCombination(combination.id)} aria-label={t("common.delete")}><Trash2 className="h-4 w-4"/></Button></article>)}</div> : <p className="text-sm text-slate-500">Todavía no hay combinaciones definidas.</p>}
+    </section>
   </div>;
 }

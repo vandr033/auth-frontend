@@ -8,6 +8,7 @@ export type PublicRestaurantSlot = { time: string; available: boolean };
 export type PublicRestaurantReservation = {
   code: string; status: "PENDING" | "CONFIRMED" | "ARRIVED" | "SEATED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
   date: string; time: string; partySize: number; customerName: string; notes: string | null; depositAmountCents: number; depositMode: "PER_PERSON" | "PER_TABLE" | null; canCancel: boolean; cancellationDeadline: string;
+  deposit?: { status: string; requiredAmountCents: number; currency: string; hasProof: boolean; rejectionReason: string | null } | null;
   restaurant: { name: string; slug: string; logoUrl: string | null }; publicUrl?: string;
 };
 type ApiResponse<T> = { data?: T; error?: boolean; message?: string };
@@ -21,14 +22,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const getPublicRestaurantConfiguration = (slug: string) => request<PublicRestaurantConfiguration>(`/restaurant/public/${encodeURIComponent(slug)}`);
 export const getPublicRestaurantAvailability = (slug: string, date: string, partySize: number) => request<{ date: string; partySize: number; timezone: string; slots: PublicRestaurantSlot[] }>(`/restaurant/public/${encodeURIComponent(slug)}/availability?date=${encodeURIComponent(date)}&partySize=${partySize}`);
-export const createPublicRestaurantReservation = (slug: string, input: { date: string; time: string; partySize: number; customer: { name: string; phone?: string | null; phonePrefix?: string | null; countryCode?: string | null; email?: string | null }; guests?: Array<{ name: string; phone: string; phonePrefix?: string | null; countryCode?: string | null }>; depositProofImageUrl?: string | null; notes?: string | null }) => request<{ reservation: PublicRestaurantReservation; message: string }>(`/restaurant/public/${encodeURIComponent(slug)}/reservations`, { method: "POST", body: JSON.stringify(input) });
-export async function uploadPublicRestaurantDepositProof(slug: string, file: File): Promise<string> {
+export const createPublicRestaurantReservation = (slug: string, input: { date: string; time: string; partySize: number; customer: { name: string; phone?: string | null; phonePrefix?: string | null; countryCode?: string | null; email?: string | null }; guests?: Array<{ name: string; phone: string; phonePrefix?: string | null; countryCode?: string | null }>; notes?: string | null }) => request<{ reservation: PublicRestaurantReservation; message: string }>(`/restaurant/public/${encodeURIComponent(slug)}/reservations`, { method: "POST", body: JSON.stringify(input) });
+export async function uploadPublicRestaurantDepositProof(slug: string, reservationCode: string, file: File): Promise<{ status: string }> {
   const body = new FormData();
   body.append("file", file);
-  const response = await fetch(resolvePublicApiUrl(`/restaurant/public/${encodeURIComponent(slug)}/deposit-proof`), { method: "POST", body, credentials: "include" });
-  const payload = await response.json().catch(() => ({})) as ApiResponse<{ url: string }>;
-  if (!response.ok || payload.error || !payload.data?.url) throw Object.assign(new Error(payload.message || "No pudimos cargar el comprobante."), { status: response.status });
-  return payload.data.url;
+  const response = await fetch(resolvePublicApiUrl(`/restaurant/public/${encodeURIComponent(slug)}/reservations/${encodeURIComponent(reservationCode)}/deposit-proof`), { method: "POST", body, credentials: "include" });
+  const payload = await response.json().catch(() => ({})) as ApiResponse<{ status: string }>;
+  if (!response.ok || payload.error || !payload.data) throw Object.assign(new Error(payload.message || "No pudimos cargar el comprobante."), { status: response.status });
+  return payload.data;
 }
 export const getMyPublicRestaurantReservations = (slug: string) => request<{ reservations: PublicRestaurantReservation[] }>(`/restaurant/public/${encodeURIComponent(slug)}/my-reservations`);
 export const getPublicRestaurantReservation = (code: string) => request<{ reservation: PublicRestaurantReservation }>(`/restaurant/public/reservations/${encodeURIComponent(code)}`);

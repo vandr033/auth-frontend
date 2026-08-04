@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
-import { CalendarDays, CheckCircle2, Eye, FileText, Filter, LayoutGrid, List, Loader2, Pencil, Plus, RotateCcw, UserRoundCheck, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, FileText, Filter, LayoutGrid, List, Loader2, Pencil, Plus, RotateCcw, UserRoundCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/notify";
-import { getImageUrl } from "@/utils/image-url";
-import { createRestaurantReservation, getRestaurantDashboard, getRestaurantReservation, listRestaurantReservations, listRestaurantTables, type RestaurantDashboard, type RestaurantReservation, type RestaurantReservationSource, type RestaurantReservationStatus, type RestaurantTable, updateRestaurantReservation, updateRestaurantReservationStatus } from "@/app/admin/lib/adminApi";
+import { createRestaurantReservation, fetchRestaurantDepositProof, getRestaurantDashboard, getRestaurantReservation, listRestaurantDeposits, listRestaurantReservations, listRestaurantTables, sendRestaurantDepositReminder, type RestaurantDashboard, type RestaurantDeposit, type RestaurantReservation, type RestaurantReservationSource, type RestaurantReservationStatus, type RestaurantTable, updateRestaurantReservation, updateRestaurantReservationStatus } from "@/app/admin/lib/adminApi";
 
 const labels: Record<RestaurantReservationStatus, string> = { PENDING: "Pendiente", CONFIRMED: "Confirmada", ARRIVED: "Llegó", SEATED: "Sentada", COMPLETED: "Completada", CANCELLED: "Cancelada", NO_SHOW: "No se presentó" };
 const sourceLabels: Record<RestaurantReservationSource, string> = { ADMIN: "Administración", PHONE: "Teléfono", WHATSAPP: "WhatsApp", WALK_IN: "Walk-in", ONLINE: "Online" };
@@ -89,7 +88,7 @@ export function RestaurantReservationsPage() {
         <h1 className="text-2xl font-bold text-slate-950">Reservas</h1>
         <p className="mt-1 text-sm text-slate-500">Gestioná el servicio, la ocupación y los cambios de cada mesa.</p>
       </div>
-      <Button asChild><Link href="/admin/dashboard/restaurant/reservations/new"><Plus className="mr-2 h-4 w-4"/>Nueva reserva</Link></Button>
+<Button asChild variant="outline"><Link href="/admin/dashboard/restaurant/floor">Piso en vivo</Link></Button><Button asChild variant="outline"><Link href="/admin/dashboard/restaurant/shifts">Turnos</Link></Button><Button asChild><Link href="/admin/dashboard/restaurant/reservations/new"><Plus className="mr-2 h-4 w-4"/>Nueva reserva</Link></Button>
     </header>
 
     <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -127,16 +126,19 @@ export function RestaurantReservationForm({ reservationId, walkIn = false }: { r
 
 export function RestaurantReservationDetail({ id }: { id: number }) {
   const [reservation, setReservation] = useState<RestaurantReservation | null>(null);
-  const load = async () => { try { setReservation(await getRestaurantReservation(id)); } catch (error) { await notify.error(errorMessage(error)); } };
+  const [deposit, setDeposit] = useState<RestaurantDeposit | null>(null);
+  const [proofBusy, setProofBusy] = useState(false);
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const load = async () => { try { const next = await getRestaurantReservation(id); setReservation(next); if (next.deposit_amount_cents > 0) { const result = await listRestaurantDeposits({ search: next.reservation_code, limit: 1 }); setDeposit(result.items.find((item) => item.reservation.id === next.id) || null); } else setDeposit(null); } catch (error) { await notify.error(errorMessage(error)); } };
+  const viewProof = async () => { if (!deposit) return; setProofBusy(true); try { const url = await fetchRestaurantDepositProof(deposit.id); window.open(url, "_blank", "noopener,noreferrer"); window.setTimeout(() => URL.revokeObjectURL(url), 60000); } catch (error) { await notify.error(errorMessage(error)); } finally { setProofBusy(false); } };
+  const sendReminder = async () => { if (!deposit) return; setReminderBusy(true); try { await sendRestaurantDepositReminder(deposit.id); await notify.success("Recordatorio enviado."); } catch (error) { await notify.error(errorMessage(error)); } finally { setReminderBusy(false); } };
   useEffect(() => { void load(); }, [id]);
   if (!reservation) return <Loading />;
-  const proofUrl = reservation.deposit_proof_image_url ? getImageUrl(reservation.deposit_proof_image_url) : null;
-  const isPdfProof = Boolean(proofUrl?.toLowerCase().includes(".pdf"));
 
   return <main className="mx-auto max-w-3xl space-y-5 pb-10">
     <header className="flex items-start justify-between"><div><p className="font-mono text-sm text-slate-500">{reservation.reservation_code}</p><h1 className="text-2xl font-bold text-slate-950">{reservation.customer_name}</h1><p className="text-slate-600">{labels[reservation.status]} · {sourceLabels[reservation.source]}</p></div><Button asChild><Link href={`/admin/dashboard/restaurant/reservations/${id}/edit`}>Editar</Link></Button></header>
     <section className="grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-2">{[["Fecha", new Date(reservation.start_time).toLocaleDateString("es-BO")], ["Horario", `${time(reservation.start_time)} – ${time(reservation.end_time)}`], ["Comensales", reservation.party_size], ["Mesa", reservation.table?.name || "—"], ["Teléfono", reservation.customer_phone || "—"], ["Correo", reservation.customer_email || "—"]].map(([label, value]) => <div key={String(label)} className="bg-white p-4"><p className="text-xs uppercase text-slate-500">{label}</p><p className="mt-1 text-sm font-medium">{value}</p></div>)}</section>
-    {reservation.deposit_amount_cents > 0 && <section className="rounded-xl border border-admin-brand/20 bg-admin-brand/5 p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2"><FileText className="h-4 w-4 text-admin-brand"/><h2 className="font-semibold text-slate-950">Depósito</h2></div><p className="mt-1 text-sm text-slate-600">Bs. {(reservation.deposit_amount_cents / 100).toFixed(2)} · {reservation.deposit_mode === "PER_PERSON" ? "por persona" : "por mesa"}</p></div>{proofUrl ? <a href={proofUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-md border border-admin-brand/30 bg-white px-3 text-sm font-medium text-admin-brand hover:bg-admin-brand/5"><Eye className="mr-2 h-4 w-4"/>Ver comprobante</a> : <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Sin comprobante</span>}</div>{proofUrl && !isPdfProof && <a href={proofUrl} target="_blank" rel="noreferrer" className="mt-4 block w-fit"><img src={proofUrl} alt="Comprobante de depósito" className="max-h-80 max-w-full rounded-lg border border-slate-200 bg-white object-contain p-1"/></a>}{proofUrl && isPdfProof && <p className="mt-3 text-sm text-slate-600">El comprobante es un PDF. Abrilo para revisarlo.</p>}</section>}
+    {reservation.deposit_amount_cents > 0 && <section className="rounded-xl border border-admin-brand/20 bg-admin-brand/5 p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2"><FileText className="h-4 w-4 text-admin-brand"/><h2 className="font-semibold text-slate-950">Depósito</h2></div><p className="mt-1 text-sm text-slate-600">Bs. {(deposit?.requiredAmountCents ?? reservation.deposit_amount_cents) / 100} · {reservation.deposit_mode === "PER_PERSON" ? "por persona" : "por mesa"}</p><p className="mt-1 text-xs text-slate-500">Estado: {deposit?.status || "No registrado"}</p></div><div className="flex flex-wrap gap-2">{deposit?.hasProof ? <Button variant="outline" onClick={() => void viewProof()} disabled={proofBusy}>{proofBusy ? "Abriendo…" : "Ver comprobante privado"}</Button> : <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Sin comprobante</span>}{deposit && ["REQUIRED", "PENDING", "REJECTED"].includes(deposit.status) ? <Button variant="outline" onClick={() => void sendReminder()} disabled={reminderBusy}>{reminderBusy ? "Enviando…" : "Enviar recordatorio"}</Button> : null}</div></div></section>}
     <section className="rounded-xl border border-slate-200 bg-white p-5">
       <h2 className="font-semibold">Acciones</h2>
       <div className="mt-3 flex flex-wrap gap-2">
