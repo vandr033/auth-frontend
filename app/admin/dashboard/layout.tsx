@@ -31,6 +31,7 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/appVersion";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
@@ -181,7 +182,13 @@ export default function DashboardLayout({
 
     return (
         <I18nProvider defaultLocale={companyUser?.company?.default_language ?? 'es'}>
-            {isCompanyExpired && expiredAt ? (
+            {!user?.is_super_admin && !companyUser && companyUsers.length > 1 ? (
+                <CompanySelectionRequired
+                    companyUsers={companyUsers}
+                    isSwitchingShop={isSwitchingShop}
+                    onSwitchShop={switchActiveShop}
+                />
+            ) : isCompanyExpired && expiredAt ? (
                 <ExpiredAdminState
                     expiredAt={expiredAt}
                     companyId={companyId}
@@ -193,6 +200,53 @@ export default function DashboardLayout({
                 <DashboardShell>{children}</DashboardShell>
             )}
         </I18nProvider>
+    );
+}
+
+function CompanySelectionRequired({
+    companyUsers,
+    isSwitchingShop,
+    onSwitchShop,
+}: {
+    companyUsers: Array<{ id: number; company_id: number; role: string; company?: { name?: string } }>;
+    isSwitchingShop: boolean;
+    onSwitchShop: (companyId: number) => Promise<void>;
+}) {
+    const [selectedCompanyId, setSelectedCompanyId] = useState("");
+    const handleContinue = async () => {
+        const companyId = Number.parseInt(selectedCompanyId, 10);
+        if (!Number.isInteger(companyId) || companyId <= 0) return;
+        await onSwitchShop(companyId);
+    };
+
+    return (
+        <div className="flex min-h-[100dvh] items-center justify-center bg-slate-100 px-4">
+            <Card className="w-full max-w-lg border-slate-200 bg-white shadow-sm">
+                <CardHeader>
+                    <CardTitle>Elegí una empresa activa</CardTitle>
+                    <CardDescription>
+                        Para proteger los datos de cada restaurante, seleccioná dónde querés trabajar antes de abrir el panel.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId} disabled={isSwitchingShop}>
+                        <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Seleccioná una empresa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {companyUsers.map((membership) => (
+                                <SelectItem key={membership.id} value={membership.company_id.toString()}>
+                                    {membership.company?.name || `Empresa #${membership.company_id}`} · {membership.role}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button className="w-full bg-admin-brand text-white hover:bg-admin-brand-hover" disabled={!selectedCompanyId || isSwitchingShop} onClick={() => void handleContinue()}>
+                        {isSwitchingShop ? "Cargando…" : "Continuar"}
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
     );
 }
 

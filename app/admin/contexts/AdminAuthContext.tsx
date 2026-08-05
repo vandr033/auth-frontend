@@ -203,7 +203,7 @@ function normalizeCompanyContext(payload?: SessionPayload | null) {
 
     const activeCompanyUser = activeCompanyId
         ? companyUsers.find((companyUser) => companyUser.company_id === activeCompanyId) ?? null
-        : payload?.companyUser ?? companyUsers[0] ?? null;
+        : payload?.companyUser ?? (companyUsers.length === 1 ? companyUsers[0] : null);
 
     return {
         companyUsers,
@@ -468,7 +468,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             loading,
             error,
             // Super admins can be authenticated without a companyUser
-            isAuthenticated: Boolean(user && (companyUser || user.is_super_admin)),
+            isAuthenticated: Boolean(user && (companyUser || companyUsers.length > 0 || user.is_super_admin)),
             isSuperAdmin: Boolean(user?.is_super_admin),
             mustChangePassword: Boolean(user?.must_change_password),
             companyId: companyUser?.company_id ?? null,
