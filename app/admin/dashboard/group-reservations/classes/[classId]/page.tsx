@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import {
     adminCreateGroupClassEnrollment,
     cancelGroupClassEnrollment,
@@ -1231,9 +1232,9 @@ export default function GroupClassDetailPage() {
                                 </div>
                             </div>
                             {groupClass.description ? (
-                                <div
-                                    className="prose prose-sm mt-4 max-w-none text-slate-700"
-                                    dangerouslySetInnerHTML={{ __html: groupClass.description }}
+                                <RichTextContent
+                                    html={groupClass.description}
+                                    className="mt-4 text-sm text-slate-700"
                                 />
                             ) : null}
                         </AdminSectionCard>

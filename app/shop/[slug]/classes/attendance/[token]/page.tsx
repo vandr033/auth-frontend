@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { CountryPhoneSelect } from "@/components/ui/country-phone-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import { ShopFooter } from "@/components/shop/ShopFooter";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
@@ -329,10 +330,7 @@ export default function PublicSessionAttendancePage() {
           </div>
 
           {state.group_class.description ? (
-            <div
-              className="text-sm text-text-muted [&_a]:underline [&_a]:underline-offset-2 [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-2 [&_ul]:list-disc"
-              dangerouslySetInnerHTML={{ __html: state.group_class.description }}
-            />
+            <RichTextContent html={state.group_class.description} className="text-sm text-text-muted" />
           ) : null}
         </article>
 

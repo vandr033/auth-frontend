@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
@@ -907,11 +908,7 @@ export default function ShopEventDetailPage() {
           </div>
 
           {event.description ? (
-            <div
-              className="text-sm text-text-muted [&_a]:underline [&_a]:underline-offset-2 [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-2 [&_ul]:list-disc"
-              // Description HTML is sanitized server-side before persistence.
-              dangerouslySetInnerHTML={{ __html: event.description }}
-            />
+            <RichTextContent html={event.description} className="text-sm text-text-muted" />
           ) : null}
 
           <div className="grid gap-2 text-sm text-text-muted">
