@@ -91,6 +91,7 @@ export default function ShopEventDetailPage() {
   const [myBookings, setMyBookings] = React.useState<PublicGroupEventBooking[]>([]);
   const [bookedSpots, setBookedSpots] = React.useState("1");
   const [notes, setNotes] = React.useState("");
+  const [registrationQuestionAnswer, setRegistrationQuestionAnswer] = React.useState("");
   const [extraAttendees, setExtraAttendees] = React.useState<ExtraAttendeeForm[]>([]);
   const [paymentMethod, setPaymentMethod] = React.useState<GroupPaymentMethod>("CASH");
   const [qrProofFile, setQrProofFile] = React.useState<File | null>(null);
@@ -589,6 +590,11 @@ export default function ShopEventDetailPage() {
       return;
     }
 
+    if (event.registration_question_required && !registrationQuestionAnswer.trim()) {
+      await notify.warning(t("shopGroup.forms.registrationQuestionRequired"));
+      return;
+    }
+
     for (let index = 0; index < extraAttendees.length; index += 1) {
       const attendee = extraAttendees[index];
       if (!attendee.full_name.trim()) {
@@ -621,6 +627,7 @@ export default function ShopEventDetailPage() {
           email: attendee.email.trim() || null,
           phone: attendee.phone.trim() || null,
         })),
+        registration_question_answer: registrationQuestionAnswer.trim() || null,
         notes: notes.trim() || null,
       });
 
@@ -633,6 +640,7 @@ export default function ShopEventDetailPage() {
       });
       setQrProofFile(null);
       setNotes("");
+      setRegistrationQuestionAnswer("");
       setBookedSpots("1");
       setExtraAttendees([]);
       await loadData();
@@ -985,6 +993,8 @@ export default function ShopEventDetailPage() {
                   companyId={company.id}
                   slug={slug}
                   customTos={settings?.custom_tos}
+                  registrationQuestionText={event.registration_question_text}
+                  registrationQuestionRequired={event.registration_question_required}
                   prefill={freeRegState?.prefill ?? null}
                   existingStatus={freeRegState.status}
                   onRegistered={(status) => {
@@ -1026,6 +1036,8 @@ export default function ShopEventDetailPage() {
                         companyId={company.id}
                         slug={slug}
                         customTos={settings?.custom_tos}
+                        registrationQuestionText={event.registration_question_text}
+                        registrationQuestionRequired={event.registration_question_required}
                         prefill={freeRegState?.prefill ?? null}
                         existingStatus={null}
                         onRegistered={(status) => {
@@ -1107,6 +1119,8 @@ export default function ShopEventDetailPage() {
                     onQrProofChange={setQrProofFile}
                     notes={notes}
                     onNotesChange={setNotes}
+                    registrationQuestionAnswer={registrationQuestionAnswer}
+                    onRegistrationQuestionAnswerChange={setRegistrationQuestionAnswer}
                     busy={busyAction === "book"}
                     disableSubmit={paidGuestRequiresQrProof}
                     onSubmit={handleBook}
@@ -1313,6 +1327,8 @@ export default function ShopEventDetailPage() {
                 onQrProofChange={setQrProofFile}
                 notes={notes}
                 onNotesChange={setNotes}
+                registrationQuestionAnswer={registrationQuestionAnswer}
+                onRegistrationQuestionAnswerChange={setRegistrationQuestionAnswer}
                 busy={busyAction === "book"}
                 disableSubmit={paidGuestRequiresQrProof}
                 onSubmit={handlePaidGuestBooking}

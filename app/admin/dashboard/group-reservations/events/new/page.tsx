@@ -48,6 +48,8 @@ type EventFormState = {
     title: string;
     slug: string;
     description: string;
+    registration_question_text: string;
+    registration_question_required: boolean;
     no_availability_message: string;
     cover_image_url: string;
     thumbnail_url: string;
@@ -106,6 +108,8 @@ function createDefaultForm(defaultLocationText = ""): EventFormState {
         title: "",
         slug: "",
         description: "",
+        registration_question_text: "",
+        registration_question_required: false,
         no_availability_message: "",
         cover_image_url: "",
         thumbnail_url: "",
@@ -225,6 +229,10 @@ export default function NewGroupEventPage() {
             await notify.warning(t("adminGroup.forms.invalidPrice"));
             return;
         }
+        if (form.registration_question_required && !form.registration_question_text.trim()) {
+            await notify.warning(t("adminGroup.forms.registrationQuestionRequired"));
+            return;
+        }
 
         setCreating(true);
         try {
@@ -240,6 +248,8 @@ export default function NewGroupEventPage() {
                 title: form.title.trim(),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
+                registration_question_text: form.registration_question_text.trim() || null,
+                registration_question_required: form.registration_question_required,
                 no_availability_message: form.is_free ? (form.no_availability_message.trim() || null) : null,
                 cover_image_url: form.cover_image_url.trim() || null,
                 thumbnail_url: form.thumbnail_url.trim() || null,
@@ -403,6 +413,26 @@ export default function NewGroupEventPage() {
                                     placeholder="<p><strong>Descripcion en HTML</strong></p>"
                                     minHeightClassName="min-h-[160px]"
                                 />
+                            </div>
+                            <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+                                <div>
+                                    <Label>{t("adminGroup.fields.registrationQuestion")}</Label>
+                                    <p className="mt-1 text-xs text-slate-500">{t("adminGroup.fields.registrationQuestionHelp")}</p>
+                                </div>
+                                <textarea
+                                    className="min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                                    value={form.registration_question_text}
+                                    onChange={(event) => setForm((prev) => ({ ...prev, registration_question_text: event.target.value }))}
+                                    placeholder={t("adminGroup.fields.registrationQuestionPlaceholder")}
+                                    maxLength={500}
+                                />
+                                <label className="flex items-center justify-between gap-3 text-sm text-slate-700">
+                                    <span>{t("adminGroup.fields.registrationQuestionRequired")}</span>
+                                    <Switch
+                                        checked={form.registration_question_required}
+                                        onCheckedChange={(checked) => setForm((prev) => ({ ...prev, registration_question_required: checked }))}
+                                    />
+                                </label>
                             </div>
                         </CardContent>
                     </Card>

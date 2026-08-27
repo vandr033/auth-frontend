@@ -143,6 +143,8 @@ type EventFormState = {
     title: string;
     slug: string;
     description: string;
+    registration_question_text: string;
+    registration_question_required: boolean;
     no_availability_message: string;
     cover_image_url: string;
     thumbnail_url: string;
@@ -191,6 +193,8 @@ function fromEvent(event: GroupEvent): EventFormState {
         title: event.title,
         slug: event.slug,
         description: event.description ?? "",
+        registration_question_text: event.registration_question_text ?? "",
+        registration_question_required: event.registration_question_required ?? false,
         no_availability_message: event.no_availability_message ?? "",
         cover_image_url: event.cover_image_url ?? "",
         thumbnail_url: event.thumbnail_url ?? "",
@@ -466,6 +470,10 @@ export default function GroupEventDetailPage() {
             await notify.warning(t("adminGroup.forms.invalidPrice"));
             return;
         }
+        if (form.registration_question_required && !form.registration_question_text.trim()) {
+            await notify.warning(t("adminGroup.forms.registrationQuestionRequired"));
+            return;
+        }
 
         setSaving(true);
         try {
@@ -473,6 +481,8 @@ export default function GroupEventDetailPage() {
                 title: form.title.trim(),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
+                registration_question_text: form.registration_question_text.trim() || null,
+                registration_question_required: form.registration_question_required,
                 no_availability_message: form.is_free ? (form.no_availability_message.trim() || null) : null,
                 // Skip image fields that will be updated by uploadAdminImage to avoid a
                 // temporary null write that could cause the public page to show the wrong image.
@@ -669,7 +679,9 @@ export default function GroupEventDetailPage() {
     };
 
     const exportInterestedCsv = () => {
+        const includeQuestion = Boolean(event?.registration_question_text?.trim());
         const headers = ["name", "email", "phone", "event", "created_at", "status"];
+        if (includeQuestion) headers.push("registration_question_answer");
         const rows = freeInterested.map((person) => [
             `${person.firstName} ${person.lastName}`.trim(),
             person.email || "",
@@ -677,6 +689,7 @@ export default function GroupEventDetailPage() {
             event?.title || "",
             person.createdAt,
             "INTERESTED",
+            ...(includeQuestion ? [person.registrationQuestionAnswer ?? ""] : []),
         ]);
         const csv = [headers, ...rows]
             .map((row) => row.map((cell) => {
@@ -696,24 +709,30 @@ export default function GroupEventDetailPage() {
     };
 
     const exportAttendeesCsv = () => {
+        const includeQuestion = Boolean(event?.registration_question_text?.trim());
         const headers = ["name", "email", "phone", "event", "status", "ticket_or_code", "created_at"];
+        if (includeQuestion) headers.push("registration_question_answer");
         let rows: string[][] = [];
 
         if (event?.is_free) {
-            rows = freeRegistrations.map((reg) => [
-                `${reg.firstName} ${reg.lastName}`.trim(),
-                reg.email || "",
-                reg.phonePrefix && reg.phoneNumber ? `+${reg.phonePrefix}${reg.phoneNumber}` : "",
-                event?.title || "",
-                "REGISTERED",
-                reg.reservationCode ?? "",
-                reg.createdAt,
-            ]);
+            rows = freeRegistrations.map((reg) => {
+                const row = [
+                    `${reg.firstName} ${reg.lastName}`.trim(),
+                    reg.email || "",
+                    reg.phonePrefix && reg.phoneNumber ? `+${reg.phonePrefix}${reg.phoneNumber}` : "",
+                    event?.title || "",
+                    "REGISTERED",
+                    reg.reservationCode ?? "",
+                    reg.createdAt,
+                ];
+                if (includeQuestion) row.push(reg.registrationQuestionAnswer ?? "");
+                return row;
+            });
         } else {
             rows = bookings.map((booking) => {
                 const bookingTickets = ticketsByBookingId.get(booking.id) ?? [];
                 const ticketCodes = bookingTickets.map(t => t.ticket_code).join("; ");
-                return [
+                const row = [
                     booking.user?.name || booking.user?.email || booking.user_id,
                     booking.user?.email || "",
                     booking.user?.phoneNumber || "",
@@ -722,6 +741,8 @@ export default function GroupEventDetailPage() {
                     ticketCodes,
                     booking.created_at,
                 ];
+                if (includeQuestion) row.push(booking.registration_question_answer ?? "");
+                return row;
             });
         }
 
@@ -1071,6 +1092,28 @@ export default function GroupEventDetailPage() {
                                 minHeightClassName="min-h-[120px]"
                             />
                         </div>
+                        <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+                            <div>
+                                <Label>{t("adminGroup.fields.registrationQuestion")}</Label>
+                                <p className="mt-1 text-xs text-slate-500">{t("adminGroup.fields.registrationQuestionHelp")}</p>
+                            </div>
+                            <textarea
+                                className="min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                                value={form.registration_question_text}
+                                onChange={(e) => setForm((prev) => prev ? { ...prev, registration_question_text: e.target.value } : prev)}
+                                placeholder={t("adminGroup.fields.registrationQuestionPlaceholder")}
+                                maxLength={500}
+                            />
+                            <label className="flex items-center justify-between gap-3 text-sm text-slate-700">
+                                <span>{t("adminGroup.fields.registrationQuestionRequired")}</span>
+                                <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-slate-300 text-admin-brand focus:ring-admin-brand"
+                                    checked={form.registration_question_required}
+                                    onChange={(e) => setForm((prev) => prev ? { ...prev, registration_question_required: e.target.checked } : prev)}
+                                />
+                            </label>
+                        </div>
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.coverImageUrl")}</Label>
                             <p className="text-xs text-slate-500">{t("adminGroup.fields.recommendedSize", { size: GROUP_MEDIA_RECOMMENDED_SIZE })}</p>
@@ -1395,6 +1438,9 @@ export default function GroupEventDetailPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                    {event.registration_question_text?.trim() ? (
+                                        <TableHead>{t("adminGroup.fields.registrationQuestionAnswer")}</TableHead>
+                                    ) : null}
                                     <TableHead>{t("adminGroup.fields.status")}</TableHead>
                                     <TableHead>{t("adminGroup.fields.payment")}</TableHead>
                                     <TableHead>{t("adminGroup.fields.ticket")}</TableHead>
@@ -1416,6 +1462,11 @@ export default function GroupEventDetailPage() {
                                                 <div>{booking.user?.name || booking.user?.email || booking.user_id}</div>
                                                 <div className="text-xs text-slate-500">{booking.user?.phoneNumber || "—"}</div>
                                             </TableCell>
+                                            {event.registration_question_text?.trim() ? (
+                                                <TableCell className="max-w-xs whitespace-pre-wrap text-sm text-slate-700">
+                                                    {booking.registration_question_answer || "—"}
+                                                </TableCell>
+                                            ) : null}
                                             <TableCell>
                                                 <GroupBookingStatusBadge status={booking.status} />
                                             </TableCell>
@@ -1551,6 +1602,9 @@ export default function GroupEventDetailPage() {
                                             <TableHead>{t("adminGroup.fields.name")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.email")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.phone")}</TableHead>
+                                            {event.registration_question_text?.trim() ? (
+                                                <TableHead>{t("adminGroup.fields.registrationQuestionAnswer")}</TableHead>
+                                            ) : null}
                                             <TableHead>{t("adminGroup.freeReg.code")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.checkedInAt")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.actions")}</TableHead>
@@ -1562,6 +1616,9 @@ export default function GroupEventDetailPage() {
                                                 <TableCell className="font-medium">{reg.firstName} {reg.lastName}</TableCell>
                                                 <TableCell>{reg.email || "—"}</TableCell>
                                                 <TableCell>{reg.phonePrefix && reg.phoneNumber ? `+${reg.phonePrefix}${reg.phoneNumber}` : "—"}</TableCell>
+                                                {event.registration_question_text?.trim() ? (
+                                                    <TableCell className="max-w-xs whitespace-pre-wrap text-sm text-slate-700">{reg.registrationQuestionAnswer || "—"}</TableCell>
+                                                ) : null}
                                                 <TableCell>
                                                     <span className="font-mono text-xs">{reg.reservationCode ?? "—"}</span>
                                                 </TableCell>
@@ -1635,6 +1692,9 @@ export default function GroupEventDetailPage() {
                                             <TableHead>{t("adminGroup.fields.name")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.email")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.phone")}</TableHead>
+                                            {event.registration_question_text?.trim() ? (
+                                                <TableHead>{t("adminGroup.fields.registrationQuestionAnswer")}</TableHead>
+                                            ) : null}
                                             <TableHead>{t("adminGroup.fields.createdAt")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.actions")}</TableHead>
                                         </TableRow>
@@ -1651,6 +1711,9 @@ export default function GroupEventDetailPage() {
                                                 <TableCell className="font-medium">{person.firstName} {person.lastName}</TableCell>
                                                 <TableCell>{person.email || "—"}</TableCell>
                                                 <TableCell>{person.phonePrefix && person.phoneNumber ? `+${person.phonePrefix}${person.phoneNumber}` : "—"}</TableCell>
+                                                {event.registration_question_text?.trim() ? (
+                                                    <TableCell className="max-w-xs whitespace-pre-wrap text-sm text-slate-700">{person.registrationQuestionAnswer || "—"}</TableCell>
+                                                ) : null}
                                                 <TableCell>{formatDateTime(person.createdAt)}</TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-1">

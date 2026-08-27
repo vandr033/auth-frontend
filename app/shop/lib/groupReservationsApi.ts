@@ -40,6 +40,8 @@ export interface PublicGroupEvent {
   price_cents: number;
   max_capacity: number;
   capacity_visible: boolean;
+  registration_question_text: string | null;
+  registration_question_required: boolean;
   start_at: string;
   end_at: string;
   location_text: string | null;
@@ -109,6 +111,7 @@ export interface PublicGroupEventBooking {
   payment_method: GroupPaymentMethod;
   payment_status: GroupPaymentStatus;
   qr_proof_image_url: string | null;
+  registration_question_answer?: string | null;
   total_price_cents: number;
   extra_attendees_json?: Array<{
     full_name: string;
@@ -492,6 +495,7 @@ export async function createPublicEventBooking(payload: {
   booked_spots?: number;
   payment_method: GroupPaymentMethod;
   qr_proof_image_url?: string | null;
+  registration_question_answer?: string | null;
   extra_attendees?: Array<{
     full_name: string;
     email?: string | null;
@@ -810,6 +814,7 @@ export interface FreeEventRegistrationInput {
   phonePrefix: string;
   phoneNumber: string;
   tosAccepted: boolean;
+  registrationQuestionAnswer?: string | null;
   createAccount?: boolean;
   otpChannelPreference?: "email" | "phone";
 }

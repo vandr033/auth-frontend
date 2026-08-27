@@ -27,6 +27,8 @@ type PaidEventBookingFormProps = {
   onQrProofChange: (file: File | null) => void;
   notes: string;
   onNotesChange: (value: string) => void;
+  registrationQuestionAnswer: string;
+  onRegistrationQuestionAnswerChange: (value: string) => void;
   busy: boolean;
   disableSubmit?: boolean;
   onSubmit: () => void | Promise<void>;
@@ -47,6 +49,8 @@ export function PaidEventBookingForm({
   onQrProofChange,
   notes,
   onNotesChange,
+  registrationQuestionAnswer,
+  onRegistrationQuestionAnswerChange,
   busy,
   disableSubmit = false,
   onSubmit,
@@ -116,6 +120,20 @@ export function PaidEventBookingForm({
               </div>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {event.registration_question_text?.trim() ? (
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-text-muted">
+            {event.registration_question_text.trim()} {event.registration_question_required ? "*" : `(${t("shopGroup.optional")})`}
+          </label>
+          <textarea
+            className="min-h-[90px] w-full rounded-md border border-surface-border bg-white px-3 py-2 text-sm text-text-main"
+            value={registrationQuestionAnswer}
+            onChange={(e) => onRegistrationQuestionAnswerChange(e.target.value)}
+            maxLength={5000}
+          />
         </div>
       ) : null}
 

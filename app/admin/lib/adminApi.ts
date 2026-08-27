@@ -1418,6 +1418,8 @@ export interface GroupEvent {
     price_cents: number;
     max_capacity: number;
     capacity_visible: boolean;
+    registration_question_text: string | null;
+    registration_question_required: boolean;
     start_at: string;
     end_at: string;
     location_text: string | null;
@@ -1512,6 +1514,7 @@ export interface GroupEventBooking {
     payment_method: GroupPaymentMethod;
     payment_status: GroupPaymentStatus;
     qr_proof_image_url: string | null;
+    registration_question_answer?: string | null;
     total_price_cents: number;
     extra_attendees_json?: Array<{
         full_name: string;
@@ -1944,6 +1947,8 @@ export interface CreateGroupEventPayload {
     price_cents: number;
     max_capacity: number;
     capacity_visible?: boolean;
+    registration_question_text?: string | null;
+    registration_question_required?: boolean;
     start_at: string;
     end_at: string;
     location_text?: string | null;
@@ -2612,6 +2617,7 @@ export interface FreeEventRegistration {
     email: string;
     phonePrefix: string;
     phoneNumber: string;
+    registrationQuestionAnswer: string | null;
     gender: string;
     age: number;
     status: "CONFIRMED" | "PENDING";
@@ -2627,6 +2633,7 @@ export interface FreeEventInterestedUser {
     email: string;
     phonePrefix: string;
     phoneNumber: string;
+    registrationQuestionAnswer: string | null;
     gender: string;
     age: number;
     createdAt: string;

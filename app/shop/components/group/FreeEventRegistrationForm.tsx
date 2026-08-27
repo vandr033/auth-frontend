@@ -16,6 +16,8 @@ interface Props {
   companyId: number;
   slug: string;
   customTos?: string | null;
+  registrationQuestionText?: string | null;
+  registrationQuestionRequired?: boolean;
   prefill: {
     firstName: string;
     lastName: string;
@@ -41,6 +43,8 @@ export function FreeEventRegistrationForm({
   companyId,
   slug,
   customTos,
+  registrationQuestionText,
+  registrationQuestionRequired = false,
   prefill,
   existingStatus,
   onRegistered,
@@ -56,6 +60,7 @@ export function FreeEventRegistrationForm({
   const [phoneCountryCode, setPhoneCountryCode] = React.useState(prefill?.countryCode ?? DEFAULT_COUNTRY_CODE);
   const [phonePrefix, setPhonePrefix] = React.useState(prefill?.phonePrefix ?? "591");
   const [phoneNumber, setPhoneNumber] = React.useState(prefill?.phoneNumber ?? "");
+  const [registrationQuestionAnswer, setRegistrationQuestionAnswer] = React.useState("");
   const [tosAccepted, setTosAccepted] = React.useState(false);
   const [createAccount, setCreateAccount] = React.useState(false);
   const [otpChannelPreference, setOtpChannelPreference] = React.useState<"email" | "phone">("phone");
@@ -111,6 +116,9 @@ export function FreeEventRegistrationForm({
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = t("freeEventReg.validation.invalidEmail");
     if (!phonePrefix) errs.phonePrefix = t("freeEventReg.validation.required");
     if (!phoneNumber.trim()) errs.phoneNumber = t("freeEventReg.validation.invalidPhone");
+    if (registrationQuestionRequired && !registrationQuestionAnswer.trim()) {
+      errs.registrationQuestionAnswer = t("freeEventReg.validation.required");
+    }
     if (!tosAccepted) errs.tos = t("freeEventReg.validation.tosRequired");
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -131,6 +139,7 @@ export function FreeEventRegistrationForm({
         phonePrefix,
         phoneNumber: phoneNumber.trim(),
         tosAccepted,
+        registrationQuestionAnswer: registrationQuestionAnswer.trim() || null,
         createAccount,
         otpChannelPreference: createAccount ? otpChannelPreference : undefined,
       });
@@ -226,6 +235,21 @@ export function FreeEventRegistrationForm({
           />
           {errors.phoneNumber && <p className="mt-1 text-xs text-rose-600">{errors.phoneNumber}</p>}
         </div>
+
+        {registrationQuestionText?.trim() ? (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-muted">
+              {registrationQuestionText.trim()} {registrationQuestionRequired ? "*" : `(${t("freeEventReg.optional")})`}
+            </label>
+            <textarea
+              className="min-h-[90px] w-full rounded-md border border-surface-border bg-white px-3 py-2 text-sm text-text-main focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              value={registrationQuestionAnswer}
+              onChange={(e) => setRegistrationQuestionAnswer(e.target.value)}
+              maxLength={5000}
+            />
+            {errors.registrationQuestionAnswer && <p className="mt-1 text-xs text-rose-600">{errors.registrationQuestionAnswer}</p>}
+          </div>
+        ) : null}
 
         {/* TOS */}
         <div className="space-y-1">
