@@ -471,6 +471,23 @@ export function BookingDetailSheet({
                         </div>
                     </div>
 
+                    {(booking.notes || booking.internal_notes) && (
+                        <div className="space-y-3">
+                            {booking.notes && (
+                                <div className="rounded-lg border border-slate-200 bg-page p-4">
+                                    <h3 className="text-sm font-semibold">{t("adminBookings.customerNotes")}</h3>
+                                    <p className="mt-2 whitespace-pre-wrap text-sm text-text-muted">{booking.notes}</p>
+                                </div>
+                            )}
+                            {booking.internal_notes && (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4">
+                                    <h3 className="text-sm font-semibold text-amber-950">{t("adminBookings.internalNotes")}</h3>
+                                    <p className="mt-2 whitespace-pre-wrap text-sm text-amber-900">{booking.internal_notes}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div>
                         <h3 className="mb-3 text-sm font-semibold">{t("adminBookings.paymentInfo")}</h3>
                         <div className="grid gap-3 rounded-lg bg-page p-4">

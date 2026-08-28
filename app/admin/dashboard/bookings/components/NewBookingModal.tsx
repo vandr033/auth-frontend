@@ -217,6 +217,7 @@ export function NewBookingModal({
     const [guestPhonePrefix, setGuestPhonePrefix] = useState("591");
     const [guestPhone, setGuestPhone] = useState("");
     const [notes, setNotes] = useState("");
+    const [internalNotes, setInternalNotes] = useState("");
     const [singleIsPaid, setSingleIsPaid] = useState(false);
     const [singlePaymentMethod, setSinglePaymentMethod] = useState<PaymentMethodValue>("NONE");
     const [singleQrProofUrl, setSingleQrProofUrl] = useState<string | null>(null);
@@ -247,6 +248,7 @@ export function NewBookingModal({
         setGuestPhonePrefix("591");
         setGuestPhone("");
         setNotes("");
+        setInternalNotes("");
         setSingleIsPaid(false);
         setSinglePaymentMethod("NONE");
         setSingleQrProofUrl(null);
@@ -661,6 +663,7 @@ export function NewBookingModal({
                     customer_id: customerPayload.customer_id,
                     customer: customerPayload.customer,
                     notes: notes.trim() || undefined,
+                    internal_notes: internalNotes.trim() || undefined,
                     is_paid: singleIsPaid,
                     payment_method: singleIsPaid ? singlePaymentMethod : "NONE",
                     qr_proof_image_url: singleIsPaid && singlePaymentMethod === "QR" ? singleQrProofUrl : null,
@@ -684,6 +687,7 @@ export function NewBookingModal({
                     customer_id: customerPayload.customer_id,
                     customer: customerPayload.customer,
                     notes: notes.trim() || undefined,
+                    internal_notes: internalNotes.trim() || undefined,
                     sessions: generatedSessions.map((session) => ({
                         service_ids: session.serviceIds,
                         start_at: session.startAt,
@@ -1300,18 +1304,33 @@ export function NewBookingModal({
                                 </>
                             )}
 
-                            <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                <Label htmlFor="booking-notes" className="mb-2 block text-sm font-semibold">
-                                    {t("adminBookings.notes")}
-                                </Label>
-                                <textarea
-                                    id="booking-notes"
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    rows={3}
-                                    className="flex min-h-[92px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                    placeholder={t("adminBookings.notesPlaceholder")}
-                                />
+                            <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4">
+                                <div>
+                                    <Label htmlFor="booking-notes" className="mb-2 block text-sm font-semibold">
+                                        {t("adminBookings.customerNotes")}
+                                    </Label>
+                                    <textarea
+                                        id="booking-notes"
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        rows={3}
+                                        className="flex min-h-[92px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        placeholder={t("adminBookings.customerNotesPlaceholder")}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="booking-internal-notes" className="mb-2 block text-sm font-semibold">
+                                        {t("adminBookings.internalNotes")}
+                                    </Label>
+                                    <textarea
+                                        id="booking-internal-notes"
+                                        value={internalNotes}
+                                        onChange={(e) => setInternalNotes(e.target.value)}
+                                        rows={3}
+                                        className="flex min-h-[92px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        placeholder={t("adminBookings.internalNotesPlaceholder")}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

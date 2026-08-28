@@ -23,7 +23,8 @@ export interface AdminBooking {
         name: string;
     };
     total_price: number;
-    notes?: string;
+    notes?: string | null;
+    internal_notes?: string | null;
     payment_method?: 'CASH' | 'QR' | 'NONE';
     payment_status?: BookingPaymentStatus;
     qr_proof_image_url?: string;

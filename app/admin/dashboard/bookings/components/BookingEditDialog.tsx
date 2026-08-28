@@ -46,6 +46,7 @@ type BookingUpdatesPayload = {
     service_ids?: number[];
     start_at?: string;
     notes?: string | null;
+    internal_notes?: string | null;
 };
 
 function getServiceDisplayPriceCents(service: ServiceItem): number {
@@ -70,6 +71,7 @@ export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved 
     const [date, setDate] = useState(format(parseISO(booking.start_at), "yyyy-MM-dd"));
     const [time, setTime] = useState(format(parseISO(booking.start_at), "HH:mm"));
     const [notes, setNotes] = useState(booking.notes || "");
+    const [internalNotes, setInternalNotes] = useState(booking.internal_notes || "");
 
     // Load staff and services on mount
     useEffect(() => {
@@ -100,6 +102,7 @@ export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved 
         setDate(format(parseISO(booking.start_at), "yyyy-MM-dd"));
         setTime(format(parseISO(booking.start_at), "HH:mm"));
         setNotes(booking.notes || "");
+        setInternalNotes(booking.internal_notes || "");
     }, [booking]);
 
     // Group services by category
@@ -164,6 +167,12 @@ export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved 
 
             if (normalizedNotes !== currentNotes) {
                 updates.notes = normalizedNotes.length > 0 ? normalizedNotes : null;
+            }
+
+            const normalizedInternalNotes = internalNotes.trim();
+            const currentInternalNotes = (booking.internal_notes || "").trim();
+            if (normalizedInternalNotes !== currentInternalNotes) {
+                updates.internal_notes = normalizedInternalNotes.length > 0 ? normalizedInternalNotes : null;
             }
 
             if (Object.keys(updates).length === 0) {
@@ -283,12 +292,26 @@ export function BookingEditDialog({ booking, isOpen, currency, onClose, onSaved 
                         )}
 
                         <div>
-                            <Label htmlFor="edit-notes">{t('adminBookings.notes')}</Label>
-                            <Input
+                            <Label htmlFor="edit-notes">{t('adminBookings.customerNotes')}</Label>
+                            <textarea
                                 id="edit-notes"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
-                                placeholder={t('adminBookings.notes')}
+                                rows={3}
+                                className="mt-1 flex min-h-[92px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                placeholder={t('adminBookings.customerNotesPlaceholder')}
+                            />
+                        </div>
+
+                        <div>
+                            <Label htmlFor="edit-internal-notes">{t('adminBookings.internalNotes')}</Label>
+                            <textarea
+                                id="edit-internal-notes"
+                                value={internalNotes}
+                                onChange={(e) => setInternalNotes(e.target.value)}
+                                rows={3}
+                                className="mt-1 flex min-h-[92px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                placeholder={t('adminBookings.internalNotesPlaceholder')}
                             />
                         </div>
 

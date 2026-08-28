@@ -704,6 +704,7 @@ export interface CreateBookingData {
         phonePrefix?: string;
     };
     notes?: string;
+    internal_notes?: string;
     is_paid?: boolean;
     payment_method?: "NONE" | "CASH" | "QR";
     qr_proof_image_url?: string | null;
@@ -739,6 +740,7 @@ export interface CreateRecurringBookingData {
         phonePrefix?: string;
     };
     notes?: string;
+    internal_notes?: string;
     sessions: RecurringBookingSessionData[];
 }
 
@@ -758,6 +760,7 @@ export interface UpdateBookingData {
     status?: BookingStatus;
     start_at?: string;
     notes?: string | null;
+    internal_notes?: string | null;
     staff_id?: number;
     service_ids?: number[];
 }
