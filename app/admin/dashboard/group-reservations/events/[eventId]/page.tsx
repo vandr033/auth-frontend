@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Download, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Send, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, Copy, Download, ExternalLink, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Send, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -90,6 +90,7 @@ import { GroupBookingStatusBadge, GroupPaymentStatusBadge, GroupStatusBadge, Gro
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { getImageUrl } from "@/utils/image-url";
 import { formatCurrencyInputFromCents, parseCurrencyInputToCents } from "@/lib/currency";
+import { buildPublicEventPath, copyPublicUrl } from "@/lib/admin/public-links";
 
 type ManualStaff = {
     display_name: string;
@@ -148,6 +149,7 @@ type EventFormState = {
     no_availability_message: string;
     cover_image_url: string;
     thumbnail_url: string;
+    is_private: boolean;
     is_free: boolean;
     price_cents: string;
     max_capacity: string;
@@ -198,6 +200,7 @@ function fromEvent(event: GroupEvent): EventFormState {
         no_availability_message: event.no_availability_message ?? "",
         cover_image_url: event.cover_image_url ?? "",
         thumbnail_url: event.thumbnail_url ?? "",
+        is_private: event.is_private ?? false,
         is_free: event.is_free,
         price_cents: formatCurrencyInputFromCents(event.price_cents),
         max_capacity: String(event.max_capacity),
@@ -218,6 +221,7 @@ export default function GroupEventDetailPage() {
     const eventId = Number.parseInt(eventIdRaw, 10);
     const { companyId, companyUser } = useAdminAuth();
     const currency = companyUser?.company?.currency;
+    const companySlug = companyUser?.company?.slug;
     const { canUseAdvanced, canUseEvents, getRequiredPlan } = useGroupReservationsAccess();
     const canBulkMessaging = canUsePlanFeature(companyUser?.company, "BULK_WHATSAPP_MESSAGING");
 
@@ -488,6 +492,7 @@ export default function GroupEventDetailPage() {
                 // temporary null write that could cause the public page to show the wrong image.
                 ...(coverImageFile ? {} : { cover_image_url: form.cover_image_url.trim() || null }),
                 ...(thumbnailImageFile ? {} : { thumbnail_url: form.thumbnail_url.trim() || null }),
+                is_private: form.is_private,
                 is_free: form.is_free,
                 price_cents: form.is_free ? 0 : (priceCents ?? 0),
                 max_capacity: maxCapacity,
@@ -965,10 +970,33 @@ export default function GroupEventDetailPage() {
                         {t("adminGroup.actions.backToEvents")}
                     </Link>
                 </Button>
-                <Button variant="outline" onClick={() => void loadData()}>
-                    <RefreshCcw className="mr-2 h-4 w-4" />
-                    {t("adminGroup.actions.refresh")}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    {companySlug ? (
+                        <>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => void copyPublicUrl(buildPublicEventPath(companySlug, event.id)).then(
+                                    () => notify.success(t("adminGroup.actions.linkCopied")),
+                                    () => notify.error(t("common.error")),
+                                )}
+                            >
+                                <Copy className="mr-2 h-4 w-4" />
+                                {t("adminGroup.actions.copyLink")}
+                            </Button>
+                            <Button asChild variant="outline">
+                                <Link href={buildPublicEventPath(companySlug, event.id)} target="_blank">
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    {t("adminGroup.actions.viewPublic")}
+                                </Link>
+                            </Button>
+                        </>
+                    ) : null}
+                    <Button variant="outline" onClick={() => void loadData()}>
+                        <RefreshCcw className="mr-2 h-4 w-4" />
+                        {t("adminGroup.actions.refresh")}
+                    </Button>
+                </div>
             </div>
 
             {!canBulkMessaging ? (
@@ -1082,6 +1110,16 @@ export default function GroupEventDetailPage() {
                                     <SelectItem value="ARCHIVED">{t("adminGroup.status.archived")}</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 md:col-span-2">
+                            <div>
+                                <Label className="text-sm">{t("adminGroup.fields.privateEvent")}</Label>
+                                <p className="text-xs text-slate-500">{t("adminGroup.fields.privateEventHelp")}</p>
+                            </div>
+                            <Checkbox
+                                checked={form.is_private}
+                                onCheckedChange={(checked) => setForm((prev) => prev ? { ...prev, is_private: Boolean(checked) } : prev)}
+                            />
                         </div>
                         <div className="space-y-2 md:col-span-2">
                             <Label>{t("adminGroup.fields.description")}</Label>

@@ -155,6 +155,8 @@ export type AdminCommerceProduct = {
     promo_starts_at?: string | null;
     promo_ends_at?: string | null;
   };
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type AdminCommerceCombo = AdminCommerceProduct;

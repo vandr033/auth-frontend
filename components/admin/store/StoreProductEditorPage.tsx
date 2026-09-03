@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -28,6 +28,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
+import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { buildPublicStoreProductPath, copyPublicUrl } from "@/lib/admin/public-links";
 
 import { StoreProductForm } from "./StoreProductForm";
 import {
@@ -50,6 +52,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 export function StoreProductEditorPage({ productId }: { productId?: string }) {
   const t = useT();
   const router = useRouter();
+  const { companyUser } = useAdminAuth();
   const isEditing = Boolean(productId);
 
   const [loading, setLoading] = React.useState(true);
@@ -59,6 +62,9 @@ export function StoreProductEditorPage({ productId }: { productId?: string }) {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [categories, setCategories] = React.useState<AdminCommerceCategory[]>([]);
   const [form, setForm] = React.useState<ProductFormState>(INITIAL_PRODUCT_FORM_STATE);
+  const publicPath = isEditing && companyUser?.company?.slug && form.slug
+    ? buildPublicStoreProductPath(companyUser.company.slug, form.slug)
+    : null;
   const [images, setImages] = React.useState<ProductEditorImage[]>([]);
   const [removedImageIds, setRemovedImageIds] = React.useState<string[]>([]);
   const [promotionVisible, setPromotionVisible] = React.useState(false);
@@ -433,12 +439,25 @@ export function StoreProductEditorPage({ productId }: { productId?: string }) {
             : t("adminStore.products.newPageDescription")
         }
         actions={
-          <Button asChild variant="outline">
-            <Link href={PRODUCTS_BASE_PATH}>
-              <ArrowLeft className="h-4 w-4" />
-              {t("adminStore.products.backToList")}
-            </Link>
-          </Button>
+          <>
+            {publicPath ? (
+              <>
+                <Button type="button" variant="outline" onClick={() => void copyPublicUrl(publicPath).then(() => notify.success(t("adminGroup.actions.linkCopied")), () => notify.error(t("common.error")))}>
+                  <Copy className="h-4 w-4" />
+                  {t("adminGroup.actions.copyLink")}
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={publicPath} target="_blank"><ExternalLink className="h-4 w-4" />{t("adminGroup.actions.viewPublic")}</Link>
+                </Button>
+              </>
+            ) : null}
+            <Button asChild variant="outline">
+              <Link href={PRODUCTS_BASE_PATH}>
+                <ArrowLeft className="h-4 w-4" />
+                {t("adminStore.products.backToList")}
+              </Link>
+            </Button>
+          </>
         }
       />
 

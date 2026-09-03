@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Boxes, Pencil, Plus, Tag } from "lucide-react";
+import { Boxes, Copy, ExternalLink, Pencil, Plus, Tag } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
@@ -14,15 +14,16 @@ import {
   type AdminCommerceCombo,
 } from "@/app/admin/lib/adminCommerceApi";
 import {
-  ActionMenu,
   AdminMetricGrid,
   AdminPageHeader,
   ConfirmDialog,
   DataTable,
   DataToolbar,
+  DataPagination,
   EmptyState,
   ErrorBanner,
   LoadingSkeleton,
+  InlineActions,
   StatCard,
   StatusBadge,
 } from "@/components/admin/shared";
@@ -30,11 +31,13 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { getImageUrl } from "@/utils/image-url";
+import { buildPublicStoreProductPath, copyPublicUrl } from "@/lib/admin/public-links";
 
 import { formatCurrency } from "./store-product-shared";
 import { getComboListImage } from "./store-combo-shared";
 
 const COMBOS_BASE_PATH = "/admin/dashboard/store/combos";
+const PAGE_SIZE = 10;
 
 function getIncludedProductCount(combo: AdminCommerceCombo) {
   return combo.combo_items?.length ?? 0;
@@ -49,6 +52,7 @@ export default function StoreCombosPage() {
   const router = useRouter();
   const { companyUser } = useAdminAuth();
   const currency = companyUser?.company?.currency ?? null;
+  const companySlug = companyUser?.company?.slug;
 
   const [loading, setLoading] = React.useState(true);
   const [actingOnId, setActingOnId] = React.useState<string | null>(null);
@@ -57,6 +61,7 @@ export default function StoreCombosPage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [statusTarget, setStatusTarget] = React.useState<AdminCommerceCombo | null>(null);
+  const [page, setPage] = React.useState(1);
 
   const loadCombos = React.useCallback(async () => {
     const nextCombos = await listAdminCommerceCombos();
@@ -91,7 +96,7 @@ export default function StoreCombosPage() {
   const filteredCombos = React.useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
 
-    return combos.filter((combo) => {
+    return [...combos].filter((combo) => {
       const matchesSearch =
         !normalizedSearch ||
         combo.name.toLowerCase().includes(normalizedSearch) ||
@@ -102,8 +107,13 @@ export default function StoreCombosPage() {
         (statusFilter === "ACTIVE" ? isActive : !isActive);
 
       return matchesSearch && matchesStatus;
+    }).sort((a, b) => {
+      if (a.created_at && b.created_at) return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return b.id.localeCompare(a.id);
     });
   }, [combos, searchQuery, statusFilter]);
+  const pagedCombos = React.useMemo(() => filteredCombos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredCombos, page]);
+  React.useEffect(() => setPage(1), [searchQuery, statusFilter]);
 
   const activeCount = React.useMemo(
     () => combos.filter((combo) => combo.is_active !== false).length,
@@ -155,9 +165,24 @@ export default function StoreCombosPage() {
 
   const comboActions = React.useCallback(
     (combo: AdminCommerceCombo) => (
-      <ActionMenu
-        label={t("adminStore.combos.actions")}
+      <InlineActions
         items={[
+          {
+            label: t("adminGroup.actions.copyLink"),
+            icon: <Copy className="h-4 w-4" />,
+            disabled: !companySlug,
+            onSelect: () => companySlug && void copyPublicUrl(buildPublicStoreProductPath(companySlug, combo.slug)).then(
+              () => notify.success(t("adminGroup.actions.linkCopied")),
+              () => notify.error(t("common.error")),
+            ),
+          },
+          {
+            label: t("adminGroup.actions.viewPublic"),
+            icon: <ExternalLink className="h-4 w-4" />,
+            href: companySlug ? buildPublicStoreProductPath(companySlug, combo.slug) : undefined,
+            disabled: !companySlug,
+            target: "_blank",
+          },
           {
             label: t("adminStore.combos.edit"),
             icon: <Pencil className="h-4 w-4" />,
@@ -182,7 +207,7 @@ export default function StoreCombosPage() {
         ]}
       />
     ),
-    [handleActivateCombo, router, t],
+    [companySlug, handleActivateCombo, router, t],
   );
 
   if (loading) {
@@ -275,7 +300,7 @@ export default function StoreCombosPage() {
       />
 
       <DataTable
-        data={filteredCombos}
+        data={pagedCombos}
         getRowKey={(combo) => combo.id}
         empty={emptyState}
         columns={[
@@ -357,7 +382,7 @@ export default function StoreCombosPage() {
                 {comboActions(combo)}
               </div>
             ),
-            className: "w-20",
+            className: "w-40",
           },
         ]}
         renderMobileItem={(combo) => {
@@ -429,6 +454,7 @@ export default function StoreCombosPage() {
           );
         }}
       />
+      <DataPagination page={page} totalItems={filteredCombos.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel={t("adminStore.combos.listTitle").toLowerCase()} />
 
       <ConfirmDialog
         open={Boolean(statusTarget)}

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Copy, Loader2, Plus, Save } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Loader2, Plus, Save } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
@@ -27,6 +27,7 @@ import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import { notify } from "@/lib/notify";
 import { canUseEntitledFeature } from "@/lib/plans/capabilities";
+import { buildPublicServicePath, copyPublicUrl } from "@/lib/admin/public-links";
 
 interface GlobalServiceType {
     id: number;
@@ -246,6 +247,13 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
 
         return `${window.location.origin}/shop/${companySlug}/book?invite=${encodeURIComponent(inviteToken)}`;
     }, [companySlug, inviteToken]);
+    const servicePublicPath = useMemo(() => {
+        if (!isEditing || !serviceId || !companySlug) return null;
+        if (formData.is_invite_only) {
+            return inviteToken ? `/shop/${encodeURIComponent(companySlug)}/book?invite=${encodeURIComponent(inviteToken)}` : null;
+        }
+        return buildPublicServicePath(companySlug, serviceId);
+    }, [companySlug, formData.is_invite_only, inviteToken, isEditing, serviceId]);
     const canUseMultiSession = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
     const canUseServicePromotions =
         Boolean(user?.is_super_admin) ||
@@ -428,12 +436,35 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                 title={isEditing ? t("adminServices.editService") : t("adminServices.addService")}
                 subtitle={isEditing ? t("adminServices.updateServiceDescription") : t("adminServices.createServiceDescription")}
                 actions={
-                    <Button asChild variant="outline">
-                        <Link href="/admin/dashboard/services">
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            {t("common.cancel")}
-                        </Link>
-                    </Button>
+                    <>
+                        {servicePublicPath ? (
+                            <>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => void copyPublicUrl(servicePublicPath).then(
+                                        () => notify.success(t("adminServices.inviteLinkCopied")),
+                                        () => notify.error(t("common.error")),
+                                    )}
+                                >
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    {t("adminGroup.actions.copyLink")}
+                                </Button>
+                                <Button asChild variant="outline">
+                                    <Link href={servicePublicPath} target="_blank">
+                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                        {t("adminGroup.actions.viewPublic")}
+                                    </Link>
+                                </Button>
+                            </>
+                        ) : null}
+                        <Button asChild variant="outline">
+                            <Link href="/admin/dashboard/services">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                {t("common.cancel")}
+                            </Link>
+                        </Button>
+                    </>
                 }
             />
 

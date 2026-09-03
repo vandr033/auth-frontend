@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
     Copy,
+    ExternalLink,
     Plus,
     Pencil,
     Trash2,
@@ -14,14 +15,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
-    ActionMenu,
     AdminPageHeader,
     AdminPageShell,
     ConfirmDialog,
     DataTable,
     DataToolbar,
+    DataPagination,
     EmptyState,
     LoadingSkeleton,
+    InlineActions,
     StatusBadge,
 } from "@/components/admin/shared";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
@@ -29,6 +31,10 @@ import { useT } from "@/lib/i18n";
 import { CategoriesSection } from "./components/CategoriesSection";
 import { notify } from "@/lib/notify";
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { buildPublicServicePath, copyPublicUrl } from "@/lib/admin/public-links";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const PAGE_SIZE = 10;
 
 // Types
 interface GlobalServiceType {
@@ -71,6 +77,7 @@ interface Service {
     category_id: number;
     category?: Category;
     display_order: number;
+    created_at?: string;
     is_invite_only?: boolean;
     invite_token?: string | null;
     required_resources?: { staff_profile_id: number }[];
@@ -95,11 +102,6 @@ function getApiUrl(path: string): string {
     return `${base}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
 }
 
-function buildInviteOnlyBookingUrl(slug: string, inviteToken: string): string {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    return `${origin}/shop/${slug}/book?invite=${encodeURIComponent(inviteToken)}`;
-}
-
 export default function ServicesPage() {
     const { companyId, companyUser, isAuthenticated, loading: authLoading } = useAdminAuth();
     const t = useT();
@@ -111,6 +113,10 @@ export default function ServicesPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState("ALL");
+    const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+    const [visibilityFilter, setVisibilityFilter] = useState<"ALL" | "PUBLIC" | "INVITE_ONLY">("ALL");
+    const [page, setPage] = useState(1);
 
     // Delete confirmation remains a small destructive confirmation modal.
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -164,9 +170,30 @@ export default function ServicesPage() {
     }, [isAuthenticated, companyId, fetchData]);
 
     // Filtered services
-    const filteredServices = services.filter((service) =>
-        service.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredServices = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        return [...services]
+            .filter((service) => {
+                const matchesSearch = !query || [service.name, service.description ?? "", service.category?.name ?? ""]
+                    .join(" ")
+                    .toLowerCase()
+                    .includes(query);
+                const matchesCategory = categoryFilter === "ALL" || String(service.category_id) === categoryFilter;
+                const matchesStatus = statusFilter === "ALL" || (statusFilter === "ACTIVE" ? service.is_active : !service.is_active);
+                const matchesVisibility = visibilityFilter === "ALL" || (visibilityFilter === "INVITE_ONLY" ? service.is_invite_only : !service.is_invite_only);
+                return matchesSearch && matchesCategory && matchesStatus && matchesVisibility;
+            })
+            .sort((a, b) => {
+                if (a.created_at && b.created_at) return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                return b.id - a.id;
+            });
+    }, [categoryFilter, searchQuery, services, statusFilter, visibilityFilter]);
+    const pagedServices = useMemo(
+        () => filteredServices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+        [filteredServices, page],
     );
+
+    useEffect(() => setPage(1), [categoryFilter, searchQuery, statusFilter, visibilityFilter]);
 
     // Handle delete
     const handleDelete = async () => {
@@ -213,16 +240,22 @@ export default function ServicesPage() {
         }
     };
 
-    const copyInviteLink = async (service: Service) => {
-        if (!companySlug || !service.invite_token) {
+    const getServicePublicPath = (service: Service): string | null => {
+        if (!companySlug) return null;
+        if (!service.is_invite_only) return buildPublicServicePath(companySlug, service.id);
+        if (!service.invite_token) return null;
+        return `/shop/${encodeURIComponent(companySlug)}/book?invite=${encodeURIComponent(service.invite_token)}`;
+    };
+
+    const copyServiceLink = async (service: Service) => {
+        const path = getServicePublicPath(service);
+        if (!path) {
             await notify.error(t('adminServices.inviteLinkUnavailable'));
             return;
         }
 
         try {
-            await navigator.clipboard.writeText(
-                buildInviteOnlyBookingUrl(companySlug, service.invite_token),
-            );
+            await copyPublicUrl(path);
             await notify.success(t('adminServices.inviteLinkCopied'));
         } catch {
             await notify.error(t('common.error'));
@@ -252,21 +285,25 @@ export default function ServicesPage() {
     );
 
     const serviceActions = (service: Service) => (
-        <ActionMenu
-            label={t('adminServices.actions')}
+        <InlineActions
             items={[
+                {
+                    label: t('adminServices.copyInviteLink'),
+                    icon: <Copy className="h-4 w-4" />,
+                    onSelect: () => void copyServiceLink(service),
+                    disabled: !getServicePublicPath(service),
+                },
+                {
+                    label: t('adminGroup.actions.viewPublic'),
+                    icon: <ExternalLink className="h-4 w-4" />,
+                    href: getServicePublicPath(service) ?? undefined,
+                    disabled: !getServicePublicPath(service),
+                    target: "_blank",
+                },
                 {
                     label: t('adminServices.editService'),
                     icon: <Pencil className="h-4 w-4" />,
                     href: `/admin/dashboard/services/${service.id}/edit`,
-                },
-                {
-                    label: t('adminServices.copyInviteLink'),
-                    icon: <Copy className="h-4 w-4" />,
-                    onSelect: () => {
-                        void copyInviteLink(service);
-                    },
-                    disabled: !service.is_invite_only || !service.invite_token || !companySlug,
                 },
                 {
                     label: t('common.delete'),
@@ -302,6 +339,33 @@ export default function ServicesPage() {
                 searchPlaceholder={t('adminServices.searchPlaceholder')}
                 onSearchChange={setSearchQuery}
                 summary={`${filteredServices.length} / ${services.length}`}
+                filters={
+                    <>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger className="w-full sm:w-[170px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">{t('adminServices.allCategories')}</SelectItem>
+                                {categories.map((category) => <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+                            <SelectTrigger className="w-full sm:w-[145px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">{t('adminGroup.filters.allStatuses')}</SelectItem>
+                                <SelectItem value="ACTIVE">{t('adminServices.active')}</SelectItem>
+                                <SelectItem value="INACTIVE">{t('adminServices.inactive')}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={visibilityFilter} onValueChange={(value) => setVisibilityFilter(value as typeof visibilityFilter)}>
+                            <SelectTrigger className="w-full sm:w-[165px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">{t('adminGroup.filters.allVisibility')}</SelectItem>
+                                <SelectItem value="PUBLIC">{t('adminGroup.filters.public')}</SelectItem>
+                                <SelectItem value="INVITE_ONLY">{t('adminServices.inviteOnly')}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </>
+                }
                 actions={
                     <Button asChild variant="outline" size="sm">
                         <Link href="/admin/dashboard/services/new">
@@ -322,7 +386,7 @@ export default function ServicesPage() {
             />
 
             <DataTable
-                data={filteredServices}
+                data={pagedServices}
                 getRowKey={(service) => service.id}
                 empty={emptyServicesState}
                 columns={[
@@ -447,6 +511,8 @@ export default function ServicesPage() {
                     </div>
                 )}
             />
+
+            <DataPagination page={page} totalItems={filteredServices.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel={t('adminServices.title').toLowerCase()} />
 
             <ConfirmDialog
                 open={isDeleteDialogOpen}

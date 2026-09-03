@@ -53,6 +53,7 @@ type EventFormState = {
     no_availability_message: string;
     cover_image_url: string;
     thumbnail_url: string;
+    is_private: boolean;
     is_free: boolean;
     price_cents: string;
     max_capacity: string;
@@ -113,6 +114,7 @@ function createDefaultForm(defaultLocationText = ""): EventFormState {
         no_availability_message: "",
         cover_image_url: "",
         thumbnail_url: "",
+        is_private: false,
         is_free: true,
         price_cents: "0",
         max_capacity: "20",
@@ -253,6 +255,7 @@ export default function NewGroupEventPage() {
                 no_availability_message: form.is_free ? (form.no_availability_message.trim() || null) : null,
                 cover_image_url: form.cover_image_url.trim() || null,
                 thumbnail_url: form.thumbnail_url.trim() || null,
+                is_private: form.is_private,
                 is_free: form.is_free,
                 price_cents: form.is_free ? 0 : (priceCents ?? 0),
                 max_capacity: maxCapacity,
@@ -404,6 +407,16 @@ export default function NewGroupEventPage() {
                                         <SelectItem value="ARCHIVED">{t("adminGroup.status.archived")}</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                            <div className="flex items-center justify-between gap-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 md:col-span-2">
+                                <div>
+                                    <Label className="text-sm">{t("adminGroup.fields.privateEvent")}</Label>
+                                    <p className="text-xs text-slate-500">{t("adminGroup.fields.privateEventHelp")}</p>
+                                </div>
+                                <Switch
+                                    checked={form.is_private}
+                                    onCheckedChange={(checked) => setForm((prev) => ({ ...prev, is_private: checked }))}
+                                />
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <Label>{t("adminGroup.fields.description")}</Label>

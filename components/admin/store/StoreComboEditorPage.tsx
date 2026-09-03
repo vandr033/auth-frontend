@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
@@ -30,6 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
+import { buildPublicStoreProductPath, copyPublicUrl } from "@/lib/admin/public-links";
 
 import { StoreComboForm } from "./StoreComboForm";
 import {
@@ -67,6 +68,9 @@ export function StoreComboEditorPage({ comboId }: { comboId?: string }) {
   const [categories, setCategories] = React.useState<AdminCommerceCategory[]>([]);
   const [sourceProducts, setSourceProducts] = React.useState<AdminCommerceProduct[]>([]);
   const [form, setForm] = React.useState<ComboFormState>(INITIAL_COMBO_FORM_STATE);
+  const publicPath = isEditing && companyUser?.company?.slug && form.slug
+    ? buildPublicStoreProductPath(companyUser.company.slug, form.slug)
+    : null;
   const [images, setImages] = React.useState<ProductEditorImage[]>([]);
   const [removedImageIds, setRemovedImageIds] = React.useState<string[]>([]);
   const [promotionVisible, setPromotionVisible] = React.useState(false);
@@ -597,12 +601,25 @@ export function StoreComboEditorPage({ comboId }: { comboId?: string }) {
             : t("adminStore.combos.newPageDescription")
         }
         actions={
-          <Button asChild variant="outline">
-            <Link href={COMBOS_BASE_PATH}>
-              <ArrowLeft className="h-4 w-4" />
-              {t("adminStore.combos.backToList")}
-            </Link>
-          </Button>
+          <>
+            {publicPath ? (
+              <>
+                <Button type="button" variant="outline" onClick={() => void copyPublicUrl(publicPath).then(() => notify.success(t("adminGroup.actions.linkCopied")), () => notify.error(t("common.error")))}>
+                  <Copy className="h-4 w-4" />
+                  {t("adminGroup.actions.copyLink")}
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={publicPath} target="_blank"><ExternalLink className="h-4 w-4" />{t("adminGroup.actions.viewPublic")}</Link>
+                </Button>
+              </>
+            ) : null}
+            <Button asChild variant="outline">
+              <Link href={COMBOS_BASE_PATH}>
+                <ArrowLeft className="h-4 w-4" />
+                {t("adminStore.combos.backToList")}
+              </Link>
+            </Button>
+          </>
         }
       />
 

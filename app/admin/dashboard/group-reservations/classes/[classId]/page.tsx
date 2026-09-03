@@ -10,6 +10,7 @@ import {
     Copy,
     Download,
     Eye,
+    ExternalLink,
     ImageIcon,
     Link2,
     Loader2,
@@ -115,6 +116,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
+import { buildPublicClassPath, copyPublicUrl } from "@/lib/admin/public-links";
 import { hasProductCapability } from "@/lib/product-access";
 import { formatCurrencyInputFromCents, parseCurrencyInputToCents } from "@/lib/currency";
 import { getImageUrl } from "@/utils/image-url";
@@ -239,6 +241,7 @@ export default function GroupClassDetailPage() {
     const { canUseAdvanced, canUseClasses, getRequiredPlan } = useGroupReservationsAccess();
     const { companyId, companyUser, user } = useAdminAuth();
     const currency = companyUser?.company?.currency;
+    const companySlug = companyUser?.company?.slug;
     const capabilities = companyUser?.company?.capabilities;
     const hasClassesPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CLASES_PRO");
     const hasMessagingPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "MENSAJERIA_PRO");
@@ -1118,6 +1121,27 @@ export default function GroupClassDetailPage() {
                             <RefreshCcw className="mr-2 h-4 w-4" />
                             {t("adminGroup.actions.refresh")}
                         </Button>
+                        {companySlug ? (
+                            <>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => void copyPublicUrl(buildPublicClassPath(companySlug, groupClass.id)).then(
+                                        () => notify.success(t("adminGroup.actions.linkCopied")),
+                                        () => notify.error(t("common.error")),
+                                    )}
+                                >
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    {t("adminGroup.actions.copyLink")}
+                                </Button>
+                                <Button asChild variant="outline">
+                                    <Link href={buildPublicClassPath(companySlug, groupClass.id)} target="_blank">
+                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                        {t("adminGroup.actions.viewPublic")}
+                                    </Link>
+                                </Button>
+                            </>
+                        ) : null}
                         <Button onClick={() => void handleGenerateSessions()}>
                             {t("adminGroup.classes.generateSessions")}
                         </Button>

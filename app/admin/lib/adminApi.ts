@@ -1417,6 +1417,7 @@ export interface GroupEvent {
     cover_image_url: string | null;
     thumbnail_url: string | null;
     status: GroupItemStatus;
+    is_private: boolean;
     is_free: boolean;
     price_cents: number;
     max_capacity: number;
@@ -1946,6 +1947,7 @@ export interface CreateGroupEventPayload {
     cover_image_url?: string | null;
     thumbnail_url?: string | null;
     status?: GroupItemStatus;
+    is_private?: boolean;
     is_free: boolean;
     price_cents: number;
     max_capacity: number;

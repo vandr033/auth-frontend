@@ -4,7 +4,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Package, Pencil, Plus, Tag } from "lucide-react";
+import { Copy, ExternalLink, Package, Pencil, Plus, Tag } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
@@ -16,15 +16,16 @@ import {
   type AdminCommerceProduct,
 } from "@/app/admin/lib/adminCommerceApi";
 import {
-  ActionMenu,
   AdminMetricGrid,
   AdminPageHeader,
   ConfirmDialog,
   DataTable,
   DataToolbar,
+  DataPagination,
   EmptyState,
   ErrorBanner,
   LoadingSkeleton,
+  InlineActions,
   StatCard,
   StatusBadge,
 } from "@/components/admin/shared";
@@ -32,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { getImageUrl } from "@/utils/image-url";
+import { buildPublicStoreProductPath, copyPublicUrl } from "@/lib/admin/public-links";
 
 import {
   formatCurrency,
@@ -42,6 +44,7 @@ import {
 } from "./store-product-shared";
 
 const PRODUCTS_BASE_PATH = "/admin/dashboard/store/products";
+const PAGE_SIZE = 10;
 
 function getStockLabel(product: AdminCommerceProduct, t: ReturnType<typeof useT>) {
   if (product.track_stock === false) {
@@ -56,6 +59,7 @@ export default function StoreProductsPage() {
   const router = useRouter();
   const { companyUser } = useAdminAuth();
   const currency = companyUser?.company?.currency ?? null;
+  const companySlug = companyUser?.company?.slug;
 
   const [loading, setLoading] = React.useState(true);
   const [actingOnId, setActingOnId] = React.useState<string | null>(null);
@@ -66,6 +70,7 @@ export default function StoreProductsPage() {
   const [categoryFilter, setCategoryFilter] = React.useState("ALL");
   const [statusFilter, setStatusFilter] = React.useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [statusTarget, setStatusTarget] = React.useState<AdminCommerceProduct | null>(null);
+  const [page, setPage] = React.useState(1);
 
   const loadCatalog = React.useCallback(async () => {
     const [nextCategories, nextProducts] = await Promise.all([
@@ -105,7 +110,7 @@ export default function StoreProductsPage() {
   const filteredProducts = React.useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
 
-    return products.filter((product) => {
+    return [...products].filter((product) => {
       const matchesSearch =
         !normalizedSearch ||
         product.name.toLowerCase().includes(normalizedSearch) ||
@@ -118,8 +123,13 @@ export default function StoreProductsPage() {
         (statusFilter === "ACTIVE" ? isActive : !isActive);
 
       return matchesSearch && matchesCategory && matchesStatus;
+    }).sort((a, b) => {
+      if (a.created_at && b.created_at) return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return b.id.localeCompare(a.id);
     });
   }, [categoryFilter, products, searchQuery, statusFilter]);
+  const pagedProducts = React.useMemo(() => filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredProducts, page]);
+  React.useEffect(() => setPage(1), [categoryFilter, searchQuery, statusFilter]);
 
   const activeCount = React.useMemo(
     () => products.filter((product) => product.is_active !== false).length,
@@ -173,9 +183,24 @@ export default function StoreProductsPage() {
 
   const productActions = React.useCallback(
     (product: AdminCommerceProduct) => (
-      <ActionMenu
-        label={t("adminStore.products.actions")}
+      <InlineActions
         items={[
+          {
+            label: t("adminGroup.actions.copyLink"),
+            icon: <Copy className="h-4 w-4" />,
+            disabled: !companySlug,
+            onSelect: () => companySlug && void copyPublicUrl(buildPublicStoreProductPath(companySlug, product.slug)).then(
+              () => notify.success(t("adminGroup.actions.linkCopied")),
+              () => notify.error(t("common.error")),
+            ),
+          },
+          {
+            label: t("adminGroup.actions.viewPublic"),
+            icon: <ExternalLink className="h-4 w-4" />,
+            href: companySlug ? buildPublicStoreProductPath(companySlug, product.slug) : undefined,
+            disabled: !companySlug,
+            target: "_blank",
+          },
           {
             label: t("adminStore.products.edit"),
             icon: <Pencil className="h-4 w-4" />,
@@ -200,7 +225,7 @@ export default function StoreProductsPage() {
         ]}
       />
     ),
-    [handleActivateProduct, router, t],
+    [companySlug, handleActivateProduct, router, t],
   );
 
   if (loading) {
@@ -308,7 +333,7 @@ export default function StoreProductsPage() {
       />
 
       <DataTable
-        data={filteredProducts}
+        data={pagedProducts}
         getRowKey={(product) => product.id}
         empty={emptyState}
         columns={[
@@ -405,7 +430,7 @@ export default function StoreProductsPage() {
                 {productActions(product)}
               </div>
             ),
-            className: "w-20",
+            className: "w-40",
           },
         ]}
         renderMobileItem={(product) => {
@@ -484,6 +509,7 @@ export default function StoreProductsPage() {
           );
         }}
       />
+      <DataPagination page={page} totalItems={filteredProducts.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel={t("adminStore.products.listTitle").toLowerCase()} />
 
       <ConfirmDialog
         open={Boolean(statusTarget)}

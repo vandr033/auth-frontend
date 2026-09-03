@@ -6,24 +6,29 @@ import {
     CalendarClock,
     ChevronDown,
     ChevronRight,
+    Copy,
+    ExternalLink,
     Layers3,
     Loader2,
     Plus,
+    Pencil,
     RefreshCcw,
-    Settings,
+    Trash2,
     Users,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
     listGroupClasses,
+    deleteGroupClass,
+    setGroupClassStatus,
     type GroupClass,
     type GroupItemStatus,
 } from "@/app/admin/lib/adminApi";
 import { AdminPageHeader } from "@/app/admin/dashboard/components/AdminPageHeader";
 import { AdminSectionCard } from "@/app/admin/dashboard/components/AdminSectionCard";
 import { AdminStatCard } from "@/app/admin/dashboard/components/AdminStatCard";
-import { ActionMenu, DataTable, StatusBadge } from "@/components/admin/shared";
+import { ConfirmDialog, DataPagination, DataTable, DataToolbar, InlineActions, StatusBadge } from "@/components/admin/shared";
 import {
     getPricingModeLabelKey,
 } from "@/app/admin/dashboard/group-reservations/classes/components/groupClassForm.shared";
@@ -40,6 +45,7 @@ import {
 } from "@/components/ui/table";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
+import { buildPublicClassPath, copyPublicUrl } from "@/lib/admin/public-links";
 
 import { useGroupReservationsAccess } from "../lib/useGroupReservationsAccess";
 import { GroupStatusBadge } from "../components/GroupBadges";
@@ -49,6 +55,8 @@ function stripHtml(value: string | null | undefined): string {
     if (!value) return "";
     return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
+
+const PAGE_SIZE = 10;
 
 export default function GroupClassesPage() {
     const t = useT();
@@ -60,6 +68,12 @@ export default function GroupClassesPage() {
     const [classes, setClasses] = useState<GroupClass[]>([]);
     const [statusFilter, setStatusFilter] = useState<GroupItemStatus | "ALL">("ALL");
     const [expandedClassId, setExpandedClassId] = useState<number | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [pricingFilter, setPricingFilter] = useState("ALL");
+    const [locationFilter, setLocationFilter] = useState("ALL");
+    const [page, setPage] = useState(1);
+    const [actingClassId, setActingClassId] = useState<number | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<GroupClass | null>(null);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -89,6 +103,76 @@ export default function GroupClassesPage() {
         }),
         [classes],
     );
+
+    const locations = useMemo(
+        () => Array.from(new Set(classes.map((item) => item.location_text?.trim()).filter((value): value is string => Boolean(value)))).sort(),
+        [classes],
+    );
+    const filteredClasses = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        return [...classes]
+            .filter((item) => {
+                const matchesSearch = !query || [item.title, item.slug, stripHtml(item.description), item.location_text ?? ""]
+                    .join(" ")
+                    .toLowerCase()
+                    .includes(query);
+                const matchesPricing = pricingFilter === "ALL" || item.pricing_mode === pricingFilter;
+                const matchesLocation = locationFilter === "ALL" || item.location_text?.trim() === locationFilter;
+                return matchesSearch && matchesPricing && matchesLocation;
+            })
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }, [classes, locationFilter, pricingFilter, searchQuery]);
+    const pagedClasses = useMemo(
+        () => filteredClasses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+        [filteredClasses, page],
+    );
+
+    useEffect(() => setPage(1), [locationFilter, pricingFilter, searchQuery, statusFilter]);
+
+    const changeStatus = async (item: GroupClass, status: GroupItemStatus) => {
+        if (item.status === status) return;
+        setActingClassId(item.id);
+        try {
+            await setGroupClassStatus(item.id, status);
+            setClasses((current) => current.map((entry) => entry.id === item.id ? { ...entry, status } : entry));
+            await notify.success(t("adminGroup.actions.statusUpdated"));
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("common.error"));
+        } finally {
+            setActingClassId(null);
+        }
+    };
+
+    const classActions = (item: GroupClass) => {
+        const companySlug = companyUser?.company?.slug;
+        const publicPath = companySlug ? buildPublicClassPath(companySlug, item.id) : null;
+        return (
+            <div className="flex flex-wrap items-center justify-end gap-1">
+                <InlineActions items={[
+                    {
+                        label: t("adminGroup.actions.copyLink"),
+                        icon: <Copy className="h-4 w-4" />,
+                        disabled: !publicPath,
+                        onSelect: () => publicPath && void copyPublicUrl(publicPath).then(
+                            () => notify.success(t("adminGroup.actions.linkCopied")),
+                            () => notify.error(t("common.error")),
+                        ),
+                    },
+                    { label: t("adminGroup.actions.viewPublic"), icon: <ExternalLink className="h-4 w-4" />, href: publicPath ?? undefined, disabled: !publicPath, target: "_blank" },
+                    { label: t("adminGroup.actions.manage"), icon: <Pencil className="h-4 w-4" />, href: `/admin/dashboard/group-reservations/classes/${item.id}` },
+                    { label: t("common.delete"), icon: <Trash2 className="h-4 w-4" />, destructive: true, onSelect: () => setDeleteTarget(item) },
+                ]} />
+                <Select value={item.status} disabled={actingClassId === item.id} onValueChange={(value) => void changeStatus(item, value as GroupItemStatus)}>
+                    <SelectTrigger className="h-8 w-[118px] text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="DRAFT">{t("adminGroup.status.draft")}</SelectItem>
+                        <SelectItem value="PUBLISHED">{t("adminGroup.status.published")}</SelectItem>
+                        <SelectItem value="ARCHIVED">{t("adminGroup.status.archived")}</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+        );
+    };
 
     if (!canUseClasses) {
         const requiredPlan = getRequiredPlan("GROUP_CLASSES");
@@ -163,24 +247,45 @@ export default function GroupClassesPage() {
                 description={
                     loading ? undefined : `${classes.length} ${t("adminGroup.classes.title").toLowerCase()}`
                 }
-                actions={
-                    <Select
-                        value={statusFilter}
-                        onValueChange={(value) => setStatusFilter(value as GroupItemStatus | "ALL")}
-                    >
-                        <SelectTrigger className="w-full sm:w-[190px]">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">{t("adminGroup.filters.allStatuses")}</SelectItem>
-                            <SelectItem value="DRAFT">{t("adminGroup.status.draft")}</SelectItem>
-                            <SelectItem value="PUBLISHED">{t("adminGroup.status.published")}</SelectItem>
-                            <SelectItem value="ARCHIVED">{t("adminGroup.status.archived")}</SelectItem>
-                        </SelectContent>
-                    </Select>
-                }
                 contentClassName="p-0"
             >
+                <DataToolbar
+                    className="rounded-none border-0 border-b shadow-none"
+                    searchValue={searchQuery}
+                    searchPlaceholder={t("adminGroup.filters.searchClasses")}
+                    onSearchChange={setSearchQuery}
+                    summary={`${filteredClasses.length} / ${classes.length}`}
+                    filters={
+                        <>
+                            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as GroupItemStatus | "ALL")}>
+                                <SelectTrigger className="w-full sm:w-[170px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">{t("adminGroup.filters.allStatuses")}</SelectItem>
+                                    <SelectItem value="DRAFT">{t("adminGroup.status.draft")}</SelectItem>
+                                    <SelectItem value="PUBLISHED">{t("adminGroup.status.published")}</SelectItem>
+                                    <SelectItem value="ARCHIVED">{t("adminGroup.status.archived")}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select value={pricingFilter} onValueChange={setPricingFilter}>
+                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">{t("adminGroup.filters.allPricing")}</SelectItem>
+                                    <SelectItem value="PER_SESSION">{t(getPricingModeLabelKey("PER_SESSION"))}</SelectItem>
+                                    <SelectItem value="WEEKLY_PASS">{t(getPricingModeLabelKey("WEEKLY_PASS"))}</SelectItem>
+                                    <SelectItem value="MONTHLY_PASS">{t(getPricingModeLabelKey("MONTHLY_PASS"))}</SelectItem>
+                                    <SelectItem value="FULL_COURSE">{t(getPricingModeLabelKey("FULL_COURSE"))}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select value={locationFilter} onValueChange={setLocationFilter}>
+                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">{t("adminGroup.filters.allLocations")}</SelectItem>
+                                    {locations.map((location) => <SelectItem key={location} value={location}>{location}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </>
+                    }
+                />
                 {loading ? (
                     <div className="flex items-center justify-center py-16">
                         <Loader2 className="h-7 w-7 animate-spin text-admin-brand" />
@@ -193,7 +298,7 @@ export default function GroupClassesPage() {
                         className="rounded-none border-0 shadow-none"
                         mobileList={
                             <div className="grid gap-3">
-                                {classes.map((item) => {
+                                {pagedClasses.map((item) => {
                                     const description = stripHtml(item.description);
                                     return (
                                         <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -202,15 +307,7 @@ export default function GroupClassesPage() {
                                                     <h3 className="font-semibold text-slate-950">{item.title}</h3>
                                                     <p className="text-xs text-slate-500">{item.slug}</p>
                                                 </div>
-                                                <ActionMenu
-                                                    label={t("adminGroup.fields.actions")}
-                                                    showLabel
-                                                    items={[{
-                                                        label: t("adminGroup.actions.manage"),
-                                                        icon: <Settings className="h-4 w-4" />,
-                                                        href: `/admin/dashboard/group-reservations/classes/${item.id}`,
-                                                    }]}
-                                                />
+                                                {classActions(item)}
                                             </div>
                                             <div className="mt-3 flex flex-wrap items-center gap-2">
                                                 <GroupStatusBadge status={item.status} />
@@ -269,7 +366,7 @@ export default function GroupClassesPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {classes.map((item) => {
+                                {pagedClasses.map((item) => {
                                     const isExpanded = expandedClassId === item.id;
                                     const description = stripHtml(item.description);
                                     return (
@@ -306,14 +403,7 @@ export default function GroupClassesPage() {
                                                     <GroupStatusBadge status={item.status} />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <ActionMenu
-                                                        label={t("adminGroup.fields.actions")}
-                                                        items={[{
-                                                            label: t("adminGroup.actions.manage"),
-                                                            icon: <Settings className="h-4 w-4" />,
-                                                            href: `/admin/dashboard/group-reservations/classes/${item.id}`,
-                                                        }]}
-                                                    />
+                                                    {classActions(item)}
                                                 </TableCell>
                                             </TableRow>
                                             {isExpanded ? (
@@ -379,7 +469,31 @@ export default function GroupClassesPage() {
                         </Table>
                     </DataTable>
                 )}
+                {!loading ? <DataPagination page={page} totalItems={filteredClasses.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel={t("adminGroup.classes.title").toLowerCase()} /> : null}
             </AdminSectionCard>
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
+                onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+                title={t("common.delete")}
+                description={deleteTarget ? t("adminGroup.classes.deleteConfirm", { name: deleteTarget.title }) : ""}
+                confirmLabel={t("common.delete")}
+                cancelLabel={t("common.cancel")}
+                variant="destructive"
+                loading={actingClassId === deleteTarget?.id}
+                onConfirm={async () => {
+                    if (!deleteTarget) return;
+                    setActingClassId(deleteTarget.id);
+                    try {
+                        await deleteGroupClass(deleteTarget.id);
+                        setClasses((current) => current.filter((item) => item.id !== deleteTarget.id));
+                        setDeleteTarget(null);
+                    } catch (error) {
+                        await notify.error(error instanceof Error ? error.message : t("common.error"));
+                    } finally {
+                        setActingClassId(null);
+                    }
+                }}
+            />
 
         </div>
     );

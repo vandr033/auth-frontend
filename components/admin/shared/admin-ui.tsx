@@ -6,10 +6,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ImageIcon,
   Lock,
   Loader2,
-  MoreHorizontal,
   Search,
   ShieldAlert,
 } from "lucide-react";
@@ -820,6 +821,7 @@ export type ActionMenuItem = {
   destructive?: boolean;
   disabled?: boolean;
   separatorBefore?: boolean;
+  target?: "_blank" | "_self";
 };
 
 type ActionMenuProps = {
@@ -835,9 +837,8 @@ export function ActionMenu({ label = "Acciones", items, align = "end", className
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="outline" size="sm" className={cn("h-8", className)}>
-          <MoreHorizontal className="h-4 w-4" />
-          <span className={showLabel ? "text-sm" : "sr-only"}>{label}</span>
-          <ChevronDown className="hidden h-3.5 w-3.5 sm:block" />
+          <span className={showLabel ? "text-sm" : "text-xs font-medium"}>{label}</span>
+          <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="min-w-44">
@@ -851,7 +852,7 @@ export function ActionMenu({ label = "Acciones", items, align = "end", className
                 disabled={item.disabled}
                 variant={item.destructive ? "destructive" : "default"}
               >
-                <Link href={item.href} onClick={item.onSelect}>
+                <Link href={item.href} onClick={item.onSelect} target={item.target}>
                   {item.icon}
                   {item.label}
                 </Link>
@@ -870,6 +871,123 @@ export function ActionMenu({ label = "Acciones", items, align = "end", className
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+type InlineActionsProps = {
+  items: ActionMenuItem[];
+  className?: string;
+  showLabels?: boolean;
+};
+
+export function InlineActions({ items, className, showLabels = false }: InlineActionsProps) {
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1", className)}>
+      {items.map((item, index) => {
+        const label = typeof item.label === "string" ? item.label : undefined;
+        const content = (
+          <>
+            {item.icon}
+            <span className={showLabels ? "text-xs" : "sr-only"}>{item.label}</span>
+          </>
+        );
+        const buttonClassName = cn(
+          "h-8",
+          !showLabels && "w-8 px-0",
+          item.destructive && "text-rose-700 hover:bg-rose-50 hover:text-rose-800",
+        );
+
+        if (item.href && !item.disabled) {
+          return (
+            <Button key={index} asChild variant="ghost" size="sm" className={buttonClassName}>
+              <Link
+                href={item.href}
+                target={item.target}
+                onClick={item.onSelect}
+                aria-label={label}
+                title={label}
+              >
+                {content}
+              </Link>
+            </Button>
+          );
+        }
+
+        return (
+          <Button
+            key={index}
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={buttonClassName}
+            disabled={item.disabled}
+            onClick={item.onSelect}
+            aria-label={label}
+            title={label}
+          >
+            {content}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+type DataPaginationProps = {
+  page: number;
+  totalItems: number;
+  pageSize?: number;
+  onPageChange: (page: number) => void;
+  itemLabel?: string;
+  className?: string;
+};
+
+export function DataPagination({
+  page,
+  totalItems,
+  pageSize = 10,
+  onPageChange,
+  itemLabel = "resultados",
+  className,
+}: DataPaginationProps) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const first = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const last = Math.min(safePage * pageSize, totalItems);
+
+  return (
+    <div className={cn("flex flex-col gap-2 border-t border-slate-200 bg-slate-50/70 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between", className)}>
+      <p className="text-slate-600">
+        {first}–{last} de {totalItems} {itemLabel}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8"
+          disabled={safePage <= 1}
+          onClick={() => onPageChange(safePage - 1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          <span className="sr-only sm:not-sr-only">Anterior</span>
+        </Button>
+        <span className="min-w-16 text-center text-xs font-medium text-slate-700">
+          {safePage} / {totalPages}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8"
+          disabled={safePage >= totalPages}
+          onClick={() => onPageChange(safePage + 1)}
+        >
+          <span className="sr-only sm:not-sr-only">Siguiente</span>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
