@@ -10,6 +10,7 @@ import {
     Trash2,
     Clock,
     DollarSign,
+    MessageCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,21 @@ interface Service {
     is_invite_only?: boolean;
     invite_token?: string | null;
     required_resources?: { staff_profile_id: number }[];
+    notify_customer?: boolean;
+    notify_assigned_staff?: boolean;
+    notify_management?: boolean;
+}
+
+function notificationAudienceLabels(
+    service: Service,
+    t: ReturnType<typeof useT>,
+    canCustomize: boolean,
+): string[] {
+    return [
+        !canCustomize || service.notify_customer !== false ? t("adminServices.recipientCustomerShort") : null,
+        !canCustomize || service.notify_assigned_staff !== false ? t("adminServices.recipientStaffShort") : null,
+        !canCustomize || service.notify_management !== false ? t("adminServices.recipientManagementShort") : null,
+    ].filter((label): label is string => Boolean(label));
 }
 
 // Helper functions
@@ -103,10 +119,13 @@ function getApiUrl(path: string): string {
 }
 
 export default function ServicesPage() {
-    const { companyId, companyUser, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const { companyId, companyUser, user, isAuthenticated, loading: authLoading } = useAdminAuth();
     const t = useT();
     const currency = companyUser?.company?.currency;
     const companySlug = companyUser?.company?.slug;
+    const canCustomizeNotificationRecipients =
+        Boolean(user?.is_super_admin) ||
+        companyUser?.company?.capabilities?.productCapabilities?.MENSAJERIA_PRO === true;
 
     // State
     const [services, setServices] = useState<Service[]>([]);
@@ -440,6 +459,24 @@ export default function ServicesPage() {
                         cell: (service) => formatDuration(service.duration_minutes),
                     },
                     {
+                        key: "notifications",
+                        header: t("adminServices.messagesColumn"),
+                        cell: (service) => {
+                            const labels = notificationAudienceLabels(service, t, canCustomizeNotificationRecipients);
+                            return (
+                                <div className="flex max-w-[240px] flex-wrap gap-1.5">
+                                    {labels.length > 0 ? labels.map((label) => (
+                                        <span key={label} className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                                            {label}
+                                        </span>
+                                    )) : (
+                                        <span className="text-xs text-slate-400">{t("adminServices.noRecipients")}</span>
+                                    )}
+                                </div>
+                            );
+                        },
+                    },
+                    {
                         key: "status",
                         header: t('adminBookings.status'),
                         cell: (service) => (
@@ -507,6 +544,17 @@ export default function ServicesPage() {
                                 checked={service.is_active}
                                 onCheckedChange={() => toggleActiveStatus(service)}
                             />
+                        </div>
+                        <div className="flex items-start gap-2 border-t border-slate-100 pt-3">
+                            <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                    {t("adminServices.messagesColumn")}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-600">
+                                    {notificationAudienceLabels(service, t, canCustomizeNotificationRecipients).join(" · ") || t("adminServices.noRecipients")}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Copy, ExternalLink, Loader2, Plus, Save } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, Copy, ExternalLink, Loader2, MessageCircle, Plus, Save, Scissors, UserRound } from "lucide-react";
 
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
@@ -75,12 +75,16 @@ interface Service {
     session_count?: number | null;
     session_duration_minutes?: number | null;
     required_resources?: { staff_profile_id: number }[];
+    notify_customer?: boolean;
+    notify_assigned_staff?: boolean;
+    notify_management?: boolean;
 }
 
 interface StaffOption {
     id: number;
     display_name: string;
     resource_type?: "PERSON" | "ROOM" | "EQUIPMENT";
+    services?: number[];
 }
 
 interface ServiceFormData {
@@ -99,6 +103,9 @@ interface ServiceFormData {
     is_active: boolean;
     is_invite_only: boolean;
     required_resource_ids: number[];
+    notify_customer: boolean;
+    notify_assigned_staff: boolean;
+    notify_management: boolean;
 }
 
 const initialFormData: ServiceFormData = {
@@ -117,6 +124,9 @@ const initialFormData: ServiceFormData = {
     is_active: true,
     is_invite_only: false,
     required_resource_ids: [],
+    notify_customer: true,
+    notify_assigned_staff: true,
+    notify_management: true,
 };
 
 function getApiUrl(path: string): string {
@@ -215,6 +225,9 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                     is_active: service.is_active,
                     is_invite_only: service.is_invite_only === true,
                     required_resource_ids: service.required_resources?.map((resource) => resource.staff_profile_id) ?? [],
+                    notify_customer: service.notify_customer ?? true,
+                    notify_assigned_staff: service.notify_assigned_staff ?? true,
+                    notify_management: service.notify_management ?? true,
                 });
                 setInviteToken(service.invite_token ?? null);
             } else {
@@ -258,6 +271,16 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
     const canUseServicePromotions =
         Boolean(user?.is_super_admin) ||
         companyUser?.company?.capabilities?.productCapabilities?.RESERVAS_SERVICE_PROMOTIONS === true;
+    const canCustomizeNotificationRecipients =
+        Boolean(user?.is_super_admin) ||
+        companyUser?.company?.capabilities?.productCapabilities?.MENSAJERIA_PRO === true;
+    const possibleAssignedStaffNames = useMemo(() => {
+        const people = staffOptions.filter((staff) => staff.resource_type !== "ROOM" && staff.resource_type !== "EQUIPMENT");
+        if (!isEditing || !serviceId) return people.map((staff) => staff.display_name);
+        return people
+            .filter((staff) => staff.services?.includes(serviceId))
+            .map((staff) => staff.display_name);
+    }, [isEditing, serviceId, staffOptions]);
     const shouldPreserveLockedMultiSession =
         isEditing &&
         existingMultiSessionService &&
@@ -362,6 +385,11 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                 is_invite_only: formData.is_invite_only,
                 company_id: companyId,
                 required_resource_ids: formData.required_resource_ids,
+                ...(canCustomizeNotificationRecipients ? {
+                    notify_customer: formData.notify_customer,
+                    notify_assigned_staff: formData.notify_assigned_staff,
+                    notify_management: formData.notify_management,
+                } : {}),
             };
 
             const response = await fetch(
@@ -807,6 +835,111 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                                     ))}
                                 </div>
                             )}
+                        </CardContent>
+                    </Card>
+
+                    <Card className="admin-card overflow-hidden">
+                        <CardHeader className="border-b border-admin-border bg-admin-soft/60">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="space-y-1">
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <MessageCircle className="h-4 w-4 text-admin-brand" />
+                                        {t("adminServices.notificationRecipientsTitle")}
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {t("adminServices.notificationRecipientsDescription", {
+                                            service: formData.name.trim() || t("adminServices.thisService"),
+                                        })}
+                                    </CardDescription>
+                                </div>
+                                <span className="shrink-0 rounded-full border border-admin-border bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
+                                    {[
+                                        canCustomizeNotificationRecipients ? formData.notify_customer : true,
+                                        canCustomizeNotificationRecipients ? formData.notify_assigned_staff : true,
+                                        canCustomizeNotificationRecipients ? formData.notify_management : true,
+                                    ].filter(Boolean).length} {t("adminServices.recipientGroups")}
+                                </span>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4 pt-5">
+                            {!canCustomizeNotificationRecipients ? (
+                                <EntitlementLockedCard
+                                    title={t("adminServices.notificationRecipientsLockedTitle")}
+                                    description={t("adminServices.notificationRecipientsLockedDescription")}
+                                    capability="MENSAJERIA_PRO"
+                                    source="SETTINGS_LOCKED_CONTROL"
+                                    notice={t("entitlements.messagingProLocked")}
+                                    compact
+                                />
+                            ) : null}
+
+                            <div className="divide-y divide-admin-border rounded-lg border border-admin-border bg-white">
+                                <div className="flex items-start gap-3 p-4">
+                                    <div className="mt-0.5 rounded-full bg-sky-50 p-2 text-sky-700">
+                                        <UserRound className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <Label htmlFor="notify_customer" className="text-sm font-semibold text-slate-900">
+                                            {t("adminServices.notifyCustomer")}
+                                        </Label>
+                                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                                            {t("adminServices.notifyCustomerHint")}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="notify_customer"
+                                        checked={canCustomizeNotificationRecipients ? formData.notify_customer : true}
+                                        disabled={!canCustomizeNotificationRecipients}
+                                        onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, notify_customer: checked }))}
+                                    />
+                                </div>
+
+                                <div className="flex items-start gap-3 p-4">
+                                    <div className="mt-0.5 rounded-full bg-amber-50 p-2 text-amber-700">
+                                        <Scissors className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <Label htmlFor="notify_assigned_staff" className="text-sm font-semibold text-slate-900">
+                                            {t("adminServices.notifyAssignedStaff")}
+                                        </Label>
+                                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                                            {possibleAssignedStaffNames.length > 0
+                                                ? t("adminServices.notifyAssignedStaffNames", { names: possibleAssignedStaffNames.join(", ") })
+                                                : t("adminServices.notifyAssignedStaffHint")}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="notify_assigned_staff"
+                                        checked={canCustomizeNotificationRecipients ? formData.notify_assigned_staff : true}
+                                        disabled={!canCustomizeNotificationRecipients}
+                                        onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, notify_assigned_staff: checked }))}
+                                    />
+                                </div>
+
+                                <div className="flex items-start gap-3 p-4">
+                                    <div className="mt-0.5 rounded-full bg-fuchsia-50 p-2 text-fuchsia-700">
+                                        <BriefcaseBusiness className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <Label htmlFor="notify_management" className="text-sm font-semibold text-slate-900">
+                                            {t("adminServices.notifyManagement")}
+                                        </Label>
+                                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                                            {t("adminServices.notifyManagementHint")}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="notify_management"
+                                        checked={canCustomizeNotificationRecipients ? formData.notify_management : true}
+                                        disabled={!canCustomizeNotificationRecipients}
+                                        onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, notify_management: checked }))}
+                                    />
+                                </div>
+                            </div>
+
+                            <p className="text-xs leading-5 text-slate-500">
+                                {t("adminServices.notificationChannelNote")}
+                            </p>
                         </CardContent>
                     </Card>
                 </div>

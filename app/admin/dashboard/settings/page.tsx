@@ -1182,9 +1182,16 @@ export default function SettingsPage({
                             />
 
                             {hasMessagingPro ? (
-                                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                                    {t("adminSettings.messagingProEnabledHint")}
-                                </p>
+                                <div className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="text-sm text-emerald-800">
+                                        {t("adminSettings.messagingProEnabledHint")}
+                                    </p>
+                                    <Button asChild variant="outline" size="sm" className="shrink-0 border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-100">
+                                        <Link href="/admin/dashboard/services">
+                                            {t("adminServices.manageNotificationRecipients")}
+                                        </Link>
+                                    </Button>
+                                </div>
                             ) : null}
                         </CardContent>
                     </Card>
