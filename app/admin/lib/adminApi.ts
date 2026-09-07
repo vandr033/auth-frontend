@@ -275,6 +275,7 @@ export type AdminUploadImageType =
     | "about_1"
     | "about_2"
     | "about_3"
+    | "company_qr"
     | "restaurant_deposit_qr"
     | "staff"
     | "group_event_cover"
@@ -484,7 +485,11 @@ export interface InstallmentReminderLogRow {
     recipient_phone: string | null;
     message_subject: string | null;
     message_body: string | null;
-    sent_at: string;
+    status: "PENDING" | "PROCESSING" | "SENT" | "FAILED" | "EXPIRED" | "CANCELLED";
+    sent_at: string | null;
+    outbound_message_job_id: number | null;
+    created_at: string;
+    updated_at: string;
     sent_by_admin_id: string | null;
     sent_by_admin?: {
         id: string;
@@ -556,6 +561,10 @@ export interface MassCustomerMessageResult {
     skipped_no_contact: number;
     skipped_duplicates: number;
     failed: number;
+    batch_id?: string | null;
+    queued_whatsapp?: number;
+    pending_whatsapp?: number;
+    delivery_status?: "QUEUED" | "DUPLICATE" | "SKIPPED" | "REJECTED" | null;
     failed_targets?: Array<{
         source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
         id: number;
@@ -573,17 +582,19 @@ export type GroupEventMassMessageTarget = {
     id: number;
 };
 
-export type GroupEventMassMessageDeliveryMode = "WHATSAPP" | "EMAIL" | "BOTH";
+export type GroupEventMassMessageDeliveryMode = "AUTO" | "WHATSAPP" | "EMAIL" | "BOTH";
 
 export type GroupEventMassMessagePayload = {
     message: string;
     delivery_mode?: GroupEventMassMessageDeliveryMode;
+    idempotency_key?: string;
     selected_targets?: GroupEventMassMessageTarget[];
 };
 
 export type GroupClassMassMessagePayload = {
     message: string;
     delivery_mode?: GroupEventMassMessageDeliveryMode;
+    idempotency_key?: string;
     selected_targets?: Array<{ id: number }>;
 };
 
@@ -610,11 +621,58 @@ export async function sendMassCustomerMessage(payload: {
     message: string;
     search?: string;
     segment?: CustomerSegmentKey;
+    idempotency_key?: string;
 }): Promise<MassCustomerMessageResult> {
     const response = await apiFetch<{ data: MassCustomerMessageResult }>("/api/admin/customers/mass-message", {
         method: "POST",
         body: JSON.stringify(payload),
     });
+    return response.data;
+}
+
+export interface WhatsappBatchProgress {
+    batch: {
+        id: string;
+        company_id: number | null;
+        channel: "WHATSAPP";
+        source_type: string;
+        source_id: string | null;
+        idempotency_key: string;
+        completed_at: string | null;
+        created_at: string;
+        updated_at: string;
+    };
+    total: number;
+    pending: number;
+    processing: number;
+    sent: number;
+    failed: number;
+    expired: number;
+    cancelled: number;
+    terminal: number;
+    status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "EXPIRED" | "CANCELLED" | "EMPTY";
+}
+
+export async function getWhatsappBatchProgress(batchId: string): Promise<WhatsappBatchProgress> {
+    const response = await apiFetch<{ data: WhatsappBatchProgress }>(
+        `/api/admin/outbound-messages/batches/${encodeURIComponent(batchId)}`,
+    );
+    return response.data;
+}
+
+export async function retryWhatsappBatch(batchId: string): Promise<{ batch_id: string; retried: number }> {
+    const response = await apiFetch<{ data: { batch_id: string; retried: number } }>(
+        `/api/admin/outbound-messages/batches/${encodeURIComponent(batchId)}/retry`,
+        { method: "POST" },
+    );
+    return response.data;
+}
+
+export async function cancelWhatsappBatch(batchId: string): Promise<{ batch_id: string; cancelled: number }> {
+    const response = await apiFetch<{ data: { batch_id: string; cancelled: number } }>(
+        `/api/admin/outbound-messages/batches/${encodeURIComponent(batchId)}/cancel`,
+        { method: "POST" },
+    );
     return response.data;
 }
 
@@ -845,8 +903,9 @@ export interface TodayReminderPreview {
 
 export interface TodayReminderSendResult {
     booking_id: number;
-    status: "SENT" | "SKIPPED" | "FAILED";
+    status: "PENDING" | "PROCESSING" | "SENT" | "SKIPPED" | "FAILED" | "EXPIRED" | "CANCELLED";
     channel?: "WHATSAPP" | "EMAIL";
+    job_id?: number | null;
     reason?: string;
 }
 
@@ -859,8 +918,9 @@ export interface NoShowNotificationPayload {
 
 export interface NoShowNotificationResult {
     booking_id: number;
-    status: "SENT" | "SKIPPED" | "FAILED";
+    status: "PENDING" | "PROCESSING" | "SENT" | "SKIPPED" | "FAILED" | "EXPIRED" | "CANCELLED";
     channel?: "WHATSAPP" | "EMAIL";
+    job_id?: number | null;
     reason?: string;
 }
 
@@ -2476,16 +2536,18 @@ export async function bulkSendGroupInstallmentReminders(payload: {
 }): Promise<{
     total: number;
     sent: number;
+    queued: number;
     skipped: number;
     failed: number;
-    results: Array<{ installment_id: number; status: "sent" | "skipped" | "failed"; message: string }>;
+    results: Array<{ installment_id: number; status: "sent" | "queued" | "skipped" | "failed"; message: string }>;
 }> {
     const response = await apiFetch<{ data: {
         total: number;
         sent: number;
+        queued: number;
         skipped: number;
         failed: number;
-        results: Array<{ installment_id: number; status: "sent" | "skipped" | "failed"; message: string }>;
+        results: Array<{ installment_id: number; status: "sent" | "queued" | "skipped" | "failed"; message: string }>;
     } }>("/api/admin/group/installments/reminders/bulk-send", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -2760,8 +2822,8 @@ export const createRestaurantReservation = (input: Record<string, unknown>) => r
 export const updateRestaurantReservation = (id: number, input: Record<string, unknown>) => restaurantRequest<RestaurantReservation>(`/reservations/${id}`, { method: "PATCH", body: JSON.stringify(input) });
 export const updateRestaurantReservationStatus = (id: number, status: RestaurantReservationStatus, reason?: string) => restaurantRequest<RestaurantReservation>(`/reservations/${id}/status`, { method: "POST", body: JSON.stringify({ status, reason }) });
 export const assignRestaurantReservationTable = (id: number, table_id: number | null, auto_assign = false) => restaurantRequest<RestaurantReservation>(`/reservations/${id}/assign-table`, { method: "POST", body: JSON.stringify({ table_id, auto_assign }) });
-export type RestaurantNotificationLog = { id: number; event: "RESTAURANT_RESERVATION_CREATED" | "RESTAURANT_RESERVATION_CONFIRMED" | "RESTAURANT_RESERVATION_UPDATED" | "RESTAURANT_RESERVATION_CANCELLED" | "RESTAURANT_RESERVATION_REMINDER"; channel: "EMAIL" | "WHATSAPP"; status: "PENDING" | "SENT" | "FAILED" | "SKIPPED"; trigger: "AUTOMATIC" | "MANUAL"; recipient: string | null; error_message: string | null; sent_at: string | null; created_at: string; };
-export const resendRestaurantReservationConfirmation = (id: number) => restaurantRequest<{ reservationId: number; results: Array<{ channel: "EMAIL" | "WHATSAPP"; status: "SENT" | "FAILED" | "SKIPPED"; reason?: string }> }>(`/reservations/${id}/resend-confirmation`, { method: "POST" });
+export type RestaurantNotificationLog = { id: number; event: "RESTAURANT_RESERVATION_CREATED" | "RESTAURANT_RESERVATION_CONFIRMED" | "RESTAURANT_RESERVATION_UPDATED" | "RESTAURANT_RESERVATION_CANCELLED" | "RESTAURANT_RESERVATION_REMINDER"; channel: "EMAIL" | "WHATSAPP"; status: "PENDING" | "PROCESSING" | "SENT" | "FAILED" | "SKIPPED" | "EXPIRED" | "CANCELLED"; trigger: "AUTOMATIC" | "MANUAL"; recipient: string | null; error_message: string | null; sent_at: string | null; created_at: string; outbound_message_job_id?: number | null; };
+export const resendRestaurantReservationConfirmation = (id: number) => restaurantRequest<{ reservationId: number; results: Array<{ channel: "EMAIL" | "WHATSAPP"; status: "PENDING" | "PROCESSING" | "SENT" | "FAILED" | "SKIPPED" | "EXPIRED" | "CANCELLED"; jobId?: number; reason?: string }> }>(`/reservations/${id}/resend-confirmation`, { method: "POST" });
 export const listRestaurantNotificationHistory = (id: number) => restaurantRequest<RestaurantNotificationLog[]>(`/reservations/${id}/notifications`);
 export type RestaurantMetrics = { range: { dateFrom: string; dateTo: string; timezone: string }; summary: { totalReservations: number; activeReservations: number; expectedGuests: number; servedGuests: number; cancelledReservations: number; noShowReservations: number; cancellationRate: number; noShowRate: number; averagePartySize: number; averageLeadTimeMinutes: number }; statusBreakdown: Array<{ status: RestaurantReservationStatus; count: number; guestCount: number }>; sourceBreakdown: Array<{ source: RestaurantReservationSource; reservationCount: number; guestCount: number; percentage: number }>; weekdayBreakdown: Array<{ weekday: number; reservationCount: number; guestCount: number }>; timeBreakdown: Array<{ time: string; reservationCount: number; guestCount: number }>; diningAreaBreakdown: Array<{ diningAreaId: number | null; name: string; reservationCount: number; guestCount: number; completedCount: number; cancellationCount: number; noShowCount: number }>; tableBreakdown: Array<{ tableId: number | null; name: string; reservationCount: number; completedCount: number; guestCount: number; noShowCount: number }>; busiestDate: { date: string; reservationCount: number; guestCount: number } | null; };
 export const getRestaurantMetrics = (params: { dateFrom?: string; dateTo?: string } = {}) => { const query = new URLSearchParams(Object.entries(params).filter(([, value]) => Boolean(value)).map(([key, value]) => [key, String(value)])); return restaurantRequest<RestaurantMetrics>(`/metrics${query.size ? `?${query}` : ""}`); };

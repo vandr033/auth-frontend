@@ -9,6 +9,7 @@ import { formatCurrencyAmount } from "@/lib/currency";
 import { notify } from "@/lib/notify";
 import {
     getPublicCommerceOrder,
+    deletePublicCommercePaymentProof,
     type PublicCommerceOrderLookupResponse,
     type PublicCommerceOrderItem,
     submitPublicCommercePaymentProof,
@@ -196,6 +197,7 @@ export default function StoreOrderStatusPage() {
                                         }
 
                                         void (async () => {
+                                            let uploadedProof: { url: string; deleteToken?: string } | null = null;
                                             try {
                                                 setUploading(true);
                                                 setProofError(null);
@@ -205,6 +207,7 @@ export default function StoreOrderStatusPage() {
                                                     proofFile,
                                                     accessToken || null,
                                                 );
+                                                uploadedProof = upload;
                                                 await submitPublicCommercePaymentProof(
                                                     slug,
                                                     order.order_number,
@@ -215,6 +218,9 @@ export default function StoreOrderStatusPage() {
                                                 notify.success(t("shopStore.proofSent"));
                                                 await refreshOrder();
                                             } catch (error) {
+                                                if (uploadedProof?.deleteToken) {
+                                                    await deletePublicCommercePaymentProof(uploadedProof.url, uploadedProof.deleteToken).catch(() => undefined);
+                                                }
                                                 notify.error(error instanceof Error ? error.message : t("shopStore.proofSendFailed"));
                                             } finally {
                                                 setUploading(false);

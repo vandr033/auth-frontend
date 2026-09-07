@@ -367,6 +367,7 @@ function GroupReservationsPageContent() {
                       <InstallmentPlanCard
                         plan={paymentPlan}
                         companyId={paymentPlan.enrollment.company_id}
+                        slug={paymentPlan.enrollment.company?.slug ?? shopSlug ?? ""}
                         locale={locale}
                         t={t}
                         onRefresh={fetchData}

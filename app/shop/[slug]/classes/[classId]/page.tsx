@@ -325,11 +325,14 @@ export default function ShopClassDetailPage() {
     }
 
     let uploadedQrUrl: string | undefined;
+    let uploadedQrDeleteToken: string | undefined;
     setBusyEnroll(true);
     setGuestError(null);
     try {
       if (qrProofFile) {
-        uploadedQrUrl = await uploadGroupQrProof(qrProofFile, company.id);
+        const upload = await uploadGroupQrProof(qrProofFile, slug, { type: "CLASS", id: groupClass.id });
+        uploadedQrUrl = upload.url;
+        uploadedQrDeleteToken = upload.deleteToken;
       }
       await createPublicClassEnrollment({
         company_id: company.id,
@@ -342,7 +345,7 @@ export default function ShopClassDetailPage() {
       await loadData();
       setRegistrationStep("submitted");
     } catch (err) {
-      if (uploadedQrUrl) await deleteGroupQrProof(uploadedQrUrl);
+      if (uploadedQrUrl && uploadedQrDeleteToken) await deleteGroupQrProof(uploadedQrUrl, uploadedQrDeleteToken);
       setGuestError(err instanceof Error ? err.message : t("shopGroup.classes.enrollError"));
     } finally {
       setBusyEnroll(false);
@@ -553,6 +556,7 @@ export default function ShopClassDetailPage() {
                   <InstallmentPlanCard
                     plan={activePaymentPlan}
                     companyId={company.id}
+                    slug={slug}
                     locale={locale}
                     t={t}
                     onRefresh={loadData}

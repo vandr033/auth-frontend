@@ -132,6 +132,7 @@ export default function GroupPaymentsPage() {
             await notify.success(
                 t("adminGroup.payments.bulkReminderSummary", {
                     sent: result.sent,
+                    queued: result.queued,
                     skipped: result.skipped,
                     failed: result.failed,
                 }),

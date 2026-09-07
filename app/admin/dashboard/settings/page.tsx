@@ -38,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { notify } from "@/lib/notify";
 import { resolveApiUrl } from "@/lib/api-url";
 import { normalizeApiError } from "@/lib/api-error";
+import { uploadAdminImage } from "@/app/admin/lib/adminApi";
 import {
     LocationPicker,
     type LocationAutofillUpdate,
@@ -441,22 +442,7 @@ export default function SettingsPage({
 
             // Upload QR if selected
             if (selectedQR) {
-                const formData = new FormData();
-                formData.append('image', selectedQR);
-                formData.append('company_id', companyId.toString());
-                const uploadRes = await fetch(resolveApiUrl('/api/upload/qr'), {
-                    method: 'POST',
-                    body: formData,
-                    credentials: "include",
-                });
-
-                if (!uploadRes.ok) {
-                    const uploadPayload = await uploadRes.json().catch(() => null);
-                    throw normalizeApiError(uploadPayload, uploadRes.status, t('adminSettings.uploadQrFailed'));
-                }
-
-                const uploadData = await uploadRes.json();
-                qrUrl = uploadData.data?.url || uploadData.url;
+                qrUrl = await uploadAdminImage({ file: selectedQR, companyId, type: "company_qr" });
             }
 
             // Payload for Company (General)

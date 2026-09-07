@@ -431,7 +431,7 @@ export default function StoreCheckoutPage() {
             setGuestVerified(false);
             startCooldown(result.resendCooldownSeconds);
             setIdentitySuccess(
-                t("shopStore.codeSent", {
+                t(result.otpDelivery.phoneQueued ? "shopStore.codeQueued" : "shopStore.codeSent", {
                     email: result.otpDelivery.maskedEmail || "—",
                     phone: result.otpDelivery.maskedPhone || "—",
                 }),
@@ -493,7 +493,7 @@ export default function StoreCheckoutPage() {
             setGuestCheckoutResult(result);
             startCooldown(result.resendCooldownSeconds);
             setIdentitySuccess(
-                t("shopStore.codeResent", {
+                t(result.otpDelivery.phoneQueued ? "shopStore.codeResentQueued" : "shopStore.codeResent", {
                     email: result.otpDelivery.maskedEmail || "—",
                     phone: result.otpDelivery.maskedPhone || "—",
                 }),
@@ -718,7 +718,7 @@ export default function StoreCheckoutPage() {
                                     {pendingCheckoutSessionId ? (
                                         <>
                                             <div className="rounded-xl bg-surface px-4 py-3 text-sm text-text-muted">
-                                                {t("shopStore.codeSentSummary", {
+                                                {t(guestCheckoutResult?.otpDelivery.phoneQueued ? "shopStore.codeQueuedSummary" : "shopStore.codeSentSummary", {
                                                     email: guestCheckoutResult?.otpDelivery.maskedEmail || "—",
                                                     phone: guestCheckoutResult?.otpDelivery.maskedPhone || "—",
                                                 })}

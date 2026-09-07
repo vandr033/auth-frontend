@@ -53,6 +53,7 @@ import {
     getAdminCompanyLocation,
     getGroupBookingFlowSettings,
     getGroupEventById,
+    getWhatsappBatchProgress,
     getStaff,
     listGroupEventAttendance,
     listGroupEventBookings,
@@ -63,6 +64,7 @@ import {
     removeFreeEventRegistration,
     listWhatsappEventGroups,
     createWhatsappEventGroup,
+    retryWhatsappBatch,
     sendWhatsappGroupMessage,
     type WhatsappEventGroup,
     streamGroupEventMassMessage,
@@ -80,6 +82,7 @@ import {
     type GroupEventInterest,
     type GroupItemStatus,
     type MassCustomerMessageProgress,
+    type WhatsappBatchProgress,
     type GroupTicket,
     type GroupStaffRole,
     type StaffMember,
@@ -251,6 +254,8 @@ export default function GroupEventDetailPage() {
     const [selectedMassRecipients, setSelectedMassRecipients] = useState<Set<string>>(new Set());
     const [massRecipientSearch, setMassRecipientSearch] = useState("");
     const [massMessageProgress, setMassMessageProgress] = useState<MassCustomerMessageProgress | null>(null);
+    const [massMessageBatchId, setMassMessageBatchId] = useState<string | null>(null);
+    const [massMessageBatchProgress, setMassMessageBatchProgress] = useState<WhatsappBatchProgress | null>(null);
     const [massRecipientMenuOpen, setMassRecipientMenuOpen] = useState(false);
     const [failedMassRecipients, setFailedMassRecipients] = useState<FailedEventMessageTarget[]>([]);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -443,6 +448,36 @@ export default function GroupEventDetailPage() {
         });
         return () => window.cancelAnimationFrame(frame);
     }, [massRecipientMenuOpen]);
+
+    useEffect(() => {
+        if (!massMessageBatchId) {
+            setMassMessageBatchProgress(null);
+            return;
+        }
+
+        let cancelled = false;
+        let timer: number | null = null;
+        const poll = async () => {
+            try {
+                const progress = await getWhatsappBatchProgress(massMessageBatchId);
+                if (cancelled) return;
+                setMassMessageBatchProgress(progress);
+                if (progress.pending > 0 || progress.processing > 0) {
+                    timer = window.setTimeout(() => void poll(), 5000);
+                }
+            } catch {
+                if (!cancelled) {
+                    timer = window.setTimeout(() => void poll(), 15000);
+                }
+            }
+        };
+
+        void poll();
+        return () => {
+            cancelled = true;
+            if (timer !== null) window.clearTimeout(timer);
+        };
+    }, [massMessageBatchId]);
 
     const soldOut = useMemo(() => {
         if (!event) return false;
@@ -789,6 +824,7 @@ export default function GroupEventDetailPage() {
         }
 
         setSendingMassMessage(true);
+        setMassMessageBatchProgress(null);
         setMassMessageProgress({
             total_customers: targets.length,
             total_recipients: targets.length,
@@ -806,6 +842,9 @@ export default function GroupEventDetailPage() {
                 {
                     message,
                     delivery_mode: deliveryMode,
+                    idempotency_key: typeof crypto !== "undefined" && "randomUUID" in crypto
+                        ? crypto.randomUUID()
+                        : `event-mass-${eventId}-${Date.now()}`,
                     selected_targets: targets,
                 },
                 {
@@ -820,6 +859,7 @@ export default function GroupEventDetailPage() {
 
             const nextFailedRecipients = result.failed_targets ?? [];
             setFailedMassRecipients(nextFailedRecipients);
+            setMassMessageBatchId(result.batch_id ?? null);
 
             if (nextFailedRecipients.length > 0) {
                 await notify.warning(
@@ -828,17 +868,18 @@ export default function GroupEventDetailPage() {
                     }),
                 );
             } else {
-                await notify.success(
-                    t("adminGroup.events.massMessageSummary", {
-                        sent: result.sent_total,
-                        whatsapp: result.sent_whatsapp,
-                        email: result.sent_email,
-                        failed: result.failed,
-                        noContact: result.skipped_no_contact,
-                    }),
-                );
+                const summary = t("adminGroup.events.massMessageSummary", {
+                    sent: result.sent_total,
+                    whatsapp: result.sent_whatsapp,
+                    email: result.sent_email,
+                    failed: result.failed,
+                    noContact: result.skipped_no_contact,
+                });
+                await notify.success(result.batch_id
+                    ? `${summary} ${t("adminGroup.events.massMessageWhatsappQueued", { count: result.queued_whatsapp ?? 0 })}`
+                    : summary);
                 setMassMessageBody("");
-                setMassDialogOpen(false);
+                if (!result.batch_id) setMassDialogOpen(false);
             }
             setMassMessageProgress(null);
         } catch (error) {
@@ -862,6 +903,21 @@ export default function GroupEventDetailPage() {
     };
 
     const handleRetryFailedMassMessage = async (channel: "WHATSAPP" | "EMAIL") => {
+        if (channel === "WHATSAPP" && massMessageBatchId) {
+            setSendingMassMessage(true);
+            try {
+                const result = await retryWhatsappBatch(massMessageBatchId);
+                await notify.success(t("adminGroup.events.massMessageWhatsappRetryQueued", { count: result.retried }));
+                const progress = await getWhatsappBatchProgress(massMessageBatchId);
+                setMassMessageBatchProgress(progress);
+            } catch (error) {
+                await notify.error(error instanceof Error ? error.message : t("adminGroup.events.massMessageFailed"));
+            } finally {
+                setSendingMassMessage(false);
+            }
+            return;
+        }
+
         await sendMassMessageToTargets(
             failedMassRecipients
                 .filter((recipient) => recipient.failed_channels.includes(channel))
@@ -2056,7 +2112,7 @@ export default function GroupEventDetailPage() {
                                             })}
                                         </p>
                                     ) : null}
-                                    {!sendingMassMessage && failedWhatsappRecipients.length > 0 ? (
+                                    {!sendingMassMessage && !massMessageBatchId && failedWhatsappRecipients.length > 0 ? (
                                         <Button
                                             type="button"
                                             variant="outline"
@@ -2065,6 +2121,18 @@ export default function GroupEventDetailPage() {
                                         >
                                             {t("adminGroup.events.massMessageRetryWhatsapp", {
                                                 count: failedWhatsappRecipients.length,
+                                            })}
+                                        </Button>
+                                    ) : null}
+                                    {!sendingMassMessage && massMessageBatchId && massMessageBatchProgress && massMessageBatchProgress.failed > 0 ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => void handleRetryFailedMassMessage("WHATSAPP")}
+                                        >
+                                            {t("adminGroup.events.massMessageRetryWhatsapp", {
+                                                count: massMessageBatchProgress.failed,
                                             })}
                                         </Button>
                                     ) : null}
@@ -2124,6 +2192,21 @@ export default function GroupEventDetailPage() {
                                 <p className="text-xs text-slate-500">
                                     {t("adminGroup.events.massMessageAudienceHint", { count: selectedMassRecipientCount })}
                                 </p>
+                                {massMessageBatchProgress ? (
+                                    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                        <p className="font-medium text-slate-700">
+                                            {t("adminGroup.events.massMessageWhatsappProgress", {
+                                                sent: massMessageBatchProgress.sent,
+                                                pending: massMessageBatchProgress.pending,
+                                                processing: massMessageBatchProgress.processing,
+                                                failed: massMessageBatchProgress.failed,
+                                            })}
+                                        </p>
+                                        {massMessageBatchProgress.pending > 0 || massMessageBatchProgress.processing > 0 ? (
+                                            <p className="mt-1">{t("adminGroup.events.massMessageWhatsappPaused")}</p>
+                                        ) : null}
+                                    </div>
+                                ) : null}
                             </div>
                             <DialogFooter>
                                 <Button type="button" variant="outline" onClick={() => setMassDialogOpen(false)} disabled={sendingMassMessage}>

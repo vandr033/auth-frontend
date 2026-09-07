@@ -42,6 +42,7 @@ import {
     getCustomers,
     getGroupClassById,
     getStaff,
+    getWhatsappBatchProgress,
     listGroupEnrollmentInstallments,
     listGroupClassEnrollments,
     listGroupClassSessionAttendance,
@@ -49,6 +50,7 @@ import {
     listGroupTickets,
     markGroupEnrollmentInstallmentPaid,
     rotateGroupClassSessionPublicAttendance,
+    retryWhatsappBatch,
     sendGroupClassMassMessage,
     sendGroupInstallmentReminder,
     confirmGroupEnrollmentInstallmentQr,
@@ -71,6 +73,7 @@ import {
     type GroupTicket,
     type StaffMember,
     type UpdateGroupEnrollmentInstallmentInput,
+    type WhatsappBatchProgress,
 } from "@/app/admin/lib/adminApi";
 import { AdminPageHeader } from "@/app/admin/dashboard/components/AdminPageHeader";
 import { AdminSectionCard } from "@/app/admin/dashboard/components/AdminSectionCard";
@@ -283,6 +286,8 @@ export default function GroupClassDetailPage() {
     const [massMessageBody, setMassMessageBody] = useState("");
     const [massMessageSending, setMassMessageSending] = useState(false);
     const [massMessageDeliveryMode, setMassMessageDeliveryMode] = useState<GroupEventMassMessageDeliveryMode>("BOTH");
+    const [massMessageBatchId, setMassMessageBatchId] = useState<string | null>(null);
+    const [massMessageBatchProgress, setMassMessageBatchProgress] = useState<WhatsappBatchProgress | null>(null);
 
     // Add Member dialog
     const [addMemberOpen, setAddMemberOpen] = useState(false);
@@ -428,6 +433,34 @@ export default function GroupClassDetailPage() {
         () => enrollments.filter((enrollment) => enrollment.status !== "CANCELLED"),
         [enrollments],
     );
+
+    useEffect(() => {
+        if (!massMessageBatchId) {
+            setMassMessageBatchProgress(null);
+            return;
+        }
+
+        let cancelled = false;
+        let timer: number | null = null;
+        const poll = async () => {
+            try {
+                const progress = await getWhatsappBatchProgress(massMessageBatchId);
+                if (cancelled) return;
+                setMassMessageBatchProgress(progress);
+                if (progress.pending > 0 || progress.processing > 0) {
+                    timer = window.setTimeout(() => void poll(), 5000);
+                }
+            } catch {
+                if (!cancelled) timer = window.setTimeout(() => void poll(), 15000);
+            }
+        };
+
+        void poll();
+        return () => {
+            cancelled = true;
+            if (timer !== null) window.clearTimeout(timer);
+        };
+    }, [massMessageBatchId]);
 
     const assignedStaff = useMemo(() => {
         if (!groupClass?.staff_assignments) return [];
@@ -964,16 +997,35 @@ export default function GroupClassDetailPage() {
             const result = await sendGroupClassMassMessage(groupClass.id, {
                 message,
                 delivery_mode: massMessageDeliveryMode,
+                idempotency_key: typeof crypto !== "undefined" && "randomUUID" in crypto
+                    ? crypto.randomUUID()
+                    : `class-mass-${groupClass.id}-${Date.now()}`,
                 selected_targets: massMessageRecipients.map((recipient) => ({ id: recipient.id })),
             });
 
+            setMassMessageBatchId(result.batch_id ?? null);
+
             await notify.success(
-                `Enviados: ${result.sent_total}. WhatsApp: ${result.sent_whatsapp}. Email: ${result.sent_email}. Sin contacto: ${result.skipped_no_contact}. Fallidos: ${result.failed}.`,
+                `Enviados: ${result.sent_total}. WhatsApp: ${result.sent_whatsapp}. Email: ${result.sent_email}. Sin contacto: ${result.skipped_no_contact}. Fallidos: ${result.failed}. WhatsApp en cola: ${result.queued_whatsapp ?? 0}.`,
             );
             setMassMessageBody("");
-            setMassMessageOpen(false);
+            if (!result.batch_id) setMassMessageOpen(false);
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : "No se pudo enviar el mensaje masivo.");
+        } finally {
+            setMassMessageSending(false);
+        }
+    };
+
+    const handleRetryWhatsappBatch = async () => {
+        if (!massMessageBatchId) return;
+        setMassMessageSending(true);
+        try {
+            const result = await retryWhatsappBatch(massMessageBatchId);
+            await notify.success(`Se reprogramaron ${result.retried} WhatsApp fallidos.`);
+            setMassMessageBatchProgress(await getWhatsappBatchProgress(massMessageBatchId));
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : "No se pudieron reprogramar los WhatsApp.");
         } finally {
             setMassMessageSending(false);
         }
@@ -2188,6 +2240,28 @@ export default function GroupClassDetailPage() {
                             <p className="text-xs text-slate-500">
                                 Alcance actual: {massMessageRecipients.length} inscripciones.
                             </p>
+                            {massMessageBatchProgress ? (
+                                <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                    <p className="font-medium text-slate-700">
+                                        WhatsApp: {massMessageBatchProgress.sent} enviados, {massMessageBatchProgress.pending} pendientes, {massMessageBatchProgress.processing} en proceso, {massMessageBatchProgress.failed} fallidos.
+                                    </p>
+                                    {massMessageBatchProgress.pending > 0 || massMessageBatchProgress.processing > 0 ? (
+                                        <p className="mt-1">Si WAHA está desconectado, los mensajes pendientes se conservan y se reanudan automáticamente.</p>
+                                    ) : null}
+                                    {massMessageBatchProgress.failed > 0 ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-2"
+                                            onClick={() => void handleRetryWhatsappBatch()}
+                                            disabled={massMessageSending}
+                                        >
+                                            Reintentar WhatsApp fallidos ({massMessageBatchProgress.failed})
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 

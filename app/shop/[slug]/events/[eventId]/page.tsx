@@ -608,12 +608,15 @@ export default function ShopEventDetailPage() {
     }
 
     let uploadedQrUrl: string | undefined;
+    let uploadedQrDeleteToken: string | undefined;
     setBusyAction("book");
     setNotice(null);
 
     try {
       if (!event.is_free && paymentMethod === "QR" && qrProofFile) {
-        uploadedQrUrl = await uploadGroupQrProof(qrProofFile, company.id);
+        const upload = await uploadGroupQrProof(qrProofFile, slug, { type: "EVENT", id: event.id });
+        uploadedQrUrl = upload.url;
+        uploadedQrDeleteToken = upload.deleteToken;
       }
 
       const booking = await createPublicEventBooking({
@@ -647,7 +650,7 @@ export default function ShopEventDetailPage() {
       options?.onSuccess?.();
     } catch (err) {
       if (uploadedQrUrl) {
-        await deleteGroupQrProof(uploadedQrUrl);
+        if (uploadedQrDeleteToken) await deleteGroupQrProof(uploadedQrUrl, uploadedQrDeleteToken);
       }
       const message = err instanceof Error ? err.message : t("shopGroup.events.bookError");
       setNotice({ tone: "error", text: message });
@@ -878,6 +881,11 @@ export default function ShopEventDetailPage() {
   })();
   const showAccountSection = Boolean(accountCopy);
   const showOtpSection = Boolean(accountCopy?.showOtp && freeSubmitResult?.otpSection?.show);
+  const accountBody = freeSubmitResult?.otpSection?.deliveryStatus === "PENDING"
+    ? t("freeEventReg.account.deliveryQueued")
+    : freeSubmitResult?.otpSection?.deliveryStatus === "PROCESSING"
+      ? t("freeEventReg.account.deliveryProcessing")
+      : accountCopy?.body;
   const otpTargetLabel = freeSubmitResult?.otpSection?.maskedDestination || (
     otpChannel === "email" ? freeSubmitContact?.email : buildOtpPhoneTarget(freeSubmitContact)
   ) || "";
@@ -1227,7 +1235,19 @@ export default function ShopEventDetailPage() {
                   <div className="text-sm text-text-muted">
                     <p>{t("shopGroup.guestCheckout.verify.sentLabel")}</p>
                     <p>{t("shopGroup.guestCheckout.verify.emailStatus", { value: paidGuestCheckoutResult?.otpDelivery.emailSent ? t("shopGroup.guestCheckout.values.sent") : t("shopGroup.guestCheckout.values.failed") })}</p>
-                    <p>{t("shopGroup.guestCheckout.verify.phoneStatus", { value: paidGuestCheckoutResult?.otpDelivery.phoneSent ? t("shopGroup.guestCheckout.values.sent") : t("shopGroup.guestCheckout.values.failed") })}</p>
+                    <p>{t("shopGroup.guestCheckout.verify.phoneStatus", {
+                      value: paidGuestCheckoutResult?.otpDelivery.phoneSent
+                        ? t("shopGroup.guestCheckout.values.sent")
+                        : paidGuestCheckoutResult?.otpDelivery.phoneStatus === "PROCESSING"
+                          ? t("shopGroup.guestCheckout.values.processing")
+                          : paidGuestCheckoutResult?.otpDelivery.phoneQueued
+                            ? t("shopGroup.guestCheckout.values.queued")
+                            : paidGuestCheckoutResult?.otpDelivery.phoneStatus === "EXPIRED"
+                              ? t("shopGroup.guestCheckout.values.expired")
+                              : paidGuestCheckoutResult?.otpDelivery.phoneStatus === "CANCELLED"
+                                ? t("shopGroup.guestCheckout.values.cancelled")
+                                : t("shopGroup.guestCheckout.values.failed"),
+                    })}</p>
                   </div>
 
                   <div className="space-y-1">
@@ -1416,7 +1436,7 @@ export default function ShopEventDetailPage() {
                     {t("freeEventReg.account.sectionTitle")}
                   </p>
                   <h3 className="text-base font-semibold text-text-main">{accountCopy.title}</h3>
-                  <p className="text-sm text-text-muted">{accountCopy.body}</p>
+                  <p className="text-sm text-text-muted">{accountBody}</p>
 
                   {showOtpSection ? (
                     <div className="space-y-3">

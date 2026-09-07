@@ -23,6 +23,7 @@ import { formatGroupDate, formatGroupMoney } from "@/app/shop/lib/groupReservati
 type InstallmentPlanCardProps = {
     plan: GroupEnrollmentInstallmentPlan;
     companyId: number;
+    slug: string;
     locale: string;
     t: (key: string, params?: Record<string, string | number>) => string;
     onRefresh: () => Promise<void>;
@@ -43,6 +44,7 @@ function getInstallmentStatus(installment: GroupEnrollmentInstallment) {
 export function InstallmentPlanCard({
     plan,
     companyId,
+    slug,
     locale,
     t,
     onRefresh,
@@ -60,9 +62,16 @@ export function InstallmentPlanCard({
         }
 
         let uploadedUrl: string | undefined;
+        let uploadedDeleteToken: string | undefined;
         setBusyInstallmentId(installment.id);
         try {
-            uploadedUrl = await uploadGroupQrProof(file, companyId);
+            const upload = await uploadGroupQrProof(file, slug, {
+                type: "INSTALLMENT",
+                enrollmentId: plan.enrollment.id,
+                installmentId: installment.id,
+            });
+            uploadedUrl = upload.url;
+            uploadedDeleteToken = upload.deleteToken;
             await submitMyInstallmentQrProof({
                 company_id: companyId,
                 enrollment_id: plan.enrollment.id,
@@ -73,8 +82,8 @@ export function InstallmentPlanCard({
             await notify.success(t("shopGroup.installments.qrSubmitted"));
             await onRefresh();
         } catch (error) {
-            if (uploadedUrl) {
-                await deleteGroupQrProof(uploadedUrl);
+            if (uploadedUrl && uploadedDeleteToken) {
+                await deleteGroupQrProof(uploadedUrl, uploadedDeleteToken);
             }
             await notify.error(error instanceof Error ? error.message : t("shopGroup.installments.qrSubmitError"));
         } finally {

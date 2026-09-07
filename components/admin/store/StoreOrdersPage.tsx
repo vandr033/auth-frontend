@@ -188,6 +188,19 @@ function getPaymentMethodLabel(method: string | null | undefined, t: ReturnType<
   return key && translated !== key ? translated : method || t("adminStore.orders.notDefined");
 }
 
+function getOrderStatusErrorMessage(error: unknown, t: ReturnType<typeof useT>) {
+  const appError = error as AppApiError;
+  switch (appError?.errorCode ?? appError?.reason) {
+    case "INSUFFICIENT_STOCK":
+      return t("adminStore.orders.insufficientStock");
+    case "ORDER_STATE_CONFLICT":
+    case "INVENTORY_STATE_ERROR":
+      return t("adminStore.orders.stateConflict");
+    default:
+      return error instanceof Error ? error.message : t("adminStore.orders.orderUpdateFailed");
+  }
+}
+
 function isOpenOrder(order: AdminCommerceOrder) {
   const closedPaymentStatuses = new Set([
     "PAYMENT_CONFIRMED",
@@ -564,19 +577,21 @@ export function StoreOrdersManager({ limit, compact = false }: StoreOrdersManage
 
   const handleStatusSave = async () => {
     if (!selectedOrder) return;
+    const orderId = selectedOrder.id;
 
     try {
       setStatusSaving(true);
-      const updated = await updateAdminCommerceOrderStatus(selectedOrder.id, {
+      const updated = await updateAdminCommerceOrderStatus(orderId, {
         payment_status: statusPayment || null,
         fulfillment_status: statusFulfillment || null,
         note: statusNote.trim() || null,
       });
       syncOrder(updated);
       notify.success(t("adminStore.orders.orderUpdated"));
-      await refreshOrderDetail(selectedOrder.id);
+      await refreshOrderDetail(orderId);
     } catch (error) {
-      notify.error(error instanceof Error ? error.message : t("adminStore.orders.orderUpdateFailed"));
+      await Promise.allSettled([refreshOrderDetail(orderId), loadOrders()]);
+      notify.error(getOrderStatusErrorMessage(error, t));
     } finally {
       setStatusSaving(false);
     }

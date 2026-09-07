@@ -1,4 +1,5 @@
 import { resolvePublicApiUrl } from "./shopData";
+import { deletePublicUpload, uploadPublicProof, type PublicUploadContext, type UploadedPublicFile } from "./uploadApi";
 
 export type GroupItemStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type GroupBookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED";
@@ -219,7 +220,11 @@ export interface InstallmentReminderLogRow {
   recipient_phone: string | null;
   message_subject: string | null;
   message_body: string | null;
-  sent_at: string;
+  status: "PENDING" | "PROCESSING" | "SENT" | "FAILED" | "EXPIRED" | "CANCELLED";
+  sent_at: string | null;
+  outbound_message_job_id: number | null;
+  created_at: string;
+  updated_at: string;
   sent_by_admin_id: string | null;
   sent_by_admin?: {
     id: string;
@@ -523,6 +528,9 @@ export interface PaidEventGuestCheckoutStartInput {
 export interface PaidEventGuestCheckoutOtpDelivery {
   emailSent: boolean;
   phoneSent: boolean;
+  phoneQueued: boolean;
+  phoneStatus: "PENDING" | "PROCESSING" | "SENT" | "FAILED" | "EXPIRED" | "CANCELLED" | "SKIPPED";
+  phoneJobId: number | null;
   maskedEmail: string | null;
   maskedPhone: string | null;
 }
@@ -752,51 +760,22 @@ export async function submitMyInstallmentQrProof(payload: {
   );
 }
 
-export async function uploadGroupQrProof(file: File, companyId: number): Promise<string> {
-  const formData = new FormData();
-  formData.append("image", file);
-  formData.append("company_id", String(companyId));
-
-  const response = await fetch(resolveApiUrl("/upload/qr"), {
-    method: "POST",
-    body: formData,
-    credentials: "include",
+export async function uploadGroupQrProof(
+  file: File,
+  slug: string,
+  context: Extract<PublicUploadContext, { type: "EVENT" | "CLASS" | "INSTALLMENT" }>,
+): Promise<UploadedPublicFile> {
+  return uploadPublicProof({
+    file,
+    slug,
+    purpose: "GROUP_PAYMENT_PROOF",
+    context,
   });
-
-  let payload: unknown = null;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok) {
-    throw new Error(extractErrorMessage(payload, "Failed to upload QR proof"));
-  }
-
-  if (typeof payload === "object" && payload !== null) {
-    const maybe = payload as { data?: { url?: unknown }; message?: unknown; error?: unknown };
-    if (typeof maybe.data?.url === "string") {
-      return maybe.data.url;
-    }
-    if (typeof maybe.message === "string" && maybe.message) {
-      throw new Error(maybe.message);
-    }
-  }
-
-  throw new Error("Failed to upload QR proof");
 }
 
-export async function deleteGroupQrProof(url: string): Promise<void> {
+export async function deleteGroupQrProof(url: string, deleteToken: string): Promise<void> {
   try {
-    await fetch(resolveApiUrl("/upload/qr"), {
-      method: "DELETE",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ url }),
-    });
+    await deletePublicUpload(url, deleteToken, "qr");
   } catch {
     // best-effort cleanup
   }
@@ -854,6 +833,7 @@ export interface FreeRegistrationResult {
     primaryChannel: "email" | "phone" | null;
     availableChannels?: Array<"email" | "phone">;
     maskedDestination?: string | null;
+    deliveryStatus?: "PENDING" | "PROCESSING" | "SENT" | "FAILED" | "EXPIRED" | "CANCELLED";
   };
   nextActions?: {
     canCompleteMissingPhoneLater?: boolean;

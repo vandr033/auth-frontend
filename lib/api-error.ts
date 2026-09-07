@@ -7,6 +7,7 @@ import type { ProductAccessRecommendation, ProductCapability } from "@/types/pro
 type ApiErrorPayload = {
     code?: unknown;
     error?: unknown;
+    errorCode?: unknown;
     message?: unknown;
     reason?: unknown;
     technicalMessage?: unknown;
@@ -25,6 +26,7 @@ type ApiErrorPayloadData = {
 export type AppApiError = Error & {
     status?: number;
     code?: number;
+    errorCode?: string;
     reason?: string;
     technicalMessage?: string;
     details?: string;
@@ -80,6 +82,7 @@ export function normalizeApiError(
             ? payloadData.missingCapability
             : undefined;
     const reason = toStringOrUndefined(payloadRecord?.reason);
+    const errorCode = toStringOrUndefined(payloadRecord?.errorCode) ?? reason;
     const hasProductAccessRecommendation =
         typeof payloadData?.recommendedProductCode === "string" &&
         typeof payloadData?.recommendedTierCode === "string";
@@ -106,6 +109,7 @@ export function normalizeApiError(
 
     error.status = status;
     error.code = typeof payloadRecord?.code === "number" ? payloadRecord.code : undefined;
+    error.errorCode = errorCode;
     error.reason = reason;
     error.technicalMessage = toStringOrUndefined(payloadRecord?.technicalMessage);
     error.details = toStringOrUndefined(payloadRecord?.details);

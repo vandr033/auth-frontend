@@ -38,6 +38,7 @@ import { appendShopParam, buildSignInRedirectPath } from "@/app/lib/shop-context
 import { parseMarketplaceBookingHandoff } from "@/lib/marketplace/handoff";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
+import { deletePublicUpload, uploadPublicProof } from "@/app/shop/lib/uploadApi";
 
 // Helper to resolve API URL (duplicate of logic in ShopContext, consider exported helper)
 const resolveApiUrl = (url: string) => {
@@ -67,6 +68,7 @@ type PendingBookingIntent = {
     slug: string;
 } & Omit<BookingRequest, "customer_id"> & {
     created_at: string;
+    qr_proof_delete_token?: string | null;
 };
 
 type InviteServiceResponse = {
@@ -1602,6 +1604,8 @@ export default function BookingPage() {
         Boolean(inviteToken || preselectedServiceId),
     );
     const pendingBookingHandledRef = React.useRef(false);
+    const uploadedQrDeleteTokenRef = React.useRef<string | null>(null);
+    const anonymousBookingUploadContextRef = React.useRef<string | null>(null);
     const bookingStartedTrackedRef = React.useRef(false);
 
     // Browse mode: service-first (default) or staff-first
@@ -2493,35 +2497,29 @@ export default function BookingPage() {
         }
     };
 
-    const uploadQrProof = async (file: File, companyId: number): Promise<string> => {
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('company_id', companyId.toString());
-
-        const uploadRes = await fetch(resolveApiUrl('/upload/qr'), {
-            method: 'POST',
-            body: formData,
+    const uploadQrProof = async (file: File, shopSlug: string) => {
+        const bookingContext = user?.id
+            ? { type: "BOOKING" as const }
+            : {
+                type: "BOOKING" as const,
+                id: anonymousBookingUploadContextRef.current ??= (
+                    typeof globalThis.crypto?.randomUUID === "function"
+                        ? globalThis.crypto.randomUUID()
+                        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+                ),
+            };
+        return uploadPublicProof({
+            file,
+            slug: shopSlug,
+            purpose: "BOOKING_QR_PROOF",
+            context: bookingContext,
         });
-
-        if (!uploadRes.ok) {
-            throw new Error(t('shopBooking.uploadProofError'));
-        }
-
-        const uploadData = await uploadRes.json();
-        if (uploadData.error || !uploadData?.data?.url) {
-            throw new Error(uploadData.message || t('shopBooking.uploadProofError'));
-        }
-
-        return uploadData.data.url as string;
     };
 
-    const deleteUploadedQrProof = React.useCallback(async (url: string) => {
+    const deleteUploadedQrProof = React.useCallback(async (url: string, deleteToken?: string | null) => {
+        if (!deleteToken) return;
         try {
-            await fetch(resolveApiUrl('/upload/qr'), {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url }),
-            });
+            await deletePublicUpload(url, deleteToken, "qr");
         } catch {
             // Best-effort cleanup: ignore delete failures.
         }
@@ -2533,13 +2531,18 @@ export default function BookingPage() {
         }
 
         let qrProofUrl: string | undefined = undefined;
+        let qrProofContextId: string | null | undefined;
+        uploadedQrDeleteTokenRef.current = null;
         if (resolvedPaymentMethod === 'QR') {
             const requireComprobante = settings?.require_comprobante_for_qr !== false;
             if (showQrProofUpload && requireComprobante && !qrProofFile) {
                 throw new Error(t('shopBooking.qrProofRequired'));
             }
             if (showQrProofUpload && qrProofFile) {
-                qrProofUrl = await uploadQrProof(qrProofFile, company.id);
+                const upload = await uploadQrProof(qrProofFile, slug);
+                qrProofUrl = upload.url;
+                qrProofContextId = upload.contextId ?? null;
+                uploadedQrDeleteTokenRef.current = upload.deleteToken ?? null;
             }
         }
 
@@ -2591,6 +2594,7 @@ export default function BookingPage() {
             payment_method: resolvedPaymentMethod,
             notes: booking.notes,
             qr_proof_image_url: qrProofUrl,
+            upload_context_id: qrProofContextId,
             booking_source: bookingSource,
             booking_groups: bookingGroupsPayload,
         };
@@ -2638,7 +2642,7 @@ export default function BookingPage() {
                 setSuccess(true);
             } catch (err) {
                 if (payload.qr_proof_image_url) {
-                    await deleteUploadedQrProof(payload.qr_proof_image_url);
+                    await deleteUploadedQrProof(payload.qr_proof_image_url, pending.qr_proof_delete_token);
                 }
                 setSubmitError(err instanceof Error ? err.message : t('shopBooking.bookingError'));
             } finally {
@@ -2662,6 +2666,7 @@ export default function BookingPage() {
                 savePendingBookingIntent({
                     slug,
                     ...payload,
+                    qr_proof_delete_token: uploadedQrDeleteTokenRef.current,
                     created_at: new Date().toISOString(),
                 });
                 const resumeParams = new URLSearchParams(searchParams?.toString() || "");
@@ -2676,7 +2681,7 @@ export default function BookingPage() {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : t('shopBooking.bookingError');
             if (uploadedQrUrl) {
-                await deleteUploadedQrProof(uploadedQrUrl);
+                await deleteUploadedQrProof(uploadedQrUrl, uploadedQrDeleteTokenRef.current);
             }
 
             if (STAFF_UNAVAILABLE_PATTERN.test(errorMessage)) {

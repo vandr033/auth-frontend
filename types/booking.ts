@@ -97,6 +97,7 @@ export interface BookingRequest {
     payment_method: 'CASH' | 'QR' | 'NONE';
     notes?: string;
     qr_proof_image_url?: string;
+    upload_context_id?: string | null;
     booking_source?: 'MARKETPLACE' | 'SALON_SITE' | 'ADMIN' | 'MANUAL';
     booking_groups?: Array<{
         client_group_id: string;

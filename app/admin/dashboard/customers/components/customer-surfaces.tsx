@@ -27,13 +27,16 @@ import {
     getCustomerHistory,
     getCustomers,
     getInterestCaptureLeads,
+    getWhatsappBatchProgress,
     importCustomersFile,
+    retryWhatsappBatch,
     sendMassCustomerMessage,
     updateCustomerByKey,
     type CustomerGroupPaymentsResponse,
     type CustomerHistoryItem,
     type CustomerRecord,
     type InterestCaptureLead,
+    type WhatsappBatchProgress,
 } from "@/app/admin/lib/adminApi";
 import { RequestProductCTA } from "@/components/admin/product/RequestProductCTA";
 import {
@@ -606,6 +609,8 @@ export function CustomersCommunicationsSurface() {
     const [isMassDialogOpen, setIsMassDialogOpen] = useState(false);
     const [massMessageBody, setMassMessageBody] = useState("");
     const [sendingMassMessage, setSendingMassMessage] = useState(false);
+    const [massMessageBatchId, setMassMessageBatchId] = useState<string | null>(null);
+    const [massMessageBatchProgress, setMassMessageBatchProgress] = useState<WhatsappBatchProgress | null>(null);
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -652,6 +657,34 @@ export function CustomersCommunicationsSurface() {
     useEffect(() => {
         void fetchInterestLeads();
     }, [fetchInterestLeads]);
+
+    useEffect(() => {
+        if (!massMessageBatchId) {
+            setMassMessageBatchProgress(null);
+            return;
+        }
+
+        let cancelled = false;
+        let timer: number | null = null;
+        const poll = async () => {
+            try {
+                const progress = await getWhatsappBatchProgress(massMessageBatchId);
+                if (cancelled) return;
+                setMassMessageBatchProgress(progress);
+                if (progress.pending > 0 || progress.processing > 0) {
+                    timer = window.setTimeout(() => void poll(), 5000);
+                }
+            } catch {
+                if (!cancelled) timer = window.setTimeout(() => void poll(), 15000);
+            }
+        };
+
+        void poll();
+        return () => {
+            cancelled = true;
+            if (timer !== null) window.clearTimeout(timer);
+        };
+    }, [massMessageBatchId]);
 
     const reachableCustomers = useMemo(
         () => customers.filter((customer) => Boolean(customer.email || customer.phone)).length,
@@ -706,22 +739,41 @@ export function CustomersCommunicationsSurface() {
 
         setSendingMassMessage(true);
         try {
+            const idempotency_key = typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `customer-mass-${Date.now()}`;
             const result = await sendMassCustomerMessage({
                 message,
                 search: debouncedSearch || undefined,
                 segment: segmentFilter,
+                idempotency_key,
             });
+            setMassMessageBatchId(result.batch_id ?? null);
             await notify.success(
-                t("adminCustomers.massMessageSummary", {
+                `${t("adminCustomers.massMessageSummary", {
                     sent: result.sent_total,
                     whatsapp: result.sent_whatsapp,
                     email: result.sent_email,
                     failed: result.failed,
                     noContact: result.skipped_no_contact,
-                }),
+                })} WhatsApp en cola: ${result.queued_whatsapp ?? 0}`,
             );
             setMassMessageBody("");
             setIsMassDialogOpen(false);
+        } catch (error: unknown) {
+            await notify.error(error instanceof Error ? error.message : t("adminCustomers.massMessageFailed"));
+        } finally {
+            setSendingMassMessage(false);
+        }
+    };
+
+    const handleRetryWhatsappBatch = async () => {
+        if (!massMessageBatchId) return;
+        setSendingMassMessage(true);
+        try {
+            const result = await retryWhatsappBatch(massMessageBatchId);
+            await notify.success(`Reprogramados ${result.retried} mensajes de WhatsApp.`);
+            setMassMessageBatchProgress(await getWhatsappBatchProgress(massMessageBatchId));
         } catch (error: unknown) {
             await notify.error(error instanceof Error ? error.message : t("adminCustomers.massMessageFailed"));
         } finally {
@@ -803,6 +855,34 @@ export function CustomersCommunicationsSurface() {
                 <StatCard label={t("adminCustomers.communicationsStats.reachable")} value={reachableCustomers} hint={t("adminCustomers.communicationsStats.reachableHint")} icon={<Mail className="h-5 w-5" />} />
                 <StatCard label={t("adminCustomers.communicationsStats.interest")} value={filteredInterestLeads.length} hint={t("adminCustomers.communicationsStats.interestHint")} icon={<Users className="h-5 w-5" />} />
             </AdminMetricGrid>
+
+            {massMessageBatchProgress ? (
+                <AdminSectionCard title={t("adminCustomers.massMessageWhatsappProgressTitle")}>
+                    <p className="text-sm text-slate-700">
+                        {t("adminCustomers.massMessageWhatsappProgress", {
+                            sent: massMessageBatchProgress.sent,
+                            pending: massMessageBatchProgress.pending,
+                            processing: massMessageBatchProgress.processing,
+                            failed: massMessageBatchProgress.failed,
+                        })}
+                    </p>
+                    {massMessageBatchProgress.pending > 0 || massMessageBatchProgress.processing > 0 ? (
+                        <p className="mt-1 text-xs text-slate-500">{t("adminCustomers.massMessageWhatsappPaused")}</p>
+                    ) : null}
+                    {massMessageBatchProgress.failed > 0 ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-3"
+                            onClick={() => void handleRetryWhatsappBatch()}
+                            disabled={sendingMassMessage}
+                        >
+                            {t("adminCustomers.massMessageWhatsappRetry", { count: massMessageBatchProgress.failed })}
+                        </Button>
+                    ) : null}
+                </AdminSectionCard>
+            ) : null}
 
             {!hasCrmPro ? (
                 <CapabilityRequestCard

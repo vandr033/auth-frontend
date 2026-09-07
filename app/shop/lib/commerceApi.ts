@@ -2,6 +2,7 @@
 
 import { resolveApiUrl } from "@/lib/api-url";
 import { DEFAULT_LOCALE, getLocaleCookie, translate } from "@/lib/i18n";
+import { deletePublicUpload, uploadPublicProof } from "./uploadApi";
 import type {
     ShopCommerceCategory,
     ShopCommerceOrderScheduleSlot,
@@ -134,6 +135,9 @@ export type PublicCommerceGuestCheckoutResult = {
     otpDelivery: {
         emailSent: boolean;
         phoneSent: boolean;
+        phoneQueued: boolean;
+        phoneStatus: "PENDING" | "PROCESSING" | "SENT" | "FAILED" | "EXPIRED" | "CANCELLED" | "SKIPPED";
+        phoneJobId: number | null;
         maskedEmail: string | null;
         maskedPhone: string | null;
     };
@@ -288,15 +292,14 @@ export async function submitPublicCommercePaymentProof(
 }
 
 export async function uploadCheckoutCommercePaymentProof(slug: string, file: File) {
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const response = await fetch(resolveApiUrl(`/api/public/commerce/${slug}/checkout/payment-proof-upload`), {
-        method: "POST",
-        credentials: "include",
-        body: formData,
+    return uploadPublicProof({
+        slug,
+        file,
+        purpose: "ORDER_PAYMENT_PROOF",
+        context: { type: "CHECKOUT" },
+        endpoint: `/api/public/commerce/${encodeURIComponent(slug)}/checkout/payment-proof-upload`,
+        field: "image",
     });
-    return parseApiResponse<{ url: string; deleteToken?: string }>(response);
 }
 
 export async function uploadPublicCommercePaymentProof(
@@ -305,27 +308,20 @@ export async function uploadPublicCommercePaymentProof(
     file: File,
     accessToken?: string | null,
 ) {
-    const formData = new FormData();
-    formData.append("image", file);
-    if (accessToken) {
-        formData.append("accessToken", accessToken);
-    }
-
-    const response = await fetch(resolveApiUrl(`/api/public/commerce/${slug}/orders/${orderNumber}/payment-proof/upload`), {
-        method: "POST",
-        credentials: "include",
-        body: formData,
+    return uploadPublicProof({
+        slug,
+        file,
+        purpose: "ORDER_PAYMENT_PROOF",
+        context: { type: "ORDER", orderNumber },
+        accessToken,
+        endpoint: `/api/public/commerce/${encodeURIComponent(slug)}/orders/${encodeURIComponent(orderNumber)}/payment-proof/upload`,
+        field: "image",
     });
-    return parseApiResponse<{ url: string; deleteToken?: string }>(response);
 }
 
 export async function deletePublicCommercePaymentProof(url: string, deleteToken?: string) {
-    const response = await fetch(resolveApiUrl("/api/upload/qr"), {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, deleteToken }),
-    });
-    return parseApiResponse<{ success?: boolean }>(response);
+    if (!deleteToken) return;
+    await deletePublicUpload(url, deleteToken, "file");
 }
 
 export async function listMyCommerceOrders(slug: string): Promise<PublicCommerceOrder[]> {

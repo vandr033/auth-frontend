@@ -124,6 +124,7 @@ export default function BookingsPage() {
     const [reminderStatusText, setReminderStatusText] = useState<string | null>(null);
     const [reminderSummary, setReminderSummary] = useState<{
         sent: number;
+        queued: number;
         skipped: number;
         failed: number;
         whatsapp: number;
@@ -444,6 +445,7 @@ export default function BookingsPage() {
                 setReminderStatusText(t("adminBookings.remindersNothingToSend"));
                 setReminderSummary({
                     sent: 0,
+                    queued: 0,
                     skipped: preview.total,
                     failed: 0,
                     whatsapp: 0,
@@ -457,6 +459,7 @@ export default function BookingsPage() {
 
             const counters = {
                 sent: 0,
+                queued: 0,
                 skipped: 0,
                 failed: 0,
                 whatsapp: 0,
@@ -471,6 +474,8 @@ export default function BookingsPage() {
                     counters.sent += 1;
                     if (result.channel === "WHATSAPP") counters.whatsapp += 1;
                     if (result.channel === "EMAIL") counters.email += 1;
+                } else if (result.status === "PENDING" || result.status === "PROCESSING") {
+                    counters.queued += 1;
                 } else if (result.status === "SKIPPED") {
                     counters.skipped += 1;
                 } else {
@@ -602,6 +607,11 @@ export default function BookingsPage() {
                             label: t("adminBookings.remindersSent"),
                             value: reminderSummary.sent,
                             tone: "success",
+                        },
+                        {
+                            label: t("adminBookings.remindersQueued"),
+                            value: reminderSummary.queued,
+                            tone: "info",
                         },
                         {
                             label: t("adminBookings.remindersSkipped"),

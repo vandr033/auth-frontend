@@ -1,4 +1,5 @@
 import { resolvePublicApiUrl } from "./shopData";
+import { uploadPublicMultipart } from "./uploadApi";
 
 export type PublicRestaurantConfiguration = {
   company: { slug: string; name: string; timezone: string; logoUrl: string | null; address: string | null };
@@ -24,12 +25,15 @@ export const getPublicRestaurantConfiguration = (slug: string) => request<Public
 export const getPublicRestaurantAvailability = (slug: string, date: string, partySize: number) => request<{ date: string; partySize: number; timezone: string; slots: PublicRestaurantSlot[] }>(`/restaurant/public/${encodeURIComponent(slug)}/availability?date=${encodeURIComponent(date)}&partySize=${partySize}`);
 export const createPublicRestaurantReservation = (slug: string, input: { date: string; time: string; partySize: number; customer: { name: string; phone?: string | null; phonePrefix?: string | null; countryCode?: string | null; email?: string | null }; guests?: Array<{ name: string; phone: string; phonePrefix?: string | null; countryCode?: string | null }>; notes?: string | null }) => request<{ reservation: PublicRestaurantReservation; message: string }>(`/restaurant/public/${encodeURIComponent(slug)}/reservations`, { method: "POST", body: JSON.stringify(input) });
 export async function uploadPublicRestaurantDepositProof(slug: string, reservationCode: string, file: File): Promise<{ status: string }> {
-  const body = new FormData();
-  body.append("file", file);
-  const response = await fetch(resolvePublicApiUrl(`/restaurant/public/${encodeURIComponent(slug)}/reservations/${encodeURIComponent(reservationCode)}/deposit-proof`), { method: "POST", body, credentials: "include" });
-  const payload = await response.json().catch(() => ({})) as ApiResponse<{ status: string }>;
-  if (!response.ok || payload.error || !payload.data) throw Object.assign(new Error(payload.message || "No pudimos cargar el comprobante."), { status: response.status });
-  return payload.data;
+  return uploadPublicMultipart<{ status: string }>({
+    slug,
+    file,
+    purpose: "RESTAURANT_DEPOSIT_PROOF",
+    context: { type: "RESERVATION", reservationCode },
+    reservationCode,
+    endpoint: `/restaurant/public/${encodeURIComponent(slug)}/reservations/${encodeURIComponent(reservationCode)}/deposit-proof`,
+    field: "file",
+  });
 }
 export const getMyPublicRestaurantReservations = (slug: string) => request<{ reservations: PublicRestaurantReservation[] }>(`/restaurant/public/${encodeURIComponent(slug)}/my-reservations`);
 export const getPublicRestaurantReservation = (code: string) => request<{ reservation: PublicRestaurantReservation }>(`/restaurant/public/reservations/${encodeURIComponent(code)}`);
