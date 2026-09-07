@@ -59,7 +59,7 @@ import {
     DaySchedule,
 } from "@/app/admin/lib/adminApi";
 import type { NoShowNotificationChannel } from "@/app/admin/lib/adminApi";
-import { canUseEntitledFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveFeature } from "@/lib/admin/access";
 import { LockedFeatureButton } from "@/components/admin/product/LockedFeatureButton";
 import { notify } from "@/lib/notify";
 import { getProductAccessRecommendationForCapability } from "@/lib/product-access";
@@ -85,14 +85,14 @@ const STATUS_OPTIONS: { value: BookingStatus | "ALL"; label: string }[] = [
 ];
 
 export default function BookingsPage() {
-    const { isAuthenticated, role, companyUser, user } = useAdminAuth();
+    const { isAuthenticated, role, companyUser, user, effectiveAccess } = useAdminAuth();
     const { t, locale } = useI18n();
     const dateFnsLocale = getDateLocale(locale);
     const isStaffRole = role === "STAFF";
     const currency = companyUser?.company?.currency;
-    const canSendReminders = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_REMINDERS");
+    const canSendReminders = Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, "BOOKING_REMINDERS");
     const canSendTransactionalNotifications =
-        Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
+        Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
     const remindersRecommendation = getProductAccessRecommendationForCapability("MENSAJERIA_REMINDERS");
     const transactionalMessagingRecommendation = getProductAccessRecommendationForCapability("MENSAJERIA_BASE");
 

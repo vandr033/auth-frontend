@@ -407,6 +407,7 @@ export default function EditShopPage() {
 
             await notify.success(t("superAdminShops.updatedSuccess"));
             await fetchData();
+            await refreshSession(true);
         } catch (err) {
             await notify.error(err instanceof Error ? err.message : t("superAdminShops.updateFailed"));
         } finally {
@@ -855,6 +856,29 @@ export default function EditShopPage() {
                                     <p className="text-xs uppercase tracking-wide text-slate-500">Legacy compatibility</p>
                                     <p className="text-sm font-semibold text-slate-900">{subscriptionSummary.legacyPlanCompatibility}</p>
                                 </div>
+                            </div>
+
+                            <div className="rounded-lg border border-admin-border bg-admin-surface-subtle p-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs uppercase tracking-wide text-slate-500">Effective runtime access</p>
+                                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                                            {subscriptionSummary.effectiveAccess.lifecycle.mode}
+                                            {" · "}
+                                            {subscriptionSummary.effectiveAccess.entitlements.currentPlan}
+                                        </p>
+                                    </div>
+                                    <Badge className={subscriptionSummary.effectiveAccess.lifecycle.mode === "FULL"
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-amber-100 text-amber-700"}>
+                                        {subscriptionSummary.effectiveAccess.entitlements.source || "legacy_plan"}
+                                    </Badge>
+                                </div>
+                                <p className="mt-3 text-sm text-slate-600">
+                                    Effective products: {(subscriptionSummary.effectiveAccess.entitlements.products ?? [])
+                                        .map((product) => `${product.productCode} (${product.tierCode})`)
+                                        .join(", ") || "—"}
+                                </p>
                             </div>
 
                             <div className="grid gap-3 sm:grid-cols-2">

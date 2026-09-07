@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUseEntitledFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveCapability } from "@/lib/admin/access";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { getImageUrl } from "@/utils/image-url";
 import {
@@ -39,7 +39,7 @@ function ToggleField({ label, checked, onCheckedChange }: { label: string; check
 
 export function RestaurantSettingsManager() {
   const t = useT();
-  const { companyUser } = useAdminAuth();
+  const { companyUser, effectiveAccess } = useAdminAuth();
   const [access, setAccess] = useState<{ enabled: boolean } | null>(null);
   const [settings, setSettings] = useState<RestaurantSettings | null>(null);
   const [periods, setPeriods] = useState<RestaurantServicePeriod[]>([]);
@@ -48,7 +48,7 @@ export function RestaurantSettingsManager() {
   const [saving, setSaving] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const entitled = canUseEntitledFeature(companyUser?.company, "RESTAURANT_MODULE");
+  const entitled = hasEffectiveCapability(effectiveAccess, "RESTAURANT_MODULE");
   const companyId = companyUser?.company?.id;
 
   const load = async () => {

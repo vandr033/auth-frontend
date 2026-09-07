@@ -16,10 +16,10 @@ export default function AdminModulePage({
 }: {
     params: Promise<{ itemId: string }>;
 }) {
-    const { companyUser } = useAdminAuth();
+    const { effectiveAccess } = useAdminAuth();
     const t = useT();
     const { itemId } = use(params);
-    const model = getAdminModulePageModel(itemId, companyUser?.company?.capabilities);
+    const model = getAdminModulePageModel(itemId, effectiveAccess);
 
     if (!model) {
         return (

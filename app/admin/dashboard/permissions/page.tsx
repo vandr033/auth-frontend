@@ -13,7 +13,7 @@ import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useI18n, useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUsePlanFeature, getCurrentPlan, getRequiredPlanForFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveFeature } from "@/lib/admin/access";
 import {
     StaffMember,
     StaffTimeOffRequest,
@@ -35,13 +35,13 @@ function statusTone(status: StaffTimeOffStatus): "success" | "warning" | "danger
 }
 
 export default function PermissionsPage() {
-    const { role, isAuthenticated, companyUser, user } = useAdminAuth();
+    const { role, isAuthenticated, user, effectiveAccess } = useAdminAuth();
     const { locale } = useI18n();
     const t = useT();
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
     const permissionsFeature = "STAFF_AVAILABILITY" as const;
-    const plan = getCurrentPlan(companyUser?.company);
-    const canUsePermissions = Boolean(user?.is_super_admin) || canUsePlanFeature(companyUser?.company, permissionsFeature);
+    const plan = effectiveAccess?.entitlements.currentPlan ?? "BUSINESS";
+    const canUsePermissions = Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, permissionsFeature);
 
     const [loading, setLoading] = useState(true);
     const [submittingRequest, setSubmittingRequest] = useState(false);
@@ -194,7 +194,7 @@ export default function PermissionsPage() {
     }
 
     if (!canUsePermissions) {
-        const requiredPlan = getRequiredPlanForFeature(companyUser?.company, permissionsFeature);
+        const requiredPlan = effectiveAccess?.entitlements.requiredPlans[permissionsFeature] ?? "BUSINESS";
         return (
             <AdminPageShell>
                 <AdminPageHeader eyebrow={t("adminNav.schedule")} title={t("adminPermissions.title")} />

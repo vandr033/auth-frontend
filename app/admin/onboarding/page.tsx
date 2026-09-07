@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
+import { getDefaultAdminHref } from "@/lib/admin/navigation";
 
 const PRODUCT_LABELS: Record<string, string> = {
   RESERVAS: "Reservas",
@@ -19,7 +20,14 @@ const PRODUCT_LABELS: Record<string, string> = {
 
 export default function AdminOnboardingPage() {
   const router = useRouter();
-  const { loading, isAuthenticated, mustChangePassword, companyUser } = useAdminAuth();
+  const {
+    loading,
+    isAuthenticated,
+    mustChangePassword,
+    companyUser,
+    effectiveAccess,
+    role,
+  } = useAdminAuth();
 
   useEffect(() => {
     if (loading) return;
@@ -33,9 +41,15 @@ export default function AdminOnboardingPage() {
   }, [isAuthenticated, loading, mustChangePassword, router]);
 
   const company = companyUser?.company;
-  const entitlements = company?.capabilities;
-  const availableUntil = company?.availableUntil ? new Date(company.availableUntil) : null;
-  const isExpired = Boolean(availableUntil && availableUntil.getTime() < Date.now());
+  const entitlements = effectiveAccess?.entitlements;
+  const availableUntil = effectiveAccess?.lifecycle.availableUntil
+    ? new Date(effectiveAccess.lifecycle.availableUntil)
+    : null;
+  const isExpired = effectiveAccess?.lifecycle.mode === "RENEWAL_ONLY";
+  const defaultAdminHref = getDefaultAdminHref(
+    effectiveAccess,
+    role as "OWNER" | "ADMIN" | "STAFF" | null,
+  );
 
   const selectedCoreProducts = useMemo(
     () =>
@@ -246,7 +260,7 @@ export default function AdminOnboardingPage() {
               <Link href={company?.slug ? `/shop/${company.slug}` : "/"}>Ver mi página pública</Link>
             </Button>
             <Button asChild className="bg-admin-brand text-white hover:bg-admin-brand-hover">
-              <Link href="/admin/dashboard">Ir al panel</Link>
+              <Link href={defaultAdminHref}>Ir al panel</Link>
             </Button>
           </div>
         </section>

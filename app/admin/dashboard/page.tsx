@@ -21,7 +21,7 @@ import {
     CircleSlash,
 } from "lucide-react";
 import { notify } from "@/lib/notify";
-import { canUseEntitledFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveFeature } from "@/lib/admin/access";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { getAdminNavigationForEntitlements, getDefaultAdminHref } from "@/lib/admin/navigation";
 import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
@@ -64,7 +64,7 @@ function getMonthLabel(monthKey: string, locale: string) {
 }
 
 export default function DashboardHomePage() {
-    const { companyId, companyName, role, companySlug, companyUser, user } = useAdminAuth();
+    const { companyId, companyName, role, companySlug, companyUser, user, effectiveAccess } = useAdminAuth();
     const router = useRouter();
     const { t, locale } = useI18n();
     const currency = companyUser?.company?.currency;
@@ -75,14 +75,14 @@ export default function DashboardHomePage() {
     const [loadFailed, setLoadFailed] = useState(false);
     const [metricsLocked, setMetricsLocked] = useState(false);
     const dashboardFeature = "OPERATIONAL_DASHBOARD" as const;
-    const canAccessDashboard = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, dashboardFeature);
+    const canAccessDashboard = Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, dashboardFeature);
     const defaultAdminHref = useMemo(
-        () => getDefaultAdminHref(companyUser?.company?.capabilities, navigationRole),
-        [companyUser?.company?.capabilities, navigationRole],
+        () => getDefaultAdminHref(effectiveAccess, navigationRole),
+        [effectiveAccess, navigationRole],
     );
     const navigationGroups = useMemo(
-        () => getAdminNavigationForEntitlements(companyUser?.company?.capabilities),
-        [companyUser?.company?.capabilities],
+        () => getAdminNavigationForEntitlements(effectiveAccess, { role: navigationRole }),
+        [effectiveAccess, navigationRole],
     );
     const activeModules = useMemo(
         () =>

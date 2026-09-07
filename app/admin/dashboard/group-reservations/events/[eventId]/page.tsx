@@ -42,7 +42,7 @@ import {
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveFeature } from "@/lib/admin/access";
 import { useGroupReservationsAccess } from "../../lib/useGroupReservationsAccess";
 import { formatDateTime, formatMoneyFromCents } from "../../lib/format";
 import {
@@ -222,11 +222,11 @@ export default function GroupEventDetailPage() {
     const params = useParams<{ eventId: string }>();
     const eventIdRaw = typeof params?.eventId === "string" ? params.eventId : "";
     const eventId = Number.parseInt(eventIdRaw, 10);
-    const { companyId, companyUser } = useAdminAuth();
+    const { companyId, companyUser, user, effectiveAccess } = useAdminAuth();
     const currency = companyUser?.company?.currency;
     const companySlug = companyUser?.company?.slug;
     const { canUseAdvanced, canUseEvents, getRequiredPlan } = useGroupReservationsAccess();
-    const canBulkMessaging = canUsePlanFeature(companyUser?.company, "BULK_WHATSAPP_MESSAGING");
+    const canBulkMessaging = Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, "BULK_WHATSAPP_MESSAGING");
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

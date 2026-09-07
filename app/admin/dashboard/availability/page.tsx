@@ -14,7 +14,7 @@ import { AdminPageHeader, AdminPageShell, ConfirmDialog } from "@/components/adm
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUseEntitledFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveFeature } from "@/lib/admin/access";
 import {
     StaffAvailabilitySlot,
     StaffMember,
@@ -26,12 +26,12 @@ import {
 } from "@/app/admin/lib/adminApi";
 
 export default function AvailabilityPage() {
-    const { role, isAuthenticated, companyUser, user } = useAdminAuth();
+    const { role, isAuthenticated, user, effectiveAccess } = useAdminAuth();
     const t = useT();
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
     const isStaff = role === "STAFF";
     const availabilityFeature = "STAFF_AVAILABILITY" as const;
-    const canUseAvailability = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, availabilityFeature);
+    const canUseAvailability = Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, availabilityFeature);
 
     const [loading, setLoading] = useState(true);
     const [savingSchedule, setSavingSchedule] = useState(false);

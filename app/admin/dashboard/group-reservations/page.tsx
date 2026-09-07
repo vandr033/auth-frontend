@@ -15,7 +15,7 @@ import { clampPercent } from "./lib/format";
 
 export default function GroupReservationsOverviewPage() {
     const t = useT();
-    const { companyUser } = useAdminAuth();
+    const { companyUser, effectiveAccess } = useAdminAuth();
     const { canUseClasses } = useGroupReservationsAccess();
 
     const [loading, setLoading] = useState(true);
@@ -136,7 +136,9 @@ export default function GroupReservationsOverviewPage() {
 
             <AdminSectionCard title={t("adminGroup.planSummary.title")}>
                 <div className="space-y-2 text-sm text-slate-600">
-                    <p>{t("adminGroup.planSummary.currentPlan", { plan: companyUser?.company?.plan || "BUSINESS" })}</p>
+                    <p>{t("adminGroup.planSummary.currentPlan", {
+                        plan: effectiveAccess?.entitlements.currentPlan ?? companyUser?.company?.plan ?? "BUSINESS",
+                    })}</p>
                     <p>{t("adminGroup.planSummary.business")}</p>
                     <p>{t("adminGroup.planSummary.pro")}</p>
                 </div>

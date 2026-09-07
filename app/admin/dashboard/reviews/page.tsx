@@ -16,7 +16,7 @@ import { useAdminAuth } from "../../contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { cn } from "@/lib/utils";
-import { canUsePlanFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveFeature } from "@/lib/admin/access";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import {
     getAdminReviews,
@@ -81,11 +81,11 @@ const ReadOnlyStars = ({ value, size = 14 }: { value: number; size?: number }) =
 // ---------------------------------------------------------------------------
 
 export default function AdminReviewsPage() {
-    const { role, companyUser, user } = useAdminAuth();
+    const { role, user, effectiveAccess } = useAdminAuth();
     const t = useT();
     const isSuperAdmin = Boolean(user?.is_super_admin);
-    const canManageReviews = isSuperAdmin || canUsePlanFeature(companyUser?.company, "REVIEW_MANAGEMENT");
-    const canViewAnalytics = isSuperAdmin || canUsePlanFeature(companyUser?.company, "REVIEW_ANALYTICS");
+    const canManageReviews = isSuperAdmin || hasEffectiveFeature(effectiveAccess, "REVIEW_MANAGEMENT");
+    const canViewAnalytics = isSuperAdmin || hasEffectiveFeature(effectiveAccess, "REVIEW_ANALYTICS");
 
     // Data
     const [reviewsData, setReviewsData] = useState<AdminReviewsResponse | null>(null);

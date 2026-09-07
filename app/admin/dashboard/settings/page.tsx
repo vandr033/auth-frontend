@@ -23,7 +23,7 @@ import { ImageUpload } from "@/components/admin/ImageUpload";
 import { SocialLinksForm } from "@/components/admin/settings/SocialLinksForm";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT, SUPPORTED_LOCALES } from "@/lib/i18n";
-import { canUseEntitledFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveCapability, hasEffectiveFeature } from "@/lib/admin/access";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { RequestProductCTA } from "@/components/admin/product/RequestProductCTA";
 import { EntitlementLockedCard } from "@/components/admin/product/EntitlementLockedCard";
@@ -47,7 +47,6 @@ import { formatCurrencyAmount } from "@/lib/currency";
 import { AdminPageHeader, AdminPageShell, ErrorBanner } from "@/components/admin/shared";
 import {
     getProductAccessRecommendationForCapability,
-    hasProductCapability,
 } from "@/lib/product-access";
 
 type SettingsTab = "booking" | "payments" | "subscription";
@@ -230,23 +229,22 @@ export default function SettingsPage({
     titleKey = "adminSettings.title",
     subtitleKey = "adminSettings.subtitle",
 }: SettingsPageProps) {
-    const { companyId, companyUser, user, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const { companyId, user, isAuthenticated, loading: authLoading, effectiveAccess } = useAdminAuth();
     const t = useT();
     const isSuperAdmin = Boolean(user?.is_super_admin);
-    const capabilities = companyUser?.company?.capabilities;
     const hasBookingModule =
         isSuperAdmin ||
-        hasProductCapability(capabilities, "RESERVAS_BASE") ||
-        hasProductCapability(capabilities, "RESERVAS_PRO");
+        hasEffectiveCapability(effectiveAccess, "RESERVAS_BASE") ||
+        hasEffectiveCapability(effectiveAccess, "RESERVAS_PRO");
     const hasStoreModule =
-        isSuperAdmin || hasProductCapability(capabilities, "COMMERCE_ACCESS");
-    const canUseBasicMessaging = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_BASE");
-    const hasMessagingPro = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_PRO");
-    const hasMessagingReminders = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_REMINDERS");
-    const hasMessagingReviewRequests = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_REVIEW_REQUESTS");
-    const hasMessagingCampaigns = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_CAMPAIGNS");
-    const hasBulkMessaging = isSuperAdmin || hasProductCapability(capabilities, "MENSAJERIA_BULK_WHATSAPP");
-    const canCustomizeBookingFlow = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
+        isSuperAdmin || hasEffectiveCapability(effectiveAccess, "COMMERCE_ACCESS");
+    const canUseBasicMessaging = isSuperAdmin || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_BASE");
+    const hasMessagingPro = isSuperAdmin || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
+    const hasMessagingReminders = isSuperAdmin || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_REMINDERS");
+    const hasMessagingReviewRequests = isSuperAdmin || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_REVIEW_REQUESTS");
+    const hasMessagingCampaigns = isSuperAdmin || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_CAMPAIGNS");
+    const hasBulkMessaging = isSuperAdmin || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_BULK_WHATSAPP");
+    const canCustomizeBookingFlow = isSuperAdmin || hasEffectiveFeature(effectiveAccess, "BOOKING_FLOW_CUSTOMIZATION");
     const messagingBaseRecommendation = getProductAccessRecommendationForCapability("MENSAJERIA_BASE");
     const resolvedVisibleTabs = useMemo(
         () => visibleTabs.filter((tab) => tab !== "booking" || hasBookingModule),
@@ -284,15 +282,20 @@ export default function SettingsPage({
 
         setLoading(true);
         try {
+            const subscriptionOnly = visibleTabSet.size === 1 && visibleTabSet.has("subscription");
             // Fetch both Company Config and General Details
             const [companyRes, settingsRes, historyRes] = await Promise.all([
-                fetch(resolveApiUrl(`/api/company/id/${companyId}`), { credentials: "include" }),
-                fetch(resolveApiUrl(`/api/admin/settings`), { credentials: "include" }),
+                subscriptionOnly
+                    ? Promise.resolve(null)
+                    : fetch(resolveApiUrl(`/api/company/id/${companyId}`), { credentials: "include" }),
+                subscriptionOnly
+                    ? Promise.resolve(null)
+                    : fetch(resolveApiUrl(`/api/admin/settings`), { credentials: "include" }),
                 fetch(resolveApiUrl(`/api/admin/settings/subscription-history`), { credentials: "include" }),
             ]);
 
-            const companyData = companyRes.ok ? (await companyRes.json()) : {};
-            const settingsData = settingsRes.ok ? (await settingsRes.json()) : {};
+            const companyData = companyRes?.ok ? (await companyRes.json()) : {};
+            const settingsData = settingsRes?.ok ? (await settingsRes.json()) : {};
             const historyData = historyRes.ok ? (await historyRes.json()) : {};
 
             const company = companyData.data || companyData || {};
@@ -362,7 +365,7 @@ export default function SettingsPage({
         } finally {
             setLoading(false);
         }
-    }, [companyId, t]);
+    }, [companyId, t, visibleTabSet]);
 
     useEffect(() => {
         if (isAuthenticated && companyId) {

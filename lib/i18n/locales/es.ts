@@ -1607,6 +1607,20 @@ const es: TranslationKeys = {
     expiredSubtitle: "Podés entrar a tu cuenta, pero las funciones del negocio quedan bloqueadas hasta que actives tu plan.",
     expiredBanner: "Tu acceso comercial terminó el {{date}}. Activá tu plan para volver a operar.",
   },
+  adminAccess: {
+    expiredTitle: "Tu acceso comercial terminó",
+    expiredDescription: "Tu cuenta sigue disponible, pero las áreas operativas quedan bloqueadas hasta renovar el plan de la empresa.",
+    expiredDate: "El acceso comercial terminó el {{date}}.",
+    roleTitle: "Esta sección está restringida",
+    roleDescription: "Tu rol en la empresa no permite acceder a esta sección.",
+    featureTitle: "Esta función no está habilitada",
+    featureDescription: "El plan seleccionado no incluye esta sección o capacidad.",
+    deniedTitle: "El acceso a la empresa no está disponible",
+    deniedDescription: "Seleccioná una empresa activa o contactá a un administrador para recuperar el acceso.",
+    contextDescription: "Seleccioná la empresa en la que querés trabajar antes de continuar.",
+    openRenewal: "Abrir facturación",
+    openProfile: "Abrir mi perfil",
+  },
 
   planEnforcement: {
     featureLockedTitle: "Funcionalidad bloqueada",

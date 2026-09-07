@@ -34,7 +34,7 @@ import {
 } from "@/app/admin/lib/adminApi";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { hasProductCapability } from "@/lib/product-access";
+import { hasEffectiveCapability } from "@/lib/admin/access";
 import { formatMoneyFromCents, formatDateTime } from "../lib/format";
 import { GroupPaymentStatusBadge } from "../components/GroupBadges";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
@@ -42,12 +42,11 @@ import { useGroupReservationsAccess } from "../lib/useGroupReservationsAccess";
 
 export default function GroupPaymentsPage() {
     const t = useT();
-    const { companyUser, user } = useAdminAuth();
+    const { companyUser, user, effectiveAccess } = useAdminAuth();
     const { canUseClasses } = useGroupReservationsAccess();
     const currency = companyUser?.company?.currency;
-    const capabilities = companyUser?.company?.capabilities;
-    const hasClassesPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CLASES_PRO");
-    const hasMessagingPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "MENSAJERIA_PRO");
+    const hasClassesPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CLASES_PRO");
+    const hasMessagingPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
     const canSendInstallmentReminders = canUseClasses && hasClassesPro && hasMessagingPro;
 
     const [loading, setLoading] = useState(true);

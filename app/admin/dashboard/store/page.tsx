@@ -31,7 +31,7 @@ import { AdminMetricGrid, ErrorBanner, StatCard, StatusBadge } from "@/component
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
-import { hasProductCapability } from "@/lib/product-access";
+import { hasEffectiveCapability } from "@/lib/admin/access";
 import type { AppApiError } from "@/lib/api-error";
 
 function formatCurrency(
@@ -161,9 +161,9 @@ function buildPublicStoreUrl(origin: string, slug: string | null) {
 
 export default function AdminStoreOverviewPage() {
   const t = useT();
-  const { companySlug, companyUser, user } = useAdminAuth();
+  const { companySlug, companyUser, user, effectiveAccess } = useAdminAuth();
   const currency = companyUser?.company?.currency ?? null;
-  const canViewMetrics = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "COMMERCE_METRICS");
+  const canViewMetrics = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "COMMERCE_METRICS");
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [store, setStore] = React.useState<AdminCommerceStore | null>(null);

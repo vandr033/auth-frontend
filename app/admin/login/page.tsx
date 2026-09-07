@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,44 @@ import { Label } from "@/components/ui/label";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
+import { getDefaultAdminHref } from "@/lib/admin/navigation";
 
 export default function AdminLoginPage() {
     const t = useT();
     const router = useRouter();
-    const { signIn, loading } = useAdminAuth();
+    const {
+        signIn,
+        loading,
+        isAuthenticated,
+        isSuperAdmin,
+        mustChangePassword,
+        effectiveAccess,
+        role,
+    } = useAdminAuth();
+    const navigationRole = role as "OWNER" | "ADMIN" | "STAFF" | null;
+
+    useEffect(() => {
+        if (loading || !isAuthenticated) return;
+
+        if (mustChangePassword) {
+            router.replace("/admin/change-password");
+            return;
+        }
+
+        router.replace(
+            isSuperAdmin
+                ? "/admin/super-admin"
+                : getDefaultAdminHref(effectiveAccess, navigationRole),
+        );
+    }, [
+        effectiveAccess,
+        isAuthenticated,
+        isSuperAdmin,
+        loading,
+        mustChangePassword,
+        navigationRole,
+        router,
+    ]);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -37,19 +70,8 @@ export default function AdminLoginPage() {
         setStatus(null);
 
         try {
-            const { user: signedInUser } = await signIn(email, password);
+            await signIn(email, password);
             setStatus(t("adminLogin.success"));
-            if (signedInUser.must_change_password) {
-                router.replace("/admin/change-password");
-                return;
-            }
-            // Super admins always land in the super admin panel.
-            if (signedInUser.is_super_admin) {
-                router.replace("/admin/super-admin");
-            } else {
-                // Regular admin/staff users go to the company dashboard.
-                router.replace("/admin/dashboard");
-            }
         } catch (err) {
             const message = err instanceof Error ? err.message : t("adminLogin.signInError");
             setError(message);

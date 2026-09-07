@@ -14,8 +14,8 @@ export default function AdminIndexPage() {
         isAuthenticated,
         isSuperAdmin,
         mustChangePassword,
-        companyUser,
         role,
+        effectiveAccess,
     } = useAdminAuth();
     const navigationRole = role as "OWNER" | "ADMIN" | "STAFF" | null;
 
@@ -38,10 +38,10 @@ export default function AdminIndexPage() {
             // Super admins should always land in their panel by default.
             router.replace("/admin/super-admin");
         } else {
-            router.replace(getDefaultAdminHref(companyUser?.company?.capabilities, navigationRole));
+            router.replace(getDefaultAdminHref(effectiveAccess, navigationRole));
         }
     }, [
-        companyUser?.company?.capabilities,
+        effectiveAccess,
         isAuthenticated,
         isSuperAdmin,
         loading,

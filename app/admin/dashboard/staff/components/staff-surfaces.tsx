@@ -57,7 +57,8 @@ import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
-import { canUseEntitledFeature, getStaffLimitForPlan, type CompanyCapabilities } from "@/lib/plans/capabilities";
+import { getStaffLimitForPlan, type CompanyCapabilities } from "@/lib/plans/capabilities";
+import { hasEffectiveFeature } from "@/lib/admin/access";
 import { hasProductCapability } from "@/lib/product-access";
 import { cn } from "@/lib/utils";
 import { isEntitlementApiError } from "@/lib/api-error";
@@ -305,10 +306,10 @@ async function loadOptionalStaffServices(shouldLoadServices: boolean) {
 }
 
 export function StaffRosterSurface() {
-    const { companyUser, user } = useAdminAuth();
+    const { user, effectiveAccess } = useAdminAuth();
     const { t } = useI18n();
-    const capabilities = companyUser?.company?.capabilities;
-    const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
+    const capabilities = effectiveAccess?.entitlements;
+    const maxStaffMembers = getStaffLimitForPlan(capabilities);
     const hasStaffModule =
         Boolean(user?.is_super_admin) ||
         companyHasActiveCoreProduct(capabilities);
@@ -317,7 +318,7 @@ export function StaffRosterSurface() {
         companyHasBookingModule(capabilities);
     const canManageRoles =
         Boolean(user?.is_super_admin) ||
-        (hasStaffModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
+        (hasStaffModule && hasEffectiveFeature(effectiveAccess, "ROLES_PERMISSIONS"));
 
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [services, setServices] = useState<ServiceItem[]>([]);
@@ -697,11 +698,11 @@ export function StaffRosterSurface() {
 
 export function StaffEditorSurface({ staffId }: { staffId?: number }) {
     const router = useRouter();
-    const { companyId, companyUser, role: currentRole, user } = useAdminAuth();
+    const { companyId, role: currentRole, user, effectiveAccess } = useAdminAuth();
     const { t } = useI18n();
     const isEditing = Number.isInteger(staffId);
-    const capabilities = companyUser?.company?.capabilities;
-    const maxStaffMembers = getStaffLimitForPlan(companyUser?.company);
+    const capabilities = effectiveAccess?.entitlements;
+    const maxStaffMembers = getStaffLimitForPlan(capabilities);
     const hasStaffModule =
         Boolean(user?.is_super_admin) ||
         companyHasActiveCoreProduct(capabilities);
@@ -710,7 +711,7 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
         companyHasBookingModule(capabilities);
     const canManageRoles =
         Boolean(user?.is_super_admin) ||
-        (hasStaffModule && canUseEntitledFeature(companyUser?.company, "ROLES_PERMISSIONS"));
+        (hasStaffModule && hasEffectiveFeature(effectiveAccess, "ROLES_PERMISSIONS"));
 
     const [services, setServices] = useState<ServiceItem[]>([]);
     const [canAssignServices, setCanAssignServices] = useState(hasBookingModule);
@@ -1169,9 +1170,9 @@ export function StaffEditorSurface({ staffId }: { staffId?: number }) {
 }
 
 export function StaffProfileSurface({ staffId }: { staffId: number }) {
-    const { companyUser, user } = useAdminAuth();
+    const { user, effectiveAccess } = useAdminAuth();
     const { t, locale } = useI18n();
-    const capabilities = companyUser?.company?.capabilities;
+    const capabilities = effectiveAccess?.entitlements;
     const hasBookingModule =
         Boolean(user?.is_super_admin) ||
         companyHasBookingModule(capabilities);

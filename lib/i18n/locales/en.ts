@@ -1614,6 +1614,20 @@ const en = {
     expiredSubtitle: "You can still access your account, but business features stay locked until you activate your plan.",
     expiredBanner: "Your commercial access ended on {{date}}. Activate your plan to keep operating.",
   },
+  adminAccess: {
+    expiredTitle: "Your commercial access has ended",
+    expiredDescription: "Your account is still available, but operational areas are locked until you renew the company plan.",
+    expiredDate: "Commercial access ended on {{date}}.",
+    roleTitle: "This area is restricted",
+    roleDescription: "Your company role does not allow access to this area.",
+    featureTitle: "This feature is not enabled",
+    featureDescription: "The selected company plan does not include this area or capability.",
+    deniedTitle: "Company access is unavailable",
+    deniedDescription: "Select an active company or contact an administrator to restore access.",
+    contextDescription: "Select the company you want to work in before continuing.",
+    openRenewal: "Open billing",
+    openProfile: "Open my profile",
+  },
 
   planEnforcement: {
     featureLockedTitle: "Feature locked",

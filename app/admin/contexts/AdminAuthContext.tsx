@@ -2,6 +2,7 @@
 
 import { resolveApiUrl } from "@/lib/api-url";
 import type { CompanyCapabilities } from "@/lib/plans/capabilities";
+import type { EffectiveCompanyAccess } from "@/lib/admin/access";
 import React, {
     createContext,
     useCallback,
@@ -36,6 +37,7 @@ export type CompanyUser = {
         availableUntil?: string;
         plan?: "STARTER" | "BUSINESS" | "PRO";
         capabilities?: CompanyCapabilities | null;
+        effectiveAccess?: EffectiveCompanyAccess | null;
     };
 };
 
@@ -154,6 +156,7 @@ function normalizeCompany(company?: CompanyUser["company"] | null): ComparableVa
         ) ?? null,
         plan: normalizeComparableValue(companyRecord.plan) ?? null,
         capabilities: normalizeComparableValue(companyRecord.capabilities) ?? null,
+        effectiveAccess: normalizeComparableValue(companyRecord.effectiveAccess) ?? null,
     };
 }
 
@@ -190,11 +193,22 @@ function areCompanyUserRecordsEqual(left: CompanyUser | null, right: CompanyUser
 }
 
 function normalizeCompanyContext(payload?: SessionPayload | null) {
-    const companyUsers = Array.isArray(payload?.companyUsers)
+    const rawCompanyUsers = Array.isArray(payload?.companyUsers)
         ? payload?.companyUsers ?? []
         : payload?.companyUser
             ? [payload.companyUser]
             : [];
+    const companyUsers = rawCompanyUsers.map((companyUser) => {
+        const effectiveAccess = companyUser.company?.effectiveAccess;
+        if (!effectiveAccess || !companyUser.company) return companyUser;
+        return {
+            ...companyUser,
+            company: {
+                ...companyUser.company,
+                capabilities: effectiveAccess.entitlements,
+            },
+        };
+    });
 
     const activeCompanyId =
         typeof payload?.activeCompanyId === "number"
@@ -227,8 +241,9 @@ type AdminAuthContextValue = {
     companySlug: string | null;
     companyName: string | null;
     role: string | null;
+    effectiveAccess: EffectiveCompanyAccess | null;
     refreshSession: (background?: boolean) => Promise<void>;
-    switchActiveShop: (companyId: number) => Promise<void>;
+    switchActiveShop: (companyId: number) => Promise<CompanyUser | null>;
     signIn: (email: string, password: string) => Promise<{ user: AdminUser; companyUser: CompanyUser | null }>;
     signOut: () => Promise<void>;
 };
@@ -423,8 +438,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [applySessionState]);
 
-    const switchActiveShop = useCallback(async (companyId: number) => {
-        if (!companyId || companyId === activeCompanyId) return;
+    const switchActiveShop = useCallback(async (companyId: number): Promise<CompanyUser | null> => {
+        if (!companyId) return null;
+        if (companyId === activeCompanyId) return companyUser;
 
         setIsSwitchingShop(true);
         setError(null);
@@ -449,6 +465,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                 companyUser: normalized.activeCompanyUser,
                 activeCompanyId: normalized.activeCompanyId,
             });
+            return normalized.activeCompanyUser;
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unable to switch shop";
             setError(message);
@@ -456,7 +473,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsSwitchingShop(false);
         }
-    }, [activeCompanyId, applySessionState, companyUsers, user]);
+    }, [activeCompanyId, applySessionState, companyUser, companyUsers, user]);
+
+    const effectiveAccess = companyUser?.company?.effectiveAccess ?? null;
 
     const value = useMemo<AdminAuthContextValue>(
         () => ({
@@ -475,6 +494,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             companySlug: companyUser?.company?.slug ?? null,
             companyName: companyUser?.company?.name ?? null,
             role: companyUser?.role ?? null,
+            effectiveAccess,
             refreshSession,
             switchActiveShop,
             signIn,
@@ -488,6 +508,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             isSwitchingShop,
             loading,
             error,
+            effectiveAccess,
             refreshSession,
             switchActiveShop,
             signIn,

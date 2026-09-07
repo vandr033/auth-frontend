@@ -26,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import { notify } from "@/lib/notify";
-import { canUseEntitledFeature } from "@/lib/plans/capabilities";
+import { hasEffectiveCapability, hasEffectiveFeature } from "@/lib/admin/access";
 import { buildPublicServicePath, copyPublicUrl } from "@/lib/admin/public-links";
 
 interface GlobalServiceType {
@@ -136,7 +136,7 @@ function getApiUrl(path: string): string {
 }
 
 export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
-    const { companyId, companyUser, user, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const { companyId, companyUser, user, isAuthenticated, loading: authLoading, effectiveAccess } = useAdminAuth();
     const router = useRouter();
     const t = useT();
     const { locale } = useI18n();
@@ -267,13 +267,13 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
         }
         return buildPublicServicePath(companySlug, serviceId);
     }, [companySlug, formData.is_invite_only, inviteToken, isEditing, serviceId]);
-    const canUseMultiSession = Boolean(user?.is_super_admin) || canUseEntitledFeature(companyUser?.company, "BOOKING_FLOW_CUSTOMIZATION");
+    const canUseMultiSession = Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, "BOOKING_FLOW_CUSTOMIZATION");
     const canUseServicePromotions =
         Boolean(user?.is_super_admin) ||
-        companyUser?.company?.capabilities?.productCapabilities?.RESERVAS_SERVICE_PROMOTIONS === true;
+        hasEffectiveCapability(effectiveAccess, "RESERVAS_SERVICE_PROMOTIONS");
     const canCustomizeNotificationRecipients =
         Boolean(user?.is_super_admin) ||
-        companyUser?.company?.capabilities?.productCapabilities?.MENSAJERIA_PRO === true;
+        hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
     const possibleAssignedStaffNames = useMemo(() => {
         const people = staffOptions.filter((staff) => staff.resource_type !== "ROOM" && staff.resource_type !== "EQUIPMENT");
         if (!isEditing || !serviceId) return people.map((staff) => staff.display_name);

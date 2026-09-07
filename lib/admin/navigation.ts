@@ -1,4 +1,10 @@
 import { canUseEntitledFeature, type CompanyCapabilities, type PlanFeatureKey } from "@/lib/plans/capabilities";
+import {
+    hasEffectiveCapability,
+    hasEffectiveProduct,
+    hasEffectiveTier,
+    type EffectiveCompanyAccess,
+} from "@/lib/admin/access";
 import { getProductAccessRecommendationForFeature } from "@/lib/product-access";
 import type { ProductAccessRecommendation, ProductCode, ProductTierCode } from "@/types/product-access";
 
@@ -52,6 +58,7 @@ export type AdminNavigationItemId =
     | "hours"
     | "staff"
     | "business-settings"
+    | "billing"
     | "profile"
     | "restaurant";
 
@@ -61,6 +68,7 @@ export type AdminNavigationChildItem = {
     href: string;
     exact?: boolean;
     activePrefixes?: string[];
+    roles?: AdminNavigationRole[];
 };
 
 export type AdminModulePageLink = {
@@ -102,6 +110,7 @@ export type AdminNavigationGroup = {
 };
 
 type VisibilityContext = {
+    access: EffectiveCompanyAccess | null;
     entitlements: CompanyCapabilities | null | undefined;
     hasAnyCoreProduct: boolean;
     isStoreOnlyCompany: boolean;
@@ -150,10 +159,25 @@ const GROUP_ORDER: Array<{ id: AdminNavigationGroupId; labelKey: string }> = [
     { id: "operations", labelKey: "adminNav.groups.operations" },
 ];
 
+function isEffectiveAccess(
+    value: CompanyCapabilities | EffectiveCompanyAccess | null | undefined,
+): value is EffectiveCompanyAccess {
+    return Boolean(
+        value &&
+        typeof value === "object" &&
+        "lifecycle" in value &&
+        "entitlements" in value,
+    );
+}
+
+type NavigationAccessSource = CompanyCapabilities | EffectiveCompanyAccess | null | undefined;
+
 function hasProduct(
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
     productCode: ProductCode,
 ): boolean {
+    if (isEffectiveAccess(source)) return hasEffectiveProduct(source, productCode);
+    const entitlements = source;
     return (
         entitlements?.products?.some(
             (product) =>
@@ -164,9 +188,11 @@ function hasProduct(
 }
 
 function hasTier(
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
     tierCode: ProductTierCode,
 ): boolean {
+    if (isEffectiveAccess(source)) return hasEffectiveTier(source, tierCode);
+    const entitlements = source;
     return (
         entitlements?.products?.some(
             (product) =>
@@ -177,14 +203,17 @@ function hasTier(
 }
 
 function buildVisibilityContext(
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
 ): VisibilityContext {
-    const hasReservas = hasProduct(entitlements, "RESERVAS");
-    const hasStores = hasProduct(entitlements, "STORES");
-    const hasEventos = hasProduct(entitlements, "EVENTOS");
-    const hasClases = hasProduct(entitlements, "CLASES");
+    const access = isEffectiveAccess(source) ? source : null;
+    const entitlements = access?.entitlements ?? (source as CompanyCapabilities | null | undefined);
+    const hasReservas = hasProduct(source, "RESERVAS");
+    const hasStores = hasProduct(source, "STORES");
+    const hasEventos = hasProduct(source, "EVENTOS");
+    const hasClases = hasProduct(source, "CLASES");
 
     return {
+        access,
         entitlements,
         hasAnyCoreProduct: entitlements?.products?.some((product) => product.isCore) ?? false,
         isStoreOnlyCompany: hasStores && !hasReservas && !hasEventos && !hasClases,
@@ -192,14 +221,16 @@ function buildVisibilityContext(
         hasStores,
         hasEventos,
         hasClases,
-        hasReservasPro: hasTier(entitlements, "RESERVAS_PRO"),
-        hasEventosPro: hasTier(entitlements, "EVENTOS_PRO"),
-        hasClasesPro: hasTier(entitlements, "CLASES_PRO"),
-        hasCrmPro: hasTier(entitlements, "CRM_PRO"),
-        hasMessagingPro: hasTier(entitlements, "MENSAJERIA_PRO"),
-        hasMetricsPro: hasTier(entitlements, "METRICAS_PRO"),
-        hasCustomizationPlus: hasTier(entitlements, "PERSONALIZACION_PLUS"),
-        hasRestaurant: canUseEntitledFeature(entitlements, "RESTAURANT_MODULE"),
+        hasReservasPro: hasTier(source, "RESERVAS_PRO"),
+        hasEventosPro: hasTier(source, "EVENTOS_PRO"),
+        hasClasesPro: hasTier(source, "CLASES_PRO"),
+        hasCrmPro: hasTier(source, "CRM_PRO"),
+        hasMessagingPro: hasTier(source, "MENSAJERIA_PRO"),
+        hasMetricsPro: hasTier(source, "METRICAS_PRO"),
+        hasCustomizationPlus: hasTier(source, "PERSONALIZACION_PLUS"),
+        hasRestaurant: access
+            ? hasEffectiveCapability(access, "RESTAURANT_MODULE")
+            : canUseEntitledFeature(entitlements, "RESTAURANT_MODULE"),
     };
 }
 
@@ -245,31 +276,37 @@ const NAVIGATION_DEFINITIONS: AdminNavigationDefinition[] = [
                 labelKey: "adminStore.nav.overview",
                 href: "/admin/dashboard/store",
                 exact: true,
+                roles: ["OWNER", "ADMIN", "STAFF"],
             },
             {
                 id: "store-orders",
                 labelKey: "adminStore.nav.orders",
                 href: "/admin/dashboard/store/orders",
+                roles: ["OWNER", "ADMIN", "STAFF"],
             },
             {
                 id: "store-products",
                 labelKey: "adminStore.nav.products",
                 href: "/admin/dashboard/store/products",
+                roles: ["OWNER", "ADMIN", "STAFF"],
             },
             {
                 id: "store-points-of-sale",
                 labelKey: "adminStore.nav.pointsOfSale",
                 href: "/admin/dashboard/store/points-of-sale",
+                roles: ["OWNER", "ADMIN", "STAFF"],
             },
             {
                 id: "store-categories",
                 labelKey: "adminStore.nav.categories",
                 href: "/admin/dashboard/store/categories",
+                roles: ["OWNER", "ADMIN", "STAFF"],
             },
             {
                 id: "store-settings",
                 labelKey: "adminStore.nav.settings",
                 href: "/admin/dashboard/store/settings",
+                roles: ["OWNER", "ADMIN"],
             },
         ],
         resolveState: (context) => (context.hasStores ? "active" : "hidden"),
@@ -412,7 +449,7 @@ const NAVIGATION_DEFINITIONS: AdminNavigationDefinition[] = [
         labelKey: "adminNav.hours",
         href: "/admin/dashboard/hours",
         iconKey: "hours",
-        roles: ["OWNER", "ADMIN", "STAFF"],
+        roles: ["OWNER", "ADMIN"],
         resolveState: (context) => (context.hasAnyCoreProduct ? "active" : "hidden"),
     },
     {
@@ -423,6 +460,16 @@ const NAVIGATION_DEFINITIONS: AdminNavigationDefinition[] = [
         iconKey: "staff",
         roles: ["OWNER", "ADMIN"],
         resolveState: (context) => (context.hasAnyCoreProduct ? "active" : "hidden"),
+    },
+    {
+        id: "billing",
+        groupId: "operations",
+        labelKey: "adminNav.planBilling",
+        href: "/admin/dashboard/billing",
+        iconKey: "settings",
+        roles: ["OWNER", "ADMIN"],
+        exact: true,
+        resolveState: () => "active",
     },
     {
         id: "business-settings",
@@ -649,9 +696,9 @@ function buildNavigationItem(
 }
 
 export function getAdminNavigationCatalog(
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
 ): AdminNavigationItem[] {
-    const context = buildVisibilityContext(entitlements);
+    const context = buildVisibilityContext(source);
     return NAVIGATION_DEFINITIONS.map((definition) => buildNavigationItem(definition, context));
 }
 
@@ -666,19 +713,34 @@ function filterNavigationItems(
 ): AdminNavigationItem[] {
     const includeLocked = options?.includeLocked ?? true;
 
-    return items.filter((item) => {
+    return items
+        .filter((item) => {
         if (item.state === "hidden") return false;
         if (!includeLocked && item.state === "locked") return false;
         if (options?.role && !item.roles.includes(options.role)) return false;
         return true;
-    });
+        })
+        .map((item) => ({
+            ...item,
+            children: item.children?.filter(
+                (child) => !options?.role || !child.roles || child.roles.includes(options.role),
+            ),
+        }));
 }
 
 export function getAdminNavigationForEntitlements(
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
     options?: AdminNavigationOptions,
 ): AdminNavigationGroup[] {
-    const items = filterNavigationItems(getAdminNavigationCatalog(entitlements), options);
+    const context = buildVisibilityContext(source);
+    let items = filterNavigationItems(getAdminNavigationCatalog(source), options);
+
+    if (context.access?.lifecycle.mode === "RENEWAL_ONLY") {
+        items = items.filter((item) => item.id === "billing" || item.id === "profile");
+    }
+    if (context.access?.lifecycle.mode === "BLOCKED") {
+        items = [];
+    }
 
     return GROUP_ORDER.map((group) => ({
         id: group.id,
@@ -687,11 +749,18 @@ export function getAdminNavigationForEntitlements(
     })).filter((group) => group.items.length > 0);
 }
 
+export function getAdminNavigationForAccess(
+    access: EffectiveCompanyAccess | null | undefined,
+    options?: AdminNavigationOptions,
+): AdminNavigationGroup[] {
+    return getAdminNavigationForEntitlements(access, options);
+}
+
 export function getDefaultAdminHref(
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
     role?: AdminNavigationRole | null,
 ): string {
-    const firstVisibleItem = getAdminNavigationForEntitlements(entitlements, {
+    const firstVisibleItem = getAdminNavigationForEntitlements(source, {
         includeLocked: false,
         role: role ?? null,
     })
@@ -702,29 +771,29 @@ export function getDefaultAdminHref(
 }
 
 export function isStoreOnlyAdminCompany(
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
 ): boolean {
-    return buildVisibilityContext(entitlements).isStoreOnlyCompany;
+    return buildVisibilityContext(source).isStoreOnlyCompany;
 }
 
 export function getAdminNavigationItemById(
     itemId: string,
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
 ): AdminNavigationItem | null {
-    return getAdminNavigationCatalog(entitlements).find((item) => item.id === itemId) ?? null;
+    return getAdminNavigationCatalog(source).find((item) => item.id === itemId) ?? null;
 }
 
 export function getAdminModulePageModel(
     itemId: string,
-    entitlements: CompanyCapabilities | null | undefined,
+    source: NavigationAccessSource,
 ): AdminModulePageModel | null {
-    const item = getAdminNavigationItemById(itemId, entitlements);
+    const item = getAdminNavigationItemById(itemId, source);
     if (!item || item.state === "hidden") return null;
 
     const moduleDefinition = MODULE_DEFINITIONS[item.id];
     if (!moduleDefinition) return null;
 
-    const context = buildVisibilityContext(entitlements);
+    const context = buildVisibilityContext(source);
 
     return {
         id: item.id,
@@ -734,7 +803,7 @@ export function getAdminModulePageModel(
         featureKeys: moduleDefinition.featureKeys,
         recommendation: getProductAccessRecommendationForFeature(
             moduleDefinition.recommendationFeature,
-            entitlements,
+            context.entitlements,
         ),
         links: moduleDefinition.buildLinks(context).filter((link) => !link.hidden),
     };

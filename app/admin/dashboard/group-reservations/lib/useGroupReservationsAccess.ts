@@ -3,15 +3,14 @@
 import { useMemo } from "react";
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
-    canUseEntitledFeature,
-    getCurrentPlan,
     getRequiredPlanForFeature,
     type PlanFeatureKey,
 } from "@/lib/plans/capabilities";
+import { hasEffectiveFeature } from "@/lib/admin/access";
 
 export function useGroupReservationsAccess() {
-    const { companyUser, user, role } = useAdminAuth();
-    const plan = getCurrentPlan(companyUser?.company);
+    const { effectiveAccess, user, role } = useAdminAuth();
+    const plan = effectiveAccess?.entitlements.currentPlan ?? "BUSINESS";
     const isSuperAdmin = Boolean(user?.is_super_admin);
     const isOwnerOrAdmin = role === "OWNER" || role === "ADMIN";
 
@@ -20,16 +19,17 @@ export function useGroupReservationsAccess() {
             plan,
             isSuperAdmin,
             isOwnerOrAdmin,
-            canUseEvents: isSuperAdmin || canUseEntitledFeature(companyUser?.company, "GROUP_EVENTS"),
-            canUseClasses: isSuperAdmin || canUseEntitledFeature(companyUser?.company, "GROUP_CLASSES"),
-            canUseAdvanced: isSuperAdmin || canUseEntitledFeature(companyUser?.company, "GROUP_ADVANCED"),
+            canUseEvents: isSuperAdmin || hasEffectiveFeature(effectiveAccess, "GROUP_EVENTS"),
+            canUseClasses: isSuperAdmin || hasEffectiveFeature(effectiveAccess, "GROUP_CLASSES"),
+            canUseAdvanced: isSuperAdmin || hasEffectiveFeature(effectiveAccess, "GROUP_ADVANCED"),
             canAccessGroupReservations:
                 isSuperAdmin ||
-                canUseEntitledFeature(companyUser?.company, "GROUP_EVENTS") ||
-                canUseEntitledFeature(companyUser?.company, "GROUP_CLASSES"),
-            getRequiredPlan: (feature: PlanFeatureKey) => getRequiredPlanForFeature(companyUser?.company, feature),
+                hasEffectiveFeature(effectiveAccess, "GROUP_EVENTS") ||
+                hasEffectiveFeature(effectiveAccess, "GROUP_CLASSES"),
+            getRequiredPlan: (feature: PlanFeatureKey) =>
+                getRequiredPlanForFeature(effectiveAccess?.entitlements, feature),
         }),
-        [companyUser?.company, isSuperAdmin, plan, isOwnerOrAdmin],
+        [effectiveAccess, isSuperAdmin, plan, isOwnerOrAdmin],
     );
 
     return access;

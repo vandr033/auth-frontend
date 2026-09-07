@@ -18,6 +18,7 @@ type ApiErrorPayload = {
 type ApiErrorPayloadData = {
     capability?: unknown;
     missingCapability?: unknown;
+    feature?: unknown;
     recommendedProductCode?: unknown;
     recommendedTierCode?: unknown;
     requiresLabel?: unknown;
@@ -32,6 +33,7 @@ export type AppApiError = Error & {
     details?: string;
     data?: unknown;
     capability?: ProductCapability;
+    feature?: string;
     isEntitlementError?: boolean;
     recommendation?: ProductAccessRecommendation;
 };
@@ -69,6 +71,25 @@ function buildEntitlementMessage(capability?: ProductCapability) {
     return translate(locale, "entitlements.moduleNotActive");
 }
 
+function buildAccessMessage(errorCode?: string, capability?: ProductCapability) {
+    const locale = getCurrentLocale();
+
+    switch (errorCode) {
+        case "COMPANY_EXPIRED":
+            return translate(locale, "adminAccess.expiredDescription");
+        case "ROLE_FORBIDDEN":
+            return translate(locale, "adminAccess.roleDescription");
+        case "COMPANY_CONTEXT_REQUIRED":
+            return translate(locale, "adminAccess.contextDescription");
+        case "COMPANY_ACCESS_DENIED":
+            return translate(locale, "adminAccess.deniedDescription");
+        case "FEATURE_NOT_ENTITLED":
+            return buildEntitlementMessage(capability);
+        default:
+            return undefined;
+    }
+}
+
 export function normalizeApiError(
     payload: unknown,
     status: number,
@@ -81,6 +102,7 @@ export function normalizeApiError(
         : isProductCapability(payloadData?.missingCapability)
             ? payloadData.missingCapability
             : undefined;
+    const feature = toStringOrUndefined(payloadData?.feature);
     const reason = toStringOrUndefined(payloadRecord?.reason);
     const errorCode = toStringOrUndefined(payloadRecord?.errorCode) ?? reason;
     const hasProductAccessRecommendation =
@@ -89,6 +111,7 @@ export function normalizeApiError(
     const hasRequiresLabel = typeof payloadData?.requiresLabel === "string";
 
     const isEntitlementError = status === 403 && (
+        errorCode === "FEATURE_NOT_ENTITLED" ||
         reason === "PRODUCT_NOT_ACTIVE" ||
         reason === "CAPABILITY_REQUIRED" ||
         capability !== undefined ||
@@ -103,9 +126,9 @@ export function normalizeApiError(
         fallbackMessage ||
         `Request failed with status ${status}`;
 
-    const error = new Error(
-        isEntitlementError ? buildEntitlementMessage(capability) : rawMessage,
-    ) as AppApiError;
+    const error = new Error(buildAccessMessage(errorCode, capability) ?? (
+        isEntitlementError ? buildEntitlementMessage(capability) : rawMessage
+    )) as AppApiError;
 
     error.status = status;
     error.code = typeof payloadRecord?.code === "number" ? payloadRecord.code : undefined;
@@ -115,6 +138,7 @@ export function normalizeApiError(
     error.details = toStringOrUndefined(payloadRecord?.details);
     error.data = payloadRecord?.data;
     error.capability = capability;
+    error.feature = feature;
     error.isEntitlementError = isEntitlementError;
     error.recommendation = capability
         ? getProductAccessRecommendationForCapability(capability)

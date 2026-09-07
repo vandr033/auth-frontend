@@ -52,6 +52,7 @@ import {
     type AdminNavigationIconKey,
     type AdminNavigationItem,
 } from "@/lib/admin/navigation";
+import { getAdminRouteAccess, type AdminRouteAccessReason, type EffectiveCompanyAccess } from "@/lib/admin/access";
 
 const routeTitleOverrides: Array<{
     prefix: string;
@@ -131,7 +132,6 @@ export default function DashboardLayout({
 }) {
     const {
         user,
-        companyId,
         companyUsers,
         companyUser,
         isSwitchingShop,
@@ -139,20 +139,9 @@ export default function DashboardLayout({
         loading,
         mustChangePassword,
         switchActiveShop,
+        effectiveAccess,
     } = useAdminAuth();
     const router = useRouter();
-    const availableUntilRaw = companyUser?.company?.availableUntil;
-    const availableUntilMs = availableUntilRaw ? new Date(availableUntilRaw).getTime() : Number.NaN;
-    const isCompanyExpired = Boolean(
-        !user?.is_super_admin &&
-        Number.isFinite(availableUntilMs) &&
-        Date.now() > availableUntilMs,
-    );
-
-    const expiredAt = useMemo(() => {
-        if (!isCompanyExpired || !Number.isFinite(availableUntilMs)) return null;
-        return new Date(availableUntilMs);
-    }, [availableUntilMs, isCompanyExpired]);
 
     // Auth guard
     useEffect(() => {
@@ -188,19 +177,59 @@ export default function DashboardLayout({
                     isSwitchingShop={isSwitchingShop}
                     onSwitchShop={switchActiveShop}
                 />
-            ) : isCompanyExpired && expiredAt ? (
-                <ExpiredAdminState
-                    expiredAt={expiredAt}
-                    companyId={companyId}
-                    companyUsers={companyUsers}
-                    isSwitchingShop={isSwitchingShop}
-                    onSwitchShop={switchActiveShop}
-                />
             ) : (
-                <DashboardShell>{children}</DashboardShell>
+                <DashboardAccessBoundary access={effectiveAccess}>
+                    {children}
+                </DashboardAccessBoundary>
             )}
         </I18nProvider>
     );
+}
+
+function DashboardAccessBoundary({
+    access,
+    children,
+}: {
+    access: EffectiveCompanyAccess | null;
+    children: React.ReactNode;
+}) {
+    const pathname = usePathname() ?? "";
+    const router = useRouter();
+    const decision = useMemo(
+        () => getAdminRouteAccess(pathname, access),
+        [access, pathname],
+    );
+    const isRenewalLanding =
+        access?.lifecycle.mode === "RENEWAL_ONLY" &&
+        (pathname === "/admin/dashboard" || pathname === "/admin/dashboard/");
+    const renewalDestination = access?.membership.role === "OWNER" || access?.membership.role === "ADMIN"
+        ? "/admin/dashboard/billing"
+        : "/admin/dashboard/profile";
+
+    useEffect(() => {
+        if (isRenewalLanding) {
+            router.replace(renewalDestination);
+        }
+    }, [isRenewalLanding, renewalDestination, router]);
+
+    if (isRenewalLanding) {
+        return (
+            <div className="flex min-h-[100dvh] items-center justify-center bg-slate-100">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-admin-brand border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (!decision.allowed) {
+        return (
+            <AdminAccessDeniedState
+                access={access}
+                reason={decision.reason ?? "COMPANY_ACCESS_DENIED"}
+            />
+        );
+    }
+
+    return <DashboardShell>{children}</DashboardShell>;
 }
 
 function CompanySelectionRequired({
@@ -210,7 +239,7 @@ function CompanySelectionRequired({
 }: {
     companyUsers: Array<{ id: number; company_id: number; role: string; company?: { name?: string } }>;
     isSwitchingShop: boolean;
-    onSwitchShop: (companyId: number) => Promise<void>;
+    onSwitchShop: (companyId: number) => Promise<unknown>;
 }) {
     const [selectedCompanyId, setSelectedCompanyId] = useState("");
     const handleContinue = async () => {
@@ -250,87 +279,66 @@ function CompanySelectionRequired({
     );
 }
 
-function ExpiredAdminState({
-    expiredAt,
-    companyId,
-    companyUsers,
-    isSwitchingShop,
-    onSwitchShop,
+function AdminAccessDeniedState({
+    access,
+    reason,
 }: {
-    expiredAt: Date;
-    companyId: number | null;
-    companyUsers: Array<{
-        id: number;
-        company_id: number;
-        role: string;
-        company?: { name?: string };
-    }>;
-    isSwitchingShop: boolean;
-    onSwitchShop: (companyId: number) => Promise<void>;
+    access: EffectiveCompanyAccess | null;
+    reason: AdminRouteAccessReason;
 }) {
     const t = useT();
-    const formattedDate = useMemo(
-        () =>
-            new Intl.DateTimeFormat(undefined, {
-                dateStyle: "long",
-                timeStyle: "short",
-            }).format(expiredAt),
-        [expiredAt],
-    );
-    const showSwitcher = companyUsers.length > 1 && companyId;
-
-    const handleSwitch = async (value: string) => {
-        const nextCompanyId = Number.parseInt(value, 10);
-        if (!Number.isInteger(nextCompanyId) || nextCompanyId <= 0) return;
-        if (nextCompanyId === companyId) return;
-        await onSwitchShop(nextCompanyId);
-    };
+    const role = access?.membership.role;
+    const canRenew = role === "OWNER" || role === "ADMIN";
+    const renewalDestination = canRenew ? "/admin/dashboard/billing" : "/admin/dashboard/profile";
+    const titleKey = reason === "COMPANY_EXPIRED"
+        ? "adminAccess.expiredTitle"
+        : reason === "ROLE_FORBIDDEN"
+            ? "adminAccess.roleTitle"
+            : reason === "FEATURE_NOT_ENTITLED"
+                ? "adminAccess.featureTitle"
+                : "adminAccess.deniedTitle";
+    const descriptionKey = reason === "COMPANY_EXPIRED"
+        ? "adminAccess.expiredDescription"
+        : reason === "ROLE_FORBIDDEN"
+            ? "adminAccess.roleDescription"
+            : reason === "FEATURE_NOT_ENTITLED"
+                ? "adminAccess.featureDescription"
+                : "adminAccess.deniedDescription";
+    const formattedDate = access?.lifecycle.availableUntil
+        ? new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeStyle: "short" }).format(
+            new Date(access.lifecycle.availableUntil),
+        )
+        : null;
 
     return (
         <div className="flex min-h-[100dvh] items-center justify-center bg-slate-100 px-4">
-            <div className="w-full max-w-2xl rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
-                    {t("adminSubscription.expiredTitle")}
-                </h1>
-                <p className="mt-3 text-base text-slate-600 md:text-lg">
-                    {t("adminSubscription.expiredSubtitle")}
-                </p>
-                <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-                    {t("adminSubscription.expiredBanner", { date: formattedDate })}
-                </div>
-                {showSwitcher ? (
-                    <div className="mx-auto mt-5 max-w-sm">
-                        <Select
-                            value={companyId.toString()}
-                            onValueChange={(value) => {
-                                void handleSwitch(value).catch(() => undefined);
-                            }}
-                            disabled={isSwitchingShop}
-                        >
-                            <SelectTrigger className="h-10">
-                                <SelectValue placeholder={t("adminNav.currentShop")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {companyUsers.map((membership) => (
-                                    <SelectItem
-                                        key={membership.id}
-                                        value={membership.company_id.toString()}
-                                    >
-                                        {membership.company?.name || `Shop #${membership.company_id}`} · {membership.role}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                ) : null}
-                <div className="mt-7 flex items-center justify-center">
-                    <Link href="/">
-                        <Button className="bg-admin-brand text-white hover:bg-admin-brand-hover">
-                            {t("shopHome.goHome")}
+            <Card className="w-full max-w-xl border-slate-200 bg-white shadow-sm">
+                <CardHeader>
+                    <CardTitle>{t(titleKey)}</CardTitle>
+                    <CardDescription>{t(descriptionKey)}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {formattedDate && reason === "COMPANY_EXPIRED" ? (
+                        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                            {t("adminAccess.expiredDate", { date: formattedDate })}
+                        </div>
+                    ) : null}
+                    <div className="flex flex-wrap gap-3">
+                        {reason === "COMPANY_EXPIRED" && canRenew ? (
+                            <Button asChild className="bg-admin-brand text-white hover:bg-admin-brand-hover">
+                                <Link href="/admin/dashboard/billing">{t("adminAccess.openRenewal")}</Link>
+                            </Button>
+                        ) : null}
+                        <Button asChild variant="outline">
+                            <Link href={reason === "COMPANY_EXPIRED" && !canRenew ? renewalDestination : "/"}>
+                                {reason === "COMPANY_EXPIRED" && !canRenew
+                                    ? t("adminAccess.openProfile")
+                                    : t("shopHome.goHome")}
+                            </Link>
                         </Button>
-                    </Link>
-                </div>
-            </div>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
@@ -349,16 +357,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         role,
         switchActiveShop,
         signOut,
+        effectiveAccess,
     } = useAdminAuth();
     const t = useT();
     const navigationRole = role as "OWNER" | "ADMIN" | "STAFF" | null;
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const activeMembership = companyUsers.find((membership) => membership.company_id === companyId) ?? null;
-    const companyCapabilities = activeMembership?.company?.capabilities ?? null;
     const defaultAdminHref = useMemo(
-        () => getDefaultAdminHref(companyCapabilities, navigationRole),
-        [companyCapabilities, navigationRole],
+        () => getDefaultAdminHref(effectiveAccess, navigationRole),
+        [effectiveAccess, navigationRole],
     );
 
     const hasMultipleShops = !user?.is_super_admin && companyUsers.length > 1;
@@ -373,11 +380,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     };
 
     const filteredNavGroups = useMemo<AdminNavigationGroup[]>(() => {
-        return getAdminNavigationForEntitlements(companyCapabilities, {
+        return getAdminNavigationForEntitlements(effectiveAccess, {
             includeLocked: false,
             role: navigationRole,
         });
-    }, [companyCapabilities, navigationRole]);
+    }, [effectiveAccess, navigationRole]);
     const filteredNavItems = useMemo(
         () => filteredNavGroups.flatMap((group) => group.items),
         [filteredNavGroups],
@@ -397,13 +404,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         if (nextCompanyId === companyId) return;
 
         try {
-            await switchActiveShop(nextCompanyId);
+            const nextMembership = await switchActiveShop(nextCompanyId);
+            const nextAccess = nextMembership?.company?.effectiveAccess ?? null;
+            const nextRole = (nextMembership?.role ?? navigationRole) as "OWNER" | "ADMIN" | "STAFF" | null;
 
-            const nextMembership = companyUsers.find((m) => m.company_id === nextCompanyId);
-            const nextCapabilities = nextMembership?.company?.capabilities ?? null;
-            const nextGroups = getAdminNavigationForEntitlements(nextCapabilities, {
+            const nextGroups = getAdminNavigationForEntitlements(nextAccess, {
                 includeLocked: false,
-                role: navigationRole,
+                role: nextRole,
             });
             const nextItems = nextGroups.flatMap((group) => group.items);
             const currentNavItem = filteredNavItems.find((item) => isNavItemActive(item, currentPath));
@@ -411,7 +418,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 ? nextItems.find((item) => item.id === currentNavItem.id) ?? null
                 : null;
 
-            router.replace(nextNavItem?.href ?? getDefaultAdminHref(nextCapabilities, navigationRole));
+            router.replace(nextNavItem?.href ?? getDefaultAdminHref(nextAccess, nextRole));
             router.refresh();
         } catch {
             // Error state is handled in auth context.

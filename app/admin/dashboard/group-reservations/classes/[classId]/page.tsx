@@ -120,7 +120,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { buildPublicClassPath, copyPublicUrl } from "@/lib/admin/public-links";
-import { hasProductCapability } from "@/lib/product-access";
+import { hasEffectiveCapability } from "@/lib/admin/access";
 import { formatCurrencyInputFromCents, parseCurrencyInputToCents } from "@/lib/currency";
 import { getImageUrl } from "@/utils/image-url";
 
@@ -242,14 +242,13 @@ export default function GroupClassDetailPage() {
     const classIdRaw = typeof params?.classId === "string" ? params.classId : "";
     const classId = Number.parseInt(classIdRaw, 10);
     const { canUseAdvanced, canUseClasses, getRequiredPlan } = useGroupReservationsAccess();
-    const { companyId, companyUser, user } = useAdminAuth();
+    const { companyId, companyUser, user, effectiveAccess } = useAdminAuth();
     const currency = companyUser?.company?.currency;
     const companySlug = companyUser?.company?.slug;
-    const capabilities = companyUser?.company?.capabilities;
-    const hasClassesPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CLASES_PRO");
-    const hasMessagingPro = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "MENSAJERIA_PRO");
-    const canBulkMessaging = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "MENSAJERIA_BULK_WHATSAPP");
-    const canViewCustomerProfiles = Boolean(user?.is_super_admin) || hasProductCapability(capabilities, "CRM_BASE");
+    const hasClassesPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CLASES_PRO");
+    const hasMessagingPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
+    const canBulkMessaging = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_BULK_WHATSAPP");
+    const canViewCustomerProfiles = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_BASE");
     const canSendInstallmentReminders = hasClassesPro && hasMessagingPro;
 
     const [activeTab, setActiveTab] = useState("overview");

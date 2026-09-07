@@ -32,6 +32,7 @@ import { useT } from "@/lib/i18n";
 import { CategoriesSection } from "./components/CategoriesSection";
 import { notify } from "@/lib/notify";
 import { formatCurrencyFromCents } from "@/lib/currency";
+import { hasEffectiveCapability } from "@/lib/admin/access";
 import { buildPublicServicePath, copyPublicUrl } from "@/lib/admin/public-links";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -119,13 +120,13 @@ function getApiUrl(path: string): string {
 }
 
 export default function ServicesPage() {
-    const { companyId, companyUser, user, isAuthenticated, loading: authLoading } = useAdminAuth();
+    const { companyId, companyUser, user, isAuthenticated, loading: authLoading, effectiveAccess } = useAdminAuth();
     const t = useT();
     const currency = companyUser?.company?.currency;
     const companySlug = companyUser?.company?.slug;
     const canCustomizeNotificationRecipients =
         Boolean(user?.is_super_admin) ||
-        companyUser?.company?.capabilities?.productCapabilities?.MENSAJERIA_PRO === true;
+        hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
 
     // State
     const [services, setServices] = useState<Service[]>([]);

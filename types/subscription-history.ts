@@ -8,6 +8,7 @@ import type {
     ProductAccessRequestSource,
     ProductAccessRequestStatus,
 } from "./product-access";
+import type { EffectiveCompanyAccess } from "@/lib/admin/access";
 
 export interface SubscriptionHistoryActor {
     id: string;
@@ -48,6 +49,7 @@ export interface ShopSubscriptionSnapshot {
     isExpired: boolean;
     activeProducts: ActiveCommercialProduct[];
     requestedProducts: RequestedCommercialProduct[];
+    effectiveAccess: EffectiveCompanyAccess;
 }
 
 export interface ShopProductHistoryItem {

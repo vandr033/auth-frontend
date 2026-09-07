@@ -91,7 +91,7 @@ export default function ShopUsersPage() {
     const params = useParams();
     const shopIdParam = params?.id;
     const shopId = Array.isArray(shopIdParam) ? shopIdParam[0] : shopIdParam ?? "";
-    const { isAuthenticated, loading: authLoading, user } = useAdminAuth();
+    const { isAuthenticated, loading: authLoading, user, refreshSession } = useAdminAuth();
 
     const [shop, setShop] = useState<SuperAdminShop | null>(null);
     const [users, setUsers] = useState<ShopUser[]>([]);
@@ -238,6 +238,7 @@ export default function ShopUsersPage() {
             setEditingUser(null);
             await notify.success(t("superAdminShops.editRole"));
             await fetchData();
+            await refreshSession(true);
         } catch (err) {
             await notify.error(err instanceof Error ? err.message : t("superAdminShops.updateRoleFailed"));
         } finally {

@@ -73,8 +73,8 @@ import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import {
     getProductAccessRecommendationForCapability,
-    hasProductCapability,
 } from "@/lib/product-access";
+import { hasEffectiveCapability } from "@/lib/admin/access";
 
 const HISTORY_PAGE_SIZE = 10;
 const CUSTOMER_SEGMENT_OPTIONS: Array<{ value: CustomerSegmentKey; labelKey: string }> = [
@@ -375,11 +375,11 @@ function CapabilityRequestCard({
 
 export function CustomersRecordsSurface() {
     const { t, locale } = useI18n();
-    const { companyUser, user } = useAdminAuth();
+    const { companyUser, user, effectiveAccess } = useAdminAuth();
     const currency = companyUser?.company?.currency;
     const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
     const notAvailable = t("adminCustomers.notAvailable");
-    const hasCrmPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "CRM_PRO");
+    const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
 
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -590,10 +590,10 @@ export function CustomersRecordsSurface() {
 
 export function CustomersCommunicationsSurface() {
     const { t, locale } = useI18n();
-    const { companyUser, user } = useAdminAuth();
+    const { user, effectiveAccess } = useAdminAuth();
     const notAvailable = t("adminCustomers.notAvailable");
-    const hasCrmPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "CRM_PRO");
-    const hasMessagingPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "MENSAJERIA_PRO");
+    const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
+    const hasMessagingPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
     const canBulkMessaging = hasCrmPro && hasMessagingPro;
 
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
@@ -1195,8 +1195,8 @@ export function CustomersCommunicationsSurface() {
 
 export function CustomersImportExportSurface() {
     const { t } = useI18n();
-    const { companyUser, user } = useAdminAuth();
-    const hasCrmPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "CRM_PRO");
+    const { user, effectiveAccess } = useAdminAuth();
+    const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
     const canImportExport = hasCrmPro;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1398,12 +1398,12 @@ export function CustomersImportExportSurface() {
 
 export function CustomerProfileSurface({ customerKey }: { customerKey: string }) {
     const { t, locale } = useI18n();
-    const { companyUser, user } = useAdminAuth();
+    const { companyUser, user, effectiveAccess } = useAdminAuth();
     const currency = companyUser?.company?.currency;
     const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
     const notAvailable = t("adminCustomers.notAvailable");
     const normalizedCustomerKey = useMemo(() => normalizeCustomerKey(customerKey), [customerKey]);
-    const hasCrmPro = Boolean(user?.is_super_admin) || hasProductCapability(companyUser?.company?.capabilities, "CRM_PRO");
+    const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
 
     const [customer, setCustomer] = useState<CustomerRecord | null>(null);
     const [loading, setLoading] = useState(true);
