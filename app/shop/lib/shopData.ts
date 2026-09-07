@@ -19,7 +19,7 @@ type RawShopService = Omit<ShopService, "required_resource_ids"> & {
     required_resources?: RawRequiredResource[];
 };
 
-export type RawShopData = Omit<ShopData, "staff" | "hours" | "services"> & {
+export type RawShopData = Omit<ShopData, "staff" | "hours" | "restaurantHours" | "services"> & {
     company: ShopCompany & {
         hours?: ShopHours[];
         hero_home_url?: string | null;
@@ -30,6 +30,7 @@ export type RawShopData = Omit<ShopData, "staff" | "hours" | "services"> & {
     staff: RawShopStaff[];
     services: RawShopService[];
     hours?: ShopHours[];
+    restaurantHours?: ShopHours[];
 };
 
 export type ShopApiResponse = {
@@ -65,6 +66,7 @@ export function normalizeShopData(rawData: RawShopData): ShopData {
         ...rawData,
         company: normalizedCompany,
         hours: rawData.company?.hours || rawData.hours || [],
+        restaurantHours: rawData.restaurantHours || [],
         staff: (rawData.staff || [])
             .map((member) => ({
                 ...member,

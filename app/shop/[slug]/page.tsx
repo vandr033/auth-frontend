@@ -37,6 +37,7 @@ export default function ShopPage() {
     const {
         company,
         hours,
+        restaurantHours,
         reviewStats,
         loading,
         error,
@@ -50,6 +51,7 @@ export default function ShopPage() {
         publicFeatures,
     } = useShop();
     const t = useT();
+    const publicHours = company?.restaurant_enabled ? restaurantHours : hours;
     const { user } = useAuth();
     const resolvedPublicFeatures = company ? getShopPublicFeatures(company) : publicFeatures;
     const sectionOrder: HomeSectionKey[] = resolveHomeSectionOrder({
@@ -189,7 +191,7 @@ export default function ShopPage() {
             <HeroWrapper />
 
             {/* 2. Quick Info Bar */}
-            <QuickInfoBar company={company} hours={hours} />
+            <QuickInfoBar company={company} hours={publicHours} />
 
             {/* Reorderable sections */}
             {sectionOrder.map((key) => {
@@ -439,7 +441,7 @@ export default function ShopPage() {
             })}
 
             {/* 6. Location & Hours */}
-            <LocationHours company={company} hours={hours} pointsOfSale={canSeeCommerce ? commercePointsOfSale : []} />
+            <LocationHours company={company} hours={publicHours} pointsOfSale={canSeeCommerce ? commercePointsOfSale : []} />
 
             {/* 7. Reviews */}
             {reviewStats && reviewStats.count > 0 && (

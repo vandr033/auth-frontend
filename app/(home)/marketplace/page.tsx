@@ -12,6 +12,7 @@ import { useI18n, useT } from "@/lib/i18n";
 import { getLocalizedText } from "@/lib/i18n/localized";
 import { useMarketplaceAnalytics } from "@/lib/marketplace/analytics";
 import { buildMarketplaceBookingHandoffParams } from "@/lib/marketplace/handoff";
+import { getValidCoordinates } from "@/utils/coordinates";
 import type {
   MarketplaceBounds,
   MarketplaceFilterState,
@@ -90,19 +91,8 @@ function normalizeTimeValue(value?: string | null): string {
   return "";
 }
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
 function hasValidCoordinates(lat: unknown, lng: unknown): boolean {
-  return (
-    isFiniteNumber(lat) &&
-    isFiniteNumber(lng) &&
-    lat >= -90 &&
-    lat <= 90 &&
-    lng >= -180 &&
-    lng <= 180
-  );
+  return getValidCoordinates(lat as never, lng as never) !== null;
 }
 
 function parseFilterState(searchParams: URLSearchParams): {
@@ -344,7 +334,12 @@ function MarketplacePageContent() {
                 },
               }));
 
-        const safePins = mergedPins.filter((pin) => hasValidCoordinates(pin?.lat, pin?.lng));
+        const safePins = mergedPins.flatMap((pin) => {
+          const coordinates = getValidCoordinates(pin?.lat as never, pin?.lng as never);
+          return coordinates
+            ? [{ ...pin, lat: coordinates.latitude, lng: coordinates.longitude }]
+            : [];
+        });
 
         setResults(nextResults);
         setSimilarBookings(nextSimilar);

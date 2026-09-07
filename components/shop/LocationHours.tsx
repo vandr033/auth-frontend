@@ -11,6 +11,7 @@ import {
 } from "@/lib/point-of-sale-location";
 import { ShopLocationMap } from "@/components/shop/ShopLocationMap";
 import { ShopPointsOfSaleMap } from "@/components/shop/ShopPointsOfSaleMap";
+import { buildGoogleMapsQueryUrl, getSafeMapUrl } from "@/utils/coordinates";
 
 const dayKeys = ["adminHours.sunday", "adminHours.monday", "adminHours.tuesday", "adminHours.wednesday", "adminHours.thursday", "adminHours.friday", "adminHours.saturday"];
 const orderedDayIndexes = [1, 2, 3, 4, 5, 6, 0]; // Mon-Sun
@@ -58,12 +59,12 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
     const mapQuery = [company.address, company.city, company.state, company.country_code]
         .filter(Boolean)
         .join(", ");
-    const hasCoordinates = Number.isFinite(Number(company.latitude)) && Number.isFinite(Number(company.longitude));
-    const directionsUrl = hasCoordinates
-        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${company.latitude},${company.longitude}`)}`
-        : mapQuery
-            ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapQuery)}`
-            : null;
+    const directionsUrl = buildGoogleMapsQueryUrl({
+        latitude: company.latitude,
+        longitude: company.longitude,
+        address: mapQuery,
+        mode: "directions",
+    });
 
     const formatHoursForDayLocalized = (dayHours: ShopHours[] | undefined) => {
         if (!dayHours || dayHours.length === 0 || dayHours.every(h => h.is_closed)) return t('shopHome.closed');
@@ -82,7 +83,11 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
         return acc;
     }, {} as Record<number, ShopHours[]>);
 
-    const today = new Date().getDay();
+    const localizedWeekday = new Intl.DateTimeFormat("en-US", {
+        timeZone: company.timezone,
+        weekday: "short",
+    }).format(new Date());
+    const today = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(localizedWeekday);
     const todayDisplay = formatHoursForDayLocalized(hoursMap[today]);
 
     React.useEffect(() => {
@@ -97,7 +102,15 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
         }
     }, []);
 
-    const renderPointCard = (point: ShopCommercePointOfSale) => (
+    const renderPointCard = (point: ShopCommercePointOfSale) => {
+        const pointDirectionsUrl = getSafeMapUrl(point.google_maps_url) ?? buildGoogleMapsQueryUrl({
+            latitude: point.latitude,
+            longitude: point.longitude,
+            address: point.address,
+            mode: "directions",
+        });
+
+        return (
         <div key={point.id} className="rounded-lg border border-surface-border bg-surface p-4 shadow-card">
             <div className="flex items-start justify-between gap-3">
                 <div>
@@ -113,18 +126,21 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                         <p className="mt-2 text-sm text-text-muted">{point.notes}</p>
                     ) : null}
                 </div>
-                <a
-                    href={point.google_maps_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand-hover"
-                >
-                    {t('sharedUi.getDirections')}
-                    <ExternalLink className="h-4 w-4" />
-                </a>
+                {pointDirectionsUrl ? (
+                    <a
+                        href={pointDirectionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand-hover"
+                    >
+                        {t('sharedUi.getDirections')}
+                        <ExternalLink className="h-4 w-4" />
+                    </a>
+                ) : null}
             </div>
         </div>
-    );
+        );
+    };
 
     const renderCityDetails = (
         cityGroup: (typeof pointGroups)[number]["cities"][number],
@@ -329,10 +345,10 @@ export function LocationHours({ company, hours, className, pointsOfSale = [] }: 
                                     company={company}
                                     className="h-80 w-full md:h-full md:min-h-[400px]"
                                     fallback={
-                                        company.google_maps_url ? (
+                                        getSafeMapUrl(company.google_maps_url) ? (
                                             <iframe
                                                 title={t('sharedUi.shopLocation')}
-                                                src={company.google_maps_url}
+                                                src={getSafeMapUrl(company.google_maps_url) ?? undefined}
                                                 loading="lazy"
                                                 className="h-80 w-full border-0 md:h-full md:min-h-[400px]"
                                             />

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ShopCompany } from "@/types/shop";
+import { getValidCoordinates } from "@/utils/coordinates";
 
 const MAPBOX_SCRIPT_ID = "mapbox-gl-script";
 const MAPBOX_STYLE_ID = "mapbox-gl-style";
@@ -78,12 +79,8 @@ async function loadMapboxGl(): Promise<MapboxGlLike> {
 }
 
 function parseCoordinates(company: ShopCompany): [number, number] | null {
-  const latitude = Number(company.latitude);
-  const longitude = Number(company.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return null;
-  }
-  return [longitude, latitude];
+  const coordinates = getValidCoordinates(company.latitude, company.longitude);
+  return coordinates ? [coordinates.longitude, coordinates.latitude] : null;
 }
 
 export function ShopLocationMap({ company, className, fallback }: ShopLocationMapProps) {

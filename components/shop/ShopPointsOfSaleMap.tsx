@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { ShopCommercePointOfSale } from "@/types/shop";
+import { getValidCoordinates } from "@/utils/coordinates";
 
 const MAPBOX_SCRIPT_ID = "mapbox-gl-script";
 const MAPBOX_STYLE_ID = "mapbox-gl-style";
@@ -80,8 +81,11 @@ export function ShopPointsOfSaleMap({ points, className, fallback }: ShopPointsO
   const coordinates = useMemo(
     () =>
       points
-        .map((point) => [point.longitude, point.latitude] as [number, number])
-        .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat)),
+        .map((point) => {
+          const valid = getValidCoordinates(point.latitude, point.longitude);
+          return valid ? ([valid.longitude, valid.latitude] as [number, number]) : null;
+        })
+        .filter((point): point is [number, number] => point !== null),
     [points],
   );
 

@@ -4,6 +4,8 @@ import { MapPin, Phone, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ShopCompany, ShopHours } from "@/types/shop";
 import { useT } from "@/lib/i18n";
+import { buildGoogleMapsQueryUrl } from "@/utils/coordinates";
+import { getCurrentTimeString, isTimeWithinWindows } from "@/utils/business-hours";
 
 interface QuickInfoBarProps {
     company: ShopCompany;
@@ -13,16 +15,16 @@ interface QuickInfoBarProps {
 
 export function QuickInfoBar({ company, hours, className }: QuickInfoBarProps) {
     const t = useT();
-    const hasCoordinates = Number.isFinite(Number(company.latitude)) && Number.isFinite(Number(company.longitude));
     const addressQuery = [company.address, company.city].filter(Boolean).join(", ");
-    const mapsQuery = hasCoordinates
-        ? `${company.latitude},${company.longitude}`
-        : addressQuery;
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
+    const mapsUrl = buildGoogleMapsQueryUrl({
+        latitude: company.latitude,
+        longitude: company.longitude,
+        address: addressQuery,
+    });
     // Calculate open/closed status
-    const now = new Date();
-    const currentDay = now.getDay();
-    const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    const currentTime = getCurrentTimeString(company.timezone);
+    const weekday = new Intl.DateTimeFormat("en-US", { timeZone: company.timezone, weekday: "short" }).format(new Date());
+    const currentDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday);
 
     const todayHours = hours.filter(h => Number(h.day_of_week) === currentDay);
     const isOpen = todayHours.some(
@@ -30,16 +32,12 @@ export function QuickInfoBar({ company, hours, className }: QuickInfoBarProps) {
             !slot.is_closed &&
             slot.open_time &&
             slot.close_time &&
-            currentTime >= slot.open_time &&
-            currentTime <= slot.close_time
+            isTimeWithinWindows(currentTime, [{ open_time: slot.open_time, close_time: slot.close_time }])
     );
 
     // Find next open time today
     const nextOpenSlot = todayHours.find(
-        slot =>
-            !slot.is_closed &&
-            slot.open_time &&
-            currentTime < slot.open_time
+        slot => !slot.is_closed && slot.open_time && currentTime < slot.open_time
     );
 
     const formatTime = (time: string) => {
@@ -74,7 +72,7 @@ export function QuickInfoBar({ company, hours, className }: QuickInfoBarProps) {
                 <span className="hidden text-surface-border md:inline" aria-hidden>|</span>
 
                 {/* Address */}
-                {company.address && (
+                {company.address && mapsUrl && (
                     <a
                         href={mapsUrl}
                         target="_blank"

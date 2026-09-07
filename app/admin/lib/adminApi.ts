@@ -2771,8 +2771,13 @@ export type RestaurantSettings = { id: number; company_id: number; average_dinin
 export type RestaurantDiningArea = { id: number; company_id: number; name: string; description: string | null; sort_order: number; is_active: boolean; };
 export type RestaurantTable = { id: number; company_id: number; dining_area_id: number; name: string; minimum_seats: number; maximum_seats: number; sort_order: number; is_active: boolean; dining_area?: RestaurantDiningArea; };
 export type RestaurantServicePeriod = { id: number; company_id: number; day_of_week: number; name: string | null; start_time: string; end_time: string; sort_order: number; is_active: boolean; };
+export type RestaurantServicePeriodMutation = { period: RestaurantServicePeriod; message?: string };
 
 async function restaurantRequest<T>(path: string, options?: RequestInit): Promise<T> { const response = await apiFetch<{ data: T }>(`/api/admin/restaurant${path}`, options); return response.data; }
+async function restaurantPeriodMutation(path: string, options: RequestInit): Promise<RestaurantServicePeriodMutation> {
+    const response = await apiFetch<{ data: RestaurantServicePeriod; message?: string }>(`/api/admin/restaurant${path}`, options);
+    return { period: response.data, message: response.message };
+}
 export const getRestaurantAccess = () => restaurantRequest<RestaurantAccess>("/access");
 export const updateRestaurantAccess = (enabled: boolean) => restaurantRequest<RestaurantAccess>("/access", { method: "PATCH", body: JSON.stringify({ enabled }) });
 export const getRestaurantSettings = () => restaurantRequest<RestaurantSettings>("/settings");
@@ -2786,8 +2791,8 @@ export const createRestaurantTable = (input: Omit<RestaurantTable, "id" | "compa
 export const updateRestaurantTable = (id: number, input: Partial<RestaurantTable>) => restaurantRequest<RestaurantTable>(`/tables/${id}`, { method: "PATCH", body: JSON.stringify(input) });
 export const deleteRestaurantTable = (id: number) => restaurantRequest<null>(`/tables/${id}`, { method: "DELETE" });
 export const listRestaurantServicePeriods = () => restaurantRequest<RestaurantServicePeriod[]>("/service-periods");
-export const createRestaurantServicePeriod = (input: Omit<RestaurantServicePeriod, "id" | "company_id">) => restaurantRequest<RestaurantServicePeriod>("/service-periods", { method: "POST", body: JSON.stringify(input) });
-export const updateRestaurantServicePeriod = (id: number, input: Partial<RestaurantServicePeriod>) => restaurantRequest<RestaurantServicePeriod>(`/service-periods/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+export const createRestaurantServicePeriod = (input: Omit<RestaurantServicePeriod, "id" | "company_id">) => restaurantPeriodMutation("/service-periods", { method: "POST", body: JSON.stringify(input) });
+export const updateRestaurantServicePeriod = (id: number, input: Partial<RestaurantServicePeriod>) => restaurantPeriodMutation(`/service-periods/${id}`, { method: "PATCH", body: JSON.stringify(input) });
 export const deleteRestaurantServicePeriod = (id: number) => restaurantRequest<null>(`/service-periods/${id}`, { method: "DELETE" });
 
 export type RestaurantDietaryLabel = "VEGETARIAN" | "VEGAN" | "GLUTEN_FREE" | "SPICY" | "DAIRY_FREE" | "NUT_FREE";

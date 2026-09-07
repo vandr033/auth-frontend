@@ -876,6 +876,7 @@ const es: TranslationKeys = {
     unsupported: "Tu plan no incluye Restaurant Lite.",
     save: "Guardar configuración",
     servicePeriods: "Períodos de servicio",
+    servicePeriodsPolicy: "Los períodos de servicio del restaurante determinan las horas públicas y la disponibilidad de reservas. Pueden ampliar el horario general del negocio; al guardar, recibirás una advertencia si el día figura cerrado en Horarios.",
     diningAreas: "Áreas de comedor",
     tables: "Mesas",
     createArea: "Crear área de comedor",

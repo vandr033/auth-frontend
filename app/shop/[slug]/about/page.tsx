@@ -17,6 +17,7 @@ export default function AboutPage() {
     const {
         company,
         hours,
+        restaurantHours,
         loading,
         error,
         slug,
@@ -25,6 +26,7 @@ export default function AboutPage() {
         canBookOnline,
     } = useShop();
     const t = useT();
+    const publicHours = company?.restaurant_enabled ? restaurantHours : hours;
 
     if (loading) {
         return (
@@ -181,7 +183,7 @@ export default function AboutPage() {
             </section>
 
             {/* Location & Hours */}
-            <LocationHours company={company} hours={hours} />
+            <LocationHours company={company} hours={publicHours} />
 
             <ShopFooter />
         </main>

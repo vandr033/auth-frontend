@@ -362,6 +362,8 @@ export interface ShopData {
     services: ShopService[];
     staff: ShopStaff[];
     hours: ShopHours[];
+    /** Restaurant service periods published as storefront hours. */
+    restaurantHours?: ShopHours[];
     commerceStore?: ShopCommerceStore | null;
     commercePointsOfSale?: ShopCommercePointOfSale[];
     commerceCategories?: ShopCommerceCategory[];

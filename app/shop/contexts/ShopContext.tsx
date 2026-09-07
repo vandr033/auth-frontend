@@ -58,6 +58,7 @@ type ShopContextValue = {
     commerceProducts: ShopCommerceProduct[];
     staff: ShopStaff[];
     hours: ShopHours[];
+    restaurantHours: ShopHours[];
     settings: ShopSettings | null;
     theme: ShopTheme | null;
     reviewStats: ShopReviewStats | null;
@@ -232,6 +233,7 @@ export function ShopProvider({
                 commerceProducts: data?.commerceProducts ?? [],
                 staff,
                 hours: data?.hours ?? [],
+                restaurantHours: data?.restaurantHours ?? [],
                 settings: data?.settings ?? null,
                 theme: data?.theme ?? defaultTheme,
                 reviewStats: data?.reviewStats ?? null,

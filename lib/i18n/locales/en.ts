@@ -883,6 +883,7 @@ const en = {
     unsupported: "Your plan does not include Restaurant Lite.",
     save: "Save settings",
     servicePeriods: "Service periods",
+    servicePeriodsPolicy: "Restaurant service periods determine public restaurant hours and reservation availability. They may extend the general business hours; saving shows a warning when the selected day is closed in Hours.",
     diningAreas: "Dining areas",
     tables: "Tables",
     createArea: "Create dining area",

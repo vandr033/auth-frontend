@@ -112,7 +112,8 @@ export function getCurrentTimeString(timezone?: string): string {
                 hour12: false,
             });
             const parts = formatter.formatToParts(now);
-            const hour = parts.find(p => p.type === "hour")?.value || "00";
+            const rawHour = parts.find(p => p.type === "hour")?.value || "00";
+            const hour = rawHour === "24" ? "00" : rawHour;
             const minute = parts.find(p => p.type === "minute")?.value || "00";
             return `${hour}:${minute}`;
         } catch {

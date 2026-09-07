@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { parseMapboxFeature, reverseGeocodeMapbox } from "@/lib/mapbox/location";
+import { getValidCoordinates } from "@/utils/coordinates";
 
 export type PointOfSaleLocationInput = {
   id: string;
@@ -88,7 +89,7 @@ async function resolvePointOfSaleLocation(
   const cached = pointOfSaleLocationCache.get(cacheKey);
   if (cached) return cached;
 
-  if (mapboxToken && Number.isFinite(point.latitude) && Number.isFinite(point.longitude)) {
+  if (mapboxToken && getValidCoordinates(point.latitude, point.longitude)) {
     try {
       const feature = await reverseGeocodeMapbox(point.longitude, point.latitude, mapboxToken);
       const parsed = feature ? parseMapboxFeature(feature) : null;
