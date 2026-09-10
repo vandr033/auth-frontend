@@ -1275,6 +1275,33 @@ export default function GroupEventDetailPage() {
                                 onCheckedChange={(checked) => setForm((prev) => prev ? { ...prev, is_private: Boolean(checked) } : prev)}
                             />
                         </div>
+                        <div className="space-y-2">
+                            <Label>{t("adminGroup.fields.eventType")}</Label>
+                            <Select
+                                value={form.is_free ? "FREE" : "PAID"}
+                                onValueChange={(value) => setForm((prev) => prev ? { ...prev, is_free: value === "FREE" } : prev)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="FREE">{t("adminGroup.events.free")}</SelectItem>
+                                    <SelectItem value="PAID">{t("adminGroup.events.paid")}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {!form.is_free ? (
+                            <div className="space-y-2">
+                                <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
+                                <Input
+                                    type="number"
+                                    min={0.01}
+                                    step="0.01"
+                                    value={form.price_cents}
+                                    onChange={(e) => setForm((prev) => prev ? { ...prev, price_cents: e.target.value } : prev)}
+                                />
+                            </div>
+                        ) : null}
                         <div className="space-y-2 md:col-span-2">
                             <Label>{t("adminGroup.fields.description")}</Label>
                             <RichTextEditor
@@ -1371,33 +1398,6 @@ export default function GroupEventDetailPage() {
                                 defaultLongitude={storeLocation?.longitude ?? null}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label>{t("adminGroup.fields.eventType")}</Label>
-                            <Select
-                                value={form.is_free ? "FREE" : "PAID"}
-                                onValueChange={(value) => setForm((prev) => prev ? { ...prev, is_free: value === "FREE" } : prev)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="FREE">{t("adminGroup.events.free")}</SelectItem>
-                                    <SelectItem value="PAID">{t("adminGroup.events.paid")}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        {!form.is_free ? (
-                            <div className="space-y-2">
-                                <Label>{t("adminGroup.fields.priceCents", { currency: currency || "Bs." })}</Label>
-                                <Input
-                                    type="number"
-                                    min={0.01}
-                                    step="0.01"
-                                    value={form.price_cents}
-                                    onChange={(e) => setForm((prev) => prev ? { ...prev, price_cents: e.target.value } : prev)}
-                                />
-                            </div>
-                        ) : null}
                         {form.is_free ? (
                             <div className="space-y-2 md:col-span-2">
                                 <Label>{t("adminGroup.fields.noAvailabilityMessage")}</Label>
