@@ -82,6 +82,7 @@ import { GroupClassEditorForm } from "@/app/admin/dashboard/group-reservations/c
 import {
     type ClassFormState,
     getCompanyLocationLabel,
+    getFullCourseBillingDay,
     getPricingModeLabelKey,
 } from "@/app/admin/dashboard/group-reservations/classes/components/groupClassForm.shared";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
@@ -164,7 +165,11 @@ function fromGroupClass(groupClass: GroupClass): ClassFormState {
         thumbnail_url: groupClass.thumbnail_url ?? "",
         status: groupClass.status,
         pricing_mode: groupClass.pricing_mode,
-        price_cents: formatCurrencyInputFromCents(groupClass.price_cents),
+        price_cents: formatCurrencyInputFromCents(
+            groupClass.pricing_mode === "FULL_COURSE"
+                ? (groupClass.monthly_price_cents ?? groupClass.price_cents)
+                : groupClass.price_cents,
+        ),
         max_capacity_per_session: String(groupClass.max_capacity_per_session),
         capacity_visible: groupClass.capacity_visible ?? false,
         session_duration_minutes: String(groupClass.session_duration_minutes),
@@ -571,6 +576,10 @@ export default function GroupClassDetailPage() {
                 ...(thumbnailImageFile ? {} : { thumbnail_url: form.thumbnail_url.trim() || null }),
                 pricing_mode: form.pricing_mode,
                 price_cents: priceCents,
+                monthly_price_cents: form.pricing_mode === "FULL_COURSE" ? priceCents : null,
+                billing_day: form.pricing_mode === "FULL_COURSE"
+                    ? (groupClass.billing_day ?? getFullCourseBillingDay(form.recurrence_start_date))
+                    : null,
                 max_capacity_per_session: maxCapacity,
                 capacity_visible: form.capacity_visible,
                 session_duration_minutes: duration,

@@ -258,6 +258,12 @@ export default function GroupEventDetailPage() {
     const [massMessageBatchProgress, setMassMessageBatchProgress] = useState<WhatsappBatchProgress | null>(null);
     const [massRecipientMenuOpen, setMassRecipientMenuOpen] = useState(false);
     const [failedMassRecipients, setFailedMassRecipients] = useState<FailedEventMessageTarget[]>([]);
+    const massMessageBatchStorageKey = companyId !== null && Number.isInteger(eventId)
+        ? `priconpri:group-event-mass-batch:${companyId}:${eventId}`
+        : null;
+    const massMessageBatchNeedsPolling = !massMessageBatchProgress
+        || massMessageBatchProgress.pending > 0
+        || massMessageBatchProgress.processing > 0;
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
     const [thumbnailImageFile, setThumbnailImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
@@ -450,10 +456,23 @@ export default function GroupEventDetailPage() {
     }, [massRecipientMenuOpen]);
 
     useEffect(() => {
+        setMassMessageBatchId(null);
+        setMassMessageBatchProgress(null);
+        if (!massMessageBatchStorageKey) return;
+        try {
+            const storedBatchId = window.localStorage.getItem(massMessageBatchStorageKey);
+            if (storedBatchId) setMassMessageBatchId(storedBatchId);
+        } catch {
+            // Ignore unavailable browser storage; the live batch endpoint still works.
+        }
+    }, [massMessageBatchStorageKey]);
+
+    useEffect(() => {
         if (!massMessageBatchId) {
             setMassMessageBatchProgress(null);
             return;
         }
+        if (!massMessageBatchNeedsPolling) return;
 
         let cancelled = false;
         let timer: number | null = null;
@@ -465,8 +484,20 @@ export default function GroupEventDetailPage() {
                 if (progress.pending > 0 || progress.processing > 0) {
                     timer = window.setTimeout(() => void poll(), 5000);
                 }
-            } catch {
+            } catch (error) {
                 if (!cancelled) {
+                    if ((error as { status?: number })?.status === 404) {
+                        setMassMessageBatchId(null);
+                        setMassMessageBatchProgress(null);
+                        if (massMessageBatchStorageKey) {
+                            try {
+                                window.localStorage.removeItem(massMessageBatchStorageKey);
+                            } catch {
+                                // Ignore unavailable browser storage.
+                            }
+                        }
+                        return;
+                    }
                     timer = window.setTimeout(() => void poll(), 15000);
                 }
             }
@@ -477,7 +508,7 @@ export default function GroupEventDetailPage() {
             cancelled = true;
             if (timer !== null) window.clearTimeout(timer);
         };
-    }, [massMessageBatchId]);
+    }, [massMessageBatchId, massMessageBatchNeedsPolling, massMessageBatchStorageKey]);
 
     const soldOut = useMemo(() => {
         if (!event) return false;
@@ -824,7 +855,15 @@ export default function GroupEventDetailPage() {
         }
 
         setSendingMassMessage(true);
+        setMassMessageBatchId(null);
         setMassMessageBatchProgress(null);
+        if (massMessageBatchStorageKey) {
+            try {
+                window.localStorage.removeItem(massMessageBatchStorageKey);
+            } catch {
+                // Ignore unavailable browser storage.
+            }
+        }
         setMassMessageProgress({
             total_customers: targets.length,
             total_recipients: targets.length,
@@ -853,6 +892,16 @@ export default function GroupEventDetailPage() {
                             ...progress,
                             total_customers: progress.total_recipients,
                         });
+                        if (progress.batch_id) {
+                            setMassMessageBatchId(progress.batch_id);
+                            if (massMessageBatchStorageKey) {
+                                try {
+                                    window.localStorage.setItem(massMessageBatchStorageKey, progress.batch_id);
+                                } catch {
+                                    // Ignore unavailable browser storage.
+                                }
+                            }
+                        }
                     },
                 },
             );
@@ -860,6 +909,13 @@ export default function GroupEventDetailPage() {
             const nextFailedRecipients = result.failed_targets ?? [];
             setFailedMassRecipients(nextFailedRecipients);
             setMassMessageBatchId(result.batch_id ?? null);
+            if (result.batch_id && massMessageBatchStorageKey) {
+                try {
+                    window.localStorage.setItem(massMessageBatchStorageKey, result.batch_id);
+                } catch {
+                    // Ignore unavailable browser storage.
+                }
+            }
 
             if (nextFailedRecipients.length > 0) {
                 await notify.warning(
@@ -1119,6 +1175,48 @@ export default function GroupEventDetailPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {massMessageBatchProgress ? (
+                <Card className="border-slate-200">
+                    <CardHeader>
+                        <CardTitle className="text-base">{t("adminGroup.events.massMessageWhatsappProgressTitle")}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <p className="text-sm text-slate-700">
+                            {t("adminGroup.events.massMessageWhatsappProgress", {
+                                total: massMessageBatchProgress.total,
+                                sent: massMessageBatchProgress.sent,
+                                pending: massMessageBatchProgress.pending,
+                                processing: massMessageBatchProgress.processing,
+                                failed: massMessageBatchProgress.failed,
+                                expired: massMessageBatchProgress.expired,
+                                cancelled: massMessageBatchProgress.cancelled,
+                            })}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                            {t("adminGroup.events.massMessageWhatsappProgressDenominator", {
+                                terminal: massMessageBatchProgress.terminal,
+                                total: massMessageBatchProgress.total,
+                            })}
+                        </p>
+                        {massMessageBatchProgress.pending > 0 || massMessageBatchProgress.processing > 0 ? (
+                            <p className="text-xs text-slate-500">{t("adminGroup.events.massMessageWhatsappPaused")}</p>
+                        ) : null}
+                        {!sendingMassMessage && massMessageBatchProgress.failed > 0 ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void handleRetryFailedMassMessage("WHATSAPP")}
+                            >
+                                {t("adminGroup.events.massMessageRetryWhatsapp", {
+                                    count: massMessageBatchProgress.failed,
+                                })}
+                            </Button>
+                        ) : null}
+                    </CardContent>
+                </Card>
+            ) : null}
 
             <Card className="border-slate-200">
                 <CardHeader>
@@ -2106,6 +2204,7 @@ export default function GroupEventDetailPage() {
                                     {sendingMassMessage && massMessageProgress ? (
                                         <p className="text-xs font-medium text-admin-brand">
                                             {t("adminGroup.events.massMessageLiveCounter", {
+                                                queued: massMessageProgress.queued_whatsapp ?? 0,
                                                 sent: massMessageProgress.sent_total,
                                                 processed: massMessageProgress.processed,
                                                 total: massMessageProgress.total_recipients,
@@ -2192,21 +2291,6 @@ export default function GroupEventDetailPage() {
                                 <p className="text-xs text-slate-500">
                                     {t("adminGroup.events.massMessageAudienceHint", { count: selectedMassRecipientCount })}
                                 </p>
-                                {massMessageBatchProgress ? (
-                                    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                                        <p className="font-medium text-slate-700">
-                                            {t("adminGroup.events.massMessageWhatsappProgress", {
-                                                sent: massMessageBatchProgress.sent,
-                                                pending: massMessageBatchProgress.pending,
-                                                processing: massMessageBatchProgress.processing,
-                                                failed: massMessageBatchProgress.failed,
-                                            })}
-                                        </p>
-                                        {massMessageBatchProgress.pending > 0 || massMessageBatchProgress.processing > 0 ? (
-                                            <p className="mt-1">{t("adminGroup.events.massMessageWhatsappPaused")}</p>
-                                        ) : null}
-                                    </div>
-                                ) : null}
                             </div>
                             <DialogFooter>
                                 <Button type="button" variant="outline" onClick={() => setMassDialogOpen(false)} disabled={sendingMassMessage}>

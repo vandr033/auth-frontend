@@ -24,6 +24,7 @@ import {
     type ClassFormState,
     defaultClassForm,
     getCompanyLocationLabel,
+    getFullCourseBillingDay,
 } from "@/app/admin/dashboard/group-reservations/classes/components/groupClassForm.shared";
 import { useGroupReservationsAccess } from "@/app/admin/dashboard/group-reservations/lib/useGroupReservationsAccess";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
@@ -150,6 +151,10 @@ export default function NewGroupClassPage() {
                 thumbnail_url: form.thumbnail_url.trim() || null,
                 pricing_mode: form.pricing_mode,
                 price_cents: priceCents,
+                monthly_price_cents: form.pricing_mode === "FULL_COURSE" ? priceCents : null,
+                billing_day: form.pricing_mode === "FULL_COURSE"
+                    ? getFullCourseBillingDay(form.recurrence_start_date)
+                    : null,
                 max_capacity_per_session: maxCapacity,
                 capacity_visible: form.capacity_visible,
                 session_duration_minutes: duration,

@@ -77,6 +77,11 @@ export function getCompanyLocationLabel(companyLocation: AdminCompanyLocation | 
         .join(", ");
 }
 
+export function getFullCourseBillingDay(date: string): number {
+    const day = Number.parseInt(date.slice(-2), 10);
+    return Number.isInteger(day) ? Math.min(Math.max(day, 1), 28) : 1;
+}
+
 export function defaultClassForm(defaultLocationText = ""): ClassFormState {
     const day = toLocalDateInputValue();
     return {

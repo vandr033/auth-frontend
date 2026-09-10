@@ -1545,6 +1545,8 @@ export interface GroupClass {
     status: GroupItemStatus;
     pricing_mode: GroupPricingMode;
     price_cents: number;
+    monthly_price_cents?: number | null;
+    billing_day?: number | null;
     max_capacity_per_session: number;
     capacity_visible: boolean;
     session_duration_minutes: number;
@@ -2031,6 +2033,8 @@ export interface CreateGroupClassPayload {
     status?: GroupItemStatus;
     pricing_mode: GroupPricingMode;
     price_cents: number;
+    monthly_price_cents?: number | null;
+    billing_day?: number | null;
     max_capacity_per_session: number;
     capacity_visible?: boolean;
     session_duration_minutes: number;
