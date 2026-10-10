@@ -356,6 +356,7 @@ export interface CustomerRecord {
     phone: string | null;
     phonePrefix: string | null;
     notes: string | null;
+    tags: CustomerTag[];
     totalBookings: number;
     completedBookings: number;
     cancelledBookings: number;
@@ -379,6 +380,12 @@ export interface CustomerRecord {
     };
 }
 
+export interface CustomerTag {
+    id: number;
+    name: string;
+    color: string;
+}
+
 export type CustomerSegmentKey =
     | "ALL"
     | "RETURNING"
@@ -391,9 +398,10 @@ export async function getCustomers(
         search?: string;
         segment?: CustomerSegmentKey;
         categoryId?: number;
+        tagId?: number;
     },
 ): Promise<CustomerRecord[]> {
-    const normalizedParams: { search?: string; segment?: CustomerSegmentKey; categoryId?: number } = typeof params === "string"
+    const normalizedParams: { search?: string; segment?: CustomerSegmentKey; categoryId?: number; tagId?: number } = typeof params === "string"
         ? { search: params }
         : (params ?? {});
     const query = new URLSearchParams();
@@ -406,6 +414,7 @@ export async function getCustomers(
     if (normalizedParams.categoryId) {
         query.set("category_id", String(normalizedParams.categoryId));
     }
+    if (normalizedParams.tagId) query.set("tag_id", String(normalizedParams.tagId));
 
     const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
     const response = await apiFetch<{ data: CustomerRecord[] }>(`/api/admin/customers${suffix}`);
@@ -418,12 +427,13 @@ export async function getCustomerByKey(customerKey: string): Promise<CustomerRec
 }
 
 export interface UpdateCustomerRecordInput {
-    name: string;
+    name?: string;
     email?: string | null;
     phone?: string | null;
     phone_prefix?: string | null;
     country_code?: string | null;
     notes?: string | null;
+    tag_ids?: number[];
 }
 
 export async function updateCustomerByKey(customerKey: string, input: UpdateCustomerRecordInput): Promise<CustomerRecord> {
@@ -432,6 +442,31 @@ export async function updateCustomerByKey(customerKey: string, input: UpdateCust
         body: JSON.stringify(input),
     });
     return response.data;
+}
+
+export async function getCustomerTags(): Promise<CustomerTag[]> {
+    const response = await apiFetch<{ data: CustomerTag[] }>("/api/admin/customers/tags");
+    return response.data;
+}
+
+export async function createCustomerTag(input: { name: string; color: string }): Promise<CustomerTag> {
+    const response = await apiFetch<{ data: CustomerTag }>("/api/admin/customers/tags", {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+    return response.data;
+}
+
+export async function updateCustomerTag(tagId: number, input: { name: string; color: string }): Promise<CustomerTag> {
+    const response = await apiFetch<{ data: CustomerTag }>(`/api/admin/customers/tags/${tagId}`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+    });
+    return response.data;
+}
+
+export async function deleteCustomerTag(tagId: number): Promise<void> {
+    await apiFetch(`/api/admin/customers/tags/${tagId}`, { method: "DELETE" });
 }
 
 export interface InterestCaptureLead {
@@ -626,6 +661,7 @@ export async function sendMassCustomerMessage(payload: {
     search?: string;
     segment?: CustomerSegmentKey;
     category_id?: number;
+    tag_id?: number;
     idempotency_key?: string;
 }): Promise<MassCustomerMessageResult> {
     const response = await apiFetch<{ data: MassCustomerMessageResult }>("/api/admin/customers/mass-message", {
@@ -695,6 +731,7 @@ export async function downloadCustomersExport(params?: {
     search?: string;
     segment?: CustomerSegmentKey;
     categoryId?: number;
+    tagId?: number;
 }): Promise<{ blob: Blob; fileName: string | null }> {
     const query = new URLSearchParams();
     if (params?.search) {
@@ -706,6 +743,7 @@ export async function downloadCustomersExport(params?: {
     if (params?.categoryId) {
         query.set("category_id", String(params.categoryId));
     }
+    if (params?.tagId) query.set("tag_id", String(params.tagId));
 
     const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
     const response = await fetch(resolveBackendUrl(`/api/admin/customers/export${suffix}`), {

@@ -12,6 +12,8 @@ import {
     MessageCircle,
     Search,
     Send,
+    Tag,
+    Trash2,
     Upload,
     Users,
 } from "lucide-react";
@@ -20,12 +22,15 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
     type AdminGroupPaymentRow,
     type CustomerSegmentKey,
+    createCustomerTag,
+    deleteCustomerTag,
     downloadCustomerImportTemplate,
     downloadCustomersExport,
     getCustomerByKey,
     getCustomerGroupPayments,
     getCustomerHistory,
     getCustomers,
+    getCustomerTags,
     getInterestCaptureLeads,
     getServiceCategories,
     getWhatsappBatchProgress,
@@ -33,9 +38,11 @@ import {
     retryWhatsappBatch,
     sendMassCustomerMessage,
     updateCustomerByKey,
+    updateCustomerTag,
     type CustomerGroupPaymentsResponse,
     type CustomerHistoryItem,
     type CustomerRecord,
+    type CustomerTag,
     type InterestCaptureLead,
     type WhatsappBatchProgress,
     type ServiceCategory,
@@ -110,6 +117,160 @@ function useCustomerCategoryOptions(enabled: boolean): ServiceCategory[] {
     return categories;
 }
 
+function useCustomerTagOptions(enabled: boolean): [CustomerTag[], (tags: CustomerTag[]) => void] {
+    const { t } = useI18n();
+    const [tags, setTags] = useState<CustomerTag[]>([]);
+
+    useEffect(() => {
+        if (!enabled) {
+            setTags([]);
+            return;
+        }
+        let active = true;
+        void getCustomerTags()
+            .then((rows) => { if (active) setTags(rows); })
+            .catch((error: unknown) => {
+                if (active) void notify.error(error instanceof Error ? error.message : t("adminCustomers.loadCustomerTagsFailed"));
+            });
+        return () => { active = false; };
+    }, [enabled, t]);
+
+    return [tags, setTags];
+}
+
+function CustomerTagBadges({ tags }: { tags: CustomerTag[] }) {
+    if (!tags.length) return null;
+    return (
+        <div className="mt-1 flex flex-wrap gap-1">
+            {tags.map((tag) => (
+                <Badge key={tag.id} variant="outline" className="gap-1.5 font-normal">
+                    <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                    {tag.name}
+                </Badge>
+            ))}
+        </div>
+    );
+}
+
+function CustomerTagsDialog({
+    open,
+    onOpenChange,
+    tags,
+    onTagsChange,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    tags: CustomerTag[];
+    onTagsChange: (tags: CustomerTag[]) => void | Promise<void>;
+}) {
+    const { t } = useI18n();
+    const [drafts, setDrafts] = useState<Record<number, CustomerTag>>({});
+    const [newName, setNewName] = useState("");
+    const [newColor, setNewColor] = useState("#2563EB");
+    const [savingTagId, setSavingTagId] = useState<number | null>(null);
+    const [savingNewTag, setSavingNewTag] = useState(false);
+
+    useEffect(() => {
+        setDrafts(Object.fromEntries(tags.map((tag) => [tag.id, { ...tag }])));
+    }, [tags]);
+
+    const refreshTags = async () => await onTagsChange(await getCustomerTags());
+    const handleCreate = async () => {
+        if (!newName.trim()) return;
+        setSavingNewTag(true);
+        try {
+            await createCustomerTag({ name: newName.trim(), color: newColor });
+            setNewName("");
+            await refreshTags();
+            await notify.success(t("adminCustomers.tagCreated"));
+        } catch (error: unknown) {
+            await notify.error(error instanceof Error ? error.message : t("common.error"));
+        } finally {
+            setSavingNewTag(false);
+        }
+    };
+
+    const handleSave = async (tag: CustomerTag) => {
+        setSavingTagId(tag.id);
+        try {
+            await updateCustomerTag(tag.id, { name: tag.name.trim(), color: tag.color });
+            await refreshTags();
+            await notify.success(t("common.success"));
+        } catch (error: unknown) {
+            await notify.error(error instanceof Error ? error.message : t("common.error"));
+        } finally {
+            setSavingTagId(null);
+        }
+    };
+
+    const handleDelete = async (tag: CustomerTag) => {
+        if (!window.confirm(t("adminCustomers.deleteTagConfirm", { name: tag.name }))) return;
+        setSavingTagId(tag.id);
+        try {
+            await deleteCustomerTag(tag.id);
+            await refreshTags();
+            await notify.success(t("common.success"));
+        } catch (error: unknown) {
+            await notify.error(error instanceof Error ? error.message : t("common.error"));
+        } finally {
+            setSavingTagId(null);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>{t("adminCustomers.manageTagsTitle")}</DialogTitle>
+                    <DialogDescription>{t("adminCustomers.manageTagsDescription")}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                    {tags.length ? tags.map((tag) => {
+                        const draft = drafts[tag.id] || tag;
+                        return (
+                            <div key={tag.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-admin-border p-3">
+                                <label className="sr-only" htmlFor={`customer-tag-name-${tag.id}`}>{t("adminCustomers.tagName")}</label>
+                                <Input
+                                    id={`customer-tag-name-${tag.id}`}
+                                    value={draft.name}
+                                    maxLength={64}
+                                    onChange={(event) => setDrafts((current) => ({ ...current, [tag.id]: { ...draft, name: event.target.value } }))}
+                                    className="min-w-40 flex-1"
+                                />
+                                <label className="sr-only" htmlFor={`customer-tag-color-${tag.id}`}>{t("adminCustomers.tagColor")}</label>
+                                <input
+                                    id={`customer-tag-color-${tag.id}`}
+                                    type="color"
+                                    value={draft.color}
+                                    onChange={(event) => setDrafts((current) => ({ ...current, [tag.id]: { ...draft, color: event.target.value.toUpperCase() } }))}
+                                    className="h-9 w-12 cursor-pointer rounded border border-input bg-transparent p-1"
+                                />
+                                <Button type="button" variant="outline" size="sm" onClick={() => void handleSave(draft)} disabled={savingTagId === tag.id || !draft.name.trim()}>
+                                    {t("common.save")}
+                                </Button>
+                                <Button type="button" variant="ghost" size="icon" aria-label={t("adminCustomers.deleteTag", { name: tag.name })} onClick={() => void handleDelete(tag)} disabled={savingTagId === tag.id}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        );
+                    }) : (
+                        <p className="rounded-lg border border-dashed border-admin-border p-4 text-sm text-slate-500">{t("adminCustomers.noTags")}</p>
+                    )}
+                </div>
+                <div className="grid gap-2 border-t border-admin-border pt-4 sm:grid-cols-[1fr_auto_auto]">
+                    <Input value={newName} maxLength={64} onChange={(event) => setNewName(event.target.value)} placeholder={t("adminCustomers.newTagPlaceholder")} />
+                    <label className="sr-only" htmlFor="new-customer-tag-color">{t("adminCustomers.tagColor")}</label>
+                    <input id="new-customer-tag-color" type="color" value={newColor} onChange={(event) => setNewColor(event.target.value.toUpperCase())} className="h-9 w-full cursor-pointer rounded border border-input bg-transparent p-1 sm:w-12" />
+                    <Button type="button" onClick={() => void handleCreate()} disabled={savingNewTag || !newName.trim()}>
+                        {savingNewTag ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {t("adminCustomers.createTag")}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function encodeCustomerPath(customerKey: string) {
     return `/admin/dashboard/customers/${encodeURIComponent(customerKey)}`;
 }
@@ -180,6 +341,7 @@ function buildCustomerProfileDraft(customer: CustomerRecord | null) {
         phonePrefix: customer?.phonePrefix || "591",
         countryCode: "BO",
         notes: customer?.notes || "",
+        tagIds: customer?.tags.map((tag) => tag.id) || [],
     };
 }
 
@@ -406,12 +568,15 @@ export function CustomersRecordsSurface() {
     const notAvailable = t("adminCustomers.notAvailable");
     const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
     const categories = useCustomerCategoryOptions(hasCrmPro);
+    const [tags, setTags] = useCustomerTagOptions(true);
 
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
+    const [tagFilter, setTagFilter] = useState("ALL");
+    const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -424,6 +589,7 @@ export function CustomersRecordsSurface() {
             const rows = await getCustomers({
                 search: debouncedSearch || undefined,
                 categoryId: hasCrmPro && categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
+                tagId: tagFilter !== "ALL" ? Number(tagFilter) : undefined,
             });
             setCustomers(rows);
         } catch (error: unknown) {
@@ -431,7 +597,7 @@ export function CustomersRecordsSurface() {
         } finally {
             setLoading(false);
         }
-    }, [categoryFilter, debouncedSearch, hasCrmPro, t]);
+    }, [categoryFilter, debouncedSearch, hasCrmPro, tagFilter, t, tags]);
 
     useEffect(() => {
         void fetchCustomers();
@@ -493,19 +659,36 @@ export function CustomersRecordsSurface() {
                 searchPlaceholder={t("adminCustomers.searchPlaceholder")}
                 onSearchChange={setSearchQuery}
                 summary={t("adminCustomers.count", { count: customers.length })}
-                actions={hasCrmPro ? (
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="min-w-[220px]">
-                            <SelectValue placeholder={t("adminCustomers.categoryFilter")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">{t("adminCustomers.allCategories")}</SelectItem>
-                            {categories.map((category) => (
-                                <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                ) : undefined}
+                actions={(
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Select value={tagFilter} onValueChange={setTagFilter}>
+                            <SelectTrigger className="min-w-[190px]">
+                                <SelectValue placeholder={t("adminCustomers.tagFilter")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">{t("adminCustomers.allTags")}</SelectItem>
+                                {tags.map((tag) => <SelectItem key={tag.id} value={String(tag.id)}>{tag.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        {hasCrmPro ? (
+                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                <SelectTrigger className="min-w-[220px]">
+                                    <SelectValue placeholder={t("adminCustomers.categoryFilter")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">{t("adminCustomers.allCategories")}</SelectItem>
+                                    {categories.map((category) => (
+                                        <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : null}
+                        <Button type="button" variant="outline" onClick={() => setIsTagManagerOpen(true)}>
+                            <Tag className="mr-2 h-4 w-4" />
+                            {t("adminCustomers.manageTags")}
+                        </Button>
+                    </div>
+                )}
             />
 
             {loading ? (
@@ -529,6 +712,7 @@ export function CustomersRecordsSurface() {
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="font-semibold text-slate-950">{customer.name}</p>
+                                        <CustomerTagBadges tags={customer.tags} />
                                         <p className="truncate text-sm text-slate-600">{customer.email || notAvailable}</p>
                                         <p className="text-sm text-slate-600">
                                             {customer.phone ? `${customer.phonePrefix ? `+${customer.phonePrefix} ` : ""}${customer.phone}` : notAvailable}
@@ -567,6 +751,7 @@ export function CustomersRecordsSurface() {
                                         {customer.name}
                                     </Link>
                                     <p className="text-xs text-slate-500">{customer.email || notAvailable}</p>
+                                    <CustomerTagBadges tags={customer.tags} />
                                 </div>
                             ),
                         },
@@ -627,6 +812,15 @@ export function CustomersRecordsSurface() {
                     ]}
                 />
             )}
+            <CustomerTagsDialog
+                open={isTagManagerOpen}
+                onOpenChange={setIsTagManagerOpen}
+                tags={tags}
+                onTagsChange={async (nextTags) => {
+                    setTags(nextTags);
+                    setTagFilter((current) => current !== "ALL" && !nextTags.some((tag) => String(tag.id) === current) ? "ALL" : current);
+                }}
+            />
         </AdminPageShell>
     );
 }
@@ -639,6 +833,7 @@ export function CustomersCommunicationsSurface() {
     const categories = useCustomerCategoryOptions(hasCrmPro);
     const hasMessagingPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
     const canBulkMessaging = hasCrmPro && hasMessagingPro;
+    const [tags] = useCustomerTagOptions(true);
 
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [customersLoading, setCustomersLoading] = useState(true);
@@ -648,6 +843,7 @@ export function CustomersCommunicationsSurface() {
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [segmentFilter, setSegmentFilter] = useState<CustomerSegmentKey>("ALL");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
+    const [tagFilter, setTagFilter] = useState("ALL");
     const [interestSearchQuery, setInterestSearchQuery] = useState("");
     const [interestSourceFilter, setInterestSourceFilter] = useState<"ALL" | "EVENT" | "CLASS">("ALL");
     const [interestItemFilter, setInterestItemFilter] = useState("ALL");
@@ -669,6 +865,7 @@ export function CustomersCommunicationsSurface() {
                 search: debouncedSearch || undefined,
                 segment: hasCrmPro ? segmentFilter : "ALL",
                 categoryId: hasCrmPro && categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
+                tagId: tagFilter !== "ALL" ? Number(tagFilter) : undefined,
             });
             setCustomers(rows);
         } catch (error: unknown) {
@@ -676,7 +873,7 @@ export function CustomersCommunicationsSurface() {
         } finally {
             setCustomersLoading(false);
         }
-    }, [categoryFilter, debouncedSearch, hasCrmPro, segmentFilter, t]);
+    }, [categoryFilter, debouncedSearch, hasCrmPro, segmentFilter, tagFilter, t]);
 
     const fetchInterestLeads = useCallback(async () => {
         if (!hasCrmPro) {
@@ -793,6 +990,7 @@ export function CustomersCommunicationsSurface() {
                 search: debouncedSearch || undefined,
                 segment: segmentFilter,
                 category_id: categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
+                tag_id: tagFilter !== "ALL" ? Number(tagFilter) : undefined,
                 idempotency_key,
             });
             setMassMessageBatchId(result.batch_id ?? null);
@@ -950,8 +1148,18 @@ export function CustomersCommunicationsSurface() {
                 searchPlaceholder={t("adminCustomers.searchPlaceholder")}
                 onSearchChange={setSearchQuery}
                 summary={customersLoading ? t("adminCustomers.loadingAudience") : t("adminCustomers.communicationsAudienceSummary", { count: customers.length })}
-                actions={hasCrmPro ? (
-                    <>
+                actions={(
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Select value={tagFilter} onValueChange={setTagFilter}>
+                            <SelectTrigger className="min-w-[190px]">
+                                <SelectValue placeholder={t("adminCustomers.tagFilter")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">{t("adminCustomers.allTags")}</SelectItem>
+                                {tags.map((tag) => <SelectItem key={tag.id} value={String(tag.id)}>{tag.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        {hasCrmPro ? <>
                         <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
                             <SelectTrigger className="min-w-[220px]">
                                 <SelectValue placeholder={t("adminCustomers.segmentLabel")} />
@@ -975,8 +1183,9 @@ export function CustomersCommunicationsSurface() {
                                 ))}
                             </SelectContent>
                         </Select>
-                    </>
-                ) : undefined}
+                        </> : null}
+                    </div>
+                )}
             />
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -1258,6 +1467,7 @@ export function CustomersImportExportSurface() {
     const { user, effectiveAccess } = useAdminAuth();
     const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
     const categories = useCustomerCategoryOptions(hasCrmPro);
+    const [tags] = useCustomerTagOptions(true);
     const canImportExport = hasCrmPro;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1267,6 +1477,7 @@ export function CustomersImportExportSurface() {
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [segmentFilter, setSegmentFilter] = useState<CustomerSegmentKey>("ALL");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
+    const [tagFilter, setTagFilter] = useState("ALL");
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
 
@@ -1282,6 +1493,7 @@ export function CustomersImportExportSurface() {
                 search: debouncedSearch || undefined,
                 segment: hasCrmPro ? segmentFilter : "ALL",
                 categoryId: hasCrmPro && categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
+                tagId: tagFilter !== "ALL" ? Number(tagFilter) : undefined,
             });
             setCustomers(rows);
         } catch (error: unknown) {
@@ -1289,7 +1501,7 @@ export function CustomersImportExportSurface() {
         } finally {
             setLoading(false);
         }
-    }, [categoryFilter, debouncedSearch, hasCrmPro, segmentFilter, t]);
+    }, [categoryFilter, debouncedSearch, hasCrmPro, segmentFilter, tagFilter, t]);
 
     useEffect(() => {
         void fetchCustomers();
@@ -1321,6 +1533,7 @@ export function CustomersImportExportSurface() {
                 search: debouncedSearch || undefined,
                 segment: segmentFilter,
                 categoryId: categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
+                tagId: tagFilter !== "ALL" ? Number(tagFilter) : undefined,
             });
             downloadBlob(blob, fileName || `customers-${Date.now()}.csv`);
             await notify.success(t("adminCustomers.exportSuccess", { count: customers.length }));
@@ -1403,6 +1616,15 @@ export function CustomersImportExportSurface() {
                         summary={loading ? t("adminCustomers.loadingExportPreview") : t("adminCustomers.exportPreviewCount", { count: customers.length })}
                         actions={(
                             <div className="flex flex-wrap items-center gap-2">
+                                <Select value={tagFilter} onValueChange={setTagFilter}>
+                                    <SelectTrigger className="min-w-[190px]">
+                                        <SelectValue placeholder={t("adminCustomers.tagFilter")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ALL">{t("adminCustomers.allTags")}</SelectItem>
+                                        {tags.map((tag) => <SelectItem key={tag.id} value={String(tag.id)}>{tag.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
                                 {hasCrmPro ? (
                                     <>
                                         <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
@@ -1481,6 +1703,7 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
     const notAvailable = t("adminCustomers.notAvailable");
     const normalizedCustomerKey = useMemo(() => normalizeCustomerKey(customerKey), [customerKey]);
     const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
+    const [customerTags] = useCustomerTagOptions(true);
 
     const [customer, setCustomer] = useState<CustomerRecord | null>(null);
     const [loading, setLoading] = useState(true);
@@ -1570,7 +1793,7 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
 
     const handleSaveProfile = useCallback(async () => {
         if (!customer) return;
-        if (!profileDraft.name.trim() || (!profileDraft.email.trim() && !profileDraft.phone.trim())) {
+        if (customer.userId && (!profileDraft.name.trim() || (!profileDraft.email.trim() && !profileDraft.phone.trim()))) {
             await notify.warning(t("adminGroup.classes.newMemberRequired"));
             return;
         }
@@ -1578,12 +1801,15 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
         setSavingProfile(true);
         try {
             const updatedCustomer = await updateCustomerByKey(customer.customerKey, {
-                name: profileDraft.name.trim(),
-                email: profileDraft.email.trim() || null,
-                phone: profileDraft.phone.trim() || null,
-                phone_prefix: profileDraft.phone.trim() ? profileDraft.phonePrefix : null,
-                country_code: profileDraft.phone.trim() ? profileDraft.countryCode : null,
+                ...(customer.userId ? {
+                    name: profileDraft.name.trim(),
+                    email: profileDraft.email.trim() || null,
+                    phone: profileDraft.phone.trim() || null,
+                    phone_prefix: profileDraft.phone.trim() ? profileDraft.phonePrefix : null,
+                    country_code: profileDraft.phone.trim() ? profileDraft.countryCode : null,
+                } : {}),
                 notes: profileDraft.notes.trim() || null,
+                tag_ids: profileDraft.tagIds,
             });
             setCustomer(updatedCustomer);
             setEditingProfile(false);
@@ -1674,7 +1900,7 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                     title={t("adminCustomers.profileSectionTitle")}
                     description={t("adminCustomers.profileSectionDescription")}
                     contentClassName="grid gap-4 sm:grid-cols-2"
-                    actions={customer.userId ? (
+                    actions={(
                         editingProfile ? (
                             <div className="flex gap-2">
                                 <Button
@@ -1698,11 +1924,11 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                                 {t("common.edit")}
                             </Button>
                         )
-                    ) : null}
+                    )}
                 >
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.email")}</p>
-                            {editingProfile ? (
+                            {editingProfile && customer.userId ? (
                                 <Input
                                     type="email"
                                     className="mt-1"
@@ -1716,7 +1942,7 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                         </div>
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.phone")}</p>
-                            {editingProfile ? (
+                            {editingProfile && customer.userId ? (
                                 <div className="mt-1">
                                     <PhoneInput
                                         phoneNumber={profileDraft.phone}
@@ -1738,7 +1964,7 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                         </div>
                         <div className="sm:col-span-2">
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.name")}</p>
-                            {editingProfile ? (
+                            {editingProfile && customer.userId ? (
                                 <Input
                                     type="text"
                                     className="mt-1"
@@ -1747,6 +1973,38 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                                 />
                             ) : (
                                 <p className="mt-1 text-sm text-slate-800">{customer.name}</p>
+                            )}
+                        </div>
+                        <div className="sm:col-span-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.tags")}</p>
+                            {editingProfile ? (
+                                customerTags.length ? (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {customerTags.map((tag) => (
+                                            <label key={tag.id} className="flex cursor-pointer items-center gap-2 rounded-md border border-admin-border px-3 py-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={profileDraft.tagIds.includes(tag.id)}
+                                                    onChange={(event) => setProfileDraft((current) => ({
+                                                        ...current,
+                                                        tagIds: event.target.checked
+                                                            ? [...current.tagIds, tag.id]
+                                                            : current.tagIds.filter((id) => id !== tag.id),
+                                                    }))}
+                                                    className="h-4 w-4 accent-admin-brand"
+                                                />
+                                                <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                {tag.name}
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="mt-1 text-sm text-slate-500">{t("adminCustomers.noTags")}</p>
+                                )
+                            ) : customer.tags.length ? (
+                                <CustomerTagBadges tags={customer.tags} />
+                            ) : (
+                                <p className="mt-1 text-sm text-slate-500">{t("adminCustomers.noTags")}</p>
                             )}
                         </div>
                         {hasCrmPro ? (
@@ -1771,7 +2029,7 @@ export function CustomerProfileSurface({ customerKey }: { customerKey: string })
                             </div>
                         </div>
                         <div className="sm:col-span-2">
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminBookings.notes")}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("adminCustomers.internalNotes")}</p>
                             {editingProfile ? (
                                 <textarea
                                     className="mt-1 min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

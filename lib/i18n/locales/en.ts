@@ -5042,6 +5042,22 @@ const en = {
   // ─── Admin: Customers ───
   adminCustomers: {
     count: "{{count}} customers",
+    tagFilter: "Filter by tag",
+    allTags: "All tags",
+    tags: "Tags",
+    internalNotes: "Internal notes",
+    manageTags: "Manage tags",
+    manageTagsTitle: "Client tags",
+    manageTagsDescription: "Create and edit tags and their colors. Deleting a tag removes it from every assigned client.",
+    createTag: "Add tag",
+    newTagPlaceholder: "New tag name",
+    tagName: "Tag name",
+    tagColor: "Tag color",
+    deleteTag: "Delete {{name}}",
+    deleteTagConfirm: "Delete {{name}} from all clients?",
+    noTags: "No tags yet",
+    tagCreated: "Tag created",
+    loadCustomerTagsFailed: "Failed to load client tags",
     nav: {
       records: "Records",
       communications: "Communications",
