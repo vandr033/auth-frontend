@@ -10,6 +10,7 @@ import {
     Loader2,
     Mail,
     MessageCircle,
+    Pencil,
     Search,
     Send,
     Tag,
@@ -148,6 +149,16 @@ function CustomerTagBadges({ tags }: { tags: CustomerTag[] }) {
                     {tag.name}
                 </Badge>
             ))}
+        </div>
+    );
+}
+
+function CustomerCategoryBadges({ categories, label }: { categories: string[]; label: string }) {
+    if (!categories.length) return null;
+    return (
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">{label}:</span>
+            {categories.map((category) => <Badge key={category} variant="secondary" className="font-normal">{category}</Badge>)}
         </div>
     );
 }
@@ -577,6 +588,10 @@ export function CustomersRecordsSurface() {
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [tagFilter, setTagFilter] = useState("ALL");
     const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState<CustomerRecord | null>(null);
+    const [notesDraft, setNotesDraft] = useState("");
+    const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+    const [savingCrm, setSavingCrm] = useState(false);
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -615,6 +630,34 @@ export function CustomersRecordsSurface() {
         () => customers.filter((customer) => Boolean(customer.nextBookingAt)).length,
         [customers],
     );
+
+    const openQuickEdit = (customer: CustomerRecord) => {
+        setEditingCustomer(customer);
+        setNotesDraft(customer.notes || "");
+        setSelectedTagIds(customer.tags.map((tag) => tag.id));
+    };
+
+    const saveQuickEdit = async () => {
+        if (!editingCustomer) return;
+        setSavingCrm(true);
+        try {
+            const updated = await updateCustomerByKey(editingCustomer.customerKey, {
+                notes: notesDraft.trim() || null,
+                tag_ids: selectedTagIds,
+            });
+            setCustomers((current) => current.flatMap((customer) => {
+                if (customer.customerKey !== updated.customerKey) return [customer];
+                if (tagFilter !== "ALL" && !updated.tags.some((tag) => String(tag.id) === tagFilter)) return [];
+                return [updated];
+            }));
+            setEditingCustomer(null);
+            await notify.success(t("common.success"));
+        } catch (error: unknown) {
+            await notify.error(error instanceof Error ? error.message : t("adminCustomers.loadCustomersFailed"));
+        } finally {
+            setSavingCrm(false);
+        }
+    };
 
     return (
         <AdminPageShell>
@@ -713,12 +756,23 @@ export function CustomersRecordsSurface() {
                                     <div className="min-w-0">
                                         <p className="font-semibold text-slate-950">{customer.name}</p>
                                         <CustomerTagBadges tags={customer.tags} />
+                                        <CustomerCategoryBadges categories={customer.categories} label={t("adminCustomers.categories")} />
                                         <p className="truncate text-sm text-slate-600">{customer.email || notAvailable}</p>
                                         <p className="text-sm text-slate-600">
                                             {customer.phone ? `${customer.phonePrefix ? `+${customer.phonePrefix} ` : ""}${customer.phone}` : notAvailable}
                                         </p>
                                     </div>
-                                    <CustomerActions customer={customer} showLabel />
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        <Button type="button" variant="outline" size="sm" onClick={() => openQuickEdit(customer)}>
+                                            <Pencil className="h-4 w-4" />
+                                            {t("adminCustomers.quickEdit")}
+                                        </Button>
+                                        <CustomerActions customer={customer} showLabel />
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border border-slate-200 bg-white p-3">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("adminCustomers.internalNotes")}</p>
+                                    <p className="mt-1 line-clamp-3 whitespace-pre-line text-sm text-slate-700" title={customer.notes || notAvailable}>{customer.notes || notAvailable}</p>
                                 </div>
                                 <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                                     {hasCrmPro ? (
@@ -752,7 +806,18 @@ export function CustomersRecordsSurface() {
                                     </Link>
                                     <p className="text-xs text-slate-500">{customer.email || notAvailable}</p>
                                     <CustomerTagBadges tags={customer.tags} />
+                                    <CustomerCategoryBadges categories={customer.categories} label={t("adminCustomers.categories")} />
                                 </div>
+                            ),
+                        },
+                        {
+                            key: "notes",
+                            header: t("adminCustomers.internalNotes"),
+                            className: "min-w-[180px] max-w-[280px]",
+                            cell: (customer) => (
+                                <p className="line-clamp-3 whitespace-pre-line text-xs text-slate-600" title={customer.notes || notAvailable}>
+                                    {customer.notes || notAvailable}
+                                </p>
                             ),
                         },
                         ...(hasCrmPro ? [{
@@ -807,11 +872,64 @@ export function CustomersRecordsSurface() {
                             key: "actions",
                             header: <span className="sr-only">{t("adminCustomers.actions")}</span>,
                             className: "text-right",
-                            cell: (customer) => <CustomerActions customer={customer} />,
+                            cell: (customer) => (
+                                <div className="flex items-center justify-end gap-2">
+                                    <Button type="button" variant="outline" size="icon" aria-label={t("adminCustomers.quickEdit")} title={t("adminCustomers.quickEdit")} onClick={() => openQuickEdit(customer)}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <CustomerActions customer={customer} />
+                                </div>
+                            ),
                         },
                     ]}
                 />
             )}
+            <Dialog open={Boolean(editingCustomer)} onOpenChange={(open) => { if (!open && !savingCrm) setEditingCustomer(null); }}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>{t("adminCustomers.quickEditTitle", { name: editingCustomer?.name || "" })}</DialogTitle>
+                        <DialogDescription>{t("adminCustomers.quickEditDescription")}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5">
+                        <label className="block space-y-2 text-sm font-medium text-slate-700">
+                            <span>{t("adminCustomers.internalNotes")}</span>
+                            <textarea
+                                className="min-h-28 w-full rounded-md border border-slate-200 bg-white p-3 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-admin-brand/40"
+                                placeholder={t("adminCustomers.internalNotesPlaceholder")}
+                                value={notesDraft}
+                                onChange={(event) => setNotesDraft(event.target.value)}
+                            />
+                        </label>
+                        <fieldset className="space-y-2">
+                            <legend className="text-sm font-medium text-slate-700">{t("adminCustomers.tags")}</legend>
+                            {tags.length ? (
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {tags.map((tag) => (
+                                        <label key={tag.id} className="flex cursor-pointer items-center gap-2 rounded-md border border-slate-200 p-2.5 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedTagIds.includes(tag.id)}
+                                                onChange={(event) => setSelectedTagIds((current) => event.target.checked
+                                                    ? [...current, tag.id]
+                                                    : current.filter((id) => id !== tag.id))}
+                                            />
+                                            <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: tag.color }} />
+                                            <span className="min-w-0 truncate">{tag.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            ) : <p className="text-sm text-slate-500">{t("adminCustomers.noTags")}</p>}
+                        </fieldset>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setEditingCustomer(null)} disabled={savingCrm}>{t("common.cancel")}</Button>
+                        <Button type="button" onClick={() => void saveQuickEdit()} disabled={savingCrm}>
+                            {savingCrm ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            {t("common.save")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <CustomerTagsDialog
                 open={isTagManagerOpen}
                 onOpenChange={setIsTagManagerOpen}

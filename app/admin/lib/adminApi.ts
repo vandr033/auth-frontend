@@ -369,6 +369,7 @@ export interface CustomerRecord {
     favoriteStaffBookingCount: number;
     preferredServiceName: string | null;
     preferredCategoryName: string | null;
+    categories: string[];
     preferredServiceBookingCount: number;
     bookingFrequencyPerMonth: number;
     recentActivity: {
