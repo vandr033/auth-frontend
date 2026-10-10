@@ -4,7 +4,6 @@ name: Build and Deploy Next.js
 on:
   push:
     branches:
-      - main
       - barber-shop-bookings
   workflow_dispatch:
 
