@@ -58,6 +58,7 @@ import {
 import { getImageUrl } from "@/utils/image-url";
 import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
 import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
+import { DemoFinalSubmitDialog, usePublicDemoProfile } from "@/app/shop/components/DemoFinalSubmitDialog";
 
 function hasUpcomingSession(sessions: PublicGroupClassSession[]): boolean {
   const now = Date.now();
@@ -78,6 +79,19 @@ export default function ShopClassDetailPage() {
 
   const { user, loading: authLoading, refreshSession } = useAuth();
   const { company, settings, slug, isShopActive, loading, error, publicFeatures } = useShop();
+  const { profile: demoProfile, ready: demoProfileReady } = usePublicDemoProfile(slug);
+  const [demoInterceptOpen, setDemoInterceptOpen] = React.useState(false);
+  const interceptDemoSubmit = React.useCallback(() => {
+    if (!demoProfileReady) {
+      void notify.error("No pudimos comprobar si esta tienda es una demostración. Recarga la página antes de continuar.");
+      return true;
+    }
+    if (demoProfile) {
+      setDemoInterceptOpen(true);
+      return true;
+    }
+    return false;
+  }, [demoProfile, demoProfileReady]);
   const resolvedPublicFeatures = getShopPublicFeatures(company);
   const canSeeClasses = resolvedPublicFeatures.classesVisible || publicFeatures.classesVisible;
   const canUseClassAdvanced = resolvedPublicFeatures.classAdvancedEnabled || publicFeatures.classAdvancedEnabled;
@@ -217,6 +231,17 @@ export default function ShopClassDetailPage() {
 
   const openRegistrationFlow = async () => {
     if (!groupClass || !company) return;
+    if (!demoProfileReady) {
+      interceptDemoSubmit();
+      return;
+    }
+    if (demoProfile) {
+      setGuestError(null);
+      setRegistrationOpen(true);
+      setRegistrationStep(user?.id ? "online" : "contact");
+      return;
+    }
+    if (user?.id && interceptDemoSubmit()) return;
     setGuestError(null);
     setRegistrationOpen(true);
 
@@ -245,6 +270,15 @@ export default function ShopClassDetailPage() {
 
     if (!fullName || !email || !phonePrefix || !phoneNumber) {
       setGuestError("Completa tu nombre, email y celular.");
+      return;
+    }
+    if (!demoProfileReady) {
+      interceptDemoSubmit();
+      return;
+    }
+    if (demoProfile) {
+      setGuestError(null);
+      setRegistrationStep("online");
       return;
     }
 
@@ -305,7 +339,12 @@ export default function ShopClassDetailPage() {
 
   const handleOnlineReservation = async () => {
     if (!groupClass || !company) return;
-    if (!user?.id && !(await refreshSession())?.id) {
+    if (!demoProfileReady) {
+      interceptDemoSubmit();
+      return;
+    }
+    const isDemoPreview = Boolean(demoProfile);
+    if (!isDemoPreview && !user?.id && !(await refreshSession())?.id) {
       setGuestError("Verifica tu código antes de reservar en línea.");
       return;
     }
@@ -323,6 +362,7 @@ export default function ShopClassDetailPage() {
       setGuestError(t("shopGroup.payment.uploadProofRequired"));
       return;
     }
+    if (interceptDemoSubmit()) return;
 
     let uploadedQrUrl: string | undefined;
     let uploadedQrDeleteToken: string | undefined;
@@ -732,6 +772,7 @@ export default function ShopClassDetailPage() {
         </DialogContent>
       </Dialog>
 
+      <DemoFinalSubmitDialog open={demoInterceptOpen} onOpenChange={setDemoInterceptOpen} profile={demoProfile} operation="class-registration" />
       <ShopFooter />
     </main>
   );

@@ -53,6 +53,8 @@ import {
     type AdminNavigationItem,
 } from "@/lib/admin/navigation";
 import { getAdminRouteAccess, type AdminRouteAccessReason, type EffectiveCompanyAccess } from "@/lib/admin/access";
+import { DemoModeBanner } from "./DemoModeBanner";
+import { isDemoSession } from "@/app/demo/_lib/session";
 
 const routeTitleOverrides: Array<{
     prefix: string;
@@ -140,6 +142,7 @@ export default function DashboardLayout({
         mustChangePassword,
         switchActiveShop,
         effectiveAccess,
+        demoSession,
     } = useAdminAuth();
     const router = useRouter();
 
@@ -171,6 +174,7 @@ export default function DashboardLayout({
 
     return (
         <I18nProvider defaultLocale={companyUser?.company?.default_language ?? 'es'}>
+            {isDemoSession(demoSession) && <DemoModeBanner session={demoSession} />}
             {!user?.is_super_admin && !companyUser && companyUsers.length > 1 ? (
                 <CompanySelectionRequired
                     companyUsers={companyUsers}

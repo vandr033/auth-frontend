@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { demoAddons, demoProducts } from "@/app/demo/_lib/catalog";
 import {
   getDefaultTierForCoreProduct,
   getTierByKey,
@@ -87,6 +88,25 @@ const PRODUCT_COPY_KEYS: Partial<Record<BusinessPricingProduct["key"], string>> 
   MENSAJERIA_PRO: "messagingPro",
   CRM_PRO: "crmPro",
 };
+
+const DEMO_KEY_BY_PRODUCT: Record<BusinessPricingProduct["key"], string> = {
+  RESERVAS: "reservas",
+  EVENTOS: "eventos",
+  RESTAURANTE: "restaurante",
+  CLASES: "clases",
+  TIENDA: "tienda",
+  PERSONALIZACION_PRO: "branding",
+  METRICAS: "metricas",
+  MENSAJERIA_PRO: "crm",
+  CRM_PRO: "crm",
+};
+
+const DEMO_ENTRIES = [...demoProducts, ...demoAddons];
+
+function getProductDemoHref(productKey: BusinessPricingProduct["key"]) {
+  const demoKey = DEMO_KEY_BY_PRODUCT[productKey];
+  return DEMO_ENTRIES.find((entry) => entry.key === demoKey)?.href ?? "/demo";
+}
 
 function getProductCopy(t: Translate, product: BusinessPricingProduct) {
   const copyKey = PRODUCT_COPY_KEYS[product.key];
@@ -283,16 +303,27 @@ function ProductChoice({
         </button>
       </div>
 
-      <Link
-        href={`/negocios/${product.key.toLowerCase().replace("_", "-")}`}
-        className={cn(
-          "mt-3 inline-flex min-h-11 items-center text-[11px] font-black uppercase tracking-[0.08em] underline decoration-1 underline-offset-4 sm:mt-5",
-          selected ? "text-white/70 hover:text-biz-yellow" : "text-slate-600 hover:text-black",
-          isDisabled && "text-slate-400",
-        )}
-      >
-        {t("businessLanding.pricing.product.viewIncludes")}
-      </Link>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 sm:mt-5">
+        <Link
+          href={`/negocios/${product.key.toLowerCase().replace("_", "-")}`}
+          className={cn(
+            "inline-flex min-h-10 items-center text-[11px] font-black uppercase tracking-[0.08em] underline decoration-1 underline-offset-4",
+            selected ? "text-white/70 hover:text-biz-yellow" : "text-slate-600 hover:text-black",
+            isDisabled && "text-slate-400",
+          )}
+        >
+          {t("businessLanding.pricing.product.viewIncludes")}
+        </Link>
+        <Link
+          href={getProductDemoHref(product.key)}
+          className={cn(
+            "inline-flex min-h-10 items-center gap-1 text-[11px] font-black uppercase tracking-[0.08em] transition-colors",
+            selected ? "text-biz-yellow hover:text-white" : "text-biz-barbie-pink hover:text-black",
+          )}
+        >
+          {t("businessLanding.pricing.product.exploreDemo")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+      </div>
     </article>
   );
 }
@@ -415,6 +446,12 @@ function AddOnRow({
             {product.includedNote ? <span className="text-[10px] font-black uppercase tracking-[0.08em] text-biz-sky-surge">{t("businessLanding.pricing.tier.includedInPro")}</span> : null}
           </div>
           <p className="mt-2 max-w-[48ch] text-base leading-6 text-slate-700">{productCopy.description}</p>
+          <Link
+            href={getProductDemoHref(product.key)}
+            className="mt-2 inline-flex min-h-9 items-center gap-1 font-bebas text-xs font-semibold tracking-[0.08em] text-biz-barbie-pink uppercase transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-biz-barbie-pink focus-visible:ring-offset-2"
+          >
+            {t("businessLanding.pricing.product.exploreDemo")} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
         </div>
       </div>
       <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">

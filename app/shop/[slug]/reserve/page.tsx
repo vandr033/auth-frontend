@@ -21,6 +21,7 @@ import { useAuth } from "@/lib/useAuth";
 import { getImageUrl } from "@/utils/image-url";
 import { useShop } from "../../contexts/ShopContext";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
+import { DemoFinalSubmitDialog, usePublicDemoProfile } from "@/app/shop/components/DemoFinalSubmitDialog";
 import {
   createPublicRestaurantReservation,
   getPublicRestaurantAvailability,
@@ -60,6 +61,7 @@ function apiError(error: unknown) {
 
 export default function PublicRestaurantReservationPage() {
   const { slug, company, loading: shopLoading } = useShop();
+  const { profile: demoProfile, ready: demoProfileReady } = usePublicDemoProfile(slug);
   const { user, isAuthenticated, sendPhoneOtp, verifyPhoneOtp, completeCustomerPhoneProfile } = useAuth();
   const [config, setConfig] = useState<PublicRestaurantConfiguration | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export default function PublicRestaurantReservationPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState<{ code: string; status: string } | null>(null);
+  const [demoInterceptOpen, setDemoInterceptOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -220,6 +223,10 @@ export default function PublicRestaurantReservationPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!demoProfileReady) {
+      setSubmitError("No pudimos verificar el modo de esta demostración. Inténtalo de nuevo.");
+      return;
+    }
     if (!config || !time || submitting) return;
     setSubmitError(null);
     if (config.restaurant.requirePhone && !phone.trim()) {
@@ -232,6 +239,10 @@ export default function PublicRestaurantReservationPage() {
     }
     if (depositTotalCents > 0 && !depositProofFile) {
       setSubmitError("Subí el comprobante del depósito para continuar.");
+      return;
+    }
+    if (demoProfile) {
+      setDemoInterceptOpen(true);
       return;
     }
     if (isAuthenticated) {
@@ -254,6 +265,14 @@ export default function PublicRestaurantReservationPage() {
   };
 
   const verifyAndCreateReservation = async () => {
+    if (!demoProfileReady) {
+      setSubmitError("No pudimos verificar el modo de esta demostración. Inténtalo de nuevo.");
+      return;
+    }
+    if (demoProfile) {
+      setDemoInterceptOpen(true);
+      return;
+    }
     if (!config || verificationCode.trim().length !== 6 || verifying) return;
     setVerifying(true);
     setSubmitError(null);
@@ -622,6 +641,7 @@ export default function PublicRestaurantReservationPage() {
           </p>
         )}
       </form>
+      <DemoFinalSubmitDialog open={demoInterceptOpen} onOpenChange={setDemoInterceptOpen} profile={demoProfile} operation="reservation" />
     </main>
   );
 }

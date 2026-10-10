@@ -390,9 +390,10 @@ export async function getCustomers(
     params?: string | {
         search?: string;
         segment?: CustomerSegmentKey;
+        categoryId?: number;
     },
 ): Promise<CustomerRecord[]> {
-    const normalizedParams = typeof params === "string"
+    const normalizedParams: { search?: string; segment?: CustomerSegmentKey; categoryId?: number } = typeof params === "string"
         ? { search: params }
         : (params ?? {});
     const query = new URLSearchParams();
@@ -401,6 +402,9 @@ export async function getCustomers(
     }
     if (normalizedParams.segment && normalizedParams.segment !== "ALL") {
         query.set("segment", normalizedParams.segment);
+    }
+    if (normalizedParams.categoryId) {
+        query.set("category_id", String(normalizedParams.categoryId));
     }
 
     const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
@@ -621,6 +625,7 @@ export async function sendMassCustomerMessage(payload: {
     message: string;
     search?: string;
     segment?: CustomerSegmentKey;
+    category_id?: number;
     idempotency_key?: string;
 }): Promise<MassCustomerMessageResult> {
     const response = await apiFetch<{ data: MassCustomerMessageResult }>("/api/admin/customers/mass-message", {
@@ -689,6 +694,7 @@ export async function downloadCustomerImportTemplate(): Promise<Blob> {
 export async function downloadCustomersExport(params?: {
     search?: string;
     segment?: CustomerSegmentKey;
+    categoryId?: number;
 }): Promise<{ blob: Blob; fileName: string | null }> {
     const query = new URLSearchParams();
     if (params?.search) {
@@ -696,6 +702,9 @@ export async function downloadCustomersExport(params?: {
     }
     if (params?.segment && params.segment !== "ALL") {
         query.set("segment", params.segment);
+    }
+    if (params?.categoryId) {
+        query.set("category_id", String(params.categoryId));
     }
 
     const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
@@ -1121,6 +1130,19 @@ export interface ServiceCategory {
     position: number;
 }
 
+export async function getServiceCategories(): Promise<ServiceCategory[]> {
+    const response = await apiFetch<{ data: ServiceCategory[] }>("/api/admin/categories");
+    return response.data;
+}
+
+export async function createServiceCategory(name: string): Promise<ServiceCategory> {
+    const response = await apiFetch<{ data: ServiceCategory }>("/api/admin/categories", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+    });
+    return response.data;
+}
+
 export interface ServiceItem {
     id: number;
     name: string;
@@ -1470,6 +1492,8 @@ export interface GroupStaffAssignment {
 export interface GroupEvent {
     id: number;
     company_id: number;
+    category_id: number;
+    category: ServiceCategory;
     title: string;
     slug: string;
     description: string | null;
@@ -1537,6 +1561,8 @@ export interface GroupClassSession {
 export interface GroupClass {
     id: number;
     company_id: number;
+    category_id: number;
+    category: ServiceCategory;
     title: string;
     slug: string;
     description: string | null;
@@ -2003,6 +2029,7 @@ export interface GroupStaffAssignmentInput {
 
 export interface CreateGroupEventPayload {
     title: string;
+    category_id: number;
     slug?: string;
     description?: string | null;
     no_availability_message?: string | null;
@@ -2026,6 +2053,7 @@ export type UpdateGroupEventPayload = Partial<CreateGroupEventPayload>;
 
 export interface CreateGroupClassPayload {
     title: string;
+    category_id: number;
     slug?: string;
     description?: string | null;
     cover_image_url?: string | null;

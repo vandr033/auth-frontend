@@ -25,6 +25,7 @@ export async function generateMetadata({ params }: ShopLayoutProps): Promise<Met
 
     return {
         title: `${branding.name} - By PriConPri`,
+        ...(slug.endsWith("-demo") ? { robots: { index: false, follow: false } } : {}),
         manifest: `/shop-manifest/${encodeURIComponent(branding.slug)}`,
         appleWebApp: {
             capable: true,

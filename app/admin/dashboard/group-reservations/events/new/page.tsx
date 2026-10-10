@@ -12,6 +12,7 @@ import {
     getAdminCompanyLocation,
     getGroupBookingFlowSettings,
     getStaff,
+    getServiceCategories,
     setGroupEventStatus,
     updateGroupEvent,
     uploadAdminImage,
@@ -21,9 +22,11 @@ import {
     type GroupItemStatus,
     type GroupStaffRole,
     type StaffMember,
+    type ServiceCategory,
 } from "@/app/admin/lib/adminApi";
 import { AdminPageHeader } from "@/app/admin/dashboard/components/AdminPageHeader";
 import { useGroupReservationsAccess } from "@/app/admin/dashboard/group-reservations/lib/useGroupReservationsAccess";
+import { GroupOfferingCategoryField } from "@/app/admin/dashboard/group-reservations/components/GroupOfferingCategoryField";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { GroupLocationPicker } from "@/components/maps/GroupLocationPicker";
@@ -46,6 +49,7 @@ type ManualStaff = {
 
 type EventFormState = {
     title: string;
+    category_id: string;
     slug: string;
     description: string;
     registration_question_text: string;
@@ -107,6 +111,7 @@ function createDefaultForm(defaultLocationText = ""): EventFormState {
     const end = new Date(start.getTime() + 60 * 60 * 1000);
     return {
         title: "",
+        category_id: "",
         slug: "",
         description: "",
         registration_question_text: "",
@@ -138,6 +143,7 @@ export default function NewGroupEventPage() {
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [staff, setStaff] = useState<StaffMember[]>([]);
+    const [categories, setCategories] = useState<ServiceCategory[]>([]);
     const [settings, setSettings] = useState<GroupBookingFlowSettings | null>(null);
     const [storeLocation, setStoreLocation] = useState<AdminCompanyLocation | null>(null);
     const [storeLocationText, setStoreLocationText] = useState("");
@@ -150,13 +156,15 @@ export default function NewGroupEventPage() {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const [staffData, settingsData, companyLocation] = await Promise.all([
+            const [staffData, settingsData, companyLocation, categoryData] = await Promise.all([
                 getStaff(),
                 getGroupBookingFlowSettings(),
                 companyId ? getAdminCompanyLocation(companyId) : Promise.resolve(null),
+                getServiceCategories(),
             ]);
             const defaultLocationText = getCompanyLocationLabel(companyLocation);
             setStaff(staffData);
+            setCategories(categoryData);
             setSettings(settingsData);
             setStoreLocation(companyLocation);
             setStoreLocationText(defaultLocationText);
@@ -212,6 +220,10 @@ export default function NewGroupEventPage() {
             await notify.warning(t("adminGroup.forms.titleRequired"));
             return;
         }
+        if (!Number.isSafeInteger(Number(form.category_id)) || Number(form.category_id) <= 0) {
+            await notify.warning(t("adminServices.selectCategoryRequired"));
+            return;
+        }
 
         const startAt = new Date(form.start_at);
         const endAt = new Date(form.end_at);
@@ -248,6 +260,7 @@ export default function NewGroupEventPage() {
 
             const payload: CreateGroupEventPayload = {
                 title: form.title.trim(),
+                category_id: Number(form.category_id),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
                 registration_question_text: form.registration_question_text.trim() || null,
@@ -388,6 +401,12 @@ export default function NewGroupEventPage() {
                                     }
                                 />
                             </div>
+                            <GroupOfferingCategoryField
+                                categories={categories}
+                                value={form.category_id}
+                                onValueChange={(value) => setForm((prev) => ({ ...prev, category_id: value }))}
+                                onCategoryCreated={(category) => setCategories((prev) => [...prev, category])}
+                            />
                             <div className="space-y-2">
                                 <Label>{t("adminGroup.fields.slug")}</Label>
                                 <Input

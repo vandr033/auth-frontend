@@ -39,6 +39,7 @@ import { parseMarketplaceBookingHandoff } from "@/lib/marketplace/handoff";
 import { ShopUnavailableState } from "../../components/ShopUnavailableState";
 import { QrProofPreview } from "@/app/shop/components/QrProofPreview";
 import { deletePublicUpload, uploadPublicProof } from "@/app/shop/lib/uploadApi";
+import { DemoFinalSubmitDialog, usePublicDemoProfile } from "@/app/shop/components/DemoFinalSubmitDialog";
 
 // Helper to resolve API URL (duplicate of logic in ShopContext, consider exported helper)
 const resolveApiUrl = (url: string) => {
@@ -1550,6 +1551,7 @@ export default function BookingPage() {
     const searchParams = useSearchParams();
     const { user, loading: authLoading } = useAuth();
     const { company, services, staff, categories, settings, loading, error, slug, isShopActive, canBookOnline } = useShop();
+    const { profile: demoProfile, ready: demoProfileReady } = usePublicDemoProfile(slug);
     const t = useT();
     const api = useApi();
     const inviteToken = searchParams?.get("invite")?.trim() || "";
@@ -1592,6 +1594,7 @@ export default function BookingPage() {
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [slotRefreshVersion, setSlotRefreshVersion] = useState(0);
     const [success, setSuccess] = useState(false);
+    const [demoInterceptOpen, setDemoInterceptOpen] = useState(false);
     const [completedAfterSignIn, setCompletedAfterSignIn] = useState(false);
     const [inviteService, setInviteService] = useState<SelectedService | null>(null);
     const [inviteServiceLoading, setInviteServiceLoading] = useState(Boolean(inviteToken));
@@ -2612,7 +2615,7 @@ export default function BookingPage() {
     }, [api]);
 
     useEffect(() => {
-        if (authLoading || !user?.id || success || pendingBookingHandledRef.current) return;
+        if (authLoading || !user?.id || success || !demoProfileReady || demoProfile || pendingBookingHandledRef.current) return;
 
         const pending = loadPendingBookingIntent();
         if (!pending || pending.slug !== slug) return;
@@ -2649,9 +2652,17 @@ export default function BookingPage() {
                 setSubmitting(false);
             }
         })();
-    }, [authLoading, user, slug, success, submitBookingPayload, t, deleteUploadedQrProof]);
+    }, [authLoading, user, slug, success, demoProfile, demoProfileReady, submitBookingPayload, t, deleteUploadedQrProof]);
 
     const handleSubmit = async () => {
+        if (!demoProfileReady) {
+            setSubmitError("No pudimos verificar el modo de esta demostración. Inténtalo de nuevo.");
+            return;
+        }
+        if (demoProfile) {
+            setDemoInterceptOpen(true);
+            return;
+        }
         if (!company) return;
 
         setSubmitting(true);
@@ -3015,6 +3026,7 @@ export default function BookingPage() {
                     ) : null}
                 </div>
             </div>
+            <DemoFinalSubmitDialog open={demoInterceptOpen} onOpenChange={setDemoInterceptOpen} profile={demoProfile} operation="reservation" />
         </div>
     );
 }

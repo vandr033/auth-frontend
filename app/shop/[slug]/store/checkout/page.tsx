@@ -33,6 +33,7 @@ import {
     normalizePhoneSelection,
 } from "@/lib/phone-country";
 import type { ShopHours } from "@/types/shop";
+import { DemoFinalSubmitDialog, usePublicDemoProfile } from "@/app/shop/components/DemoFinalSubmitDialog";
 
 type StorePayload = Awaited<ReturnType<typeof getPublicCommerceStore>> | null;
 type PublicStoreConfig = NonNullable<Awaited<ReturnType<typeof getPublicCommerceStore>>>["store"];
@@ -160,6 +161,7 @@ export default function StoreCheckoutPage() {
     const t = useT();
     const router = useRouter();
     const { slug, company, hours } = useShop();
+    const { profile: demoProfile, ready: demoProfileReady } = usePublicDemoProfile(slug);
     const { user, isAuthenticated, refreshSession, loading: authLoading } = useAuth();
     const { items, subtotal, clear } = useCommerceCart(slug);
     const { canResend, secondsRemaining, startCooldown, resetCooldown } = useOtpResendTimer();
@@ -200,6 +202,7 @@ export default function StoreCheckoutPage() {
     });
     const [paymentProofFile, setPaymentProofFile] = React.useState<File | null>(null);
     const [paymentProofError, setPaymentProofError] = React.useState<string | null>(null);
+    const [demoInterceptOpen, setDemoInterceptOpen] = React.useState(false);
     const autofilledUserIdRef = React.useRef<string | null>(null);
 
     const clearGuestVerificationState = React.useCallback(() => {
@@ -550,6 +553,14 @@ export default function StoreCheckoutPage() {
                         className="space-y-5 rounded-3xl border border-surface-border bg-surface p-6 shadow-card"
                         onSubmit={(event) => {
                             event.preventDefault();
+                            if (!demoProfileReady) {
+                                setPaymentProofError("No pudimos verificar el modo de esta demostración. Inténtalo de nuevo.");
+                                return;
+                            }
+                            if (demoProfile) {
+                                setDemoInterceptOpen(true);
+                                return;
+                            }
                             void (async () => {
                                 if (!isAuthenticated) {
                                     await handleGuestStart();
@@ -1015,6 +1026,7 @@ export default function StoreCheckoutPage() {
                     </aside>
                 </div>
             </div>
+            <DemoFinalSubmitDialog open={demoInterceptOpen} onOpenChange={setDemoInterceptOpen} profile={demoProfile} operation="purchase" />
         </main>
     );
 }

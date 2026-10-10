@@ -10,6 +10,7 @@ import {
     type GroupRecurrenceType,
     type GroupStaffRole,
     type StaffMember,
+    type ServiceCategory,
 } from "@/app/admin/lib/adminApi";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { GroupLocationPicker } from "@/components/maps/GroupLocationPicker";
@@ -22,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { useT } from "@/lib/i18n";
 import { getImageUrl } from "@/utils/image-url";
 import { AdminSectionCard } from "@/app/admin/dashboard/components/AdminSectionCard";
+import { GroupOfferingCategoryField } from "@/app/admin/dashboard/group-reservations/components/GroupOfferingCategoryField";
 
 import {
     EMPTY_MANUAL_STAFF,
@@ -36,6 +38,8 @@ type GroupClassEditorFormProps = {
     form: ClassFormState;
     onFormChange: (updater: (prev: ClassFormState) => ClassFormState) => void;
     staff: StaffMember[];
+    categories: ServiceCategory[];
+    onCategoryCreated: (category: ServiceCategory) => void;
     currency?: string | null;
     storeLocation: AdminCompanyLocation | null;
     storeLocationText: string;
@@ -90,6 +94,8 @@ export function GroupClassEditorForm({
     form,
     onFormChange,
     staff,
+    categories,
+    onCategoryCreated,
     currency,
     storeLocation,
     storeLocationText,
@@ -152,6 +158,12 @@ export function GroupClassEditorForm({
                                 }
                             />
                         </div>
+                        <GroupOfferingCategoryField
+                            categories={categories}
+                            value={form.category_id}
+                            onValueChange={(value) => onFormChange((prev) => ({ ...prev, category_id: value }))}
+                            onCategoryCreated={onCategoryCreated}
+                        />
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.slug")}</Label>
                             <Input

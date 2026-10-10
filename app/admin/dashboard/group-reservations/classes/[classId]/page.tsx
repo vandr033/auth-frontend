@@ -39,6 +39,7 @@ import {
     adminResendGroupTicket,
     generateGroupClassSessions,
     getAdminCompanyLocation,
+    getServiceCategories,
     getCustomers,
     getGroupClassById,
     getStaff,
@@ -72,6 +73,7 @@ import {
     type GroupPaymentStatus,
     type GroupTicket,
     type StaffMember,
+    type ServiceCategory,
     type UpdateGroupEnrollmentInstallmentInput,
     type WhatsappBatchProgress,
 } from "@/app/admin/lib/adminApi";
@@ -159,6 +161,7 @@ function fromGroupClass(groupClass: GroupClass): ClassFormState {
 
     return {
         title: groupClass.title,
+        category_id: String(groupClass.category_id),
         slug: groupClass.slug,
         description: groupClass.description ?? "",
         cover_image_url: groupClass.cover_image_url ?? "",
@@ -264,6 +267,7 @@ export default function GroupClassDetailPage() {
     const [sessionAttendanceDrafts, setSessionAttendanceDrafts] = useState<Record<number, SessionPublicAttendanceDraft>>({});
     const [enrollments, setEnrollments] = useState<GroupClassEnrollment[]>([]);
     const [staff, setStaff] = useState<StaffMember[]>([]);
+    const [categories, setCategories] = useState<ServiceCategory[]>([]);
     const [tickets, setTickets] = useState<GroupTicket[]>([]);
     const [storeLocation, setStoreLocation] = useState<AdminCompanyLocation | null>(null);
     const [storeLocationText, setStoreLocationText] = useState("");
@@ -323,6 +327,7 @@ export default function GroupClassDetailPage() {
                 staffData,
                 ticketsData,
                 companyLocation,
+                categoryData,
             ] = await Promise.all([
                 getGroupClassById(classId),
                 listGroupClassSessions(classId, { include_cancelled: true }),
@@ -330,6 +335,7 @@ export default function GroupClassDetailPage() {
                 getStaff(),
                 canUseAdvanced ? listGroupTickets() : Promise.resolve([] as GroupTicket[]),
                 companyId ? getAdminCompanyLocation(companyId) : Promise.resolve(null),
+                getServiceCategories(),
             ]);
 
             setGroupClass(classData);
@@ -357,6 +363,7 @@ export default function GroupClassDetailPage() {
             );
             setEnrollments(enrollmentsData);
             setStaff(staffData);
+            setCategories(categoryData);
             setTickets(ticketsData);
             setCoverImageFile(null);
             setThumbnailImageFile(null);
@@ -524,6 +531,10 @@ export default function GroupClassDetailPage() {
 
     const handleSave = async () => {
         if (!groupClass || !form) return;
+        if (!Number.isSafeInteger(Number(form.category_id)) || Number(form.category_id) <= 0) {
+            await notify.warning(t("adminServices.selectCategoryRequired"));
+            return;
+        }
         if (!form.title.trim()) {
             await notify.warning(t("adminGroup.forms.titleRequired"));
             return;
@@ -570,6 +581,7 @@ export default function GroupClassDetailPage() {
         try {
             await updateGroupClass(groupClass.id, {
                 title: form.title.trim(),
+                category_id: Number(form.category_id),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
                 ...(coverImageFile ? {} : { cover_image_url: form.cover_image_url.trim() || null }),
@@ -1376,6 +1388,8 @@ export default function GroupClassDetailPage() {
                         form={form}
                         onFormChange={(updater) => setForm((prev) => (prev ? updater(prev) : prev))}
                         staff={staff}
+                        categories={categories}
+                        onCategoryCreated={(category) => setCategories((prev) => [...prev, category])}
                         currency={currency}
                         storeLocation={storeLocation}
                         storeLocationText={storeLocationText}

@@ -3,6 +3,7 @@
 import { DEFAULT_LOCALE, getLocaleCookie, translate } from "@/lib/i18n";
 import { getProductAccessRecommendationForCapability } from "@/lib/product-access";
 import type { ProductAccessRecommendation, ProductCapability } from "@/types/product-access";
+import { demoActionMessage } from "@/app/demo/_lib/session";
 
 type ApiErrorPayload = {
     code?: unknown;
@@ -104,7 +105,9 @@ export function normalizeApiError(
             : undefined;
     const feature = toStringOrUndefined(payloadData?.feature);
     const reason = toStringOrUndefined(payloadRecord?.reason);
-    const errorCode = toStringOrUndefined(payloadRecord?.errorCode) ?? reason;
+    const errorCode = toStringOrUndefined(payloadRecord?.errorCode)
+        ?? reason
+        ?? toStringOrUndefined(payloadRecord?.code);
     const hasProductAccessRecommendation =
         typeof payloadData?.recommendedProductCode === "string" &&
         typeof payloadData?.recommendedTierCode === "string";
@@ -126,9 +129,10 @@ export function normalizeApiError(
         fallbackMessage ||
         `Request failed with status ${status}`;
 
-    const error = new Error(buildAccessMessage(errorCode, capability) ?? (
+    const normalizedMessage = demoActionMessage(errorCode) ?? buildAccessMessage(errorCode, capability) ?? (
         isEntitlementError ? buildEntitlementMessage(capability) : rawMessage
-    )) as AppApiError;
+    );
+    const error = new Error(normalizedMessage) as AppApiError;
 
     error.status = status;
     error.code = typeof payloadRecord?.code === "number" ? payloadRecord.code : undefined;

@@ -14,6 +14,7 @@ export type ManualStaff = {
 
 export type ClassFormState = {
     title: string;
+    category_id: string;
     slug: string;
     description: string;
     cover_image_url: string;
@@ -86,6 +87,7 @@ export function defaultClassForm(defaultLocationText = ""): ClassFormState {
     const day = toLocalDateInputValue();
     return {
         title: "",
+        category_id: "",
         slug: "",
         description: "",
         cover_image_url: "",

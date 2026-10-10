@@ -44,6 +44,7 @@ import { notify } from "@/lib/notify";
 import { PlanUpgradeNotice } from "@/components/admin/plan/PlanUpgradeNotice";
 import { hasEffectiveFeature } from "@/lib/admin/access";
 import { useGroupReservationsAccess } from "../../lib/useGroupReservationsAccess";
+import { GroupOfferingCategoryField } from "@/app/admin/dashboard/group-reservations/components/GroupOfferingCategoryField";
 import { formatDateTime, formatMoneyFromCents } from "../../lib/format";
 import {
     approveGroupEventBookingQrPayment,
@@ -53,6 +54,7 @@ import {
     getAdminCompanyLocation,
     getGroupBookingFlowSettings,
     getGroupEventById,
+    getServiceCategories,
     getWhatsappBatchProgress,
     getStaff,
     listGroupEventAttendance,
@@ -86,6 +88,7 @@ import {
     type GroupTicket,
     type GroupStaffRole,
     type StaffMember,
+    type ServiceCategory,
     type FreeEventRegistration,
     type FreeEventInterestedUser,
 } from "@/app/admin/lib/adminApi";
@@ -145,6 +148,7 @@ function getMassRecipientKey(source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION"
 
 type EventFormState = {
     title: string;
+    category_id: string;
     slug: string;
     description: string;
     registration_question_text: string;
@@ -196,6 +200,7 @@ function fromEvent(event: GroupEvent): EventFormState {
 
     return {
         title: event.title,
+        category_id: String(event.category_id),
         slug: event.slug,
         description: event.description ?? "",
         registration_question_text: event.registration_question_text ?? "",
@@ -235,6 +240,7 @@ export default function GroupEventDetailPage() {
     const [interests, setInterests] = useState<GroupEventInterest[]>([]);
     const [attendance, setAttendance] = useState<GroupAttendanceRow[]>([]);
     const [staff, setStaff] = useState<StaffMember[]>([]);
+    const [categories, setCategories] = useState<ServiceCategory[]>([]);
     const [tickets, setTickets] = useState<GroupTicket[]>([]);
     const [settings, setSettings] = useState<GroupBookingFlowSettings | null>(null);
     const [storeLocation, setStoreLocation] = useState<AdminCompanyLocation | null>(null);
@@ -294,6 +300,7 @@ export default function GroupEventDetailPage() {
                 settingsData,
                 ticketsData,
                 companyLocation,
+                categoryData,
             ] = await Promise.all([
                 getGroupEventById(eventId),
                 listGroupEventBookings(eventId),
@@ -303,6 +310,7 @@ export default function GroupEventDetailPage() {
                 getGroupBookingFlowSettings(),
                 canUseAdvanced ? listGroupTickets() : Promise.resolve([] as GroupTicket[]),
                 companyId ? getAdminCompanyLocation(companyId) : Promise.resolve(null),
+                getServiceCategories(),
             ]);
 
             setEvent(eventData);
@@ -318,6 +326,7 @@ export default function GroupEventDetailPage() {
             setInterests(interestData);
             setAttendance(attendanceData);
             setStaff(staffData);
+            setCategories(categoryData);
             setSettings(settingsData);
             setTickets(ticketsData);
 
@@ -522,6 +531,10 @@ export default function GroupEventDetailPage() {
             await notify.warning(t("adminGroup.forms.titleRequired"));
             return;
         }
+        if (!Number.isSafeInteger(Number(form.category_id)) || Number(form.category_id) <= 0) {
+            await notify.warning(t("adminServices.selectCategoryRequired"));
+            return;
+        }
 
         const startAt = new Date(form.start_at);
         const endAt = new Date(form.end_at);
@@ -549,6 +562,7 @@ export default function GroupEventDetailPage() {
         try {
             await updateGroupEvent(event.id, {
                 title: form.title.trim(),
+                category_id: Number(form.category_id),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
                 registration_question_text: form.registration_question_text.trim() || null,
@@ -1243,6 +1257,12 @@ export default function GroupEventDetailPage() {
                                 }
                             />
                         </div>
+                        <GroupOfferingCategoryField
+                            categories={categories}
+                            value={form.category_id}
+                            onValueChange={(value) => setForm((prev) => prev ? { ...prev, category_id: value } : prev)}
+                            onCategoryCreated={(category) => setCategories((prev) => [...prev, category])}
+                        />
                         <div className="space-y-2">
                             <Label>{t("adminGroup.fields.slug")}</Label>
                             <Input

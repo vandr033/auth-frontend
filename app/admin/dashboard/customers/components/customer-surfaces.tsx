@@ -27,6 +27,7 @@ import {
     getCustomerHistory,
     getCustomers,
     getInterestCaptureLeads,
+    getServiceCategories,
     getWhatsappBatchProgress,
     importCustomersFile,
     retryWhatsappBatch,
@@ -37,6 +38,7 @@ import {
     type CustomerRecord,
     type InterestCaptureLead,
     type WhatsappBatchProgress,
+    type ServiceCategory,
 } from "@/app/admin/lib/adminApi";
 import { RequestProductCTA } from "@/components/admin/product/RequestProductCTA";
 import {
@@ -84,6 +86,29 @@ const CUSTOMER_SEGMENT_OPTIONS: Array<{ value: CustomerSegmentKey; labelKey: str
     { value: "UPCOMING", labelKey: "adminCustomers.segments.upcoming" },
     { value: "HIGH_VALUE", labelKey: "adminCustomers.segments.highValue" },
 ];
+
+function useCustomerCategoryOptions(enabled: boolean): ServiceCategory[] {
+    const { t } = useI18n();
+    const [categories, setCategories] = useState<ServiceCategory[]>([]);
+
+    useEffect(() => {
+        if (!enabled) {
+            setCategories([]);
+            return;
+        }
+
+        let active = true;
+        void getServiceCategories()
+            .then((rows) => { if (active) setCategories(rows); })
+            .catch((error: unknown) => {
+                if (active) void notify.error(error instanceof Error ? error.message : t("adminCustomers.loadCustomersFailed"));
+            });
+
+        return () => { active = false; };
+    }, [enabled, t]);
+
+    return categories;
+}
 
 function encodeCustomerPath(customerKey: string) {
     return `/admin/dashboard/customers/${encodeURIComponent(customerKey)}`;
@@ -380,11 +405,13 @@ export function CustomersRecordsSurface() {
     const formatCurrency = (cents: number) => formatCurrencyFromCents(cents, currency);
     const notAvailable = t("adminCustomers.notAvailable");
     const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
+    const categories = useCustomerCategoryOptions(hasCrmPro);
 
     const [customers, setCustomers] = useState<CustomerRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState("ALL");
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -394,14 +421,17 @@ export function CustomersRecordsSurface() {
     const fetchCustomers = useCallback(async () => {
         setLoading(true);
         try {
-            const rows = await getCustomers({ search: debouncedSearch || undefined });
+            const rows = await getCustomers({
+                search: debouncedSearch || undefined,
+                categoryId: hasCrmPro && categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
+            });
             setCustomers(rows);
         } catch (error: unknown) {
             await notify.error(error instanceof Error ? error.message : t("adminCustomers.loadCustomersFailed"));
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, t]);
+    }, [categoryFilter, debouncedSearch, hasCrmPro, t]);
 
     useEffect(() => {
         void fetchCustomers();
@@ -463,6 +493,19 @@ export function CustomersRecordsSurface() {
                 searchPlaceholder={t("adminCustomers.searchPlaceholder")}
                 onSearchChange={setSearchQuery}
                 summary={t("adminCustomers.count", { count: customers.length })}
+                actions={hasCrmPro ? (
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="min-w-[220px]">
+                            <SelectValue placeholder={t("adminCustomers.categoryFilter")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">{t("adminCustomers.allCategories")}</SelectItem>
+                            {categories.map((category) => (
+                                <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                ) : undefined}
             />
 
             {loading ? (
@@ -593,6 +636,7 @@ export function CustomersCommunicationsSurface() {
     const { user, effectiveAccess } = useAdminAuth();
     const notAvailable = t("adminCustomers.notAvailable");
     const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
+    const categories = useCustomerCategoryOptions(hasCrmPro);
     const hasMessagingPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
     const canBulkMessaging = hasCrmPro && hasMessagingPro;
 
@@ -603,6 +647,7 @@ export function CustomersCommunicationsSurface() {
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [segmentFilter, setSegmentFilter] = useState<CustomerSegmentKey>("ALL");
+    const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [interestSearchQuery, setInterestSearchQuery] = useState("");
     const [interestSourceFilter, setInterestSourceFilter] = useState<"ALL" | "EVENT" | "CLASS">("ALL");
     const [interestItemFilter, setInterestItemFilter] = useState("ALL");
@@ -623,6 +668,7 @@ export function CustomersCommunicationsSurface() {
             const rows = await getCustomers({
                 search: debouncedSearch || undefined,
                 segment: hasCrmPro ? segmentFilter : "ALL",
+                categoryId: hasCrmPro && categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
             });
             setCustomers(rows);
         } catch (error: unknown) {
@@ -630,7 +676,7 @@ export function CustomersCommunicationsSurface() {
         } finally {
             setCustomersLoading(false);
         }
-    }, [debouncedSearch, hasCrmPro, segmentFilter, t]);
+    }, [categoryFilter, debouncedSearch, hasCrmPro, segmentFilter, t]);
 
     const fetchInterestLeads = useCallback(async () => {
         if (!hasCrmPro) {
@@ -746,6 +792,7 @@ export function CustomersCommunicationsSurface() {
                 message,
                 search: debouncedSearch || undefined,
                 segment: segmentFilter,
+                category_id: categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
                 idempotency_key,
             });
             setMassMessageBatchId(result.batch_id ?? null);
@@ -904,18 +951,31 @@ export function CustomersCommunicationsSurface() {
                 onSearchChange={setSearchQuery}
                 summary={customersLoading ? t("adminCustomers.loadingAudience") : t("adminCustomers.communicationsAudienceSummary", { count: customers.length })}
                 actions={hasCrmPro ? (
-                    <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
-                        <SelectTrigger className="min-w-[220px]">
-                            <SelectValue placeholder={t("adminCustomers.segmentLabel")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {CUSTOMER_SEGMENT_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                    {t(option.labelKey)}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <>
+                        <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
+                            <SelectTrigger className="min-w-[220px]">
+                                <SelectValue placeholder={t("adminCustomers.segmentLabel")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {CUSTOMER_SEGMENT_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                        {t(option.labelKey)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger className="min-w-[220px]">
+                                <SelectValue placeholder={t("adminCustomers.categoryFilter")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">{t("adminCustomers.allCategories")}</SelectItem>
+                                {categories.map((category) => (
+                                    <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </>
                 ) : undefined}
             />
 
@@ -1197,6 +1257,7 @@ export function CustomersImportExportSurface() {
     const { t } = useI18n();
     const { user, effectiveAccess } = useAdminAuth();
     const hasCrmPro = Boolean(user?.is_super_admin) || hasEffectiveCapability(effectiveAccess, "CRM_PRO");
+    const categories = useCustomerCategoryOptions(hasCrmPro);
     const canImportExport = hasCrmPro;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1205,6 +1266,7 @@ export function CustomersImportExportSurface() {
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [segmentFilter, setSegmentFilter] = useState<CustomerSegmentKey>("ALL");
+    const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
 
@@ -1219,6 +1281,7 @@ export function CustomersImportExportSurface() {
             const rows = await getCustomers({
                 search: debouncedSearch || undefined,
                 segment: hasCrmPro ? segmentFilter : "ALL",
+                categoryId: hasCrmPro && categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
             });
             setCustomers(rows);
         } catch (error: unknown) {
@@ -1226,7 +1289,7 @@ export function CustomersImportExportSurface() {
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, hasCrmPro, segmentFilter, t]);
+    }, [categoryFilter, debouncedSearch, hasCrmPro, segmentFilter, t]);
 
     useEffect(() => {
         void fetchCustomers();
@@ -1257,6 +1320,7 @@ export function CustomersImportExportSurface() {
             const { blob, fileName } = await downloadCustomersExport({
                 search: debouncedSearch || undefined,
                 segment: segmentFilter,
+                categoryId: categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
             });
             downloadBlob(blob, fileName || `customers-${Date.now()}.csv`);
             await notify.success(t("adminCustomers.exportSuccess", { count: customers.length }));
@@ -1340,18 +1404,31 @@ export function CustomersImportExportSurface() {
                         actions={(
                             <div className="flex flex-wrap items-center gap-2">
                                 {hasCrmPro ? (
-                                    <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
-                                        <SelectTrigger className="min-w-[220px]">
-                                            <SelectValue placeholder={t("adminCustomers.segmentLabel")} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {CUSTOMER_SEGMENT_OPTIONS.map((option) => (
-                                                <SelectItem key={option.value} value={option.value}>
-                                                    {t(option.labelKey)}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <>
+                                        <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
+                                            <SelectTrigger className="min-w-[220px]">
+                                                <SelectValue placeholder={t("adminCustomers.segmentLabel")} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {CUSTOMER_SEGMENT_OPTIONS.map((option) => (
+                                                    <SelectItem key={option.value} value={option.value}>
+                                                        {t(option.labelKey)}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                            <SelectTrigger className="min-w-[220px]">
+                                                <SelectValue placeholder={t("adminCustomers.categoryFilter")} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ALL">{t("adminCustomers.allCategories")}</SelectItem>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </>
                                 ) : null}
                                 <Button type="button" variant="outline" onClick={() => void handleDownloadExport()} disabled={!canImportExport || exporting || loading}>
                                     {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}

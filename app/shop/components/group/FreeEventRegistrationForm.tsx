@@ -34,6 +34,7 @@ interface Props {
     result: FreeRegistrationResult,
     contact: { email: string; countryCode?: string; phonePrefix: string; phoneNumber: string },
   ) => void;
+  onDemoSubmitIntercept?: () => boolean;
 }
 
 type ModalState = "none" | "tos";
@@ -49,6 +50,7 @@ export function FreeEventRegistrationForm({
   existingStatus,
   onRegistered,
   onSubmitResult,
+  onDemoSubmitIntercept,
 }: Props) {
   const t = useT();
 
@@ -126,6 +128,7 @@ export function FreeEventRegistrationForm({
 
   const handleSubmit = async () => {
     if (!validate()) return;
+    if (onDemoSubmitIntercept?.()) return;
     setSubmitting(true);
     try {
       const result = await submitFreeEventRegistration(eventId, {

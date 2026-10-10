@@ -8,6 +8,7 @@ export const fetchCache = "force-no-store";
 
 export const metadata: Metadata = {
     title: "PriConPri Admin",
+    robots: { index: false, follow: false },
     manifest: "/manifest-admin.json",
     appleWebApp: {
         capable: true,

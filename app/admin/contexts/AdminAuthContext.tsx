@@ -41,11 +41,22 @@ export type CompanyUser = {
     };
 };
 
+export type DemoSessionInfo = {
+    isDemo: true;
+    profile: {
+        key: string;
+        displayName: string;
+        companyName: string;
+    };
+    expiresAt: string;
+};
+
 type SessionPayload = {
     user?: AdminUser | null;
     companyUser?: CompanyUser | null;
     companyUsers?: CompanyUser[];
     activeCompanyId?: number | null;
+    demoSession?: DemoSessionInfo | null;
 };
 
 type ComparableValue =
@@ -231,6 +242,7 @@ type AdminAuthContextValue = {
     companyUsers: CompanyUser[];
     companyUser: CompanyUser | null;
     activeCompanyId: number | null;
+    demoSession: DemoSessionInfo | null;
     isSwitchingShop: boolean;
     loading: boolean;
     error: string | null;
@@ -285,6 +297,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
     const [companyUser, setCompanyUser] = useState<CompanyUser | null>(null);
     const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
+    const [demoSession, setDemoSession] = useState<DemoSessionInfo | null>(null);
     const [isSwitchingShop, setIsSwitchingShop] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -334,6 +347,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                     companyUser: null,
                     activeCompanyId: null,
                 });
+                setDemoSession(null);
                 setError((previousError) => (previousError === null ? previousError : null));
                 return;
             }
@@ -345,6 +359,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                 companyUser: normalized.activeCompanyUser,
                 activeCompanyId: normalized.activeCompanyId,
             });
+            setDemoSession((data.data as SessionPayload).demoSession ?? null);
             setError((previousError) => (previousError === null ? previousError : null));
         } catch {
             applySessionState({
@@ -353,6 +368,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                 companyUser: null,
                 activeCompanyId: null,
             });
+            setDemoSession(null);
             setError((previousError) => (previousError === null ? previousError : null)); // Don't show error for session check
         } finally {
             if (!background) {
@@ -406,6 +422,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                     companyUser: normalized.activeCompanyUser,
                     activeCompanyId: normalized.activeCompanyId,
                 });
+                setDemoSession(null);
                 return { user: result.data.user, companyUser: result.data.companyUser ?? null };
             } catch (err) {
                 const message = err instanceof Error ? err.message : "Unable to sign in";
@@ -421,13 +438,14 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = useCallback(async () => {
         setLoading(true);
         try {
-            await apiPost("/admin/auth/sign-out");
+            await apiPost(demoSession ? "/demo/logout" : "/admin/auth/sign-out");
             applySessionState({
                 user: null,
                 companyUsers: [],
                 companyUser: null,
                 activeCompanyId: null,
             });
+            setDemoSession(null);
             setError((previousError) => (previousError === null ? previousError : null));
         } catch (err) {
             const message = err instanceof Error ? err.message : "Unable to sign out";
@@ -436,7 +454,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false);
         }
-    }, [applySessionState]);
+    }, [applySessionState, demoSession]);
 
     const switchActiveShop = useCallback(async (companyId: number): Promise<CompanyUser | null> => {
         if (!companyId) return null;
@@ -483,6 +501,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             companyUsers,
             companyUser,
             activeCompanyId,
+            demoSession,
             isSwitchingShop,
             loading,
             error,
@@ -505,6 +524,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             companyUsers,
             companyUser,
             activeCompanyId,
+            demoSession,
             isSwitchingShop,
             loading,
             error,

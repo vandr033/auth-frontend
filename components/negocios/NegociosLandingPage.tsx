@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BusinessPricingBuilder } from "@/components/negocios/BusinessPricingBuilder";
 import { BusinessSignupWizard } from "@/components/negocios/BusinessSignupWizard";
+import { BusinessDemoPreviewSection } from "@/app/components/business-demo-preview-section";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import {
@@ -105,10 +106,17 @@ export function NegociosLandingPage() {
             <p className="mt-6 max-w-[38rem] text-[clamp(1rem,1.7vw,1.2rem)] leading-7 text-slate-700">
               {t("businessLanding.hero.description")}
             </p>
-            <div className="mt-8">
+            <div className="mt-8 flex flex-wrap items-center gap-4">
               <Button asChild className="min-h-14 rounded-none bg-biz-cta-primary px-7 text-xs font-black uppercase tracking-[0.08em] text-white shadow-[0_10px_0_rgba(5,5,5,0.14)] transition-transform hover:bg-biz-cta-hover hover:shadow-[0_6px_0_rgba(5,5,5,0.14)] active:translate-y-1 active:shadow-none">
                 <Link href="#pricing">{t("businessLanding.hero.cta")} <ArrowRight className="h-4 w-4" /></Link>
               </Button>
+              <Link
+                href="/demo"
+                className="inline-flex min-h-12 items-center gap-2 py-2 font-bebas text-sm font-semibold tracking-[0.08em] text-biz-barbie-pink uppercase transition-colors hover:text-biz-cta-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+              >
+                {t("businessLanding.hero.demoCta")} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <span className="font-bebas text-[11px] tracking-[0.1em] text-slate-500 uppercase">{t("businessLanding.hero.demoTrust")}</span>
             </div>
             <p className="mt-3 text-[11px] font-black uppercase tracking-[0.08em] text-slate-600">{t("businessLanding.hero.microcopy")}</p>
           </div>
@@ -135,6 +143,8 @@ export function NegociosLandingPage() {
           </aside>
         </div>
       </section>
+
+      <BusinessDemoPreviewSection />
 
       <section id="pricing" className="scroll-mt-20 border-b border-black/10 bg-[#f7f4ef] px-4 py-14 sm:px-6 sm:py-20 lg:px-10 lg:py-24">
         <div className="mx-auto max-w-7xl">

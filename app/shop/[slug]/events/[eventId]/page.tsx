@@ -55,6 +55,7 @@ import {
 } from "@/app/shop/lib/groupReservationsFormat";
 import { getImageUrl } from "@/utils/image-url";
 import { DEFAULT_COUNTRY_CODE } from "@/lib/phone-country";
+import { DemoFinalSubmitDialog, usePublicDemoProfile } from "@/app/shop/components/DemoFinalSubmitDialog";
 
 type NoticeTone = "success" | "warning" | "error";
 type ExtraAttendeeForm = {
@@ -82,6 +83,19 @@ export default function ShopEventDetailPage() {
     verifyPhoneOtp,
   } = useAuth();
   const { company, settings, slug, isShopActive, loading, error, publicFeatures } = useShop();
+  const { profile: demoProfile, ready: demoProfileReady } = usePublicDemoProfile(slug);
+  const [demoInterceptOpen, setDemoInterceptOpen] = React.useState(false);
+  const interceptDemoSubmit = React.useCallback(() => {
+    if (!demoProfileReady) {
+      void notify.error("No pudimos comprobar si esta tienda es una demostración. Recarga la página antes de continuar.");
+      return true;
+    }
+    if (demoProfile) {
+      setDemoInterceptOpen(true);
+      return true;
+    }
+    return false;
+  }, [demoProfile, demoProfileReady]);
   const resolvedPublicFeatures = getShopPublicFeatures(company);
   const canSeeEvents = resolvedPublicFeatures.eventsVisible || publicFeatures.eventsVisible;
   const canUseAdvanced = resolvedPublicFeatures.eventAdvancedEnabled || publicFeatures.eventAdvancedEnabled;
@@ -429,6 +443,17 @@ export default function ShopEventDetailPage() {
   const handlePaidGuestCheckoutStart = React.useCallback(async () => {
     if (!event || !company) return;
     if (!validatePaidGuestContactStep()) return;
+    if (!demoProfileReady) {
+      interceptDemoSubmit();
+      return;
+    }
+    if (demoProfile) {
+      setPaidGuestCheckoutStep("booking");
+      setPaidGuestSuccess(null);
+      setPaidGuestGlobalError(null);
+      return;
+    }
+    if (interceptDemoSubmit()) return;
 
     setPaidGuestBusy("start");
     setPaidGuestGlobalError(null);
@@ -477,6 +502,9 @@ export default function ShopEventDetailPage() {
     paidGuestPhoneNumber,
     paidGuestPhonePrefix,
     paidGuestTosAccepted,
+    demoProfile,
+    demoProfileReady,
+    interceptDemoSubmit,
     t,
     validatePaidGuestContactStep,
   ]);
@@ -566,7 +594,11 @@ export default function ShopEventDetailPage() {
 
   const handleBook = async (options?: { onSuccess?: () => void; onError?: (message: string) => void }) => {
     if (!event || !company) return;
-    if (!requireSignIn()) return;
+    if (!demoProfileReady) {
+      interceptDemoSubmit();
+      return;
+    }
+    if (!demoProfile && !requireSignIn()) return;
 
     const rawSpots = Number.parseInt(bookedSpots, 10);
     if (!Number.isInteger(rawSpots) || rawSpots < 1) {
@@ -606,6 +638,8 @@ export default function ShopEventDetailPage() {
         return;
       }
     }
+
+    if (interceptDemoSubmit()) return;
 
     let uploadedQrUrl: string | undefined;
     let uploadedQrDeleteToken: string | undefined;
@@ -674,6 +708,7 @@ export default function ShopEventDetailPage() {
 
   const handleJoinWaitlist = async () => {
     if (!event || !company) return;
+    if (interceptDemoSubmit()) return;
     if (!requireSignIn()) return;
     setBusyAction("waitlist");
     setNotice(null);
@@ -692,6 +727,7 @@ export default function ShopEventDetailPage() {
 
   const handleLeaveWaitlist = async () => {
     if (!event || !company) return;
+    if (interceptDemoSubmit()) return;
     if (!requireSignIn()) return;
     setBusyAction("leave_waitlist");
     setNotice(null);
@@ -719,7 +755,11 @@ export default function ShopEventDetailPage() {
 
     autoInterestHandledRef.current = true;
 
-    const run = async () => {
+      const run = async () => {
+      if (interceptDemoSubmit()) {
+        clearInterestIntentFromUrl();
+        return;
+      }
       if (!soldOut || activeBooking) {
         clearInterestIntentFromUrl();
         return;
@@ -765,6 +805,7 @@ export default function ShopEventDetailPage() {
     event,
     eventLoading,
     interestIntent,
+    interceptDemoSubmit,
     loadData,
     loading,
     soldOut,
@@ -1013,6 +1054,7 @@ export default function ShopEventDetailPage() {
                     );
                   }}
                   onSubmitResult={handleFreeRegSubmitted}
+                  onDemoSubmitIntercept={interceptDemoSubmit}
                 />
               ) : (
                 <>
@@ -1056,6 +1098,7 @@ export default function ShopEventDetailPage() {
                           );
                         }}
                         onSubmitResult={handleFreeRegSubmitted}
+                        onDemoSubmitIntercept={interceptDemoSubmit}
                       />
                     </DialogContent>
                   </Dialog>
@@ -1547,6 +1590,7 @@ export default function ShopEventDetailPage() {
         </DialogContent>
       </Dialog>
 
+      <DemoFinalSubmitDialog open={demoInterceptOpen} onOpenChange={setDemoInterceptOpen} profile={demoProfile} operation="event-registration" />
       <ShopFooter />
     </main>
   );

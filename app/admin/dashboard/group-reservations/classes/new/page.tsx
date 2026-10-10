@@ -9,6 +9,7 @@ import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
     createGroupClass,
     getAdminCompanyLocation,
+    getServiceCategories,
     getStaff,
     setGroupClassStatus,
     updateGroupClass,
@@ -17,6 +18,7 @@ import {
     type CreateGroupClassPayload,
     type GroupStaffRole,
     type StaffMember,
+    type ServiceCategory,
 } from "@/app/admin/lib/adminApi";
 import { AdminPageHeader } from "@/app/admin/dashboard/components/AdminPageHeader";
 import { GroupClassEditorForm } from "@/app/admin/dashboard/group-reservations/classes/components/GroupClassEditorForm";
@@ -44,6 +46,7 @@ export default function NewGroupClassPage() {
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [staff, setStaff] = useState<StaffMember[]>([]);
+    const [categories, setCategories] = useState<ServiceCategory[]>([]);
     const [storeLocation, setStoreLocation] = useState<AdminCompanyLocation | null>(null);
     const [storeLocationText, setStoreLocationText] = useState("");
     const [form, setForm] = useState<ClassFormState>(defaultClassForm);
@@ -55,12 +58,14 @@ export default function NewGroupClassPage() {
     const loadEditorData = useCallback(async () => {
         setLoading(true);
         try {
-            const [staffData, companyLocation] = await Promise.all([
+            const [staffData, companyLocation, categoryData] = await Promise.all([
                 getStaff(),
                 companyId ? getAdminCompanyLocation(companyId) : Promise.resolve(null),
+                getServiceCategories(),
             ]);
             const defaultLocationText = getCompanyLocationLabel(companyLocation);
             setStaff(staffData);
+            setCategories(categoryData);
             setStoreLocation(companyLocation);
             setStoreLocationText(defaultLocationText);
             setForm(defaultClassForm(defaultLocationText));
@@ -101,6 +106,10 @@ export default function NewGroupClassPage() {
     const handleCreate = async () => {
         if (!form.title.trim()) {
             await notify.warning(t("adminGroup.forms.titleRequired"));
+            return;
+        }
+        if (!Number.isSafeInteger(Number(form.category_id)) || Number(form.category_id) <= 0) {
+            await notify.warning(t("adminServices.selectCategoryRequired"));
             return;
         }
 
@@ -145,6 +154,7 @@ export default function NewGroupClassPage() {
         try {
             const payload: CreateGroupClassPayload = {
                 title: form.title.trim(),
+                category_id: Number(form.category_id),
                 slug: form.slug.trim() || undefined,
                 description: form.description.trim() || null,
                 cover_image_url: form.cover_image_url.trim() || null,
@@ -273,6 +283,8 @@ export default function NewGroupClassPage() {
                 form={form}
                 onFormChange={(updater) => setForm(updater)}
                 staff={staff}
+                categories={categories}
+                onCategoryCreated={(category) => setCategories((prev) => [...prev, category])}
                 currency={currency}
                 storeLocation={storeLocation}
                 storeLocationText={storeLocationText}
