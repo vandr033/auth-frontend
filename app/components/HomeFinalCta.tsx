@@ -39,7 +39,7 @@ export function HomeFinalCta() {
             {t("homeRedesign.finalCta.primary")}
           </Link>
           <Link
-            href="/negocios"
+            href="/"
             className="inline-flex h-16 min-w-[300px] items-center justify-center border border-white px-10 font-bebas text-[22px] leading-none font-semibold tracking-[0.06em] text-white uppercase transition-colors hover:bg-white hover:text-biz-barbie-pink"
           >
             {t("homeRedesign.finalCta.secondary")}

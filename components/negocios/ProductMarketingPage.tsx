@@ -79,7 +79,7 @@ export function ProductMarketingPage({ product }: { product: NegociosProductCard
                 variant="outline"
                 className="h-12 rounded-none border-black bg-transparent px-6 text-[11px] font-black uppercase tracking-[0.08em] text-black hover:bg-black hover:text-white"
               >
-                <Link href="/negocios#pricing">Ir al pricing builder</Link>
+                <Link href="/#pricing">Ir al pricing builder</Link>
               </Button>
             </div>
           </div>
@@ -197,7 +197,7 @@ export function ProductMarketingPage({ product }: { product: NegociosProductCard
               variant="outline"
               className="h-12 rounded-none border-white bg-transparent px-6 text-[11px] font-black uppercase tracking-[0.08em] text-white hover:bg-white hover:text-black"
             >
-              <Link href="/negocios#pricing">Volver al builder</Link>
+              <Link href="/#pricing">Volver al builder</Link>
             </Button>
           </div>
         </div>

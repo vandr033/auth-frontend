@@ -9,7 +9,7 @@ import { NegociosHeader } from "@/components/negocios/NegociosHeader";
 
 export default function NegociosLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isNegociosLanding = pathname === "/negocios";
+  const isNegociosLanding = pathname === "/" || pathname === "/negocios";
 
   return (
     <div className="min-h-screen bg-biz-surface">

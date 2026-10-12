@@ -42,7 +42,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
   const profileHref = appendShopParam("/me/profile", shopSlug);
   const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
   const reviewsHref = appendShopParam("/me/reviews", shopSlug);
-  const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
+  const loginHref = buildSignInRedirectFromCurrentLocation("/");
 
   const links = useMemo(
     () =>
@@ -75,7 +75,7 @@ function NegociosHeaderContent({ shopSlug }: { shopSlug: string | null }) {
 
   const handleSignOut = async () => {
     try {
-      const redirectTarget = getCurrentInternalPathWithQuery("/negocios");
+      const redirectTarget = getCurrentInternalPathWithQuery("/");
       await signOut();
       setMobileOpen(false);
       router.replace(redirectTarget);

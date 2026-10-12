@@ -465,10 +465,10 @@ export function BusinessSignupWizard({
                         </Button>
                       ) : (
                         <Link
-                          href="/negocios"
+                          href="/"
                           className="inline-flex h-11 items-center justify-center border border-black px-5 text-[11px] font-black uppercase tracking-[0.08em] text-black transition-colors hover:bg-black hover:text-white"
                         >
-                          Volver a /negocios
+                          Volver al inicio
                         </Link>
                       )}
                     </div>

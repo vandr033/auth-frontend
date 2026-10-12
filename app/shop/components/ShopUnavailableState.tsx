@@ -24,7 +24,7 @@ export function ShopUnavailableState({ slug }: ShopUnavailableStateProps) {
           <Link href={`/shop/${slug}`}>
             <Button variant="outline">{t("shopAvailability.viewShopHome")}</Button>
           </Link>
-          <Link href="/">
+          <Link href="/marketplace">
             <Button className="bg-brand text-white hover:bg-brand-hover">
               {t("shopHome.goHome")}
             </Button>

@@ -171,7 +171,7 @@ export default function ShopPage() {
                 <div className="text-center">
                     <h1 className="text-4xl font-bold mb-4">{t('shopHome.shopNotFound')}</h1>
                     <p className="text-text-muted mb-6">{error || t('shopHome.shopNotFoundMessage')}</p>
-                    <Link href="/">
+                    <Link href="/marketplace">
                         <Button className="bg-brand text-white hover:bg-brand-hover">
                             {t('shopHome.goHome')}
                         </Button>

@@ -41,12 +41,12 @@ function BusinessNavbarContent({ shopSlug }: { shopSlug: string | null }) {
   const profileHref = appendShopParam("/me/profile", shopSlug);
   const appointmentsHref = appendShopParam("/me/appointments", shopSlug);
   const reviewsHref = appendShopParam("/me/reviews", shopSlug);
-  const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
+  const loginHref = buildSignInRedirectFromCurrentLocation("/");
 
   const navLinks = [
-    { href: "/negocios#productos", label: "Productos" },
-    { href: "/negocios#addons", label: "Add-ons" },
-    { href: "/negocios#pricing", label: "Precios" },
+    { href: "/#productos", label: "Productos" },
+    { href: "/#addons", label: "Add-ons" },
+    { href: "/#pricing", label: "Precios" },
     { href: "/negocios/crear-cuenta", label: "Crear cuenta" },
     { href: loginHref, label: "Login" },
   ];
@@ -60,7 +60,7 @@ function BusinessNavbarContent({ shopSlug }: { shopSlug: string | null }) {
 
   const handleSignOut = async () => {
     try {
-      const redirectTarget = getCurrentInternalPathWithQuery("/negocios");
+      const redirectTarget = getCurrentInternalPathWithQuery("/");
       await signOut();
       setMobileOpen(false);
       router.replace(redirectTarget);

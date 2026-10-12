@@ -135,7 +135,7 @@ export default function NotFound() {
 
                   <div className="grid gap-3">
                     <Link
-                      href="/negocios"
+                      href="/"
                       className="flex items-center justify-between border border-black bg-white px-4 py-3 text-left transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15"
                     >
                       <span>

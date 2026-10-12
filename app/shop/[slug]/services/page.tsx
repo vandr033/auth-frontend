@@ -82,7 +82,7 @@ export default function ServicesPage() {
                 <div className="text-center">
                     <h1 className="text-4xl font-bold mb-4">{t('shopHome.pageNotFound')}</h1>
                     <p className="text-text-muted mb-6">{error || t('shopAbout.unableToLoadServices')}</p>
-                    <Link href="/">
+                    <Link href="/marketplace">
                         <Button className="bg-brand text-white hover:bg-brand-hover">{t('shopHome.goHome')}</Button>
                     </Link>
                 </div>

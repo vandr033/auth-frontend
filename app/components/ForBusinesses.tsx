@@ -44,7 +44,7 @@ export function ForBusinesses() {
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              href="/negocios#demo"
+              href="/#demo"
               className="inline-flex h-10 items-center justify-center bg-biz-barbie-pink px-5 font-bebas text-[14px] leading-none font-semibold tracking-[0.05em] text-white uppercase transition-colors hover:bg-[#d8307b]"
             >
               {t("homeRedesign.businessCta.primary")}

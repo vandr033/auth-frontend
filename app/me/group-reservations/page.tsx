@@ -196,7 +196,7 @@ function GroupReservationsPageContent() {
                 </Button>
               ) : (
                 <Button asChild className="bg-brand text-white hover:bg-brand-hover">
-                  <Link href="/">{t("meGroupReservations.actions.browseShops")}</Link>
+                  <Link href="/marketplace">{t("meGroupReservations.actions.browseShops")}</Link>
                 </Button>
               )}
             </div>

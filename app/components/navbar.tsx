@@ -39,9 +39,9 @@ function NavbarContent({ shopSlug }: { shopSlug: string | null }) {
   const [dark, setDark] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const navLinks = [
-    { href: "/#home", label: t("mainNavbar.home") },
-    { href: "/#how-it-works", label: t("mainNavbar.howItWorks") },
-    { href: "/#for-businesses", label: t("mainNavbar.forBusinesses") },
+    { href: "/marketplace", label: t("mainNavbar.home") },
+    { href: "/#demo", label: t("mainNavbar.howItWorks") },
+    { href: "/", label: t("mainNavbar.forBusinesses") },
   ];
 
   // Track scroll for backdrop effect
@@ -91,7 +91,7 @@ function NavbarContent({ shopSlug }: { shopSlug: string | null }) {
 
   const handleSignOut = async () => {
     try {
-      const redirectTarget = getCurrentInternalPathWithQuery("/");
+      const redirectTarget = getCurrentInternalPathWithQuery("/marketplace");
       await signOut();
       setUserMenuOpen(false);
       router.replace(redirectTarget);
@@ -113,7 +113,7 @@ function NavbarContent({ shopSlug }: { shopSlug: string | null }) {
       >
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/marketplace" className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">
               <Scissors className="h-4.5 w-4.5" />
             </div>
@@ -152,7 +152,7 @@ function NavbarContent({ shopSlug }: { shopSlug: string | null }) {
               <div className="h-9 w-9 animate-pulse rounded-full bg-slate-200 dark:bg-slate-700" />
             ) : !isAuthenticated ? (
               <Button
-                onClick={() => router.push(buildSignInRedirectFromCurrentLocation("/"))}
+                onClick={() => router.push(buildSignInRedirectFromCurrentLocation("/marketplace"))}
                 className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-hover hover:shadow-md"
               >
                 {t("mainNavbar.signIn")}
@@ -282,7 +282,7 @@ function NavbarContent({ shopSlug }: { shopSlug: string | null }) {
                 <Button
                   onClick={() => {
                     setMobileOpen(false);
-                    router.push(buildSignInRedirectFromCurrentLocation("/"));
+                    router.push(buildSignInRedirectFromCurrentLocation("/marketplace"));
                   }}
                   className="w-full bg-brand text-white hover:bg-brand-hover"
                 >

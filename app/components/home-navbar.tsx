@@ -156,11 +156,11 @@ function HomeNavbarContent({ shopSlug }: { shopSlug: string | null }) {
   };
 
   const navLinks = [
-    { href: "#home", label: t("homeRedesign.nav.home") },
-    { href: "#sectores", label: t("homeRedesign.nav.sectors") },
-    { href: "#profesionales", label: t("homeRedesign.nav.professionals") },
-    { href: "#como-funciona", label: t("homeRedesign.nav.howItWorks") },
-    { href: "#negocios", label: t("homeRedesign.nav.businesses") },
+    { href: "/#inicio", label: t("homeRedesign.nav.home") },
+    { href: "/#sectores", label: t("homeRedesign.nav.sectors") },
+    { href: "/#productos", label: t("homeRedesign.nav.professionals") },
+    { href: "/#demo", label: t("homeRedesign.nav.howItWorks") },
+    { href: "/#pricing", label: t("homeRedesign.nav.businesses") },
   ];
 
   if (isMarketplace) {
@@ -169,7 +169,7 @@ function HomeNavbarContent({ shopSlug }: { shopSlug: string | null }) {
         <div className="mx-auto flex h-16 w-full max-w-[1260px] items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-8">
             <Link
-              href="/"
+              href="/marketplace"
               className="shrink-0 inline-flex items-center"
             >
               <Image
@@ -192,7 +192,7 @@ function HomeNavbarContent({ shopSlug }: { shopSlug: string | null }) {
                 {t("marketplaceRedesign.nav.sectors")}
               </Link>
               <Link
-                href="/negocios#precios"
+                href="/#pricing"
                 className="text-[11px] leading-none font-semibold tracking-[0.08em] text-black uppercase transition-opacity hover:opacity-70"
               >
                 {t("marketplaceRedesign.nav.prices")}
@@ -240,7 +240,7 @@ function HomeNavbarContent({ shopSlug }: { shopSlug: string | null }) {
     <header className="sticky top-0 z-50 w-full border-b border-black/8 bg-[#f3f3f3]/95 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-[1260px] items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
-          href="/"
+          href="/marketplace"
           className="shrink-0 inline-flex items-center"
         >
           <Image

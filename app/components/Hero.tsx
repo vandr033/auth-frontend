@@ -87,7 +87,7 @@ export function Hero() {
           className="mt-6"
         >
           <Link
-            href="/negocios"
+            href="/"
             className="inline-flex items-center justify-center text-[14px] leading-none font-semibold tracking-[0.12em] text-black uppercase transition-colors hover:text-biz-barbie-pink"
           >
             {t("homeRedesign.hero.businessPrompt")}

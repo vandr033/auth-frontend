@@ -273,7 +273,7 @@ export default function SuperAdminBusinessPricingPage() {
       <AdminPageHeader
         eyebrow={t("adminNav.superAdmin")}
         title="Precios de productos"
-        subtitle="Editá los precios públicos, descuentos y prueba gratis que impactan directamente en /negocios y en el alta self-service."
+        subtitle="Editá los precios públicos, descuentos y prueba gratis que impactan directamente en / y en el alta self-service."
         actions={
           <Button
             variant="outline"
@@ -294,7 +294,7 @@ export default function SuperAdminBusinessPricingPage() {
               Productos core
             </CardTitle>
             <p className="text-sm text-slate-500">
-              Estos productos definen la base del plan modular en /negocios.
+              Estos productos definen la base del plan modular en /.
             </p>
           </div>
           <Button
@@ -528,7 +528,7 @@ export default function SuperAdminBusinessPricingPage() {
                 <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 md:min-w-[180px]">
                   <div>
                     <p className="text-sm font-medium text-slate-900">Activo</p>
-                    <p className="text-xs text-slate-500">Visible en /negocios</p>
+                    <p className="text-xs text-slate-500">Visible en /</p>
                   </div>
                   <Switch
                     checked={tier.isActive}
@@ -547,7 +547,7 @@ export default function SuperAdminBusinessPricingPage() {
           <div>
             <CardTitle className="text-base">Anual y prueba gratis</CardTitle>
             <p className="text-sm text-slate-500">
-              Estos valores afectan /negocios y /negocios/crear-cuenta.
+              Estos valores afectan / y /negocios/crear-cuenta.
             </p>
           </div>
           <Button
@@ -589,7 +589,7 @@ export default function SuperAdminBusinessPricingPage() {
               <div>
                 <p className="text-sm font-medium text-slate-900">Primer mes gratis</p>
                 <p className="text-xs text-slate-500">
-                  Se refleja en /negocios y en el resumen del alta.
+              Se refleja en / y en el resumen del alta.
                 </p>
               </div>
               <Switch checked={firstMonthFree} onCheckedChange={setFirstMonthFree} />

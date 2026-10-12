@@ -82,7 +82,7 @@ export function BusinessHero() {
             </Link>
             <span className="text-slate-300">|</span>
             <Link
-              href="/"
+              href="/marketplace"
               className="inline-flex items-center gap-2 font-bebas text-[13px] tracking-[0.12em] text-slate-500 uppercase transition-colors hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
             >
               {t("businessHero.bookingMicrocopy")}

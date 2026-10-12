@@ -18,7 +18,7 @@ const whatsappUrl = process.env.NEXT_PUBLIC_WHATSAPP_URL || "#";
 
 export function NegociosFooter() {
   const t = useT();
-  const loginHref = buildSignInRedirectFromCurrentLocation("/negocios");
+  const loginHref = buildSignInRedirectFromCurrentLocation("/");
 
   return (
     <footer className="w-full bg-white">
