@@ -65,6 +65,7 @@ interface Service {
         promo_ends_at?: string | null;
     };
     duration_minutes: number;
+    booking_time_granularity_minutes?: number | null;
     is_active: boolean;
     is_invite_only?: boolean;
     invite_token?: string | null;
@@ -97,6 +98,7 @@ interface ServiceFormData {
     promo_ends_at: string;
     promo_label: string;
     duration_minutes: string;
+    booking_time_granularity_minutes: string;
     is_multi_session: boolean;
     session_count: string;
     session_duration_minutes: string;
@@ -118,6 +120,7 @@ const initialFormData: ServiceFormData = {
     promo_ends_at: "",
     promo_label: "",
     duration_minutes: "30",
+    booking_time_granularity_minutes: "",
     is_multi_session: false,
     session_count: "4",
     session_duration_minutes: "90",
@@ -217,6 +220,10 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                     promo_ends_at: service.promo_ends_at ? service.promo_ends_at.slice(0, 16) : "",
                     promo_label: service.promo_label || "",
                     duration_minutes: String(service.duration_minutes),
+                    booking_time_granularity_minutes:
+                        service.booking_time_granularity_minutes == null
+                            ? ""
+                            : String(service.booking_time_granularity_minutes),
                     is_multi_session: service.is_multi_session === true,
                     session_count: service.session_count ? String(service.session_count) : "4",
                     session_duration_minutes: service.session_duration_minutes
@@ -328,6 +335,13 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
             setFormError(t("adminServices.durationRequired"));
             return;
         }
+        const bookingTimeGranularity = formData.booking_time_granularity_minutes.trim()
+            ? Number(formData.booking_time_granularity_minutes)
+            : null;
+        if (bookingTimeGranularity !== null && (!Number.isInteger(bookingTimeGranularity) || bookingTimeGranularity < 5)) {
+            setFormError(t("adminServices.timeSlotIntervalInvalid"));
+            return;
+        }
         const promoPriceValue = formData.promo_price.trim()
             ? Number.parseFloat(formData.promo_price)
             : null;
@@ -378,6 +392,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                 duration_minutes: multiSessionEnabled
                     ? computedMultiSessionDuration ?? durationValue
                     : durationValue,
+                booking_time_granularity_minutes: bookingTimeGranularity,
                 is_multi_session: multiSessionEnabled,
                 session_count: multiSessionEnabled ? sessionCount : null,
                 session_duration_minutes: multiSessionEnabled ? sessionDuration : null,
@@ -609,6 +624,22 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                                         La duración total se calcula automáticamente.
                                     </p>
                                 ) : null}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="booking_time_granularity_minutes">{t("adminSettings.timeSlotInterval")}</Label>
+                                <Input
+                                    id="booking_time_granularity_minutes"
+                                    type="number"
+                                    min={5}
+                                    step={1}
+                                    value={formData.booking_time_granularity_minutes}
+                                    onChange={(event) => setFormData((prev) => ({
+                                        ...prev,
+                                        booking_time_granularity_minutes: event.target.value,
+                                    }))}
+                                    placeholder={t("adminServices.timeSlotIntervalDefault")}
+                                />
+                                <p className="text-xs text-slate-500">{t("adminServices.timeSlotIntervalHint")}</p>
                             </div>
                         </CardContent>
                     </Card>
