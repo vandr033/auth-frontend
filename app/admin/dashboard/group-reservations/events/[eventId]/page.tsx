@@ -115,7 +115,7 @@ type EventMessageRecipient = {
 };
 
 type FailedEventMessageTarget = {
-    source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
+    source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION" | "GROUP_EVENT_TICKET";
     id: number;
     failed_channels: Array<"WHATSAPP" | "EMAIL">;
 };
@@ -849,7 +849,7 @@ export default function GroupEventDetailPage() {
     };
 
     const sendMassMessageToTargets = async (
-        targets: Array<{ source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION"; id: number }>,
+        targets: Array<{ source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION" | "GROUP_EVENT_TICKET"; id: number }>,
         deliveryMode: GroupEventMassMessageDeliveryMode,
     ) => {
         if (!canBulkMessaging) {
