@@ -2187,20 +2187,22 @@ export default function GroupEventDetailPage() {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+                </>
+            ) : null}
 
-                    <Dialog
-                        open={massDialogOpen}
-                        onOpenChange={(open) => {
-                            setMassDialogOpen(open);
-                            if (!open) {
-                                setMassRecipientMenuOpen(false);
-                                setMassRecipientSearch("");
-                                setFailedMassRecipients([]);
-                                setMassMessageProgress(null);
-                            }
-                        }}
-                    >
-                        <DialogContent className="sm:max-w-lg">
+            <Dialog
+                open={massDialogOpen}
+                onOpenChange={(open) => {
+                    setMassDialogOpen(open);
+                    if (!open) {
+                        setMassRecipientMenuOpen(false);
+                        setMassRecipientSearch("");
+                        setFailedMassRecipients([]);
+                        setMassMessageProgress(null);
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
                             <DialogHeader>
                                 <DialogTitle>{t("adminGroup.events.sendMassMessageTitle")}</DialogTitle>
                                 <DialogDescription>
@@ -2405,10 +2407,8 @@ export default function GroupEventDetailPage() {
                                         : t("adminGroup.events.sendMassMessage")}
                                 </Button>
                             </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </>
-            ) : null}
+                </DialogContent>
+            </Dialog>
 
             <Card className="border-slate-200">
                 <CardHeader>
