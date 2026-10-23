@@ -606,7 +606,7 @@ export interface MassCustomerMessageResult {
     pending_whatsapp?: number;
     delivery_status?: "QUEUED" | "DUPLICATE" | "SKIPPED" | "REJECTED" | null;
     failed_targets?: Array<{
-        source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION" | "GROUP_EVENT_TICKET";
+        source: "GROUP_EVENT_BOOKING" | "GROUP_EVENT_BOOKER" | "FREE_REGISTRATION" | "GROUP_EVENT_TICKET";
         id: number;
         failed_channels: Array<"WHATSAPP" | "EMAIL">;
     }>;
@@ -618,7 +618,7 @@ export interface MassCustomerMessageProgress extends MassCustomerMessageResult {
 }
 
 export type GroupEventMassMessageTarget = {
-    source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION" | "GROUP_EVENT_TICKET";
+    source: "GROUP_EVENT_BOOKING" | "GROUP_EVENT_BOOKER" | "FREE_REGISTRATION" | "GROUP_EVENT_TICKET";
     id: number;
 };
 

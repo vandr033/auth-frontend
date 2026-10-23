@@ -104,10 +104,12 @@ type ManualStaff = {
     role: GroupStaffRole;
 };
 
+type EventMessageRecipientSource = "GROUP_EVENT_BOOKING" | "GROUP_EVENT_BOOKER" | "GROUP_EVENT_TICKET" | "FREE_REGISTRATION";
+
 type EventMessageRecipient = {
     key: string;
     id: number;
-    source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION";
+    source: EventMessageRecipientSource;
     label: string;
     email: string | null;
     phone: string | null;
@@ -115,7 +117,7 @@ type EventMessageRecipient = {
 };
 
 type FailedEventMessageTarget = {
-    source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION" | "GROUP_EVENT_TICKET";
+    source: EventMessageRecipientSource;
     id: number;
     failed_channels: Array<"WHATSAPP" | "EMAIL">;
 };
@@ -142,8 +144,18 @@ function slugifyInput(value: string): string {
     return normalizeSlugInput(value).replace(/-+$/g, "");
 }
 
-function getMassRecipientKey(source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION", id: number): string {
+function getMassRecipientKey(source: EventMessageRecipientSource, id: number): string {
     return `${source}:${id}`;
+}
+
+function isMainBookerTicket(ticket: GroupTicket, booking: GroupEventBooking): boolean {
+    const ticketEmail = ticket.holder_email?.trim().toLowerCase();
+    const bookingEmail = booking.user?.email?.trim().toLowerCase();
+    const ticketPhone = ticket.holder_phone?.replace(/\D/g, "");
+    const bookingPhone = booking.user?.phoneNumber?.replace(/\D/g, "");
+    return ticket.seat_number === 1
+        || Boolean(ticketEmail && bookingEmail && ticketEmail === bookingEmail)
+        || Boolean(ticketPhone && bookingPhone && ticketPhone === bookingPhone);
 }
 
 type EventFormState = {
@@ -397,21 +409,50 @@ export default function GroupEventDetailPage() {
     const massRecipients = useMemo<EventMessageRecipient[]>(() => {
         return bookings
             .filter((booking) => booking.status !== "CANCELLED")
-            .map((booking) => {
+            .flatMap((booking) => {
                 const source = booking.source === "FREE_REGISTRATION" ? "FREE_REGISTRATION" : "GROUP_EVENT_BOOKING";
                 const rawId = source === "FREE_REGISTRATION" ? Math.abs(booking.id) : booking.id;
                 const name = booking.user?.name || booking.user?.email || booking.user_id;
-                return {
-                    key: getMassRecipientKey(source, rawId),
-                    id: rawId,
-                    source,
-                    label: name,
-                    email: booking.user?.email ?? null,
-                    phone: booking.user?.phoneNumber ?? null,
-                    status: booking.status,
-                };
+                if (source === "FREE_REGISTRATION" || !canUseAdvanced) {
+                    return [{
+                        key: getMassRecipientKey(source, rawId),
+                        id: rawId,
+                        source,
+                        label: name,
+                        email: booking.user?.email ?? null,
+                        phone: booking.user?.phoneNumber ?? null,
+                        status: booking.status,
+                    }];
+                }
+
+                const activeTickets = (ticketsByBookingId.get(booking.id) ?? [])
+                    .filter((ticket) => ticket.status === "ACTIVE" || ticket.status === "USED");
+                const recipients: EventMessageRecipient[] = activeTickets.map((ticket) => {
+                    const isBooker = isMainBookerTicket(ticket, booking);
+                    return {
+                        key: getMassRecipientKey("GROUP_EVENT_TICKET", ticket.id),
+                        id: ticket.id,
+                        source: "GROUP_EVENT_TICKET" as const,
+                        label: ticket.holder_name || (isBooker ? name : null) || ticket.holder_email || ticket.holder_phone || `Ticket #${ticket.seat_number ?? ticket.ticket_code}`,
+                        email: ticket.holder_email || (isBooker ? booking.user?.email : null) || null,
+                        phone: ticket.holder_phone || (isBooker ? booking.user?.phoneNumber : null) || null,
+                        status: ticket.status,
+                    };
+                });
+                if (!activeTickets.some((ticket) => isMainBookerTicket(ticket, booking))) {
+                    recipients.push({
+                        key: getMassRecipientKey("GROUP_EVENT_BOOKER", booking.id),
+                        id: booking.id,
+                        source: "GROUP_EVENT_BOOKER",
+                        label: name,
+                        email: booking.user?.email ?? null,
+                        phone: booking.user?.phoneNumber ?? null,
+                        status: booking.status,
+                    });
+                }
+                return recipients;
             });
-    }, [bookings]);
+    }, [bookings, canUseAdvanced, ticketsByBookingId]);
     const filteredMassRecipients = useMemo(() => {
         const query = massRecipientSearch.trim().toLowerCase();
         if (!query) return massRecipients;
@@ -849,7 +890,7 @@ export default function GroupEventDetailPage() {
     };
 
     const sendMassMessageToTargets = async (
-        targets: Array<{ source: "GROUP_EVENT_BOOKING" | "FREE_REGISTRATION" | "GROUP_EVENT_TICKET"; id: number }>,
+        targets: Array<{ source: EventMessageRecipientSource; id: number }>,
         deliveryMode: GroupEventMassMessageDeliveryMode,
     ) => {
         if (!canBulkMessaging) {
