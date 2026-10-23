@@ -53,10 +53,12 @@ type SettingsTab = "booking" | "payments" | "subscription";
 
 type SettingsPageProps = {
     initialTab?: SettingsTab;
-    visibleTabs?: SettingsTab[];
+    visibleTabs?: readonly SettingsTab[];
     titleKey?: string;
     subtitleKey?: string;
 };
+
+const DEFAULT_SETTINGS_TABS: SettingsTab[] = ["booking", "payments", "subscription"];
 
 // Combined interface
 interface CompanySettings {
@@ -225,7 +227,7 @@ function MessagingCapabilityRow({
 
 export default function SettingsPage({
     initialTab = "booking",
-    visibleTabs = ["booking", "payments", "subscription"],
+    visibleTabs = DEFAULT_SETTINGS_TABS,
     titleKey = "adminSettings.title",
     subtitleKey = "adminSettings.subtitle",
 }: SettingsPageProps) {
@@ -291,12 +293,14 @@ export default function SettingsPage({
                 subscriptionOnly
                     ? Promise.resolve(null)
                     : fetch(resolveApiUrl(`/api/admin/settings`), { credentials: "include" }),
-                fetch(resolveApiUrl(`/api/admin/settings/subscription-history`), { credentials: "include" }),
+                visibleTabSet.has("subscription")
+                    ? fetch(resolveApiUrl(`/api/admin/settings/subscription-history`), { credentials: "include" })
+                    : Promise.resolve(null),
             ]);
 
             const companyData = companyRes?.ok ? (await companyRes.json()) : {};
             const settingsData = settingsRes?.ok ? (await settingsRes.json()) : {};
-            const historyData = historyRes.ok ? (await historyRes.json()) : {};
+            const historyData = historyRes?.ok ? (await historyRes.json()) : {};
 
             const company = companyData.data || companyData || {};
             const config = settingsData.data || settingsData || {};
@@ -342,18 +346,20 @@ export default function SettingsPage({
                 staff_label: config.staff_label ?? prev.staff_label,
             }));
 
-            if (historyPayload.company) {
-                setSubscriptionSummary(historyPayload.company);
-                setSubscriptionHistory(Array.isArray(historyPayload.history) ? historyPayload.history : []);
-                setProductHistory(Array.isArray(historyPayload.productHistory) ? historyPayload.productHistory : []);
-                setPendingRequests(Array.isArray(historyPayload.pendingRequests) ? historyPayload.pendingRequests : []);
-                setSubscriptionError(null);
-            } else {
-                setSubscriptionSummary(null);
-                setSubscriptionHistory([]);
-                setProductHistory([]);
-                setPendingRequests([]);
-                setSubscriptionError(t("adminSettings.historyLoadFailed"));
+            if (visibleTabSet.has("subscription")) {
+                if (historyPayload.company) {
+                    setSubscriptionSummary(historyPayload.company);
+                    setSubscriptionHistory(Array.isArray(historyPayload.history) ? historyPayload.history : []);
+                    setProductHistory(Array.isArray(historyPayload.productHistory) ? historyPayload.productHistory : []);
+                    setPendingRequests(Array.isArray(historyPayload.pendingRequests) ? historyPayload.pendingRequests : []);
+                    setSubscriptionError(null);
+                } else {
+                    setSubscriptionSummary(null);
+                    setSubscriptionHistory([]);
+                    setProductHistory([]);
+                    setPendingRequests([]);
+                    setSubscriptionError(t("adminSettings.historyLoadFailed"));
+                }
             }
 
         } catch (err) {

@@ -78,6 +78,7 @@ interface Service {
     required_resources?: { staff_profile_id: number }[];
     notify_customer?: boolean;
     notify_assigned_staff?: boolean;
+    notify_assigned_staff_ids?: number[] | null;
     notify_management?: boolean;
 }
 
@@ -107,6 +108,7 @@ interface ServiceFormData {
     required_resource_ids: number[];
     notify_customer: boolean;
     notify_assigned_staff: boolean;
+    notify_assigned_staff_ids: number[];
     notify_management: boolean;
 }
 
@@ -129,6 +131,7 @@ const initialFormData: ServiceFormData = {
     required_resource_ids: [],
     notify_customer: true,
     notify_assigned_staff: true,
+    notify_assigned_staff_ids: [],
     notify_management: true,
 };
 
@@ -195,20 +198,26 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
             const serviceTypesData = await serviceTypesRes.json();
             const services: Service[] = servicesData.data || servicesData || [];
             const nextCategories = categoriesData.data || categoriesData || [];
+            let nextStaffOptions: StaffOption[] = [];
 
             setCategories(nextCategories);
             setGlobalServiceTypes(serviceTypesData.data || serviceTypesData || []);
 
             if (staffRes.ok) {
                 const staffData = await staffRes.json();
-                setStaffOptions(staffData.data || staffData || []);
+                nextStaffOptions = staffData.data || staffData || [];
+                setStaffOptions(nextStaffOptions);
             }
+            const personStaff = nextStaffOptions.filter(
+                (staff) => staff.resource_type !== "ROOM" && staff.resource_type !== "EQUIPMENT",
+            );
 
             if (isEditing && serviceId) {
                 const service = services.find((item) => item.id === serviceId);
                 if (!service) {
                     throw new Error(t("adminServices.fetchServicesError"));
                 }
+                const serviceStaff = personStaff.filter((staff) => staff.services?.includes(serviceId));
                 setExistingMultiSessionService(service.is_multi_session === true);
                 setFormData({
                     name: service.name,
@@ -234,13 +243,19 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                     required_resource_ids: service.required_resources?.map((resource) => resource.staff_profile_id) ?? [],
                     notify_customer: service.notify_customer ?? true,
                     notify_assigned_staff: service.notify_assigned_staff ?? true,
+                    notify_assigned_staff_ids: Array.isArray(service.notify_assigned_staff_ids)
+                        ? service.notify_assigned_staff_ids.filter((id) => serviceStaff.some((staff) => staff.id === id))
+                        : serviceStaff.map((staff) => staff.id),
                     notify_management: service.notify_management ?? true,
                 });
                 setInviteToken(service.invite_token ?? null);
             } else {
                 setExistingMultiSessionService(false);
                 setInviteToken(null);
-                setFormData(initialFormData);
+                setFormData({
+                    ...initialFormData,
+                    notify_assigned_staff_ids: personStaff.map((staff) => staff.id),
+                });
             }
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminServices.loadDataError"));
@@ -281,12 +296,11 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
     const canCustomizeNotificationRecipients =
         Boolean(user?.is_super_admin) ||
         hasEffectiveCapability(effectiveAccess, "MENSAJERIA_PRO");
-    const possibleAssignedStaffNames = useMemo(() => {
+    const possibleAssignedStaff = useMemo(() => {
         const people = staffOptions.filter((staff) => staff.resource_type !== "ROOM" && staff.resource_type !== "EQUIPMENT");
-        if (!isEditing || !serviceId) return people.map((staff) => staff.display_name);
+        if (!isEditing || !serviceId) return people;
         return people
-            .filter((staff) => staff.services?.includes(serviceId))
-            .map((staff) => staff.display_name);
+            .filter((staff) => staff.services?.includes(serviceId));
     }, [isEditing, serviceId, staffOptions]);
     const shouldPreserveLockedMultiSession =
         isEditing &&
@@ -403,6 +417,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                 ...(canCustomizeNotificationRecipients ? {
                     notify_customer: formData.notify_customer,
                     notify_assigned_staff: formData.notify_assigned_staff,
+                    notify_assigned_staff_ids: formData.notify_assigned_staff_ids,
                     notify_management: formData.notify_management,
                 } : {}),
             };
@@ -934,9 +949,7 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                                             {t("adminServices.notifyAssignedStaff")}
                                         </Label>
                                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                                            {possibleAssignedStaffNames.length > 0
-                                                ? t("adminServices.notifyAssignedStaffNames", { names: possibleAssignedStaffNames.join(", ") })
-                                                : t("adminServices.notifyAssignedStaffHint")}
+                                            {t("adminServices.notifyAssignedStaffHint")}
                                         </p>
                                     </div>
                                     <Switch
@@ -946,6 +959,35 @@ export function ServiceEditorPage({ serviceId }: { serviceId?: number }) {
                                         onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, notify_assigned_staff: checked }))}
                                     />
                                 </div>
+
+                                {possibleAssignedStaff.length > 0 ? (
+                                    <div className="space-y-1 border-t border-admin-border px-4 py-3">
+                                        {possibleAssignedStaff.map((staff) => (
+                                            <label
+                                                key={staff.id}
+                                                className="flex min-h-11 items-center gap-3 rounded-md px-2 text-sm text-slate-800 hover:bg-admin-surface-subtle"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4 shrink-0 accent-admin-brand"
+                                                    checked={formData.notify_assigned_staff_ids.includes(staff.id)}
+                                                    disabled={!canCustomizeNotificationRecipients || !formData.notify_assigned_staff}
+                                                    onChange={(event) => setFormData((prev) => ({
+                                                        ...prev,
+                                                        notify_assigned_staff_ids: event.target.checked
+                                                            ? [...prev.notify_assigned_staff_ids, staff.id]
+                                                            : prev.notify_assigned_staff_ids.filter((id) => id !== staff.id),
+                                                    }))}
+                                                />
+                                                <span className="min-w-0 flex-1 break-words">{staff.display_name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="border-t border-admin-border px-4 py-3 text-xs text-slate-500">
+                                        {t("adminServices.notifyAssignedStaffEmpty")}
+                                    </p>
+                                )}
 
                                 <div className="flex items-start gap-3 p-4">
                                     <div className="mt-0.5 rounded-full bg-fuchsia-50 p-2 text-fuchsia-700">

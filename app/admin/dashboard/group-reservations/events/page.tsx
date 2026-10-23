@@ -213,24 +213,24 @@ export default function GroupEventsAdminPage() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
                 <Card className="border-slate-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-slate-600">{t("adminGroup.cards.totalEvents")}</CardTitle>
+                    <CardHeader className="p-3 pb-1 sm:p-6 sm:pb-2">
+                        <CardTitle className="text-xs text-slate-600 sm:text-sm">{t("adminGroup.cards.totalEvents")}</CardTitle>
                     </CardHeader>
-                    <CardContent className="text-2xl font-semibold text-slate-900">{events.length}</CardContent>
+                    <CardContent className="p-3 pt-1 text-2xl font-semibold text-slate-900 sm:p-6 sm:pt-0">{events.length}</CardContent>
                 </Card>
                 <Card className="border-slate-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-slate-600">{t("adminGroup.cards.seatsBooked")}</CardTitle>
+                    <CardHeader className="p-3 pb-1 sm:p-6 sm:pb-2">
+                        <CardTitle className="text-xs text-slate-600 sm:text-sm">{t("adminGroup.cards.seatsBooked")}</CardTitle>
                     </CardHeader>
-                    <CardContent className="text-2xl font-semibold text-slate-900">{capacitySummary.booked}</CardContent>
+                    <CardContent className="p-3 pt-1 text-2xl font-semibold text-slate-900 sm:p-6 sm:pt-0">{capacitySummary.booked}</CardContent>
                 </Card>
                 <Card className="border-slate-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-slate-600">{t("adminGroup.cards.totalCapacity")}</CardTitle>
+                    <CardHeader className="p-3 pb-1 sm:p-6 sm:pb-2">
+                        <CardTitle className="text-xs text-slate-600 sm:text-sm">{t("adminGroup.cards.totalCapacity")}</CardTitle>
                     </CardHeader>
-                    <CardContent className="text-2xl font-semibold text-slate-900">{capacitySummary.totalCapacity}</CardContent>
+                    <CardContent className="p-3 pt-1 text-2xl font-semibold text-slate-900 sm:p-6 sm:pt-0">{capacitySummary.totalCapacity}</CardContent>
                 </Card>
             </div>
 

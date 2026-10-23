@@ -765,8 +765,8 @@ type AdminTabNavProps = {
 
 export function AdminTabNav({ items, className }: AdminTabNavProps) {
   return (
-    <div className={cn("overflow-x-auto pb-1", className)}>
-      <div className="inline-flex min-w-full items-center gap-1 rounded-2xl border border-admin-border bg-admin-surface p-1.5 shadow-admin">
+    <div className={cn("pb-1", className)}>
+      <div className="grid grid-cols-2 items-stretch gap-1 rounded-2xl border border-admin-border bg-admin-surface p-1.5 shadow-admin lg:flex lg:min-w-full lg:flex-nowrap">
         {items.map((item) => {
           const content = (
             <>
@@ -780,7 +780,7 @@ export function AdminTabNav({ items, className }: AdminTabNavProps) {
               <span
                 key={item.key}
                 className={cn(
-                  "inline-flex min-h-10 items-center gap-1 rounded-xl border px-3 py-2 text-sm font-medium whitespace-nowrap",
+                  "inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-xl border px-2 py-2 text-center text-xs font-medium leading-tight lg:min-h-10 lg:w-auto lg:px-3 lg:text-sm lg:whitespace-nowrap",
                   item.disabled
                     ? "border-dashed border-admin-border bg-admin-surface-subtle text-slate-400"
                     : item.active
@@ -798,7 +798,7 @@ export function AdminTabNav({ items, className }: AdminTabNavProps) {
               key={item.key}
               href={item.href}
               className={cn(
-                "inline-flex min-h-10 items-center gap-1 rounded-xl border px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
+                "inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-xl border px-2 py-2 text-center text-xs font-medium leading-tight lg:min-h-10 lg:w-auto lg:px-3 lg:text-sm lg:whitespace-nowrap transition-colors",
                 item.active
                   ? "border-admin-brand bg-admin-brand text-white shadow-sm"
                   : "border-transparent bg-transparent text-slate-600 hover:border-admin-border hover:bg-admin-brand-soft hover:text-slate-950",

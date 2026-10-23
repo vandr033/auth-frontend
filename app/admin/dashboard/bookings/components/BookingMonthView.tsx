@@ -118,7 +118,7 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
             <div className="min-w-0">
                 <div className="mb-3 grid grid-cols-7 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                     {weekdayLabels.map((label) => (
-                        <div key={label} className="py-2">
+                        <div key={label} className="min-w-0 py-2">
                             {label}
                         </div>
                     ))}
@@ -140,8 +140,9 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
                                 key={key}
                                 type="button"
                                 onClick={() => setSelectedDay(day)}
+                                aria-label={`${format(day, "EEEE, d MMM", { locale: dateFnsLocale })}: ${dayBookings.length} ${t("adminBookings.bookingsShort")}`}
                                 className={cn(
-                                    "relative min-h-[72px] rounded-lg border px-1.5 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand sm:min-h-[88px] sm:px-2 sm:py-2",
+                                    "relative min-h-[64px] w-full min-w-0 rounded-lg border px-1 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-brand sm:min-h-[88px] sm:px-2 sm:py-2",
                                     isOutsideMonth
                                         ? "border-transparent bg-transparent text-slate-400"
                                         : "border-admin-border bg-white hover:border-admin-border-strong",
@@ -157,7 +158,13 @@ export function BookingMonthView({ bookings, currentDate, onBookingClick }: Book
                                         <div className="mt-1 hidden text-[11px] font-medium text-slate-500 sm:block">
                                             {dayBookings.length} {t("adminBookings.bookingsShort")}
                                         </div>
-                                        <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
+                                        <div className="absolute bottom-1 left-1 flex items-center gap-1 sm:hidden">
+                                            <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[dotStatuses[0]])} />
+                                            <span className="text-[9px] font-semibold leading-none text-slate-500">
+                                                {dayBookings.length}
+                                            </span>
+                                        </div>
+                                        <div className="absolute bottom-1.5 left-1.5 hidden items-center gap-1 sm:flex">
                                             {dotStatuses.map((status, index) => (
                                                 <span
                                                     key={`${key}-${status}-${index}`}

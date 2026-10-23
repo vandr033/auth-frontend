@@ -54,7 +54,7 @@ export function StickyActionBar({
 
   return (
     <>
-      <div className="h-24 sm:h-20" aria-hidden="true" />
+      <div className="h-[calc(7rem+env(safe-area-inset-bottom))] sm:h-20" aria-hidden="true" />
 
       <div
         className={cn(

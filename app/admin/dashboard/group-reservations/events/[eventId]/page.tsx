@@ -1062,6 +1062,83 @@ export default function GroupEventDetailPage() {
         }
     };
 
+    const renderPendingBookingActions = (booking: GroupEventBooking, mobile = false) => {
+        const canManageBooking = booking.source !== "FREE_REGISTRATION";
+        const needsQrApproval = canManageBooking
+            && booking.payment_method === "QR"
+            && booking.payment_status === "PENDING_CONFIRMATION";
+
+        return (
+            <div className={mobile ? "grid gap-2" : "flex flex-wrap gap-2"}>
+                {canManageBooking ? (
+                    <>
+                        {needsQrApproval ? (
+                            <Button size="sm" className={mobile ? "w-full" : undefined} onClick={() => void handleApproveQrPayment(booking.id)}>
+                                {t("adminGroup.actions.approveQrPayment")}
+                            </Button>
+                        ) : (
+                            <Button size="sm" className={mobile ? "w-full" : undefined} onClick={() => void handleBookingAction(booking.id, "confirm")}>
+                                {t("common.confirm")}
+                            </Button>
+                        )}
+                        {booking.qr_proof_image_url ? (
+                            <Button size="sm" variant="outline" className={mobile ? "w-full" : undefined} onClick={() => setQrProofDialog(booking.qr_proof_image_url!)}>
+                                <Eye className="mr-1 h-3 w-3" />
+                                {t("adminGroup.actions.viewQrProof")}
+                            </Button>
+                        ) : null}
+                        <Button size="sm" variant="outline" className={mobile ? "w-full" : undefined} onClick={() => void handleBookingAction(booking.id, "cancel")}>
+                            {t("common.cancel")}
+                        </Button>
+                    </>
+                ) : (
+                    <span className="text-xs text-slate-500">—</span>
+                )}
+            </div>
+        );
+    };
+
+    const renderAttendeeActions = (booking: GroupEventBooking, mobile = false) => {
+        const canManageBooking = booking.source !== "FREE_REGISTRATION";
+        const needsQrApproval = canManageBooking
+            && booking.status === "PENDING"
+            && booking.payment_method === "QR"
+            && booking.payment_status === "PENDING_CONFIRMATION";
+
+        return (
+            <div className={mobile ? "grid gap-2" : "flex flex-wrap gap-2"}>
+                {canManageBooking && booking.status === "PENDING" ? (
+                    needsQrApproval ? (
+                        <Button size="sm" className={mobile ? "w-full" : undefined} onClick={() => void handleApproveQrPayment(booking.id)}>
+                            {t("adminGroup.actions.approveQrPayment")}
+                        </Button>
+                    ) : (
+                        <Button size="sm" className={mobile ? "w-full" : undefined} onClick={() => void handleBookingAction(booking.id, "confirm")}>
+                            {t("common.confirm")}
+                        </Button>
+                    )
+                ) : null}
+                {canManageBooking && booking.status === "CONFIRMED" ? (
+                    <Button size="sm" variant="outline" className={mobile ? "w-full" : undefined} onClick={() => void handleBookingAction(booking.id, "unconfirm")}>
+                        {t("adminGroup.actions.unconfirm")}
+                    </Button>
+                ) : null}
+                {booking.qr_proof_image_url ? (
+                    <Button size="sm" variant="outline" className={mobile ? "w-full" : undefined} onClick={() => setQrProofDialog(booking.qr_proof_image_url!)}>
+                        <Eye className="mr-1 h-3 w-3" />
+                        {t("adminGroup.actions.viewQrProof")}
+                    </Button>
+                ) : null}
+                {canManageBooking && booking.status !== "CANCELLED" ? (
+                    <Button size="sm" variant="outline" className={mobile ? "w-full" : undefined} onClick={() => void handleBookingAction(booking.id, "cancel")}>
+                        {t("common.cancel")}
+                    </Button>
+                ) : null}
+                {!canManageBooking ? <span className="text-xs text-slate-500">—</span> : null}
+            </div>
+        );
+    };
+
     if (!canUseEvents) {
         const requiredPlan = getRequiredPlan("GROUP_EVENTS");
         return (
@@ -1553,16 +1630,6 @@ export default function GroupEventDetailPage() {
                     <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
                         <p>{t("adminGroup.events.autoConfirmState", { value: settings?.auto_confirm_bookings ? t("adminGroup.values.on") : t("adminGroup.values.off") })}</p>
                     </div>
-
-                    <StickyFormActions
-                        onSave={handleUpdateEvent}
-                        loading={saving}
-                        saveLabel={t("adminGroup.actions.save")}
-                        loadingLabel={t("adminServices.saving")}
-                        saveClassName="bg-admin-brand text-white hover:bg-admin-brand-hover"
-                        onCancel={() => void loadData()}
-                        cancelLabel={t("common.cancel")}
-                    />
                 </CardContent>
             </Card>
 
@@ -1570,104 +1637,145 @@ export default function GroupEventDetailPage() {
                 <CardHeader>
                     <CardTitle className="text-base">{t("adminGroup.bookings.pendingTitle")}</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 sm:p-6">
                     {pendingBookings.length === 0 ? (
                         <p className="text-sm text-slate-500">{t("adminGroup.bookings.noPending")}</p>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{t("adminGroup.fields.name")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.spots")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.payment")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.actions")}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {pendingBookings.map((booking) => {
-                                    const canManageBooking = booking.source !== "FREE_REGISTRATION";
-                                    const needsQrApproval =
-                                        canManageBooking
-                                        && booking.payment_method === "QR"
-                                        && booking.payment_status === "PENDING_CONFIRMATION";
-                                    return (
-                                        <TableRow key={booking.id}>
-                                            <TableCell>{booking.user?.name || booking.user?.email || booking.user_id}</TableCell>
-                                            <TableCell>{booking.booked_spots}</TableCell>
-                                            <TableCell>
-                                                <GroupPaymentStatusBadge status={booking.payment_status} />
-                                            </TableCell>
-                                            <TableCell className="flex flex-wrap gap-2">
-                                                {canManageBooking ? (
-                                                    <>
-                                                        {needsQrApproval ? (
-                                                            <Button size="sm" onClick={() => void handleApproveQrPayment(booking.id)}>
-                                                                {t("adminGroup.actions.approveQrPayment")}
-                                                            </Button>
-                                                        ) : (
-                                                            <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
-                                                                {t("common.confirm")}
-                                                            </Button>
-                                                        )}
-                                                        {booking.qr_proof_image_url ? (
-                                                            <Button size="sm" variant="outline" onClick={() => setQrProofDialog(booking.qr_proof_image_url!)}>
-                                                                <Eye className="mr-1 h-3 w-3" />
-                                                                {t("adminGroup.actions.viewQrProof")}
-                                                            </Button>
-                                                        ) : null}
-                                                        <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "cancel")}>
-                                                            {t("common.cancel")}
-                                                        </Button>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-xs text-slate-500">—</span>
-                                                )}
-                                            </TableCell>
+                        <>
+                            <div className="divide-y divide-slate-100 lg:hidden">
+                                {pendingBookings.map((booking) => (
+                                    <article key={booking.id} className="space-y-3 py-4 first:pt-0 last:pb-0">
+                                        <div className="min-w-0 space-y-2">
+                                            <p className="break-words font-medium text-slate-950">
+                                                {booking.user?.name || booking.user?.email || booking.user_id}
+                                            </p>
+                                            <GroupPaymentStatusBadge status={booking.payment_status} />
+                                            <p className="text-xs text-slate-500">
+                                                {booking.booked_spots} {t("adminGroup.fields.spots")}
+                                            </p>
+                                        </div>
+                                        {renderPendingBookingActions(booking, true)}
+                                    </article>
+                                ))}
+                            </div>
+                            <div className="hidden lg:block">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.spots")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.payment")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.actions")}</TableHead>
                                         </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {pendingBookings.map((booking) => (
+                                            <TableRow key={booking.id}>
+                                                <TableCell>{booking.user?.name || booking.user?.email || booking.user_id}</TableCell>
+                                                <TableCell>{booking.booked_spots}</TableCell>
+                                                <TableCell><GroupPaymentStatusBadge status={booking.payment_status} /></TableCell>
+                                                <TableCell>{renderPendingBookingActions(booking)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </>
                     )}
                 </CardContent>
             </Card>
 
             <Card className="border-slate-200">
-                <CardHeader className="flex-row items-center justify-between">
+                <CardHeader className="flex-col items-start gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <CardTitle className="text-base">{t("adminGroup.bookings.attendeesTitle")}</CardTitle>
                     {bookings.length > 0 && (
-                        <Button size="sm" variant="outline" onClick={exportAttendeesCsv}>
+                        <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={exportAttendeesCsv}>
                             <Download className="mr-1.5 h-3.5 w-3.5" />
                             Exportar CSV
                         </Button>
                     )}
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 sm:p-6">
                     {bookings.length === 0 ? (
                         <p className="text-sm text-slate-500">{t("adminGroup.bookings.empty")}</p>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{t("adminGroup.fields.name")}</TableHead>
-                                    {event.registration_question_text?.trim() ? (
-                                        <TableHead>{t("adminGroup.fields.registrationQuestionAnswer")}</TableHead>
-                                    ) : null}
-                                    <TableHead>{t("adminGroup.fields.status")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.payment")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.ticket")}</TableHead>
-                                    <TableHead>{t("adminGroup.fields.actions")}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                                <TableBody>
+                        <>
+                            <div className="divide-y divide-slate-100 lg:hidden">
                                 {bookings.map((booking) => {
                                     const bookingTickets = ticketsByBookingId.get(booking.id) ?? [];
-                                    const canManageBooking = booking.source !== "FREE_REGISTRATION";
-                                    const needsQrApproval =
-                                        canManageBooking
-                                        && booking.status === "PENDING"
-                                        && booking.payment_method === "QR"
-                                        && booking.payment_status === "PENDING_CONFIRMATION";
+                                    return (
+                                        <article key={booking.id} className="space-y-3 py-4 first:pt-0 last:pb-0">
+                                            <div className="min-w-0">
+                                                <p className="break-words font-medium text-slate-950">
+                                                    {booking.user?.name || booking.user?.email || booking.user_id}
+                                                </p>
+                                                <p className="mt-1 break-all text-xs text-slate-500">
+                                                    {booking.user?.phoneNumber || "—"}
+                                                </p>
+                                            </div>
+                                            {event.registration_question_text?.trim() ? (
+                                                <div className="rounded-md bg-slate-50 p-3">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                                        {t("adminGroup.fields.registrationQuestionAnswer")}
+                                                    </p>
+                                                    <p className="mt-1 break-words text-sm text-slate-700">
+                                                        {booking.registration_question_answer || "—"}
+                                                    </p>
+                                                </div>
+                                            ) : null}
+                                            <div className="flex flex-wrap gap-2">
+                                                <GroupBookingStatusBadge status={booking.status} />
+                                                <GroupPaymentStatusBadge status={booking.payment_status} />
+                                            </div>
+                                            {canUseAdvanced && bookingTickets.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {bookingTickets.map((ticket) => (
+                                                        <div key={ticket.id} className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-2">
+                                                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                                                                <GroupTicketStatusBadge status={ticket.status} />
+                                                                {ticket.seat_number ? (
+                                                                    <span className="text-[11px] font-medium text-slate-600">#{ticket.seat_number}</span>
+                                                                ) : null}
+                                                            </div>
+                                                            <p className="break-all text-xs font-medium text-slate-700">{ticket.ticket_code}</p>
+                                                            {(ticket.holder_name || ticket.holder_email || ticket.holder_phone) ? (
+                                                                <p className="mt-1 break-words text-[11px] text-slate-500">
+                                                                    {ticket.holder_name || "—"}
+                                                                    {(ticket.holder_email || ticket.holder_phone)
+                                                                        ? ` · ${ticket.holder_email || ticket.holder_phone}`
+                                                                        : ""}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-500">
+                                                    {canUseAdvanced ? t("adminGroup.ticket.none") : t("adminGroup.ticket.proOnly")}
+                                                </p>
+                                            )}
+                                            {renderAttendeeActions(booking, true)}
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                            <div className="hidden lg:block">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>{t("adminGroup.fields.name")}</TableHead>
+                                            {event.registration_question_text?.trim() ? (
+                                                <TableHead>{t("adminGroup.fields.registrationQuestionAnswer")}</TableHead>
+                                            ) : null}
+                                            <TableHead>{t("adminGroup.fields.status")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.payment")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.ticket")}</TableHead>
+                                            <TableHead>{t("adminGroup.fields.actions")}</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                {bookings.map((booking) => {
+                                    const bookingTickets = ticketsByBookingId.get(booking.id) ?? [];
                                     return (
                                         <TableRow key={booking.id}>
                                             <TableCell>
@@ -1714,43 +1822,14 @@ export default function GroupEventDetailPage() {
                                                     </span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="flex flex-wrap gap-2">
-                                                {canManageBooking && booking.status === "PENDING" ? (
-                                                    needsQrApproval ? (
-                                                        <Button size="sm" onClick={() => void handleApproveQrPayment(booking.id)}>
-                                                            {t("adminGroup.actions.approveQrPayment")}
-                                                        </Button>
-                                                    ) : (
-                                                        <Button size="sm" onClick={() => void handleBookingAction(booking.id, "confirm")}>
-                                                            {t("common.confirm")}
-                                                        </Button>
-                                                    )
-                                                ) : null}
-                                                {canManageBooking && booking.status === "CONFIRMED" ? (
-                                                    <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "unconfirm")}>
-                                                        {t("adminGroup.actions.unconfirm")}
-                                                    </Button>
-                                                ) : null}
-                                                {booking.qr_proof_image_url ? (
-                                                    <Button size="sm" variant="outline" onClick={() => setQrProofDialog(booking.qr_proof_image_url!)}>
-                                                        <Eye className="mr-1 h-3 w-3" />
-                                                        {t("adminGroup.actions.viewQrProof")}
-                                                    </Button>
-                                                ) : null}
-                                                {canManageBooking && booking.status !== "CANCELLED" ? (
-                                                    <Button size="sm" variant="outline" onClick={() => void handleBookingAction(booking.id, "cancel")}>
-                                                        {t("common.cancel")}
-                                                    </Button>
-                                                ) : null}
-                                                {!canManageBooking ? (
-                                                    <span className="text-xs text-slate-500">—</span>
-                                                ) : null}
-                                            </TableCell>
+                                            <TableCell>{renderAttendeeActions(booking)}</TableCell>
                                         </TableRow>
                                     );
                                 })}
-                            </TableBody>
-                        </Table>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </>
                     )}
                 </CardContent>
             </Card>
@@ -2383,6 +2462,16 @@ export default function GroupEventDetailPage() {
                     ) : null}
                 </DialogContent>
             </Dialog>
+
+            <StickyFormActions
+                onSave={handleUpdateEvent}
+                loading={saving}
+                saveLabel={t("adminGroup.actions.save")}
+                loadingLabel={t("adminServices.saving")}
+                saveClassName="bg-admin-brand text-white hover:bg-admin-brand-hover"
+                onCancel={() => void loadData()}
+                cancelLabel={t("common.cancel")}
+            />
         </div>
     );
 }
