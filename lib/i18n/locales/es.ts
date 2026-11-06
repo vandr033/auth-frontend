@@ -2321,6 +2321,8 @@ const es: TranslationKeys = {
       created: "Evento creado correctamente.",
       createError: "No se pudo crear el evento.",
       editEvent: "Editar evento",
+      peopleTitle: "Personas",
+      communicationTitle: "Comunicación",
       updated: "Evento actualizado correctamente.",
       updateError: "No se pudo actualizar el evento.",
       invalidEventId: "ID de evento inválido.",

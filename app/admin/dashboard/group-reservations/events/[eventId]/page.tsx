@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { GroupLocationPicker } from "@/components/maps/GroupLocationPicker";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
@@ -1322,28 +1323,36 @@ export default function GroupEventDetailPage() {
                 </div>
             </div>
 
-            {!canBulkMessaging ? (
-                (() => {
-                    const requiredPlan = getRequiredPlan("BULK_WHATSAPP_MESSAGING");
-                    return (
-                <PlanUpgradeNotice
-                    title={t("planEnforcement.featureLockedTitle")}
-                    message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
-                    feature="BULK_WHATSAPP_MESSAGING"
-                    requiredPlan={requiredPlan}
-                />
-                    );
-                })()
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold text-slate-950">{event.title}</h1>
+                <GroupStatusBadge status={event.status} />
+            </div>
 
+            <Tabs defaultValue="overview" className="gap-4">
+                <Card className="overflow-hidden border-slate-200 shadow-sm">
+                    <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-slate-100 bg-white p-2">
+                        <TabsTrigger value="overview" className="flex-none px-3">
+                            {t("adminGroup.nav.overview")}
+                        </TabsTrigger>
+                        <TabsTrigger value="people" className="flex-none px-3">
+                            {t("adminGroup.events.peopleTitle")}
+                        </TabsTrigger>
+                        <TabsTrigger value="communication" className="flex-none px-3">
+                            {t("adminGroup.events.communicationTitle")}
+                        </TabsTrigger>
+                        <TabsTrigger value="attendance" className="flex-none px-3">
+                            {t("adminGroup.attendance.title")}
+                        </TabsTrigger>
+                        <TabsTrigger value="edit" className="flex-none px-3">
+                            {t("adminGroup.events.editEvent")}
+                        </TabsTrigger>
+                    </TabsList>
+                </Card>
+
+                <TabsContent value="overview" className="space-y-4">
             <Card className="border-slate-200">
                 <CardHeader>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            {event.title}
-                            <GroupStatusBadge status={event.status} />
-                        </CardTitle>
-                        <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                             {event.confirmations_enabled ? (
                                 <>
                                     <Badge variant="outline">{t("adminGroup.events.confirmationsOn")}</Badge>
@@ -1358,16 +1367,6 @@ export default function GroupEventDetailPage() {
                                     {t("adminGroup.events.enableConfirmations")}
                                 </Button>
                             )}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setMassDialogOpen(true)}
-                                disabled={!canBulkMessaging || sendingMassMessage || massRecipients.length === 0}
-                            >
-                                <Send className="mr-2 h-4 w-4" />
-                                {t("adminGroup.events.sendMassMessage")}
-                            </Button>
-                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-3">
@@ -1403,48 +1402,8 @@ export default function GroupEventDetailPage() {
                 </CardContent>
             </Card>
 
-            {massMessageBatchProgress ? (
-                <Card className="border-slate-200">
-                    <CardHeader>
-                        <CardTitle className="text-base">{t("adminGroup.events.massMessageWhatsappProgressTitle")}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        <p className="text-sm text-slate-700">
-                            {t("adminGroup.events.massMessageWhatsappProgress", {
-                                total: massMessageBatchProgress.total,
-                                sent: massMessageBatchProgress.sent,
-                                pending: massMessageBatchProgress.pending,
-                                processing: massMessageBatchProgress.processing,
-                                failed: massMessageBatchProgress.failed,
-                                expired: massMessageBatchProgress.expired,
-                                cancelled: massMessageBatchProgress.cancelled,
-                            })}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                            {t("adminGroup.events.massMessageWhatsappProgressDenominator", {
-                                terminal: massMessageBatchProgress.terminal,
-                                total: massMessageBatchProgress.total,
-                            })}
-                        </p>
-                        {massMessageBatchProgress.pending > 0 || massMessageBatchProgress.processing > 0 ? (
-                            <p className="text-xs text-slate-500">{t("adminGroup.events.massMessageWhatsappPaused")}</p>
-                        ) : null}
-                        {!sendingMassMessage && massMessageBatchProgress.failed > 0 ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => void handleRetryFailedMassMessage("WHATSAPP")}
-                            >
-                                {t("adminGroup.events.massMessageRetryWhatsapp", {
-                                    count: massMessageBatchProgress.failed,
-                                })}
-                            </Button>
-                        ) : null}
-                    </CardContent>
-                </Card>
-            ) : null}
-
+                </TabsContent>
+                <TabsContent value="edit" className="space-y-4">
             <Card className="border-slate-200">
                 <CardHeader>
                     <CardTitle className="text-base">{t("adminGroup.events.editEvent")}</CardTitle>
@@ -1769,6 +1728,17 @@ export default function GroupEventDetailPage() {
                 </CardContent>
             </Card>
 
+                <StickyFormActions
+                    onSave={handleUpdateEvent}
+                    loading={saving}
+                    saveLabel={t("adminGroup.actions.save")}
+                    loadingLabel={t("adminServices.saving")}
+                    saveClassName="bg-admin-brand text-white hover:bg-admin-brand-hover"
+                    onCancel={() => void loadData()}
+                    cancelLabel={t("common.cancel")}
+                />
+                </TabsContent>
+                <TabsContent value="people" className="space-y-4">
             <Card className="border-slate-200">
                 <CardHeader>
                     <CardTitle className="text-base">{t("adminGroup.bookings.pendingTitle")}</CardTitle>
@@ -2099,7 +2069,77 @@ export default function GroupEventDetailPage() {
                             )}
                         </CardContent>
                     </Card>
-
+                </>
+            ) : null}
+                </TabsContent>
+                <TabsContent value="communication" className="space-y-4">
+            {!canBulkMessaging ? (
+                (() => {
+                    const requiredPlan = getRequiredPlan("BULK_WHATSAPP_MESSAGING");
+                    return (
+                        <PlanUpgradeNotice
+                            title={t("planEnforcement.featureLockedTitle")}
+                            message={requiredPlan === "PRO" ? t("planEnforcement.availableOnPro") : t("planEnforcement.availableOnBusiness")}
+                            feature="BULK_WHATSAPP_MESSAGING"
+                            requiredPlan={requiredPlan}
+                        />
+                    );
+                })()
+            ) : null}
+            <div className="flex justify-end">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMassDialogOpen(true)}
+                    disabled={!canBulkMessaging || sendingMassMessage || massRecipients.length === 0}
+                >
+                    <Send className="mr-2 h-4 w-4" />
+                    {t("adminGroup.events.sendMassMessage")}
+                </Button>
+            </div>
+            {massMessageBatchProgress ? (
+                <Card className="border-slate-200">
+                    <CardHeader>
+                        <CardTitle className="text-base">{t("adminGroup.events.massMessageWhatsappProgressTitle")}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <p className="text-sm text-slate-700">
+                            {t("adminGroup.events.massMessageWhatsappProgress", {
+                                total: massMessageBatchProgress.total,
+                                sent: massMessageBatchProgress.sent,
+                                pending: massMessageBatchProgress.pending,
+                                processing: massMessageBatchProgress.processing,
+                                failed: massMessageBatchProgress.failed,
+                                expired: massMessageBatchProgress.expired,
+                                cancelled: massMessageBatchProgress.cancelled,
+                            })}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                            {t("adminGroup.events.massMessageWhatsappProgressDenominator", {
+                                terminal: massMessageBatchProgress.terminal,
+                                total: massMessageBatchProgress.total,
+                            })}
+                        </p>
+                        {massMessageBatchProgress.pending > 0 || massMessageBatchProgress.processing > 0 ? (
+                            <p className="text-xs text-slate-500">{t("adminGroup.events.massMessageWhatsappPaused")}</p>
+                        ) : null}
+                        {!sendingMassMessage && massMessageBatchProgress.failed > 0 ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void handleRetryFailedMassMessage("WHATSAPP")}
+                            >
+                                {t("adminGroup.events.massMessageRetryWhatsapp", {
+                                    count: massMessageBatchProgress.failed,
+                                })}
+                            </Button>
+                        ) : null}
+                    </CardContent>
+                </Card>
+            ) : null}
+            {event.is_free ? (
+                <>
                     {/* Interested users */}
                     <Card className="border-slate-200">
                         <CardHeader className="flex-row items-center justify-between">
@@ -2338,6 +2378,7 @@ export default function GroupEventDetailPage() {
                     </Dialog>
                 </>
             ) : null}
+                </TabsContent>
 
             <Dialog
                 open={confirmationDialogOpen}
@@ -2603,6 +2644,7 @@ export default function GroupEventDetailPage() {
                 </DialogContent>
             </Dialog>
 
+                <TabsContent value="attendance" className="space-y-4">
             <Card className="border-slate-200">
                 <CardHeader>
                     <CardTitle className="text-base">{t("adminGroup.attendance.title")}</CardTitle>
@@ -2640,6 +2682,7 @@ export default function GroupEventDetailPage() {
                     )}
                 </CardContent>
             </Card>
+                </TabsContent>
 
             <Dialog open={!!qrProofDialog} onOpenChange={(open) => { if (!open) setQrProofDialog(null); }}>
                 <DialogContent className="max-w-sm">
@@ -2656,15 +2699,7 @@ export default function GroupEventDetailPage() {
                 </DialogContent>
             </Dialog>
 
-            <StickyFormActions
-                onSave={handleUpdateEvent}
-                loading={saving}
-                saveLabel={t("adminGroup.actions.save")}
-                loadingLabel={t("adminServices.saving")}
-                saveClassName="bg-admin-brand text-white hover:bg-admin-brand-hover"
-                onCancel={() => void loadData()}
-                cancelLabel={t("common.cancel")}
-            />
+            </Tabs>
         </div>
     );
 }

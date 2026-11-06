@@ -2330,6 +2330,8 @@ const en = {
       created: "Event created successfully.",
       createError: "Could not create event.",
       editEvent: "Edit event",
+      peopleTitle: "People",
+      communicationTitle: "Communication",
       updated: "Event updated successfully.",
       updateError: "Could not update event.",
       invalidEventId: "Invalid event id.",
