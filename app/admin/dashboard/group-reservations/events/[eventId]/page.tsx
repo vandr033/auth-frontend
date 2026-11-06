@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Copy, Download, ExternalLink, Eye, Loader2, Mail, MessageCircle, RefreshCcw, Send, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, Copy, Download, ExternalLink, Eye, FileText, Loader2, Mail, MessageCircle, RefreshCcw, Send, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { GroupLocationPicker } from "@/components/maps/GroupLocationPicker";
+import { MapboxLocationPreview } from "@/components/maps/MapboxLocationPreview";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import { StickyFormActions } from "@/components/ui/sticky-form-actions";
 import { ProofAssetPreview } from "@/components/ui/proof-asset-preview";
 import {
@@ -150,6 +152,25 @@ function slugifyInput(value: string): string {
 
 function getMassRecipientKey(source: EventMessageRecipientSource, id: number): string {
     return `${source}:${id}`;
+}
+
+function EventMediaPreview({ url, alt }: { url: string | null; alt: string }) {
+    const resolvedUrl = url ? getImageUrl(url) || url : null;
+    if (!resolvedUrl) {
+        return <div className="flex h-44 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-500">—</div>;
+    }
+
+    if (/\.pdf($|[?#])/i.test(resolvedUrl)) {
+        return (
+            <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" className="flex h-44 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-50 text-sm font-medium text-admin-brand hover:underline">
+                <FileText className="h-5 w-5" />
+                {alt} · PDF
+                <ExternalLink className="h-4 w-4" />
+            </a>
+        );
+    }
+
+    return <img src={resolvedUrl} alt={alt} className="h-44 w-full rounded-md border border-slate-200 object-contain md:h-64" />;
 }
 
 function isMainBookerTicket(ticket: GroupTicket, booking: GroupEventBooking): boolean {
@@ -1285,6 +1306,30 @@ export default function GroupEventDetailPage() {
         );
     }
 
+    const eventAssignments = event.staff_assignments ?? [];
+    const linkedStaffAssignments = eventAssignments.filter((assignment) => assignment.staff_profile_id !== null);
+    const manualStaffAssignments = eventAssignments.filter((assignment) => assignment.staff_profile_id === null);
+    const summaryLocation = event.location_text?.trim() || storeLocationText.trim();
+    const bookedSpots = (event.booked_spots_confirmed ?? confirmedBookings.reduce(
+        (sum, booking) => sum + Math.max(booking.booked_spots - booking.declined_spots, 0),
+        0,
+    )) + (event.booked_spots_offered ?? 0);
+    const eventSummaryFields: Array<[string, string]> = [
+        [t("adminServices.category"), event.category?.name || categories.find((category) => category.id === event.category_id)?.name || "—"],
+        [t("adminGroup.fields.slug"), event.slug || "—"],
+        [t("adminGroup.fields.eventType"), event.is_free ? t("adminGroup.events.free") : t("adminGroup.events.paid")],
+        [t("adminGroup.fields.price"), event.is_free ? t("adminGroup.events.free") : formatMoneyFromCents(event.price_cents, currency)],
+        [t("adminGroup.fields.startAt"), formatDateTime(event.start_at)],
+        [t("adminGroup.fields.endAt"), formatDateTime(event.end_at)],
+        [t("adminGroup.fields.capacity"), `${bookedSpots}/${event.max_capacity}${soldOut ? ` · ${t("adminGroup.states.soldOut")}` : ""}`],
+        [t("adminGroup.fields.capacityVisible"), event.capacity_visible ? t("adminGroup.values.enabled") : t("adminGroup.values.disabled")],
+        [t("adminGroup.fields.visibility"), event.is_private ? t("adminGroup.filters.private") : t("adminGroup.filters.public")],
+        [t("adminGroup.fields.registrationQuestionRequired"), event.registration_question_required ? t("adminGroup.values.enabled") : t("adminGroup.values.disabled")],
+        [t("adminGroup.events.attendanceConfirmations"), event.confirmations_enabled ? t("adminGroup.values.enabled") : t("adminGroup.values.disabled")],
+        [t("adminGroup.fields.pending"), String(pendingBookings.length)],
+        [t("adminGroup.fields.subscribers"), String(confirmedBookings.length)],
+    ];
+
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1352,53 +1397,109 @@ export default function GroupEventDetailPage() {
                 <TabsContent value="overview" className="space-y-4">
             <Card className="border-slate-200">
                 <CardHeader>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                            {event.confirmations_enabled ? (
-                                <>
-                                    <Badge variant="outline">{t("adminGroup.events.confirmationsOn")}</Badge>
-                                    <Button type="button" variant="outline" onClick={() => void handleResendConfirmations()} disabled={resendingConfirmations}>
-                                        {resendingConfirmations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                                        {t("adminGroup.events.resendUnconfirmed")}
-                                    </Button>
-                                </>
-                            ) : (
-                                <Button type="button" variant="outline" onClick={() => setConfirmationDialogOpen(true)} disabled={enablingConfirmations}>
-                                    {enablingConfirmations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    {t("adminGroup.events.enableConfirmations")}
-                                </Button>
-                            )}
-                    </div>
+                    <CardTitle className="text-base">{t("adminGroup.nav.overview")}</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-3">
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.startAt")}</p>
-                        <p className="text-sm text-slate-900">{formatDateTime(event.start_at)}</p>
+                <CardContent className="space-y-5">
+                    <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {eventSummaryFields.map(([label, value]) => (
+                            <div key={label} className="min-w-0">
+                                <p className="text-xs text-slate-500">{label}</p>
+                                <p className="mt-1 break-words text-sm font-medium text-slate-900">{value}</p>
+                            </div>
+                        ))}
                     </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.endAt")}</p>
-                        <p className="text-sm text-slate-900">{formatDateTime(event.end_at)}</p>
+
+                    <div className="grid gap-4 border-t border-slate-100 pt-4 lg:grid-cols-2">
+                        <section className="space-y-2">
+                            <h3 className="text-sm font-medium text-slate-900">{t("adminGroup.fields.description")}</h3>
+                            {event.description?.trim() ? (
+                                <RichTextContent html={event.description} className="text-sm text-slate-700" />
+                            ) : <p className="text-sm text-slate-500">—</p>}
+                        </section>
+                        <section className="space-y-2">
+                            <h3 className="text-sm font-medium text-slate-900">{t("adminGroup.fields.registrationQuestion")}</h3>
+                            <p className="whitespace-pre-wrap text-sm text-slate-700">{event.registration_question_text?.trim() || "—"}</p>
+                            <p className="text-xs text-slate-500">
+                                {t("adminGroup.fields.registrationQuestionRequired")}: {event.registration_question_required ? t("adminGroup.values.enabled") : t("adminGroup.values.disabled")}
+                            </p>
+                        </section>
+                        {event.is_free ? (
+                            <section className="space-y-2 lg:col-span-2">
+                                <h3 className="text-sm font-medium text-slate-900">{t("adminGroup.fields.noAvailabilityMessage")}</h3>
+                                <p className="whitespace-pre-wrap text-sm text-slate-700">{event.no_availability_message?.trim() || "—"}</p>
+                            </section>
+                        ) : null}
                     </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.capacity")}</p>
-                        <p className="text-sm text-slate-900">
-                            {((event.booked_spots_confirmed ?? confirmedBookings.reduce((sum, booking) => sum + Math.max(booking.booked_spots - booking.declined_spots, 0), 0)) + (event.booked_spots_offered ?? 0))}/{event.max_capacity}
-                            {soldOut ? ` · ${t("adminGroup.states.soldOut")}` : ""}
-                        </p>
+
+                    <div className="grid gap-4 border-t border-slate-100 pt-4 md:grid-cols-2">
+                        <section className="space-y-2">
+                            <h3 className="text-sm font-medium text-slate-900">{t("adminGroup.fields.coverImageUrl")}</h3>
+                            <EventMediaPreview url={event.cover_image_url} alt={t("adminGroup.fields.coverImageUrl")} />
+                        </section>
+                        <section className="space-y-2">
+                            <h3 className="text-sm font-medium text-slate-900">{t("adminGroup.fields.thumbnailUrl")}</h3>
+                            <EventMediaPreview url={event.thumbnail_url} alt={t("adminGroup.fields.thumbnailUrl")} />
+                        </section>
                     </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.price")}</p>
-                        <p className="text-sm text-slate-900">
-                            {event.is_free ? t("adminGroup.events.free") : formatMoneyFromCents(event.price_cents, currency)}
-                        </p>
+
+                    <div className="grid gap-4 border-t border-slate-100 pt-4 lg:grid-cols-2">
+                        <section className="space-y-2">
+                            <h3 className="text-sm font-medium text-slate-900">{t("adminGroup.fields.location")}</h3>
+                            <p className="whitespace-pre-wrap text-sm text-slate-700">{summaryLocation || "—"}</p>
+                            {summaryLocation ? (
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(summaryLocation)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-sm font-medium text-admin-brand hover:underline"
+                                >
+                                    {t("adminStore.pointsOfSale.openMaps")}
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                            ) : null}
+                        </section>
+                        {summaryLocation ? (
+                            <MapboxLocationPreview
+                                query={summaryLocation}
+                                fallbackText={t("adminSettings.mapUnavailable")}
+                                className="h-64 w-full rounded-md border border-slate-200"
+                            />
+                        ) : <div className="flex h-64 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-500">—</div>}
                     </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.pending")}</p>
-                        <p className="text-sm text-slate-900">{pendingBookings.length}</p>
+
+                    <div className="grid gap-4 border-t border-slate-100 pt-4 md:grid-cols-2">
+                        <section className="space-y-2">
+                            <h3 className="text-sm font-medium text-slate-900">{t("adminGroup.staff.linkedStaff")}</h3>
+                            {linkedStaffAssignments.length > 0 ? (
+                                <ul className="space-y-2">
+                                    {linkedStaffAssignments.map((assignment) => (
+                                        <li key={assignment.id} className="rounded-md border border-slate-200 px-3 py-2 text-sm">
+                                            {staff.find((member) => member.id === assignment.staff_profile_id)?.display_name || assignment.staff_profile?.display_name || "—"}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : <p className="text-sm text-slate-500">—</p>}
+                        </section>
+                        <section className="space-y-2">
+                            <h3 className="text-sm font-medium text-slate-900">{t("adminGroup.staff.manualDisplay")}</h3>
+                            {manualStaffAssignments.length > 0 ? (
+                                <ul className="space-y-2">
+                                    {manualStaffAssignments.map((assignment) => (
+                                        <li key={assignment.id} className="rounded-md border border-slate-200 px-3 py-2 text-sm">
+                                            <p className="font-medium text-slate-900">{assignment.display_name || "—"}</p>
+                                            <p className="text-xs text-slate-500">
+                                                {assignment.display_phone || "—"} · {assignment.role === "ASSISTANT" ? t("adminGroup.staff.assistant") : t("adminGroup.staff.instructor")}
+                                            </p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : <p className="text-sm text-slate-500">{t("adminGroup.staff.manualEmpty")}</p>}
+                        </section>
                     </div>
-                    <div>
-                        <p className="text-xs text-slate-500">{t("adminGroup.fields.subscribers")}</p>
-                        <p className="text-sm text-slate-900">{confirmedBookings.length}</p>
-                    </div>
+
+                    <p className="border-t border-slate-100 pt-4 text-sm text-slate-600">
+                        {t("adminGroup.events.autoConfirmState", { value: settings?.auto_confirm_bookings ? t("adminGroup.values.on") : t("adminGroup.values.off") })}
+                    </p>
                 </CardContent>
             </Card>
 
@@ -1578,7 +1679,7 @@ export default function GroupEventDetailPage() {
                                 checked={form.capacity_visible}
                                 onCheckedChange={(checked) => setForm((prev) => prev ? { ...prev, capacity_visible: Boolean(checked) } : prev)}
                             />
-                            Cupos visibles
+                            {t("adminGroup.fields.capacityVisible")}
                         </label>
                         <div className="space-y-2 md:col-span-2">
                             <GroupLocationPicker
@@ -2086,7 +2187,21 @@ export default function GroupEventDetailPage() {
                     );
                 })()
             ) : null}
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+                {event.confirmations_enabled ? (
+                    <>
+                        <Badge variant="outline">{t("adminGroup.events.confirmationsOn")}</Badge>
+                        <Button type="button" variant="outline" onClick={() => void handleResendConfirmations()} disabled={resendingConfirmations}>
+                            {resendingConfirmations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                            {t("adminGroup.events.resendUnconfirmed")}
+                        </Button>
+                    </>
+                ) : (
+                    <Button type="button" variant="outline" onClick={() => setConfirmationDialogOpen(true)} disabled={enablingConfirmations}>
+                        {enablingConfirmations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {t("adminGroup.events.enableConfirmations")}
+                    </Button>
+                )}
                 <Button
                     type="button"
                     variant="outline"
