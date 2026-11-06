@@ -56,6 +56,7 @@ import {
     getGroupBookingFlowSettings,
     getGroupEventById,
     enableGroupEventAttendanceConfirmations,
+    resendGroupEventAttendanceConfirmations,
     getServiceCategories,
     getWhatsappBatchProgress,
     getStaff,
@@ -250,6 +251,10 @@ export default function GroupEventDetailPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [enablingConfirmations, setEnablingConfirmations] = useState(false);
+    const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
+    const [confirmationCustomMessageEnabled, setConfirmationCustomMessageEnabled] = useState(false);
+    const [confirmationCustomMessage, setConfirmationCustomMessage] = useState("");
+    const [resendingConfirmations, setResendingConfirmations] = useState(false);
     const [event, setEvent] = useState<GroupEvent | null>(null);
     const [bookings, setBookings] = useState<GroupEventBooking[]>([]);
     const [interests, setInterests] = useState<GroupEventInterest[]>([]);
@@ -741,15 +746,41 @@ export default function GroupEventDetailPage() {
 
     const handleEnableConfirmations = async () => {
         if (!event) return;
+        const customText = confirmationCustomMessage.replace(/<[^>]*>/g, "").trim();
+        if (confirmationCustomMessageEnabled && !customText) {
+            await notify.warning(t("adminGroup.events.customConfirmationMessageRequired"));
+            return;
+        }
         setEnablingConfirmations(true);
         try {
-            const result = await enableGroupEventAttendanceConfirmations(event.id);
+            const result = await enableGroupEventAttendanceConfirmations(
+                event.id,
+                confirmationCustomMessageEnabled ? confirmationCustomMessage : undefined,
+            );
             await notify.success(t("adminGroup.events.confirmationsEnabled", { count: result.invited }));
+            setConfirmationDialogOpen(false);
+            setConfirmationCustomMessageEnabled(false);
+            setConfirmationCustomMessage("");
             await loadData();
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.events.confirmationsEnableError"));
         } finally {
             setEnablingConfirmations(false);
+        }
+    };
+
+    const handleResendConfirmations = async () => {
+        if (!event) return;
+        setResendingConfirmations(true);
+        try {
+            const result = await resendGroupEventAttendanceConfirmations(event.id);
+            await notify.success(result.resent
+                ? t("adminGroup.events.confirmationsResent", { count: result.resent })
+                : t("adminGroup.events.confirmationsNoPending"));
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.events.confirmationsResendError"));
+        } finally {
+            setResendingConfirmations(false);
         }
     };
 
@@ -1314,9 +1345,15 @@ export default function GroupEventDetailPage() {
                         </CardTitle>
                         <div className="flex flex-wrap items-center gap-2">
                             {event.confirmations_enabled ? (
-                                <Badge variant="outline">{t("adminGroup.events.confirmationsOn")}</Badge>
+                                <>
+                                    <Badge variant="outline">{t("adminGroup.events.confirmationsOn")}</Badge>
+                                    <Button type="button" variant="outline" onClick={() => void handleResendConfirmations()} disabled={resendingConfirmations}>
+                                        {resendingConfirmations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                        {t("adminGroup.events.resendUnconfirmed")}
+                                    </Button>
+                                </>
                             ) : (
-                                <Button type="button" variant="outline" onClick={() => void handleEnableConfirmations()} disabled={enablingConfirmations}>
+                                <Button type="button" variant="outline" onClick={() => setConfirmationDialogOpen(true)} disabled={enablingConfirmations}>
                                     {enablingConfirmations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     {t("adminGroup.events.enableConfirmations")}
                                 </Button>
@@ -2299,6 +2336,50 @@ export default function GroupEventDetailPage() {
                     </Dialog>
                 </>
             ) : null}
+
+            <Dialog
+                open={confirmationDialogOpen}
+                onOpenChange={(open) => {
+                    setConfirmationDialogOpen(open);
+                    if (!open && !enablingConfirmations) {
+                        setConfirmationCustomMessageEnabled(false);
+                        setConfirmationCustomMessage("");
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>{t("adminGroup.events.confirmationsEnableTitle")}</DialogTitle>
+                        <DialogDescription>{t("adminGroup.events.confirmationsEnableDescription")}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <label className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2.5 text-sm">
+                            <Checkbox
+                                checked={confirmationCustomMessageEnabled}
+                                onCheckedChange={(checked) => setConfirmationCustomMessageEnabled(Boolean(checked))}
+                            />
+                            {t("adminGroup.events.customConfirmationMessage")}
+                        </label>
+                        {confirmationCustomMessageEnabled ? (
+                            <RichTextEditor
+                                value={confirmationCustomMessage}
+                                onChange={setConfirmationCustomMessage}
+                                placeholder={t("adminGroup.events.customConfirmationMessagePlaceholder")}
+                                minHeightClassName="min-h-[140px]"
+                            />
+                        ) : null}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setConfirmationDialogOpen(false)} disabled={enablingConfirmations}>
+                            {t("common.cancel")}
+                        </Button>
+                        <Button type="button" onClick={() => void handleEnableConfirmations()} disabled={enablingConfirmations}>
+                            {enablingConfirmations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {t("adminGroup.events.enableConfirmations")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog
                 open={massDialogOpen}

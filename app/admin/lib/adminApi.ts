@@ -2213,9 +2213,17 @@ export async function getGroupEventById(eventId: number): Promise<GroupEvent> {
     return response.data;
 }
 
-export async function enableGroupEventAttendanceConfirmations(eventId: number): Promise<{ confirmations_enabled: boolean; invited: number }> {
+export async function enableGroupEventAttendanceConfirmations(eventId: number, customMessage?: string): Promise<{ confirmations_enabled: boolean; invited: number }> {
     const response = await apiFetch<{ data: { confirmations_enabled: boolean; invited: number } }>(
         `/api/admin/group/events/${eventId}/confirmations/enable`,
+        { method: "POST", body: JSON.stringify({ custom_message: customMessage }) },
+    );
+    return response.data;
+}
+
+export async function resendGroupEventAttendanceConfirmations(eventId: number): Promise<{ resent: number }> {
+    const response = await apiFetch<{ data: { resent: number } }>(
+        `/api/admin/group/events/${eventId}/confirmations/resend`,
         { method: "POST" },
     );
     return response.data;
