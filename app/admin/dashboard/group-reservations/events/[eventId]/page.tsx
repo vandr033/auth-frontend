@@ -1821,6 +1821,7 @@ export default function GroupEventDetailPage() {
                 </CardContent>
             </Card>
 
+            {!event.is_free && (
             <Card className="border-slate-200">
                 <CardHeader className="flex-col items-start gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <CardTitle className="text-base">{t("adminGroup.bookings.attendeesTitle")}</CardTitle>
@@ -1971,6 +1972,7 @@ export default function GroupEventDetailPage() {
                     )}
                 </CardContent>
             </Card>
+            )}
 
             {!event.is_free && canUseAdvanced ? (
                 <Card className="border-slate-200">

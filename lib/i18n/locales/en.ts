@@ -2498,7 +2498,7 @@ const en = {
     bookings: {
       pendingTitle: "Pending confirmations",
       noPending: "No pending bookings.",
-      attendeesTitle: "Attendees and bookings",
+      attendeesTitle: "Participants",
       empty: "No bookings found.",
       waitlistTitle: "Waitlist",
       waitlistEmpty: "No waitlist entries.",

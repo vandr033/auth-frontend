@@ -2489,7 +2489,7 @@ const es: TranslationKeys = {
     bookings: {
       pendingTitle: "Confirmaciones pendientes",
       noPending: "No hay reservas pendientes.",
-      attendeesTitle: "Asistentes y reservas",
+      attendeesTitle: "Participantes",
       empty: "No se encontraron reservas.",
       waitlistTitle: "Lista de espera",
       waitlistEmpty: "No hay usuarios en lista de espera.",
