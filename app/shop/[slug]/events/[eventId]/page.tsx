@@ -244,6 +244,11 @@ export default function ShopEventDetailPage() {
       .filter((booking) => activeStatuses.has(booking.status))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null;
   }, [myBookings]);
+  const hasActiveWaitlistOffer = Boolean(
+    activeBooking?.status === "WAITLISTED"
+    && activeBooking.waitlist_offer_expires_at
+    && new Date(activeBooking.waitlist_offer_expires_at).getTime() > Date.now(),
+  );
 
   const interestIntent = React.useMemo(
     () => searchParams?.get("interest_intent") === "1",
@@ -580,6 +585,12 @@ export default function ShopEventDetailPage() {
     result: FreeRegistrationResult,
     contact: { email: string; countryCode?: string; phonePrefix: string; phoneNumber: string },
   ) => {
+    if (result.confirmationToken) {
+      const status = result.registrationStatus ?? "CONFIRMED";
+      setFreeRegState((prev) => prev
+        ? { ...prev, hasRegistration: true, status, confirmationStatus: "PENDING", confirmationToken: result.confirmationToken }
+        : { hasRegistration: true, status, confirmationStatus: "PENDING", confirmationToken: result.confirmationToken, prefill: null });
+    }
     setIsFreeRegModalOpen(false);
     setFreeSubmitResult(result);
     setFreeSubmitContact(contact);
@@ -930,6 +941,29 @@ export default function ShopEventDetailPage() {
   const otpTargetLabel = freeSubmitResult?.otpSection?.maskedDestination || (
     otpChannel === "email" ? freeSubmitContact?.email : buildOtpPhoneTarget(freeSubmitContact)
   ) || "";
+  const paidBookingForm = (
+    <PaidEventBookingForm
+      event={event}
+      settings={settings}
+      bookedSpots={bookedSpots}
+      onBookedSpotsChange={setBookedSpots}
+      extraAttendees={extraAttendees}
+      onExtraAttendeesChange={setExtraAttendees}
+      paymentMethod={paymentMethod}
+      onPaymentMethodChange={setPaymentMethod}
+      qrProofFile={qrProofFile}
+      onQrProofChange={setQrProofFile}
+      notes={notes}
+      onNotesChange={setNotes}
+      registrationQuestionAnswer={registrationQuestionAnswer}
+      onRegistrationQuestionAnswerChange={setRegistrationQuestionAnswer}
+      busy={busyAction === "book"}
+      disableSubmit={paidGuestRequiresQrProof}
+      onSubmit={handleBook}
+      submitLabel={hasActiveWaitlistOffer ? t("shopGroup.actions.claimWaitlistSpot") : t("shopGroup.actions.completeBooking")}
+      t={t}
+    />
+  );
 
   return (
     <main className="min-h-screen bg-page text-text-main">
@@ -1037,25 +1071,43 @@ export default function ShopEventDetailPage() {
 
             {event.is_free ? (
               freeRegState?.status ? (
-                <FreeEventRegistrationForm
-                  eventId={event.id}
-                  companyId={company.id}
-                  slug={slug}
-                  customTos={settings?.custom_tos}
-                  registrationQuestionText={event.registration_question_text}
-                  registrationQuestionRequired={event.registration_question_required}
-                  prefill={freeRegState?.prefill ?? null}
-                  existingStatus={freeRegState.status}
-                  onRegistered={(status) => {
-                    setFreeRegState((prev) =>
-                      prev
-                        ? { ...prev, hasRegistration: true, status }
-                        : { hasRegistration: true, status, prefill: null },
-                    );
-                  }}
-                  onSubmitResult={handleFreeRegSubmitted}
-                  onDemoSubmitIntercept={interceptDemoSubmit}
-                />
+                freeRegState.confirmationStatus === "NOT_ATTENDING" ? (
+                  <div className="space-y-3">
+                    <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{t("shopGroup.events.notAttendingSaved")}</p>
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href={appendShopParam("/me/group-reservations", slug)}>{t("shopGroup.actions.viewMyGroupReservations")}</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <FreeEventRegistrationForm
+                      eventId={event.id}
+                      companyId={company.id}
+                      slug={slug}
+                      customTos={settings?.custom_tos}
+                      registrationQuestionText={event.registration_question_text}
+                      registrationQuestionRequired={event.registration_question_required}
+                      prefill={freeRegState?.prefill ?? null}
+                      existingStatus={freeRegState.status}
+                      onRegistered={(status) => {
+                        setFreeRegState((prev) =>
+                          prev
+                            ? { ...prev, hasRegistration: true, status }
+                            : { hasRegistration: true, status, prefill: null },
+                        );
+                      }}
+                      onSubmitResult={handleFreeRegSubmitted}
+                      onDemoSubmitIntercept={interceptDemoSubmit}
+                    />
+                    {freeRegState.confirmationStatus === "PENDING" && freeRegState.confirmationToken ? (
+                      <Button asChild variant="outline" className="w-full">
+                        <Link href={`/shop/${encodeURIComponent(slug)}/events/${event.id}/confirmation?token=${encodeURIComponent(freeRegState.confirmationToken)}`}>
+                          {t("shopGroup.actions.respondAttendance")}
+                        </Link>
+                      </Button>
+                    ) : null}
+                  </div>
+                )
               ) : (
                 <>
                   <Button
@@ -1108,15 +1160,37 @@ export default function ShopEventDetailPage() {
               <>
                 {activeBooking ? (
                   <div className="space-y-3">
-                    <Badge variant="outline">{t(`shopGroup.status.${activeBooking.status}`)}</Badge>
-                    <p className="text-sm text-text-muted">
-                      {activeBooking.status === "CONFIRMED"
+                    <Badge variant="outline">{activeBooking.confirmation_status === "NOT_ATTENDING" ? t("shopGroup.events.notAttendingStatus") : t(`shopGroup.status.${activeBooking.status}`)}</Badge>
+                    {activeBooking.confirmation_status === "PENDING" && activeBooking.confirmation_token ? (
+                      <Button asChild variant="outline" className="w-full">
+                        <Link href={`/shop/${encodeURIComponent(slug)}/events/${event.id}/confirmation?token=${encodeURIComponent(activeBooking.confirmation_token)}`}>
+                          {t("shopGroup.actions.respondAttendance")}
+                        </Link>
+                      </Button>
+                    ) : null}
+                    {hasActiveWaitlistOffer ? (
+                      <>
+                        <p className="text-sm text-text-muted">
+                          {t("shopGroup.events.waitlistOfferNotice", {
+                            expiresAt: new Date(activeBooking.waitlist_offer_expires_at!).toLocaleString(locale === "en" ? "en-US" : "es-ES"),
+                          })}
+                        </p>
+                        {paidBookingForm}
+                      </>
+                    ) : null}
+                    {!hasActiveWaitlistOffer ? (
+                      <p className="text-sm text-text-muted">
+                        {activeBooking.confirmation_status === "NOT_ATTENDING"
+                        ? t("shopGroup.events.notAttendingSaved")
+                        : activeBooking.status === "CONFIRMED"
                         ? t("shopGroup.events.alreadyConfirmed")
                         : activeBooking.status === "PENDING"
                           ? t("shopGroup.events.alreadyPending")
                           : t("shopGroup.events.alreadyWaitlisted")}
-                    </p>
+                      </p>
+                    ) : null}
                     {activeBooking.status === "WAITLISTED" ? (
+                      hasActiveWaitlistOffer ? null : (
                       <Button
                         variant="outline"
                         className="w-full"
@@ -1126,6 +1200,7 @@ export default function ShopEventDetailPage() {
                         {busyAction === "leave_waitlist" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         {t("shopGroup.actions.leaveWaitlist")}
                       </Button>
+                      )
                     ) : (
                       <Button asChild variant="outline" className="w-full">
                         <Link href={appendShopParam("/me/group-reservations", slug)}>
@@ -1156,29 +1231,7 @@ export default function ShopEventDetailPage() {
                   >
                     {t("shopGroup.guestCheckout.openCta")}
                   </Button>
-                ) : (
-                  <PaidEventBookingForm
-                    event={event}
-                    settings={settings}
-                    bookedSpots={bookedSpots}
-                    onBookedSpotsChange={setBookedSpots}
-                    extraAttendees={extraAttendees}
-                    onExtraAttendeesChange={setExtraAttendees}
-                    paymentMethod={paymentMethod}
-                    onPaymentMethodChange={setPaymentMethod}
-                    qrProofFile={qrProofFile}
-                    onQrProofChange={setQrProofFile}
-                    notes={notes}
-                    onNotesChange={setNotes}
-                    registrationQuestionAnswer={registrationQuestionAnswer}
-                    onRegistrationQuestionAnswerChange={setRegistrationQuestionAnswer}
-                    busy={busyAction === "book"}
-                    disableSubmit={paidGuestRequiresQrProof}
-                    onSubmit={handleBook}
-                    submitLabel={t("shopGroup.actions.completeBooking")}
-                    t={t}
-                  />
-                )}
+                ) : paidBookingForm}
               </>
             )}
           </article>

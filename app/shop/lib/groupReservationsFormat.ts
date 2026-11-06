@@ -67,7 +67,7 @@ export function getStaffDisplayPhone(assignment: GroupStaffAssignment): string |
 }
 
 export function isEventSoldOut(event: PublicGroupEvent): boolean {
-  const booked = event.booked_spots_confirmed ?? event._count?.bookings ?? 0;
+  const booked = (event.booked_spots_confirmed ?? event._count?.bookings ?? 0) + (event.booked_spots_offered ?? 0);
   return booked >= event.max_capacity;
 }
 

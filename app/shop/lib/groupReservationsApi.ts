@@ -42,6 +42,7 @@ export interface PublicGroupEvent {
   price_cents: number;
   max_capacity: number;
   capacity_visible: boolean;
+  confirmations_enabled: boolean;
   registration_question_text: string | null;
   registration_question_required: boolean;
   start_at: string;
@@ -56,6 +57,7 @@ export interface PublicGroupEvent {
   };
   booked_spots_confirmed?: number;
   booked_spots_pending?: number;
+  booked_spots_offered?: number;
 }
 
 export interface PublicGroupClassSession {
@@ -110,6 +112,7 @@ export interface PublicGroupEventBooking {
   user_id: string;
   status: GroupBookingStatus;
   booked_spots: number;
+  declined_spots?: number;
   payment_method: GroupPaymentMethod;
   payment_status: GroupPaymentStatus;
   qr_proof_image_url: string | null;
@@ -124,6 +127,9 @@ export interface PublicGroupEventBooking {
   created_at: string;
   updated_at: string;
   cancelled_at: string | null;
+  waitlist_offer_expires_at?: string | null;
+  confirmation_status?: EventAttendanceStatus | null;
+  confirmation_token?: string | null;
   group_event?: {
     id: number;
     title: string;
@@ -140,6 +146,16 @@ export interface PublicGroupEventBooking {
       slug: string;
     };
   };
+}
+
+export type EventAttendanceStatus = "NOT_REQUESTED" | "PENDING" | "ATTENDING" | "NOT_ATTENDING";
+
+export interface EventAttendanceConfirmation {
+  attendee_name: string;
+  confirmation_status: EventAttendanceStatus;
+  locale: "es" | "en";
+  booking_status?: GroupBookingStatus;
+  event: { id: number; title: string; slug: string; start_at: string; end_at: string; is_free: boolean };
 }
 
 export interface PublicGroupClassEnrollment {
@@ -426,6 +442,21 @@ export async function listPublicEvents(companyId: number, upcoming = true): Prom
 export async function getPublicEventById(companyId: number, eventId: number): Promise<PublicGroupEvent> {
   const query = buildQuery({ company_id: companyId });
   return groupFetch<PublicGroupEvent>(`/group/events/${eventId}${query}`);
+}
+
+export async function getEventAttendanceConfirmation(token: string): Promise<EventAttendanceConfirmation> {
+  return groupFetch<EventAttendanceConfirmation>(`/group/events/attendance-confirmations/${encodeURIComponent(token)}`);
+}
+
+export async function submitEventAttendanceConfirmation(
+  token: string,
+  action: "ATTENDING" | "NOT_ATTENDING",
+  reason?: string,
+): Promise<{ confirmation_status: EventAttendanceStatus }> {
+  return groupFetch<{ confirmation_status: EventAttendanceStatus }>(
+    `/group/events/attendance-confirmations/${encodeURIComponent(token)}`,
+    { method: "POST", body: JSON.stringify({ action, reason }) },
+  );
 }
 
 export async function listPublicClasses(companyId: number): Promise<PublicGroupClass[]> {
@@ -802,6 +833,8 @@ export interface FreeEventRegistrationInput {
 export interface FreeRegistrationStateData {
   hasRegistration: boolean;
   status: 'CONFIRMED' | 'PENDING' | 'INTERESTED' | null;
+  confirmationStatus?: EventAttendanceStatus | null;
+  confirmationToken?: string | null;
   prefill: {
     firstName: string;
     lastName: string;
@@ -841,6 +874,7 @@ export interface FreeRegistrationResult {
     canManualSignIn?: boolean;
   };
   reservationCode?: string | null;
+  confirmationToken?: string | null;
   messageKey: string;
   registrationId: number;
   soldOut: boolean;

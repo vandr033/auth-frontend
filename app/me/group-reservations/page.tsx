@@ -222,10 +222,10 @@ function GroupReservationsPageContent() {
                     <span
                       className={cn(
                         "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-                        statusClasses[status],
+                        booking.confirmation_status === "NOT_ATTENDING" ? "bg-slate-50 text-slate-700 border-slate-200" : statusClasses[status],
                       )}
                     >
-                      {t(`shopGroup.status.${status}`)}
+                      {booking.confirmation_status === "NOT_ATTENDING" ? t("shopGroup.events.notAttendingStatus") : t(`shopGroup.status.${status}`)}
                     </span>
                   </div>
 
@@ -237,7 +237,7 @@ function GroupReservationsPageContent() {
                       </p>
                     ) : null}
                     <p>
-                      {t("meGroupReservations.fields.spots")}: {booking.booked_spots}
+                      {t("meGroupReservations.fields.spots")}: {Math.max(booking.booked_spots - (booking.declined_spots ?? 0), 0)}
                     </p>
                     <p>
                       {t("meGroupReservations.fields.total")}: {formatGroupMoney(booking.total_price_cents)}
@@ -259,10 +259,20 @@ function GroupReservationsPageContent() {
                         <span className="font-mono font-semibold text-text-main">{booking.reservation_code}</span>
                       </p>
                     ) : null}
+                    {booking.confirmation_status === "NOT_ATTENDING" ? (
+                      <p>{t("shopGroup.events.notAttendingSaved")}</p>
+                    ) : null}
                   </div>
 
                   {detailHref ? (
-                    <div className="mt-4">
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {booking.confirmation_status === "PENDING" && booking.confirmation_token && event && company ? (
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/shop/${encodeURIComponent(company.slug)}/events/${event.id}/confirmation?token=${encodeURIComponent(booking.confirmation_token)}`}>
+                            {t("shopGroup.actions.respondAttendance")}
+                          </Link>
+                        </Button>
+                      ) : null}
                       <Button asChild variant="outline" size="sm">
                         <Link href={detailHref}>
                           {t("meGroupReservations.actions.openDetail")}

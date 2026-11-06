@@ -1545,6 +1545,7 @@ export interface GroupEvent {
     price_cents: number;
     max_capacity: number;
     capacity_visible: boolean;
+    confirmations_enabled: boolean;
     registration_question_text: string | null;
     registration_question_required: boolean;
     start_at: string;
@@ -1561,6 +1562,7 @@ export interface GroupEvent {
     };
     booked_spots_confirmed?: number;
     booked_spots_pending?: number;
+    booked_spots_offered?: number;
 }
 
 export interface GroupClassSession {
@@ -1642,6 +1644,18 @@ export interface GroupEventBooking {
     user_id: string;
     status: GroupBookingStatus;
     booked_spots: number;
+    declined_spots: number;
+    waitlist_offer_expires_at?: string | null;
+    confirmation_status?: "NOT_REQUESTED" | "PENDING" | "ATTENDING" | "NOT_ATTENDING";
+    confirmation_reason?: string | null;
+    attendees?: Array<{
+        id: number;
+        seat_number: number;
+        full_name: string;
+        confirmation_status: "PENDING" | "ATTENDING" | "NOT_ATTENDING" | "NOT_REQUESTED";
+        confirmation_reason: string | null;
+        confirmation_responded_at: string | null;
+    }>;
     payment_method: GroupPaymentMethod;
     payment_status: GroupPaymentStatus;
     qr_proof_image_url: string | null;
@@ -2196,6 +2210,14 @@ export async function listGroupEvents(params?: {
 
 export async function getGroupEventById(eventId: number): Promise<GroupEvent> {
     const response = await apiFetch<{ data: GroupEvent }>(`/api/admin/group/events/${eventId}`);
+    return response.data;
+}
+
+export async function enableGroupEventAttendanceConfirmations(eventId: number): Promise<{ confirmations_enabled: boolean; invited: number }> {
+    const response = await apiFetch<{ data: { confirmations_enabled: boolean; invited: number } }>(
+        `/api/admin/group/events/${eventId}/confirmations/enable`,
+        { method: "POST" },
+    );
     return response.data;
 }
 
@@ -2759,6 +2781,8 @@ export interface FreeEventRegistration {
     gender: string;
     age: number;
     status: "CONFIRMED" | "PENDING";
+    confirmationStatus?: "NOT_REQUESTED" | "PENDING" | "ATTENDING" | "NOT_ATTENDING";
+    confirmationReason?: string | null;
     reservationCode: string | null;
     checkedInAt: string | null;
     createdAt: string;

@@ -54,6 +54,7 @@ import {
     getAdminCompanyLocation,
     getGroupBookingFlowSettings,
     getGroupEventById,
+    enableGroupEventAttendanceConfirmations,
     getServiceCategories,
     getWhatsappBatchProgress,
     getStaff,
@@ -247,6 +248,7 @@ export default function GroupEventDetailPage() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [enablingConfirmations, setEnablingConfirmations] = useState(false);
     const [event, setEvent] = useState<GroupEvent | null>(null);
     const [bookings, setBookings] = useState<GroupEventBooking[]>([]);
     const [interests, setInterests] = useState<GroupEventInterest[]>([]);
@@ -562,8 +564,9 @@ export default function GroupEventDetailPage() {
 
     const soldOut = useMemo(() => {
         if (!event) return false;
-        const confirmedSpots = confirmedBookings.reduce((sum, booking) => sum + booking.booked_spots, 0);
-        return confirmedSpots >= event.max_capacity;
+        const confirmedSpots = event.booked_spots_confirmed
+            ?? confirmedBookings.reduce((sum, booking) => sum + Math.max(booking.booked_spots - booking.declined_spots, 0), 0);
+        return confirmedSpots + (event.booked_spots_offered ?? 0) >= event.max_capacity;
     }, [confirmedBookings, event]);
 
     const handleUpdateEvent = async () => {
@@ -702,6 +705,50 @@ export default function GroupEventDetailPage() {
             await loadData();
         } catch (error) {
             await notify.error(error instanceof Error ? error.message : t("adminGroup.bookings.actionError"));
+        }
+    };
+
+    const renderConfirmationStatus = (booking: GroupEventBooking) => {
+        const rows = booking.attendees?.length
+            ? booking.attendees
+            : booking.confirmation_status && booking.confirmation_status !== "NOT_REQUESTED"
+                ? [{
+                    id: booking.id,
+                    seat_number: 1,
+                    full_name: booking.user?.name || booking.user?.email || booking.user_id,
+                    confirmation_status: booking.confirmation_status,
+                    confirmation_reason: booking.confirmation_reason ?? null,
+                    confirmation_responded_at: null,
+                }]
+                : [];
+        if (rows.length === 0) return null;
+        return (
+            <div className="space-y-1 text-xs">
+                <p className="font-semibold text-slate-600">{t("adminGroup.events.confirmationLabel")}</p>
+                {rows.map((row) => (
+                    <div key={row.id} className="rounded-md bg-slate-50 px-2 py-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-slate-700">#{row.seat_number} {row.full_name}</span>
+                            <span className="font-medium text-slate-600">{t(`adminGroup.events.confirmation${row.confirmation_status === "ATTENDING" ? "Attending" : row.confirmation_status === "NOT_ATTENDING" ? "NotAttending" : "Pending"}`)}</span>
+                        </div>
+                        {row.confirmation_reason ? <p className="mt-1 text-slate-500">{t("adminGroup.events.confirmationReason", { reason: row.confirmation_reason })}</p> : null}
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const handleEnableConfirmations = async () => {
+        if (!event) return;
+        setEnablingConfirmations(true);
+        try {
+            const result = await enableGroupEventAttendanceConfirmations(event.id);
+            await notify.success(t("adminGroup.events.confirmationsEnabled", { count: result.invited }));
+            await loadData();
+        } catch (error) {
+            await notify.error(error instanceof Error ? error.message : t("adminGroup.events.confirmationsEnableError"));
+        } finally {
+            setEnablingConfirmations(false);
         }
     };
 
@@ -1264,15 +1311,25 @@ export default function GroupEventDetailPage() {
                             {event.title}
                             <GroupStatusBadge status={event.status} />
                         </CardTitle>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setMassDialogOpen(true)}
-                            disabled={!canBulkMessaging || sendingMassMessage || massRecipients.length === 0}
-                        >
-                            <Send className="mr-2 h-4 w-4" />
-                            {t("adminGroup.events.sendMassMessage")}
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {event.confirmations_enabled ? (
+                                <Badge variant="outline">{t("adminGroup.events.confirmationsOn")}</Badge>
+                            ) : (
+                                <Button type="button" variant="outline" onClick={() => void handleEnableConfirmations()} disabled={enablingConfirmations}>
+                                    {enablingConfirmations ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    {t("adminGroup.events.enableConfirmations")}
+                                </Button>
+                            )}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setMassDialogOpen(true)}
+                                disabled={!canBulkMessaging || sendingMassMessage || massRecipients.length === 0}
+                            >
+                                <Send className="mr-2 h-4 w-4" />
+                                {t("adminGroup.events.sendMassMessage")}
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-3">
@@ -1287,7 +1344,7 @@ export default function GroupEventDetailPage() {
                     <div>
                         <p className="text-xs text-slate-500">{t("adminGroup.fields.capacity")}</p>
                         <p className="text-sm text-slate-900">
-                            {confirmedBookings.reduce((sum, booking) => sum + booking.booked_spots, 0)}/{event.max_capacity}
+                            {((event.booked_spots_confirmed ?? confirmedBookings.reduce((sum, booking) => sum + Math.max(booking.booked_spots - booking.declined_spots, 0), 0)) + (event.booked_spots_offered ?? 0))}/{event.max_capacity}
                             {soldOut ? ` · ${t("adminGroup.states.soldOut")}` : ""}
                         </p>
                     </div>
@@ -1692,7 +1749,7 @@ export default function GroupEventDetailPage() {
                                             </p>
                                             <GroupPaymentStatusBadge status={booking.payment_status} />
                                             <p className="text-xs text-slate-500">
-                                                {booking.booked_spots} {t("adminGroup.fields.spots")}
+                                                {Math.max(booking.booked_spots - booking.declined_spots, 0)} {t("adminGroup.fields.spots")}
                                             </p>
                                         </div>
                                         {renderPendingBookingActions(booking, true)}
@@ -1713,7 +1770,7 @@ export default function GroupEventDetailPage() {
                                         {pendingBookings.map((booking) => (
                                             <TableRow key={booking.id}>
                                                 <TableCell>{booking.user?.name || booking.user?.email || booking.user_id}</TableCell>
-                                                <TableCell>{booking.booked_spots}</TableCell>
+                                                <TableCell>{Math.max(booking.booked_spots - booking.declined_spots, 0)}</TableCell>
                                                 <TableCell><GroupPaymentStatusBadge status={booking.payment_status} /></TableCell>
                                                 <TableCell>{renderPendingBookingActions(booking)}</TableCell>
                                             </TableRow>
@@ -1768,6 +1825,7 @@ export default function GroupEventDetailPage() {
                                                 <GroupBookingStatusBadge status={booking.status} />
                                                 <GroupPaymentStatusBadge status={booking.payment_status} />
                                             </div>
+                                            {renderConfirmationStatus(booking)}
                                             {canUseAdvanced && bookingTickets.length > 0 ? (
                                                 <div className="space-y-2">
                                                     {bookingTickets.map((ticket) => (
@@ -1822,6 +1880,7 @@ export default function GroupEventDetailPage() {
                                             <TableCell>
                                                 <div>{booking.user?.name || booking.user?.email || booking.user_id}</div>
                                                 <div className="text-xs text-slate-500">{booking.user?.phoneNumber || "—"}</div>
+                                                {renderConfirmationStatus(booking)}
                                             </TableCell>
                                             {event.registration_question_text?.trim() ? (
                                                 <TableCell className="max-w-xs whitespace-pre-wrap text-sm text-slate-700">
@@ -1934,6 +1993,7 @@ export default function GroupEventDetailPage() {
                                             <TableHead>{t("adminGroup.fields.name")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.email")}</TableHead>
                                             <TableHead>{t("adminGroup.fields.phone")}</TableHead>
+                                            <TableHead>{t("adminGroup.events.confirmationLabel")}</TableHead>
                                             {event.registration_question_text?.trim() ? (
                                                 <TableHead>{t("adminGroup.fields.registrationQuestionAnswer")}</TableHead>
                                             ) : null}
@@ -1948,6 +2008,14 @@ export default function GroupEventDetailPage() {
                                                 <TableCell className="font-medium">{reg.firstName} {reg.lastName}</TableCell>
                                                 <TableCell>{reg.email || "—"}</TableCell>
                                                 <TableCell>{reg.phonePrefix && reg.phoneNumber ? `+${reg.phonePrefix}${reg.phoneNumber}` : "—"}</TableCell>
+                                                <TableCell>
+                                                    {reg.confirmationStatus && reg.confirmationStatus !== "NOT_REQUESTED" ? (
+                                                        <div className="space-y-1 text-xs">
+                                                            <span>{t(`adminGroup.events.confirmation${reg.confirmationStatus === "ATTENDING" ? "Attending" : reg.confirmationStatus === "NOT_ATTENDING" ? "NotAttending" : "Pending"}`)}</span>
+                                                            {reg.confirmationReason ? <p className="text-slate-500">{t("adminGroup.events.confirmationReason", { reason: reg.confirmationReason })}</p> : null}
+                                                        </div>
+                                                    ) : "—"}
+                                                </TableCell>
                                                 {event.registration_question_text?.trim() ? (
                                                     <TableCell className="max-w-xs whitespace-pre-wrap text-sm text-slate-700">{reg.registrationQuestionAnswer || "—"}</TableCell>
                                                 ) : null}
