@@ -14,6 +14,8 @@ import { ShopFooter } from "@/components/shop/ShopFooter";
 
 export default function EventAttendanceConfirmationPage() {
   const params = useParams<{ slug: string; eventId: string }>();
+  const slug = params?.slug ?? "";
+  const eventId = params?.eventId ?? "";
   const searchParams = useSearchParams();
   const token = searchParams?.get("token") ?? "";
   const actionIntent = searchParams?.get("action");
@@ -33,7 +35,7 @@ export default function EventAttendanceConfirmationPage() {
     }
     void getEventAttendanceConfirmation(token)
       .then((data) => {
-        if (data.event.id !== Number(params.eventId) || data.event.slug !== params.slug) {
+        if (data.event.id !== Number(eventId) || data.event.slug !== slug) {
           setLoadError(true);
           return;
         }
@@ -41,7 +43,7 @@ export default function EventAttendanceConfirmationPage() {
       })
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, [params.eventId, params.slug, token]);
+  }, [eventId, slug, token]);
 
   const locale = confirmation?.locale ?? "es";
   const copy = locale === "en"
@@ -100,10 +102,10 @@ export default function EventAttendanceConfirmationPage() {
 
   const eventUrl = confirmation
     ? `/shop/${encodeURIComponent(confirmation.event.slug)}/events/${confirmation.event.id}`
-    : `/shop/${encodeURIComponent(params.slug)}/events/${params.eventId}`;
+    : `/shop/${encodeURIComponent(slug)}/events/${eventId}`;
   const routeMismatch = Boolean(
     confirmation
-    && (confirmation.event.id !== Number(params.eventId) || confirmation.event.slug !== params.slug),
+    && (confirmation.event.id !== Number(eventId) || confirmation.event.slug !== slug),
   );
   const status = confirmation?.confirmation_status;
   const eventStarted = Boolean(confirmation && new Date(confirmation.event.start_at).getTime() <= Date.now());
