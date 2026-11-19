@@ -394,31 +394,30 @@ export type CustomerSegmentKey =
     | "UPCOMING"
     | "HIGH_VALUE";
 
-export async function getCustomers(
-    params?: string | {
-        search?: string;
-        segment?: CustomerSegmentKey;
-        categoryId?: number;
-        tagId?: number;
-    },
-): Promise<CustomerRecord[]> {
-    const normalizedParams: { search?: string; segment?: CustomerSegmentKey; categoryId?: number; tagId?: number } = typeof params === "string"
-        ? { search: params }
-        : (params ?? {});
-    const query = new URLSearchParams();
-    if (normalizedParams.search) {
-        query.set("search", normalizedParams.search);
-    }
-    if (normalizedParams.segment && normalizedParams.segment !== "ALL") {
-        query.set("segment", normalizedParams.segment);
-    }
-    if (normalizedParams.categoryId) {
-        query.set("category_id", String(normalizedParams.categoryId));
-    }
-    if (normalizedParams.tagId) query.set("tag_id", String(normalizedParams.tagId));
+export type CustomerActivityType = "ALL" | "PAID_EVENT" | "FREE_EVENT" | "SERVICE" | "RECURRING_SERVICE" | "CLASS";
 
-    const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
-    const response = await apiFetch<{ data: CustomerRecord[] }>(`/api/admin/customers${suffix}`);
+interface CustomerListFilters {
+    search?: string;
+    segment?: CustomerSegmentKey;
+    categoryId?: number;
+    tagId?: number;
+    activityType?: CustomerActivityType;
+}
+
+function buildCustomerQuery(filters?: CustomerListFilters): string {
+    const query = new URLSearchParams();
+    if (filters?.search) query.set("search", filters.search);
+    if (filters?.segment && filters.segment !== "ALL") query.set("segment", filters.segment);
+    if (filters?.categoryId) query.set("category_id", String(filters.categoryId));
+    if (filters?.tagId) query.set("tag_id", String(filters.tagId));
+    if (filters?.activityType) query.set("activity_type", filters.activityType);
+    const search = query.toString();
+    return search ? `?${search}` : "";
+}
+
+export async function getCustomers(params?: string | CustomerListFilters): Promise<CustomerRecord[]> {
+    const filters = typeof params === "string" ? { search: params } : params;
+    const response = await apiFetch<{ data: CustomerRecord[] }>(`/api/admin/customers${buildCustomerQuery(filters)}`);
     return response.data;
 }
 
@@ -728,26 +727,8 @@ export async function downloadCustomerImportTemplate(): Promise<Blob> {
     return response.blob();
 }
 
-export async function downloadCustomersExport(params?: {
-    search?: string;
-    segment?: CustomerSegmentKey;
-    categoryId?: number;
-    tagId?: number;
-}): Promise<{ blob: Blob; fileName: string | null }> {
-    const query = new URLSearchParams();
-    if (params?.search) {
-        query.set("search", params.search);
-    }
-    if (params?.segment && params.segment !== "ALL") {
-        query.set("segment", params.segment);
-    }
-    if (params?.categoryId) {
-        query.set("category_id", String(params.categoryId));
-    }
-    if (params?.tagId) query.set("tag_id", String(params.tagId));
-
-    const suffix = query.toString().length > 0 ? `?${query.toString()}` : "";
-    const response = await fetch(resolveBackendUrl(`/api/admin/customers/export${suffix}`), {
+export async function downloadCustomersExport(params?: CustomerListFilters): Promise<{ blob: Blob; fileName: string | null }> {
+    const response = await fetch(resolveBackendUrl(`/api/admin/customers/export${buildCustomerQuery(params)}`), {
         credentials: "include",
     });
 

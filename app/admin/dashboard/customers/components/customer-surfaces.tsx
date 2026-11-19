@@ -22,6 +22,7 @@ import {
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import {
     type AdminGroupPaymentRow,
+    type CustomerActivityType,
     type CustomerSegmentKey,
     createCustomerTag,
     deleteCustomerTag,
@@ -94,6 +95,7 @@ const CUSTOMER_SEGMENT_OPTIONS: Array<{ value: CustomerSegmentKey; labelKey: str
     { value: "UPCOMING", labelKey: "adminCustomers.segments.upcoming" },
     { value: "HIGH_VALUE", labelKey: "adminCustomers.segments.highValue" },
 ];
+const CUSTOMER_ACTIVITY_TYPES: CustomerActivityType[] = ["ALL", "PAID_EVENT", "FREE_EVENT", "SERVICE", "RECURRING_SERVICE", "CLASS"];
 
 function useCustomerCategoryOptions(enabled: boolean): ServiceCategory[] {
     const { t } = useI18n();
@@ -1589,41 +1591,57 @@ export function CustomersImportExportSurface() {
     const canImportExport = hasCrmPro;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    const [customers, setCustomers] = useState<CustomerRecord[]>([]);
-    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [segmentFilter, setSegmentFilter] = useState<CustomerSegmentKey>("ALL");
     const [categoryFilter, setCategoryFilter] = useState("ALL");
     const [tagFilter, setTagFilter] = useState("ALL");
+    const [activityType, setActivityType] = useState<CustomerActivityType>("ALL");
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [previewVersion, refreshPreview] = useState(0);
 
     useEffect(() => {
         const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
         return () => window.clearTimeout(timer);
     }, [searchQuery]);
 
-    const fetchCustomers = useCallback(async () => {
-        setLoading(true);
-        try {
-            const rows = await getCustomers({
-                search: debouncedSearch || undefined,
-                segment: hasCrmPro ? segmentFilter : "ALL",
-                categoryId: hasCrmPro && categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
-                tagId: tagFilter !== "ALL" ? Number(tagFilter) : undefined,
-            });
-            setCustomers(rows);
-        } catch (error: unknown) {
-            await notify.error(error instanceof Error ? error.message : t("adminCustomers.loadCustomersFailed"));
-        } finally {
-            setLoading(false);
-        }
-    }, [categoryFilter, debouncedSearch, hasCrmPro, segmentFilter, tagFilter, t]);
+    const filters = useMemo(() => ({
+        search: debouncedSearch || undefined,
+        segment: hasCrmPro ? segmentFilter : undefined,
+        categoryId: hasCrmPro && categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
+        tagId: tagFilter !== "ALL" ? Number(tagFilter) : undefined,
+        activityType: hasCrmPro ? activityType : undefined,
+    }), [activityType, categoryFilter, debouncedSearch, hasCrmPro, segmentFilter, tagFilter]);
+    const [preview, setPreview] = useState<{
+        filters: typeof filters;
+        version: number;
+        customers: CustomerRecord[];
+        error?: string;
+    } | null>(null);
+    const currentPreview = preview?.filters === filters && preview.version === previewVersion ? preview : null;
+    const customers = currentPreview?.customers ?? [];
+    const previewError = currentPreview?.error;
+    const previewPending = !currentPreview || searchQuery !== debouncedSearch;
 
     useEffect(() => {
+        let stale = false;
+        async function fetchCustomers() {
+            try {
+                const rows = await getCustomers(filters);
+                if (!stale) setPreview({ filters, version: previewVersion, customers: rows });
+            } catch (error: unknown) {
+                if (!stale) setPreview({
+                    filters,
+                    version: previewVersion,
+                    customers: [],
+                    error: error instanceof Error ? error.message : t("adminCustomers.loadCustomersFailed"),
+                });
+            }
+        }
         void fetchCustomers();
-    }, [fetchCustomers]);
+        return () => { stale = true; };
+    }, [filters, previewVersion, t]);
 
     const handleDownloadTemplate = async () => {
         if (!canImportExport) {
@@ -1647,12 +1665,7 @@ export function CustomersImportExportSurface() {
 
         setExporting(true);
         try {
-            const { blob, fileName } = await downloadCustomersExport({
-                search: debouncedSearch || undefined,
-                segment: segmentFilter,
-                categoryId: categoryFilter !== "ALL" ? Number(categoryFilter) : undefined,
-                tagId: tagFilter !== "ALL" ? Number(tagFilter) : undefined,
-            });
+            const { blob, fileName } = await downloadCustomersExport(filters);
             downloadBlob(blob, fileName || `customers-${Date.now()}.csv`);
             await notify.success(t("adminCustomers.exportSuccess", { count: customers.length }));
         } catch (error: unknown) {
@@ -1680,7 +1693,7 @@ export function CustomersImportExportSurface() {
                     skipped: result.skippedRows,
                 }),
             );
-            await fetchCustomers();
+            refreshPreview((version) => version + 1);
         } catch (error: unknown) {
             await notify.error(error instanceof Error ? error.message : t("adminCustomers.importFailed"));
         } finally {
@@ -1694,7 +1707,7 @@ export function CustomersImportExportSurface() {
             <AdminPageHeader
                 title={t("adminCustomers.importExportTitle")}
                 subtitle={t("adminCustomers.importExportSubtitle")}
-                meta={loading ? t("adminCustomers.loadingCustomerCounts") : t("adminCustomers.importExportMeta", { count: customers.length })}
+                meta={previewPending ? t("adminCustomers.loadingCustomerCounts") : previewError ? undefined : t("adminCustomers.importExportMeta", { count: customers.length })}
                 actions={
                     <input
                         ref={fileInputRef}
@@ -1731,7 +1744,7 @@ export function CustomersImportExportSurface() {
                         searchValue={searchQuery}
                         searchPlaceholder={t("adminCustomers.searchPlaceholder")}
                         onSearchChange={setSearchQuery}
-                        summary={loading ? t("adminCustomers.loadingExportPreview") : t("adminCustomers.exportPreviewCount", { count: customers.length })}
+                        summary={previewPending ? t("adminCustomers.loadingExportPreview") : previewError ? undefined : t("adminCustomers.exportPreviewCount", { count: customers.length })}
                         actions={(
                             <div className="flex flex-wrap items-center gap-2">
                                 <Select value={tagFilter} onValueChange={setTagFilter}>
@@ -1745,6 +1758,16 @@ export function CustomersImportExportSurface() {
                                 </Select>
                                 {hasCrmPro ? (
                                     <>
+                                        <Select value={activityType} onValueChange={(value) => setActivityType(value as CustomerActivityType)}>
+                                            <SelectTrigger aria-label={t("adminCustomers.activityTypeLabel")} className="min-w-[220px] max-w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {CUSTOMER_ACTIVITY_TYPES.map((type) => (
+                                                    <SelectItem key={type} value={type}>{t(`adminCustomers.activityTypes.${type}`)}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                         <Select value={segmentFilter} onValueChange={(value) => setSegmentFilter(value as CustomerSegmentKey)}>
                                             <SelectTrigger className="min-w-[220px]">
                                                 <SelectValue placeholder={t("adminCustomers.segmentLabel")} />
@@ -1770,13 +1793,39 @@ export function CustomersImportExportSurface() {
                                         </Select>
                                     </>
                                 ) : null}
-                                <Button type="button" variant="outline" onClick={() => void handleDownloadExport()} disabled={!canImportExport || exporting || loading}>
+                                <Button type="button" variant="outline" onClick={() => void handleDownloadExport()} disabled={!canImportExport || exporting || previewPending || Boolean(previewError)}>
                                     {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                    {t("adminCustomers.downloadClients")}
+                                    {t("adminCustomers.exportCsv")}
                                 </Button>
                             </div>
                         )}
                     />
+                    {previewPending ? (
+                        <LoadingSkeleton rows={4} variant="table" />
+                    ) : previewError ? (
+                        <ErrorState
+                            title={t("adminCustomers.loadCustomersFailed")}
+                            description={previewError}
+                            action={<Button type="button" variant="outline" onClick={() => refreshPreview((version) => version + 1)}>{t("adminCustomers.retryExportPreview")}</Button>}
+                        />
+                    ) : (
+                        <DataTable
+                            data={customers}
+                            getRowKey={(customer) => customer.customerKey}
+                            empty={t("adminCustomers.exportPreviewEmpty")}
+                            columns={[
+                                { key: "name", header: t("adminCustomers.name"), cell: (customer) => customer.name },
+                                { key: "email", header: t("adminCustomers.email"), cell: (customer) => customer.email || "—" },
+                                {
+                                    key: "phone",
+                                    header: t("adminCustomers.phone"),
+                                    cell: (customer) => customer.phone
+                                        ? `${customer.phonePrefix ? `+${customer.phonePrefix} ` : ""}${customer.phone}`
+                                        : "—",
+                                },
+                            ]}
+                        />
+                    )}
             </AdminSectionCard>
 
             <div className="grid gap-4 lg:grid-cols-2">
