@@ -97,9 +97,7 @@ export default function ServicePassesPage() {
   if (shopLoading) {
     return <main className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-brand" /></main>;
   }
-  if (!company) return <ShopUnavailableState />;
-
-  const companyTimezone = company.timezone || "UTC";
+  if (!company) return <ShopUnavailableState slug={slug} />;
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!company || !selectedOffering || !payment || !selectedDate || !name.trim() || !phone.trim()) {

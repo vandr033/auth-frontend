@@ -40,7 +40,7 @@ export function PassReservationStatus({ code }: { code: string }) {
   if (shopLoading || loading) {
     return <main className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-brand" /></main>;
   }
-  if (!company) return <ShopUnavailableState />;
+  if (!company) return <ShopUnavailableState slug={slug} />;
 
   const confirmed = reservation?.status === "CONFIRMED";
   const cancelled = reservation?.status === "CANCELLED";
