@@ -60,7 +60,25 @@ jobs:
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
+          if [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::error::COOLIFY_TOKEN is missing"
+            exit 1
+          fi
+
+          if [ -z "$COOLIFY_WEBHOOK" ]; then
+            echo "::error::COOLIFY_WEBHOOK is missing"
+            exit 1
+          fi
+
+          echo "Coolify token is configured"
+          echo "Coolify webhook is configured"
+          echo "Triggering deployment..."
+
           curl --fail-with-body \
+            --silent \
+            --show-error \
             --request POST \
-            "$COOLIFY_WEBHOOK" \
-            --header "Authorization: Bearer $COOLIFY_TOKEN"
+            --url "$COOLIFY_WEBHOOK" \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            --header "Accept: application/json" \
+            --write-out "\nHTTP Status: %{http_code}\n"
