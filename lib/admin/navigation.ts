@@ -44,6 +44,7 @@ export type AdminNavigationItemId =
     | "bookings"
     | "store"
     | "services"
+    | "service-passes"
     | "availability"
     | "time-off"
     | "booking-settings"
@@ -259,6 +260,15 @@ const NAVIGATION_DEFINITIONS: AdminNavigationDefinition[] = [
         groupId: "products",
         labelKey: "adminNav.services",
         href: "/admin/dashboard/services",
+        iconKey: "services",
+        roles: ["OWNER", "ADMIN"],
+        resolveState: (context) => (context.hasReservas ? "active" : "hidden"),
+    },
+    {
+        id: "service-passes",
+        groupId: "products",
+        labelKey: "adminNav.servicePasses",
+        href: "/admin/dashboard/services/passes",
         iconKey: "services",
         roles: ["OWNER", "ADMIN"],
         resolveState: (context) => (context.hasReservas ? "active" : "hidden"),

@@ -72,6 +72,7 @@ const routeTitleOverrides: Array<{
     { prefix: "/admin/dashboard/group-reservations/classes", label: "adminNav.classes" },
     { prefix: "/admin/dashboard/group-reservations/attendance", label: "adminGroup.nav.attendance" },
     { prefix: "/admin/dashboard/group-reservations/metrics", label: "adminNav.metricsPro" },
+    { prefix: "/admin/dashboard/services/passes", label: "adminNav.servicePasses" },
     { prefix: "/admin/dashboard/schedule", label: "adminNav.schedule", exact: true },
     { prefix: "/admin/dashboard/time-off", label: "adminNav.timeOff", exact: true },
     { prefix: "/admin/dashboard/permissions", label: "adminNav.timeOff", exact: true },

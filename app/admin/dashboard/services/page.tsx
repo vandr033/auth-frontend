@@ -345,12 +345,17 @@ export default function ServicesPage() {
                 title={t('adminServices.title')}
                 subtitle={t('adminServices.subtitle')}
                 actions={
-                    <Button asChild>
-                        <Link href="/admin/dashboard/services/new">
-                            <Plus className="h-4 w-4" />
-                            {t('adminServices.addService')}
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button asChild variant="outline">
+                            <Link href="/admin/dashboard/services/passes">{t('adminPasses.title')}</Link>
+                        </Button>
+                        <Button asChild>
+                            <Link href="/admin/dashboard/services/new">
+                                <Plus className="h-4 w-4" />
+                                {t('adminServices.addService')}
+                            </Link>
+                        </Button>
+                    </div>
                 }
             />
 
