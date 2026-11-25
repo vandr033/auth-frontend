@@ -369,12 +369,15 @@ export default function DashboardHomePage() {
                         ) : (
                             <div className="space-y-3">
                                 {metrics.topServices.map((service, i) => (
-                                    <div key={service.id} className="flex items-center gap-3">
+                                    <div key={`${service.type ?? "SERVICE"}-${service.id}`} className="flex items-center gap-3">
                                         <span className="text-sm font-bold text-slate-400 w-5 text-right">{i + 1}</span>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className="text-sm font-medium text-slate-700 truncate">{service.name}</span>
-                                                <span className="text-xs text-slate-500 ml-2 shrink-0">{t("adminHome.bookingsCount", { count: service.count })}</span>
+                                                <span className="flex min-w-0 items-center gap-2">
+                                                    <span className="truncate text-sm font-medium text-slate-700">{service.name}</span>
+                                                    {service.type === "PASS" ? <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">{t("adminPasses.shortLabel")}</span> : null}
+                                                </span>
+                                                <span className="ml-2 shrink-0 text-xs text-slate-500">{service.type === "PASS" ? t("adminPasses.reservationCount", { count: service.count }) : t("adminHome.bookingsCount", { count: service.count })}</span>
                                             </div>
                                             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                                                 <div className="h-full rounded-full bg-admin-brand transition-all" style={{ width: `${service.percentage}%` }} />
@@ -451,7 +454,7 @@ export default function DashboardHomePage() {
                                     return (
                                         <div key={`${item.categoryName || "uncategorized"}-${index}`} className="space-y-1">
                                             <div className="flex items-center justify-between text-xs">
-                                                <span className="text-slate-600">{item.categoryName || t("adminServices.uncategorized")}</span>
+                                                <span className="text-slate-600">{item.categoryName === "__service_passes__" ? t("adminPasses.title") : item.categoryName || t("adminServices.uncategorized")}</span>
                                                 <span className="font-medium text-slate-800">{item.count}</span>
                                             </div>
                                             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">

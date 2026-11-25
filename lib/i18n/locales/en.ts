@@ -2793,8 +2793,12 @@ const en = {
 
   adminPasses: {
     title: "Day & month services",
+    shortLabel: "Pass",
     subtitle: "Manage date-only passes and their reservations. They stay out of the appointment calendar.",
     publicLink: "Open public passes",
+    copyBookingLink: "Copy booking link",
+    offerLinkCopied: "Booking link copied.",
+    reservationCount: "{{count}} reservations",
     offerings: "Pass services",
     reservations: "Reservations",
     addOffer: "Add pass service",

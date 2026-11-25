@@ -2783,8 +2783,12 @@ const es: TranslationKeys = {
 
   adminPasses: {
     title: "Servicios diarios y mensuales",
+    shortLabel: "Pase",
     subtitle: "Gestioná pases por fecha y sus reservas. No ocupan espacio en el calendario de citas.",
     publicLink: "Abrir pases públicos",
+    copyBookingLink: "Copiar enlace de reserva",
+    offerLinkCopied: "Enlace de reserva copiado.",
+    reservationCount: "{{count}} reservas",
     offerings: "Servicios por pase",
     reservations: "Reservas",
     addOffer: "Agregar servicio por pase",

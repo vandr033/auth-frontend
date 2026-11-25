@@ -38,6 +38,7 @@ import { AdminBooking, BookingStatus } from "@/types/admin-booking";
 import { BookingCalendarView } from "./components/BookingCalendarView";
 import { BookingMonthView } from "./components/BookingMonthView";
 import { BookingListView } from "./components/BookingListView";
+import { ServicePassCheckInPanel } from "./components/ServicePassCheckInPanel";
 import { BookingDetailSheet } from "./components/BookingDetailSheet";
 import { NewBookingModal } from "./components/NewBookingModal";
 import {
@@ -52,8 +53,13 @@ import {
     getTodayReminderPreview,
     sendTodayReminder,
     sendNoShowNotification,
+    getServicePassReservations,
+    confirmServicePassReservation,
+    cancelServicePassReservation,
+    checkInServicePass,
     StaffMember,
     ServiceItem,
+    ServicePassReservation,
     CreateBookingData,
     CreateRecurringBookingData,
     DaySchedule,
@@ -90,6 +96,7 @@ export default function BookingsPage() {
     const dateFnsLocale = getDateLocale(locale);
     const isStaffRole = role === "STAFF";
     const currency = companyUser?.company?.currency;
+    const companyTimezone = (companyUser?.company as { timezone?: string } | undefined)?.timezone || "UTC";
     const canSendReminders = Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, "BOOKING_REMINDERS");
     const canSendTransactionalNotifications =
         Boolean(user?.is_super_admin) || hasEffectiveFeature(effectiveAccess, "TRANSACTIONAL_BOOKING_NOTIFICATIONS");
@@ -108,6 +115,7 @@ export default function BookingsPage() {
 
     // Data
     const [bookings, setBookings] = useState<AdminBooking[]>([]);
+    const [passReservations, setPassReservations] = useState<ServicePassReservation[]>([]);
     const [staffList, setStaffList] = useState<StaffMember[]>([]);
     const [serviceList, setServiceList] = useState<ServiceItem[]>([]);
     const [businessHours, setBusinessHours] = useState<DaySchedule[]>([]);
@@ -303,14 +311,18 @@ export default function BookingsPage() {
                 params.status = statusFilter;
             }
 
-            const data = await getBookings(params);
+            const [data, passData] = await Promise.all([
+                getBookings(params),
+                isStaffRole ? Promise.resolve([] as ServicePassReservation[]) : getServicePassReservations(),
+            ]);
             setBookings(data);
+            setPassReservations(passData);
         } catch (err) {
             console.error("Failed to fetch bookings:", err);
         } finally {
             setLoading(false);
         }
-    }, [isAuthenticated, currentDate, dayCount, staffFilter, statusFilter, viewMode]);
+    }, [isAuthenticated, currentDate, dayCount, isStaffRole, staffFilter, statusFilter, viewMode]);
 
     useEffect(() => {
         fetchBookings();
@@ -375,6 +387,16 @@ export default function BookingsPage() {
             console.error("Failed to update booking status:", err);
             throw err;
         }
+    };
+
+    const handlePassConfirm = async (id: number) => {
+        await confirmServicePassReservation(id);
+        setPassReservations(await getServicePassReservations());
+    };
+
+    const handlePassCancel = async (id: number) => {
+        await cancelServicePassReservation(id);
+        setPassReservations(await getServicePassReservations());
     };
 
     const handleMarkNoShow = async (id: number) => {
@@ -521,15 +543,31 @@ export default function BookingsPage() {
         return `${format(currentDate, "MMM d", { locale: dateFnsLocale })} - ${format(endDate, "PPP", { locale: dateFnsLocale })}`;
     }, [currentDate, dayCount, viewMode, dateFnsLocale]);
 
+    const visiblePassReservations = useMemo(() => {
+        const rangeStart = viewMode === "month" ? startOfMonth(currentDate) : startOfDay(currentDate);
+        const rangeEnd = viewMode === "month" ? endOfMonth(currentDate) : endOfDay(addDays(rangeStart, dayCount - 1));
+        const firstDate = format(rangeStart, "yyyy-MM-dd");
+        const lastDate = format(rangeEnd, "yyyy-MM-dd");
+        return passReservations.filter((reservation) => {
+            const selectedDate = reservation.selected_date.slice(0, 10);
+            const inRange = selectedDate >= firstDate && selectedDate <= lastDate;
+            const matchesStatus = statusFilter === "ALL" || reservation.status === statusFilter;
+            const includesCancelled = showCancelled || statusFilter === "CANCELLED" || reservation.status !== "CANCELLED";
+            return inRange && matchesStatus && includesCancelled;
+        });
+    }, [currentDate, dayCount, passReservations, showCancelled, statusFilter, viewMode]);
+
     const operationsSummary = useMemo(() => {
         const today = new Date();
+        const listPasses = viewMode === "list" ? visiblePassReservations : [];
+        const todayKey = format(today, "yyyy-MM-dd");
         return {
-            total: visibleBookings.length,
-            today: visibleBookings.filter((booking) => isSameDay(new Date(booking.start_at), today)).length,
-            pending: visibleBookings.filter((booking) => booking.status === "PENDING").length,
-            confirmed: visibleBookings.filter((booking) => booking.status === "CONFIRMED").length,
+            total: visibleBookings.length + listPasses.length,
+            today: visibleBookings.filter((booking) => isSameDay(new Date(booking.start_at), today)).length + listPasses.filter((reservation) => reservation.selected_date.slice(0, 10) === todayKey).length,
+            pending: visibleBookings.filter((booking) => booking.status === "PENDING").length + listPasses.filter((reservation) => reservation.status === "PENDING").length,
+            confirmed: visibleBookings.filter((booking) => booking.status === "CONFIRMED").length + listPasses.filter((reservation) => reservation.status === "CONFIRMED").length,
         };
-    }, [visibleBookings]);
+    }, [viewMode, visibleBookings, visiblePassReservations]);
 
     if (!isAuthenticated) return null;
 
@@ -838,12 +876,21 @@ export default function BookingsPage() {
                         onBookingClick={handleBookingClick}
                     />
                 ) : (
-                    <BookingListView
-                        bookings={visibleBookings}
-                        currency={currency}
-                        onBookingClick={handleBookingClick}
-                        onStatusUpdate={handleStatusUpdate}
-                    />
+                    <div className="space-y-5">
+                        <BookingListView
+                            bookings={visibleBookings}
+                            passReservations={isStaffRole ? [] : visiblePassReservations}
+                            currency={currency}
+                            timezone={companyTimezone}
+                            onBookingClick={handleBookingClick}
+                            onStatusUpdate={handleStatusUpdate}
+                            onPassConfirm={isStaffRole ? undefined : handlePassConfirm}
+                            onPassCancel={isStaffRole ? undefined : handlePassCancel}
+                        />
+                        {!isStaffRole ? (
+                            <ServicePassCheckInPanel onCheckIn={checkInServicePass} />
+                        ) : null}
+                    </div>
                 )}
             </div>
 

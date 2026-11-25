@@ -77,8 +77,12 @@ export default function ServicePassesPage() {
         setToday(currentDay);
         setSelectedDate(currentDay);
         if (data.offerings.length) {
-          setOfferingId(String(data.offerings[0].id));
-          setPaymentMethod(defaultPaymentMethod(data.payment, data.offerings[0].price_cents));
+          const requestedOfferingId = typeof window === "undefined"
+            ? null
+            : new URLSearchParams(window.location.search).get("offering_id");
+          const firstOffering = data.offerings.find((offering) => String(offering.id) === requestedOfferingId) ?? data.offerings[0];
+          setOfferingId(String(firstOffering.id));
+          setPaymentMethod(defaultPaymentMethod(data.payment, firstOffering.price_cents));
         }
       })
       .catch((requestError) => active && setError(requestError instanceof Error ? requestError.message : t("shopPasses.unavailable")))

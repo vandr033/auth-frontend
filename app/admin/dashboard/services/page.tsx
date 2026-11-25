@@ -30,6 +30,7 @@ import {
 import { useAdminAuth } from "@/app/admin/contexts/AdminAuthContext";
 import { useT } from "@/lib/i18n";
 import { CategoriesSection } from "./components/CategoriesSection";
+import { ServicePassOfferingsPanel } from "./components/ServicePassOfferingsPanel";
 import { notify } from "@/lib/notify";
 import { formatCurrencyFromCents } from "@/lib/currency";
 import { hasEffectiveCapability } from "@/lib/admin/access";
@@ -346,9 +347,6 @@ export default function ServicesPage() {
                 subtitle={t('adminServices.subtitle')}
                 actions={
                     <div className="flex flex-wrap gap-2">
-                        <Button asChild variant="outline">
-                            <Link href="/admin/dashboard/services/passes">{t('adminPasses.title')}</Link>
-                        </Button>
                         <Button asChild>
                             <Link href="/admin/dashboard/services/new">
                                 <Plus className="h-4 w-4" />
@@ -409,6 +407,8 @@ export default function ServicesPage() {
                 onCategoriesChange={fetchData}
                 getApiUrl={getApiUrl}
             />
+
+            <ServicePassOfferingsPanel />
 
             <DataTable
                 data={pagedServices}

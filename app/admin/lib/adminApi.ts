@@ -321,7 +321,7 @@ export async function uploadAdminImage(params: {
 export interface DashboardMetrics {
     bookings: { total: number; thisMonth: number; thisWeek: number; today: number; upcoming7Days: number };
     revenue: { total: number; thisMonth: number; thisWeek: number; today: number; avgPerBooking: number };
-    topServices: { id: number; name: string; count: number; percentage: number }[];
+    topServices: { id: number; name: string; count: number; percentage: number; type?: "SERVICE" | "PASS" }[];
     topStaff: { id: number; name: string; bookingCount: number; revenue: number }[];
     bookingsByStatus: { status: string; count: number }[];
     bookingsByCategory: { categoryName: string | null; count: number }[];
@@ -342,6 +342,106 @@ export interface DashboardMetrics {
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     const response = await apiFetch<{ data: DashboardMetrics }>("/api/admin/dashboard/metrics");
+    return response.data;
+}
+
+// ============ DATE-BASED SERVICE PASSES ============
+
+export type ServicePassDuration = "DAY" | "MONTH";
+
+export interface ServicePassOffering {
+    id: number;
+    title: string;
+    description: string | null;
+    duration: ServicePassDuration;
+    price_cents: number;
+    is_active: boolean;
+    _count?: { reservations: number };
+}
+
+export interface ServicePassReservation {
+    id: number;
+    company_id: number;
+    reservation_code: string;
+    customer_name: string;
+    customer_email: string | null;
+    customer_phone: string;
+    selected_date: string;
+    valid_from: string;
+    valid_until: string;
+    price_cents_snapshot: number;
+    status: BookingStatus;
+    payment_method: string;
+    payment_status: "UNPAID" | "PENDING_CONFIRMATION" | "PAID";
+    qr_proof_image_url: string | null;
+    qr_token: string;
+    qr_image_url: string;
+    offering: { title: string; duration: ServicePassDuration };
+}
+
+export interface ServicePassScanResult {
+    scan_status: "VALID" | "INVALID";
+    reason?: string;
+    reservation?: ServicePassReservation;
+}
+
+export async function getServicePassOfferings(): Promise<ServicePassOffering[]> {
+    const response = await apiFetch<{ data: ServicePassOffering[] }>("/api/admin/service-passes/offerings");
+    return response.data;
+}
+
+export async function createServicePassOffering(input: {
+    title: string;
+    description: string | null;
+    duration: ServicePassDuration;
+    price_cents: number;
+}): Promise<ServicePassOffering> {
+    const response = await apiFetch<{ data: ServicePassOffering }>("/api/admin/service-passes/offerings", {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+    return response.data;
+}
+
+export async function updateServicePassOffering(id: number, input: Partial<{
+    title: string;
+    description: string | null;
+    duration: ServicePassDuration;
+    price_cents: number;
+    is_active: boolean;
+}>): Promise<ServicePassOffering> {
+    const response = await apiFetch<{ data: ServicePassOffering }>(`/api/admin/service-passes/offerings/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+    });
+    return response.data;
+}
+
+export async function getServicePassReservations(): Promise<ServicePassReservation[]> {
+    const response = await apiFetch<{ data: ServicePassReservation[] }>("/api/admin/service-passes/reservations");
+    return response.data;
+}
+
+export async function confirmServicePassReservation(id: number): Promise<ServicePassReservation | null> {
+    const response = await apiFetch<{ data: ServicePassReservation | null }>(`/api/admin/service-passes/reservations/${id}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({}),
+    });
+    return response.data;
+}
+
+export async function cancelServicePassReservation(id: number): Promise<void> {
+    await apiFetch(`/api/admin/service-passes/reservations/${id}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({}),
+    });
+}
+
+export async function checkInServicePass(input: { reservation_code?: string; qr_token?: string }): Promise<ServicePassScanResult> {
+    const response = await apiFetch<{ data: ServicePassScanResult }>("/api/admin/service-passes/reservations/check-in", {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
     return response.data;
 }
 
