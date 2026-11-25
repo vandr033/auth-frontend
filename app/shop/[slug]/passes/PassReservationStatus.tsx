@@ -78,7 +78,7 @@ export function PassReservationStatus({ code }: { code: string }) {
             </CardContent>
           </Card>
         ) : (
-          <Card><CardContent className="space-y-4 py-10 text-center"><p role="alert" className="text-sm text-red-700">{error}</p><Button asChild variant="outline"><Link href={`/shop/${encodeURIComponent(slug)}/passes`}>{t("shopPasses.backToShop")}</Link></Button></CardContent></Card>
+          <Card><CardContent className="space-y-4 py-10 text-center"><p role="alert" className="text-sm text-red-700">{error}</p><Button asChild variant="outline"><Link href={`/shop/${encodeURIComponent(slug)}`}>{t("shopPasses.backToShop")}</Link></Button></CardContent></Card>
         )}
       </div>
     </main>

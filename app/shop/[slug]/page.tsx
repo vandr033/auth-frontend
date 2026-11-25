@@ -7,6 +7,7 @@ import { useShop } from "../contexts/ShopContext";
 import { useT } from "@/lib/i18n";
 import { HeroWrapper } from "@/components/shop/heroes/HeroWrapper";
 import { QuickInfoBar } from "@/components/shop/QuickInfoBar";
+import { ServicePassOptions, usePublicPassOptions } from "@/app/shop/components/ServicePassOptions";
 import { ServicesWrapper } from "@/components/shop/services/ServicesWrapper";
 import { TeamWrapper } from "@/components/shop/team/TeamWrapper";
 import { ReviewsBanner } from "@/components/shop/ReviewsBanner";
@@ -51,6 +52,7 @@ export default function ShopPage() {
         publicFeatures,
     } = useShop();
     const t = useT();
+    const { offerings: passOptions } = usePublicPassOptions();
     const publicHours = company?.restaurant_enabled ? restaurantHours : hours;
     const { user } = useAuth();
     const resolvedPublicFeatures = company ? getShopPublicFeatures(company) : publicFeatures;
@@ -218,9 +220,9 @@ export default function ShopPage() {
                     );
                 }
                 if (key === 'services') {
-                    if (!canSeeReservas || services.length === 0) return null;
+                    if (!canSeeReservas || (services.length === 0 && passOptions.length === 0)) return null;
                     return (
-                        <section key="services" className="py-10 md:py-16">
+                        <section key="services" id="services" className="py-10 md:py-16">
                             <div className="mx-auto max-w-6xl px-4 md:px-8">
                                 <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                                     <div>
@@ -237,7 +239,10 @@ export default function ShopPage() {
                                         </Button>
                                     </Link>
                                 </div>
-                                <ServicesWrapper maxItems={6} />
+                                <div className="space-y-8">
+                                    {services.length > 0 && <ServicesWrapper maxItems={6} />}
+                                    <ServicePassOptions offerings={passOptions} />
+                                </div>
                             </div>
                         </section>
                     );

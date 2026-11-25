@@ -7,6 +7,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Clock, User, Calendar, CreditCard, Loader2, Upload, DoorOpen, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ServicePassOptions, usePublicPassOptions } from "@/app/shop/components/ServicePassOptions";
+import { buildPublicPassBookingPath } from "@/lib/admin/public-links";
+import { ServicePassCheckout } from "@/app/shop/components/ServicePassCheckout";
 import { useShop } from "../../contexts/ShopContext";
 import { useAuth } from "@/lib/useAuth";
 import { useApi } from "@/app/hooks/useApi";
@@ -350,9 +353,12 @@ function buildBookingServiceGroups(params: {
 }
 
 // Step indicator component — horizontal stepper with numbered circles + connecting lines
-function StepIndicator({ currentStep, browseMode }: { currentStep: BookingStep; browseMode: BrowseMode }) {
+function StepIndicator({ currentStep, browseMode, pass = false }: { currentStep: BookingStep; browseMode: BrowseMode; pass?: boolean }) {
     const t = useT();
-    const steps = browseMode === "service-first"
+    const steps = pass ? [
+        { num: 1, label: t("shopBooking.step1") },
+        { num: 2, label: t("shopBooking.step4") },
+    ] : browseMode === "service-first"
         ? [
             { num: 1, label: t('shopBooking.step1') },
             { num: 2, label: t('shopBooking.step2') },
@@ -423,12 +429,14 @@ function ServiceStep({
     selectedServices,
     currency,
     onToggleService,
+    passOptions,
 }: {
     services: SelectedService[];
     categories: { id: number; name: string }[];
     selectedServices: SelectedService[];
     currency?: string | null;
     onToggleService: (service: SelectedService) => void;
+    passOptions?: React.ReactNode;
 }) {
     const t = useT();
     const selectedIds = new Set(selectedServices.map((s) => s.id));
@@ -512,7 +520,8 @@ function ServiceStep({
                 </div>
             ))}
 
-            {services.length === 0 && (
+            {passOptions}
+            {services.length === 0 && !passOptions && (
                 <p className="text-center text-text-muted py-8">{t('shopBooking.noServicesAvailable')}</p>
             )}
         </div>
@@ -1554,8 +1563,12 @@ export default function BookingPage() {
     const { profile: demoProfile, ready: demoProfileReady } = usePublicDemoProfile(slug);
     const t = useT();
     const api = useApi();
+    const passId = searchParams?.get("passId");
+    const [selectedPassId, setSelectedPassId] = useState<number>();
     const inviteToken = searchParams?.get("invite")?.trim() || "";
+    const { offerings: passOptions, loading: passesLoading } = usePublicPassOptions();
     const bookingEnabled = canBookOnline;
+    const selectedPass = passOptions.find((offering) => offering.id === selectedPassId);
     const searchParamsString = searchParams?.toString() || "";
     const marketplaceHandoff = useMemo(
         () => parseMarketplaceBookingHandoff(new URLSearchParams(searchParamsString)),
@@ -2283,6 +2296,7 @@ export default function BookingPage() {
     }, [booking.groupSlots, booking.staff, selectableStaff]);
 
     const toggleService = React.useCallback((service: SelectedService) => {
+        setSelectedPassId(undefined);
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setSchedulePage(0);
         setScheduleDates({});
@@ -2386,6 +2400,11 @@ export default function BookingPage() {
     }, [activeScheduleItem, scheduleItems]);
 
     const nextStep = () => {
+        if (booking.step === 1 && selectedPass) {
+            router.push(buildPublicPassBookingPath(slug, selectedPass.id));
+            return;
+        }
+
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
 
         if (booking.step === 3 && activeScheduleItem) {
@@ -2460,6 +2479,7 @@ export default function BookingPage() {
         if (isMarketplaceSource) setMarketplaceAutoAdvanceEnabled(false);
         setSchedulePage(0);
         setBrowseMode(mode);
+        setSelectedPassId(undefined);
         setScheduleDates({});
         // Reset selections when switching modes
         setBooking((prev) => ({
@@ -2476,7 +2496,7 @@ export default function BookingPage() {
     const canProceed = (): boolean => {
         if (browseMode === "service-first") {
             switch (booking.step) {
-                case 1: return booking.services.length > 0;
+                case 1: return Boolean(selectedPass) || booking.services.length > 0;
                 case 2: return filteredStaff.length > 0 || shouldSkipSharedStaffStep;
                 case 3:
                     return activeScheduleItem
@@ -2768,7 +2788,35 @@ export default function BookingPage() {
         return <ShopUnavailableState slug={slug} />;
     }
 
-    if (!bookingEnabled) {
+    const bookingHeader = (
+        <div className="mb-8">
+            <Link href={`/shop/${slug}`} className="mb-4 inline-flex items-center text-sm font-medium text-text-muted hover:text-brand">
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                {t("shopBooking.backToShop")}
+            </Link>
+            <h1 className="font-heading text-3xl font-bold">{t("shopBooking.bookAnAppointment")}</h1>
+        </div>
+    );
+
+    if (passId) {
+        return (
+            <div className="mx-auto max-w-3xl px-4 py-8">
+                {bookingHeader}
+                <StepIndicator currentStep={2} browseMode="service-first" pass />
+                <ServicePassCheckout
+                    key={`${company.id}:${passId}`}
+                    passId={passId}
+                    demoReady={demoProfileReady}
+                    onDemoSubmit={demoProfile ? () => setDemoInterceptOpen(true) : undefined}
+                />
+                <DemoFinalSubmitDialog open={demoInterceptOpen} onOpenChange={setDemoInterceptOpen} profile={demoProfile} operation="reservation" />
+            </div>
+        );
+    }
+
+    if (!bookingEnabled && passesLoading) return <p className="p-8 text-center" role="status">{t("shopPasses.loading")}</p>;
+
+    if (!bookingEnabled && (!passOptions.length || inviteToken)) {
         return (
             <main className="min-h-screen bg-page text-text-main">
                 <section className="mx-auto max-w-4xl px-4 py-20 text-center md:px-8">
@@ -2811,16 +2859,7 @@ export default function BookingPage() {
 
     return (
         <div className="max-w-3xl mx-auto px-4 py-8 pb-28">
-            <div className="mb-8">
-                <Link
-                    href={`/shop/${slug}`}
-                    className="inline-flex items-center text-sm font-medium text-text-muted hover:text-brand transition-colors mb-4"
-                >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    {t('shopBooking.backToShop')}
-                </Link>
-                <h1 className="text-3xl font-bold font-heading text-text-main">{t('shopBooking.bookAnAppointment')}</h1>
-            </div>
+            {bookingHeader}
 
             {isMarketplaceSource && showMarketplacePrefillBanner && (
                 <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -2860,10 +2899,10 @@ export default function BookingPage() {
                 </div>
             ) : null}
 
-            <StepIndicator currentStep={booking.step} browseMode={browseMode} />
+            <StepIndicator currentStep={booking.step} browseMode={browseMode} pass={Boolean(selectedPass) || !bookingEnabled} />
 
             {/* Browse mode toggle — only visible at step 1 */}
-            {booking.step === 1 && (
+            {booking.step === 1 && bookingEnabled && (
                 <div className="flex items-center justify-center gap-1 mb-6 p-1 bg-slate-100 rounded-lg max-w-xs mx-auto">
                     <button
                         onClick={() => handleToggleBrowseMode("service-first")}
@@ -2895,8 +2934,19 @@ export default function BookingPage() {
                 <div style={{ display: booking.step === 1 ? 'block' : 'none' }}>
                     {browseMode === "service-first" ? (
                         <ServiceStep
-                            services={selectableServices}
-                            categories={selectableCategories}
+                            services={bookingEnabled ? selectableServices : []}
+                            passOptions={booking.step === 1 && !inviteToken && passOptions.length > 0
+                                ? <ServicePassOptions
+                                    offerings={passOptions}
+                                    selectedId={selectedPass?.id}
+                                    onSelect={(id) => {
+                                        setSelectedPassId(selectedPass?.id === id ? undefined : id);
+                                        setBooking((prev) => ({ ...prev, services: [], staff: null, slot: null, groupSlots: {} }));
+                                        setMarketplaceAutoAdvanceEnabled(false);
+                                    }}
+                                />
+                                : undefined}
+                            categories={bookingEnabled ? selectableCategories : []}
                             selectedServices={booking.services}
                             currency={company.currency}
                             onToggleService={toggleService}

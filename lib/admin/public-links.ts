@@ -10,6 +10,10 @@ export function buildPublicServicePath(companySlug: string, serviceId: number): 
   return `/shop/${encodeURIComponent(companySlug)}/book?serviceId=${serviceId}`;
 }
 
+export function buildPublicPassBookingPath(companySlug: string, passId: string | number): string {
+  return `/shop/${encodeURIComponent(companySlug)}/book?passId=${encodeURIComponent(passId)}`;
+}
+
 export function buildPublicStoreProductPath(companySlug: string, productSlug: string): string {
   return `/shop/${encodeURIComponent(companySlug)}/store/${encodeURIComponent(productSlug)}`;
 }

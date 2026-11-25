@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrencyFromCents } from "@/lib/currency";
-import { copyPublicUrl } from "@/lib/admin/public-links";
+import { buildPublicPassBookingPath, copyPublicUrl } from "@/lib/admin/public-links";
 import { useT } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import {
@@ -103,7 +103,7 @@ export function ServicePassOfferingsPanel() {
     };
 
     const passPath = (offeringId: number) => companySlug
-        ? `/shop/${encodeURIComponent(companySlug)}/passes?offering_id=${offeringId}`
+        ? buildPublicPassBookingPath(companySlug, offeringId)
         : null;
 
     const copyBookingLink = async (offeringId: number) => {

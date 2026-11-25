@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useShop } from "../../contexts/ShopContext";
 import { useT } from "@/lib/i18n";
+import { ServicePassOptions, usePublicPassOptions } from "@/app/shop/components/ServicePassOptions";
 import { ServicesWrapper } from "@/components/shop/services/ServicesWrapper";
 import { FloatingBookCTA } from "@/components/shop/FloatingBookCTA";
 import { ShopFooter } from "@/components/shop/ShopFooter";
@@ -50,6 +51,7 @@ export default function ServicesPage() {
         publicFeatures,
     } = useShop();
     const t = useT();
+    const { offerings: passOptions, loading: passesLoading } = usePublicPassOptions();
     const canSeeServices = getShopPublicFeatures(company).servicesVisible || publicFeatures.servicesVisible;
 
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -218,17 +220,15 @@ export default function ServicesPage() {
                     </aside>
 
                     {/* Services */}
-                    <div className="flex-1">
-                        {filteredServices.length === 0 ? (
+                    <div className="min-w-0 flex-1 space-y-8">
+                        {filteredServices.length > 0 ? (
+                            <ServicesWrapper categories={filteredCategories} services={filteredServices} />
+                        ) : selectedCategoryId !== null || (!passesLoading && passOptions.length === 0) ? (
                             <div className="py-12 text-center">
                                 <p className="text-text-muted">{t('shopServices.noServices')}</p>
                             </div>
-                        ) : (
-                            <ServicesWrapper
-                                categories={filteredCategories}
-                                services={filteredServices}
-                            />
-                        )}
+                        ) : null}
+                        {selectedCategoryId === null && <ServicePassOptions offerings={passOptions} />}
                     </div>
                 </div>
             </div>

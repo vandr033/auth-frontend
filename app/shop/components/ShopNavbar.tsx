@@ -79,7 +79,6 @@ export function ShopNavbar() {
         ...(restaurantEnabled ? [{ href: `${basePath}/menu`, label: "Menú" }] : []),
         ...(restaurantEnabled ? [{ href: `${basePath}/reserve`, label: t('restaurantReservations.reserveTable') }] : []),
         ...(publicFeatures.servicesVisible ? [{ href: `${basePath}/services`, label: t('shopNav.services') }] : []),
-        ...(publicFeatures.servicesVisible ? [{ href: `${basePath}/passes`, label: t('shopNav.passes') }] : []),
         ...(publicFeatures.commerceVisible ? [{ href: `${basePath}/store`, label: t('shopNav.store') }] : []),
         ...(publicFeatures.eventsVisible ? [{ href: `${basePath}/events`, label: t('shopNav.events') }] : []),
         ...(publicFeatures.classesVisible ? [{ href: `${basePath}/classes`, label: t('shopNav.classes') }] : []),
